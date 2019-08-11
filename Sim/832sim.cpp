@@ -27,6 +27,9 @@ class EightThirtyTwoMemory
 	{
 		uartin=c;
 	}
+	virtual int ReadB(unsigned int addr)
+	{
+	}
 	virtual int Read(unsigned int addr)
 	{
 		switch(addr)
@@ -142,6 +145,7 @@ class EightThirtyTwoMemory
 // EightThirtyTwoProgram overlays the program loaded from disk onto a fixed-size memory block.
 // Accesses within the program are sent directly to the binary blob.
 // Accesses beyond the program are passed to the EightThirtyTwoMemory superclass.
+// FIXME - need to support byte accesses to EightThirtyTwoMemory.
 
 class EightThirtyTwoProgram : public BinaryBlob, public EightThirtyTwoMemory
 {
@@ -180,9 +184,13 @@ class EightThirtyTwoProgram : public BinaryBlob, public EightThirtyTwoMemory
 	{
 		this->base=base;
 	}
-	unsigned char &operator[](int idx)
+	unsigned char &operator[](const int idx)
 	{
-		return(BinaryBlob::operator[](idx));
+		if(idx<size)
+			return(BinaryBlob::operator[](idx));
+		else
+			throw "Byte accesses to general RAM not yet supported";
+//			return(EightThirtyTwoMemory::operator[](idx));
 	}
 	protected:
 	int base;
@@ -267,9 +275,9 @@ class EightThirtyTwoSim
 			regfile[i]=0;
 		regfile[7]=initpc;
 		zero=0; carry=0;
+		cond=1;
 
 		bool run=true;
-
 		bool immediate_continuation=false;
 
 		while(run)
@@ -287,178 +295,240 @@ class EightThirtyTwoSim
 			opcode=GetOpcode(prg,regfile[7]);
 			operand=opcode&0x7;
 			operim=opcode&0x3f;
-			opcode&=0xfc;
+			opcode&=0xf8;
 
 			nextpc=regfile[7]+1;
 			regfile[7]=nextpc;			
 
-			if((opcode&0xc0)==0xc0)
+			if(cond) // is execution enabled?
 			{
-				if(immediate_continuation)
+				if((opcode&0xc0)==0xc0)
 				{
-					temp<<=6;
-					temp|=operim;
-					mnem<<("li (cont) ");
-					mnem << operim;
+					if(immediate_continuation)
+					{
+						temp<<=6;
+						temp|=operim;
+						mnem<<("li (cont) ");
+						mnem << operim;
+					}
+					else
+					{
+						temp=operim;
+						if(operim&0x20)
+							temp|=0xffffffc0;
+						mnem<<("li ");
+						mnem<< operim;
+						immediate_continuation=true;
+					}
 				}
 				else
 				{
-					temp=operim;
-					if(operim&0x20)
-						temp|=0xffffffc0;
-					mnem<<("li ");
-					mnem<< operim;
-					immediate_continuation=true;
+					immediate_continuation=false;
+					switch(opcode)
+					{
+						case 0x00: // cond
+							if(!operand)
+								steps=1;
+							t=((zero&carry)<<3)|((!zero&carry)<<2)|((zero&!carry)<<1)|(!zero&!carry);
+							operand|=(operand&2)<<2;
+							cond=(operand&t)>0;
+							mnem << ("cond ") << operand << (", ") << t;
+							break;
+
+						case 0x08: // mt
+							temp=regfile[operand];
+							mnem << ("mt ") << operand;
+							break;
+
+						case 0x10: // mr
+							regfile[operand]=temp;
+							if(operand==7)
+								cond=1; // cancel cond on write to r7
+							mnem << ("mr ") << operand;
+							break;
+
+						case 0x18: // exg
+							t=regfile[operand];
+							regfile[operand]=temp;
+							temp=t;
+							if(operand==7)
+								cond=1; // cancel cond on write to r7
+							mnem << ("exg ") << operand;
+							break;
+
+						case 0x20: // ldi
+							temp=prg.Read((regfile[operand]+regfile[5])&0xfffffffc);
+							mnem << ("ldi ") << operand;
+							break;
+
+						case 0x28: // st
+							prg.Write(regfile[operand]&0xfffffffc,temp);
+							mnem << ("st ") << operand;
+							break;
+
+						case 0x30: // ld
+							temp=prg.Read(regfile[operand]&0xfffffffc);
+							mnem << ("ld ") << operand;
+							break;
+
+						case 0x38: // sti
+							prg.Write((regfile[operand]+regfile[5])&0xfffffffc,temp);
+							mnem << ("sti ") << operand;
+							break;
+
+						case 0x40: // add
+							t2=regfile[operand]+temp;
+							carry=(t2>>32)&1;
+							regfile[operand]=t2;
+							zero=(t2&0xffffffff)==0;
+							if(operand==7)
+								cond=1; // cancel cond on write to r7
+							mnem << ("add ") << operand;
+							break;
+
+						case 0x48: // cmp
+							t2=regfile[operand]-temp;
+							carry=(t2>>32)&1;
+							zero=(t2&0xffffffff)==0;
+							mnem << ("cmp ") << operand;
+							break;
+
+						case 0x50: // ldinc
+							temp=prg.Read(regfile[operand]&0xfffffffc);
+							regfile[operand]+=4;
+							mnem << ("ldinc ") << operand;
+							break;
+
+						case 0x58: // sub
+							t2=regfile[operand]-temp;
+							carry=(t2>>32)&1;
+							regfile[operand]=t2;
+							zero=(t2&0xffffffff)==0;
+							if(operand==7)
+								cond=1; // cancel cond on write to r7
+							mnem << ("sub ") << operand;
+							break;
+
+						case 0x60: // stdec
+							regfile[operand]-=4;
+							prg.Write(regfile[operand]&0xfffffffc,temp);
+							mnem << ("stdec ") << operand;
+							break;
+
+						case 0x68: // and
+							regfile[operand]&=temp;
+							carry=0;
+							zero=regfile[operand]==0;
+							mnem << ("and ") << operand;
+							break;
+
+						case 0x70: // or
+							regfile[operand]|=temp;
+							carry=0;
+							zero=regfile[operand]==0;
+							mnem << ("or ") << operand;
+							break;
+
+						case 0x78: // xor
+							regfile[operand]^=temp;
+							carry=0;
+							zero=regfile[operand]==0;
+							mnem << ("xor ") << operand;
+							break;
+
+						case 0x80: // addt;
+							t=regfile[operand];
+							t2=regfile[operand]+temp;
+							carry=(t2>>32)&1;
+							regfile[operand]=t2;
+							zero=(t2&0xffffffff)==0;
+							temp=t;
+							if(operand==7)
+								cond=1; // cancel cond on write to r7
+							mnem << ("addt ") << operand;
+							break;
+
+						case 0x88: // shl
+							t2=regfile[operand]<<(temp-1);
+							carry=t2>>32;
+							regfile[operand]<<=temp;
+							zero=regfile[operand]==0;
+							mnem << ("shl ") << operand;
+							break;
+
+						case 0x90: // asr
+							carry=regfile[operand]>>(temp-1);
+							carry&=1;
+							t=regfile[operand];
+							t>>=temp;
+							regfile[operand]=t;
+							zero=regfile[operand]==0;
+							mnem << ("asr ") << operand;
+							break;
+
+						case 0x98: // lsr
+							carry=regfile[operand]>>(temp-1);
+							carry&=1;
+							regfile[operand]>>=temp;
+							zero=regfile[operand]==0;
+							mnem << ("lsr ") << operand;
+							break;
+
+						case 0xa0: // ror
+							throw "ror not yet implemented\n";
+							break;
+
+						case 0xa8: // rorc
+							throw "rorc not yet implemented\n";
+							break;
+
+						case 0xb0: // stbinc
+							prg[regfile[operand]]=temp&0xff;
+							regfile[operand]++;
+							mnem << ("stbinc ") << operand;
+							putchar(temp&0xff);
+							break;
+
+						case 0xb8: // ldbinc
+							temp=prg[regfile[operand]];
+							regfile[operand]++;
+							if(!temp)
+								zero=1;
+							carry=0;
+							mnem << ("ldbinc ") << operand;
+							break;
+					}
 				}
 			}
-			else
+			else // execution disabled by cond
 			{
-				immediate_continuation=false;
-				switch(opcode)
+				mnem << ("(");
+				if(opcode==0x00)
 				{
-					case 0x00: // cond
-						// FIXME - match against zero and carry, set cond flag accordingly.
-						mnem << ("cond ") << operand;
-						break;
-
-					case 0x08: // mt
-						temp=regfile[operand];
-						mnem << ("mt ") << operand;
-						break;
-
-					case 0x10: // mr
-						regfile[operand]=temp;
-						mnem << ("mr ") << operand;
-						break;
-
-					case 0x18: // exg
-						t=regfile[operand];
-						regfile[operand]=temp;
-						temp=t;
-						mnem << ("exg ") << operand;
-						break;
-
-					case 0x20: // ldi
-						temp=prg.Read((regfile[operand]+regfile[5])&0xfffffffc);
-						break;
-
-					case 0x28: // st
-						prg.Write(regfile[operand]&0xfffffffc,temp);
-						break;
-
-					case 0x30: // ld
-						temp=prg.Read(regfile[operand]&0xfffffffc);
-						break;
-
-					case 0x38: // sti
-						prg.Write((regfile[operand]+regfile[5])&0xfffffffc,temp);
-						break;
-
-					case 0x40: // add
-						t2=regfile[operand]+temp;
-						carry=(t2>>32)&1;
-						regfile[operand]=t2;
-						zero=(t2&0xffffffff)==0;
-						break;
-
-					case 0x48: // cmp
-						t2=regfile[operand]-temp;
-						carry=(t2>>32)&1;
-						zero=(t2&0xffffffff)==0;
-						break;
-
-					case 0x50: // ldinc
-						temp=prg.Read(regfile[operand]&0xfffffffc);
-						regfile[operand]+=4;
-						break;
-
-					case 0x58: // sub
-						t2=regfile[operand]+temp;
-						carry=(t2>>32)&1;
-						regfile[operand]=t2;
-						zero=(t2&0xffffffff)==0;
-						break;
-
-					case 0x60: // stdec
-						prg.Write(regfile[operand]&0xfffffffc,temp);
-						regfile[operand]-=4;
-						break;
-
-					case 0x68: // and
-						regfile[operand]&=temp;
-						carry=0;
-						zero=regfile[operand]==0;
-						break;
-
-					case 0x70: // or
-						regfile[operand]|=temp;
-						carry=0;
-						zero=regfile[operand]==0;
-						break;
-
-					case 0x78: // xor
-						regfile[operand]^=temp;
-						carry=0;
-						zero=regfile[operand]==0;
-						break;
-
-					case 0x80: // addt;
-						t=regfile[operand];
-						t2=regfile[operand]+temp;
-						carry=(t2>>32)&1;
-						regfile[operand]=t2;
-						zero=(t2&0xffffffff)==0;
-						temp=t;
-						break;
-
-					case 0x88: // shl
-						t2=regfile[operand]<<(temp-1);
-						carry=t2>>32;
-						regfile[operand]<<=temp;
-						zero=regfile[operand]==0;
-						break;
-
-					case 0x90: // asr
-						carry=regfile[operand]>>(temp-1);
-						carry&=1;
-						t=regfile[operand];
-						t>>=temp;
-						regfile[operand]=t;
-						zero=regfile[operand]==0;
-						break;
-
-					case 0x98: // lsr
-						carry=regfile[operand]>>(temp-1);
-						carry&=1;
-						regfile[operand]>>=temp;
-						zero=regfile[operand]==0;
-						break;
-
-					case 0xa0: // ror
-						throw "ror not yet implemented\n";
-						break;
-
-					case 0xa8: // rorc
-						throw "rorc not yet implemented\n";
-						break;
-
-					case 0xb0: // stbinc
-						prg[regfile[operand]]=temp&0xff;
-						regfile[operand]++;
-						break;
-
-					case 0xb8: // ldbinc
-						temp=prg[regfile[operand]];
-						regfile[operand]++;
-						break;
+					// FIXME - match against zero and carry, set cond flag accordingly.
+					t=((zero&carry)<<3)|((!zero&carry)<<2)|((zero&!carry)<<1)|(!zero&!carry);
+					operand|=(operand&2)<<2;
+					cond=(operand&t)>0;
+					mnem << ("cond ") << operand;
+					break;
 				}
-
-				if(steps>0)
-					run=(--steps)!=0;
-//				else
-//					run=true;
-
+				else if(operand==7)
+				{
+					switch(opcode)
+					{
+						case 0x10: // mr
+						case 0x18: // exg
+						case 0x40: // add
+						case 0x58: // sub
+						case 0x80: // addt;
+							cond=1;
+					}
+				}
+				mnem << (")");
 			}
+			if(steps>0)
+				run=(--steps)!=0;
+
 			Debug[TRACE] << "r7: " << regfile[7] << "\tOp: " << opcode << ", " << mnem.str() << "\n\t\t";
 			DumpRegs();
 			Debug[TRACE] << std::endl;
@@ -471,10 +541,11 @@ class EightThirtyTwoSim
 		{
 			Debug[TRACE] << "r" << i << ": " << regfile[i] << ", ";
 		}
-		Debug[TRACE] << "Z: " << zero << ", C: " << carry;
+		Debug[TRACE] << "Z: " << zero << ", C: " << carry << ", Cond: " << cond;
 	}
 	protected:
 	unsigned int regfile[8];
+	int cond;
 	int temp;
 	int zero;
 	int carry;
@@ -507,6 +578,7 @@ int main(int argc, char **argv)
 					Debug[TRACE] << "All arguments used: " << i << ", " << argc << std::endl;
 				}
 				sim.Run(prg);
+				std::cout << std::endl;
 			}
 		}
 	}

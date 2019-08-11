@@ -11,7 +11,7 @@ clean :
 %.o : %.s Makefile
 	gcc -c $*.s
 
-%.o : %.S Makefile
+%.o : %.S Makefile assembler.pp
 	gcc -c $*.S
 
 %.s : %.832 Makefile

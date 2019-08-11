@@ -1,9 +1,11 @@
-#define IMW0(x) (x&0x3f)
-#define IMW1(x) ((x>>6)&0x3f)
-#define IMW2(x) ((x>>12)&0x3f)
-#define IMW3(x) ((x>>18)&0x3f)
-#define IMW4(x) ((x>>24)&0x3f)
-#define IMW5(x) ((x>>30)&0x3)
+#define IMW0(x) ((x)&0x3f)
+#define IMW1(x) (((x)>>6)&0x3f)
+#define IMW2(x) (((x)>>12)&0x3f)
+#define IMW3(x) (((x)>>18)&0x3f)
+#define IMW4(x) (((x)>>24)&0x3f)
+#define IMW5(x) (((x)>>30)&0x3)
+
+#define PCREL(x) ((x-.)-2)
 
 
 #define cond .byte 0x0 +
