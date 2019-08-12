@@ -475,7 +475,9 @@ class EightThirtyTwoSim
 							break;
 
 						case 0xa0: // ror
-							throw "ror not yet implemented\n";
+							t=regfile[operand]<<(32-temp);
+							regfile[operand]=(regfile[operand]>>temp)|t;
+//							throw "ror not yet implemented\n";
 							break;
 
 						case 0xa8: // rorc

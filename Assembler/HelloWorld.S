@@ -1,9 +1,7 @@
 #include	"assembler.pp"
 
-.org 0
 start:
-//	li	IMW1(PCREL(message+3))
-	li	IMW0(PCREL(message+2))
+	li	IMW0(PCREL(message)-PCREL(start))
 	mr	r1
 	li	IMW1(0xffffffc0)
 	li	IMW0(0xffffffc0)
@@ -16,14 +14,14 @@ _loop:
 	ld	r0
 	and	r2
 	cond	EQ
-	li	IMW0(-8)
+	li	IMW0(PCREL(_loop))
 	add	r7
 	cond	EX
 
 	ldbinc	r1
 	cond	NEQ
 	st	r0
-	li	IMW0(-11)
+	li	IMW0(PCREL(_loop))
 	add	r7
 	cond	EX
 	cond	NEX
