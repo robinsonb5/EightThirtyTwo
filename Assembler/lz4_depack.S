@@ -2,24 +2,60 @@
 
 
 start:
+	// Setup the stack
+	li	IMW2(0x1000)
+	li	IMW1(0x1000)
+	li	IMW0(0x1000)
+	mr	r6
+
+	// Setup source and destination pointers
 	li	IMW1(PCREL(compressed)-PCREL(start))
 	li	IMW0(PCREL(compressed)-PCREL(start))
 	mr	r0
 	mr	r1
-
-	li	IMW2(0x1000)	// Stack pointer
-	li	IMW1(0x1000)
-	li	IMW0(0x1000)
-	mr	r6
 
 	li	IMW1(PCREL(decompressed)-PCREL(start))
 	li	IMW0(PCREL(decompressed)-PCREL(start))
 	mr	r1
 	mr	r2
 
+
+	// Call the depack routine
+
 	li	IMW0(PCREL(lz4_depack))
 	addt	r7
-	cond NEX
+
+	li	0
+	stbinc	r1	// Write a zero-termination.
+
+	// Now write the depacked buffer to UART.
+
+	li	IMW1(PCREL(decompressed)-PCREL(start))
+	li	IMW0(PCREL(decompressed)-PCREL(start))
+	mr	r1
+
+	li	IMW1(0xffffffc0)	// UART register
+	li	IMW0(0xffffffc0)
+	mr	r0
+
+.txwait:
+	li	IMW1(0x100)	// TX Ready flag
+	li	IMW0(0x100)
+	mr	r2
+	ld	r0
+	and	r2
+	cond	EQ
+	li	IMW0(PCREL(.txwait))
+	add	r7
+
+	ldbinc	r1
+	cond	NEQ
+	st	r0
+	li	IMW0(PCREL(.txwait))
+	add	r7
+
+	cond	NEX	// terminate simulation
+
 
 //	r0 packed buffer
 //	r1 destination pointer

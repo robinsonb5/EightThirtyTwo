@@ -35,18 +35,18 @@ class EightThirtyTwoMemory
 		switch(addr)
 		{
 			case 0xffffffc4:
-				Debug[WARN] << std::endl << "Reading from SPI_CS" << std::endl << std::endl;
+				Debug[COMMENT] << std::endl << "Reading from SPI_CS" << std::endl;
 				break;
 			case 0xffffffc8:
-				Debug[WARN] << std::endl << "Reading from SPI" << std::endl << std::endl;
+				Debug[COMMENT] << std::endl << "Reading from SPI" << std::endl;
 				break;
 			case 0xffffffcc:
-				Debug[WARN] << std::endl << "Reading from SPI_PUMP" << std::endl << std::endl;
+				Debug[COMMENT] << std::endl << "Reading from SPI_PUMP" << std::endl;
 				break;
 			case 0xda8000:
 			case 0xffffff84:
 			case 0xffffffc0:
-				Debug[WARN] << std::endl << "Reading from UART" << std::endl << std::endl;
+				Debug[COMMENT] << std::endl << "Reading from UART" << std::endl;
 				if(uartbusyctr)
 				{
 					--uartbusyctr;
@@ -54,18 +54,18 @@ class EightThirtyTwoMemory
 				}
 				else
 				{
-					int result;
+					int result=0x100;
 					uartbusyctr=1;	// Make the UART pretend to be busy for the next n cycles
 					if(uartin)
 						result=0x300 | (unsigned char)*uartin++;	// Received byte ready...
 					else
-						result=0x300 | (std::cin.get()&0xff);
+					{
+						if(std::cin.readsome(inbuf,1))
+							result=0x300 | (inbuf[0]&0xff);
+					}
 
 					if(result==0x300)	// End of string?
 						uartin=0;
-
-//					if(std::cin.eof())
-//						throw "End of input data";
 
 					return(result);
 				}
@@ -87,42 +87,42 @@ class EightThirtyTwoMemory
 			case 0xffffffc0:
 				if(char(v))
 				{
-					Debug[WARN] << std::endl << "Writing " << char(v) << " to UART" << std::endl << std::endl;
+					Debug[COMMENT] << std::endl << "Writing " << char(v) << " to UART" << std::endl;
 					std::cout << char(v);
 				}
 				else
 				{
-					Debug[WARN] << std::endl << "Writing (nul) to UART" << std::endl << std::endl;
+					Debug[COMMENT] << std::endl << "Writing (nul) to UART" << std::endl;
 					std::cout << "(nul)";
 				}
 				break;
 
 			case 0xffffff88:
-				Debug[WARN] << std::endl << "Setting UART divisor to " << v << std::endl << std::endl;
+				Debug[COMMENT] << std::endl << "Setting UART divisor to " << v << std::endl;
 				break;
 
 			case 0xffffff8C:
-				Debug[WARN] << std::endl << "Writing to overlay register: " << v << std::endl << std::endl;
+				Debug[COMMENT] << std::endl << "Writing to overlay register: " << v << std::endl;
 				break;
 
 			case 0xffffff90:
-				Debug[WARN] << std::endl << "Writing " << v << " to HEX display" << std::endl << std::endl;
+				Debug[COMMENT] << std::endl << "Writing " << v << " to HEX display" << std::endl;
 				break;
 
 			case 0xffffffc4:
-				Debug[WARN] << std::endl << "Setting spi_cs line " << (v&1 ? "low" : "high" ) << std::endl << std::endl;
+				Debug[COMMENT] << std::endl << "Setting spi_cs line " << (v&1 ? "low" : "high" ) << std::endl;
 				break;
 
 			case 0xffffffc8:
-				Debug[WARN] << std::endl << "Writing " << v << " to SPI" << std::endl << std::endl;
+				Debug[COMMENT] << std::endl << "Writing " << v << " to SPI" << std::endl;
 				break;
 
 			case 0xffffffcc:
-				Debug[WARN] << std::endl << "Writing " << v << " to SPI_pump" << std::endl << std::endl;
+				Debug[COMMENT] << std::endl << "Writing " << v << " to SPI_pump" << std::endl;
 				break;
 
 			case 0xfffffffc:
-				Debug[WARN] << std::endl << "Breadcrumb " << std::endl << std::endl;
+				Debug[COMMENT] << std::endl << "Breadcrumb " << std::endl;
 				break;
 
 			default:
@@ -139,6 +139,7 @@ class EightThirtyTwoMemory
 	int *ram;
 	int ramsize;
 	const char *uartin;
+	char inbuf[4];
 };
 
 
@@ -358,7 +359,7 @@ class EightThirtyTwoSim
 
 						case 0xb0: // ldx
 							temp=prg.Read((regfile[operand]+regfile[5])&0xfffffffc);
-							mnem << ("ldi ") << operand;
+							mnem << ("ldx ") << operand;
 							break;
 
 						case 0x20: // st
@@ -371,9 +372,9 @@ class EightThirtyTwoSim
 							mnem << ("ld ") << operand;
 							break;
 
-						case 0x30: // sti
+						case 0x30: // stx
 							prg.Write((regfile[operand]+regfile[5])&0xfffffffc,temp);
-							mnem << ("sti ") << operand;
+							mnem << ("stx ") << operand;
 							break;
 
 						case 0x90: // add
@@ -488,7 +489,7 @@ class EightThirtyTwoSim
 							prg[regfile[operand]]=temp&0xff;
 							regfile[operand]++;
 							mnem << ("stbinc ") << operand;
-							putchar(temp&0xff);
+//							putchar(temp&0xff);
 							break;
 
 						case 0xb8: // ldbinc
@@ -560,7 +561,7 @@ int main(int argc, char **argv)
 {
 	try
 	{
-		Debug.SetLevel(TRACE);
+		Debug.SetLevel(WARN);
 		if(argc>1)
 		{
 			int i;

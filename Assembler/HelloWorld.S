@@ -16,15 +16,14 @@ _loop:
 	cond	EQ
 	li	IMW0(PCREL(_loop))
 	add	r7
-	cond	EX
 
 	ldbinc	r1
 	cond	NEQ
 	st	r0
 	li	IMW0(PCREL(_loop))
 	add	r7
-	cond	EX
-	cond	NEX
+
+	cond	NEX	// Terminate simulation
 
 message:
 	.ascii	"Hello, world!"
