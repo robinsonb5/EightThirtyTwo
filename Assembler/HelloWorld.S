@@ -1,7 +1,7 @@
 #include	"assembler.pp"
 
 start:
-	li	IMW0(PCREL(message)-PCREL(start))
+	li	IMW0(message-start)
 	mr	r1
 	li	IMW1(0xffffffc0)
 	li	IMW0(0xffffffc0)

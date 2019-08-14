@@ -9,13 +9,13 @@ start:
 	mr	r6
 
 	// Setup source and destination pointers
-	li	IMW1(PCREL(compressed)-PCREL(start))
-	li	IMW0(PCREL(compressed)-PCREL(start))
+	li	IMW1(compressed-start)
+	li	IMW0(compressed-start)
 	mr	r0
 	mr	r1
 
-	li	IMW1(PCREL(decompressed)-PCREL(start))
-	li	IMW0(PCREL(decompressed)-PCREL(start))
+	li	IMW1(decompressed-start)
+	li	IMW0(decompressed-start)
 	mr	r1
 	mr	r2
 
@@ -30,8 +30,8 @@ start:
 
 	// Now write the depacked buffer to UART.
 
-	li	IMW1(PCREL(decompressed)-PCREL(start))
-	li	IMW0(PCREL(decompressed)-PCREL(start))
+	li	IMW1(decompressed-start)
+	li	IMW0(decompressed-start)
 	mr	r1
 
 	li	IMW1(0xffffffc0)	// UART register
@@ -161,5 +161,6 @@ lz4_depack:
 compressed:
 .incbin "compressed.lz4"
 decompressed:
-	.fill	1024,1,-1
+	.fill	550,1,-1  // Reserve space for the decompressed data
+
 
