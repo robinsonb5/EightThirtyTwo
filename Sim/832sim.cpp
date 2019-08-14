@@ -335,19 +335,19 @@ class EightThirtyTwoSim
 							mnem << ("cond ") << operand << (", ") << t;
 							break;
 
-						case 0x08: // mt
+						case 0x88: // mt
 							temp=regfile[operand];
 							mnem << ("mt ") << operand;
 							break;
 
-						case 0x10: // mr
+						case 0x08: // mr
 							regfile[operand]=temp;
 							if(operand==7)
 								cond=1; // cancel cond on write to r7
 							mnem << ("mr ") << operand;
 							break;
 
-						case 0x18: // exg
+						case 0x80: // exg
 							t=regfile[operand];
 							regfile[operand]=temp;
 							temp=t;
@@ -356,27 +356,27 @@ class EightThirtyTwoSim
 							mnem << ("exg ") << operand;
 							break;
 
-						case 0x20: // ldi
+						case 0xb0: // ldx
 							temp=prg.Read((regfile[operand]+regfile[5])&0xfffffffc);
 							mnem << ("ldi ") << operand;
 							break;
 
-						case 0x28: // st
+						case 0x20: // st
 							prg.Write(regfile[operand]&0xfffffffc,temp);
 							mnem << ("st ") << operand;
 							break;
 
-						case 0x30: // ld
+						case 0xa0: // ld
 							temp=prg.Read(regfile[operand]&0xfffffffc);
 							mnem << ("ld ") << operand;
 							break;
 
-						case 0x38: // sti
+						case 0x30: // sti
 							prg.Write((regfile[operand]+regfile[5])&0xfffffffc,temp);
 							mnem << ("sti ") << operand;
 							break;
 
-						case 0x40: // add
+						case 0x90: // add
 							t2=regfile[operand]+temp;
 							carry=(t2>>32)&1;
 							regfile[operand]=t2;
@@ -386,20 +386,20 @@ class EightThirtyTwoSim
 							mnem << ("add ") << operand;
 							break;
 
-						case 0x48: // cmp
+						case 0x18: // cmp
 							t2=regfile[operand]-temp;
 							carry=(t2>>32)&1;
 							zero=(t2&0xffffffff)==0;
 							mnem << ("cmp ") << operand;
 							break;
 
-						case 0x50: // ldinc
+						case 0xa8: // ldinc
 							temp=prg.Read(regfile[operand]&0xfffffffc);
 							regfile[operand]+=4;
 							mnem << ("ldinc ") << operand;
 							break;
 
-						case 0x58: // sub
+						case 0x10: // sub
 							t2=regfile[operand]-temp;
 							carry=(t2>>32)&1;
 							regfile[operand]=t2;
@@ -409,34 +409,34 @@ class EightThirtyTwoSim
 							mnem << ("sub ") << operand;
 							break;
 
-						case 0x60: // stdec
+						case 0x28: // stdec
 							regfile[operand]-=4;
 							prg.Write(regfile[operand]&0xfffffffc,temp);
 							mnem << ("stdec ") << operand;
 							break;
 
-						case 0x68: // and
+						case 0x40: // and
 							regfile[operand]&=temp;
 							carry=0;
 							zero=regfile[operand]==0;
 							mnem << ("and ") << operand;
 							break;
 
-						case 0x70: // or
+						case 0x48: // or
 							regfile[operand]|=temp;
 							carry=0;
 							zero=regfile[operand]==0;
 							mnem << ("or ") << operand;
 							break;
 
-						case 0x78: // xor
+						case 0x50: // xor
 							regfile[operand]^=temp;
 							carry=0;
 							zero=regfile[operand]==0;
 							mnem << ("xor ") << operand;
 							break;
 
-						case 0x80: // addt;
+						case 0x98: // addt;
 							t=regfile[operand];
 							t2=regfile[operand]+temp;
 							carry=(t2>>32)&1;
@@ -448,7 +448,7 @@ class EightThirtyTwoSim
 							mnem << ("addt ") << operand;
 							break;
 
-						case 0x88: // shl
+						case 0x58: // shl
 							t2=regfile[operand]<<(temp-1);
 							carry=t2>>32;
 							regfile[operand]<<=temp;
@@ -456,7 +456,7 @@ class EightThirtyTwoSim
 							mnem << ("shl ") << operand;
 							break;
 
-						case 0x90: // asr
+						case 0x60: // asr
 							carry=regfile[operand]>>(temp-1);
 							carry&=1;
 							t=regfile[operand];
@@ -466,7 +466,7 @@ class EightThirtyTwoSim
 							mnem << ("asr ") << operand;
 							break;
 
-						case 0x98: // lsr
+						case 0x68: // lsr
 							carry=regfile[operand]>>(temp-1);
 							carry&=1;
 							regfile[operand]>>=temp;
@@ -474,17 +474,17 @@ class EightThirtyTwoSim
 							mnem << ("lsr ") << operand;
 							break;
 
-						case 0xa0: // ror
+						case 0x70: // ror
 							t=regfile[operand]<<(32-temp);
 							regfile[operand]=(regfile[operand]>>temp)|t;
 //							throw "ror not yet implemented\n";
 							break;
 
-						case 0xa8: // rorc
+						case 0x78: // rorc
 							throw "rorc not yet implemented\n";
 							break;
 
-						case 0xb0: // stbinc
+						case 0x38: // stbinc
 							prg[regfile[operand]]=temp&0xff;
 							regfile[operand]++;
 							mnem << ("stbinc ") << operand;
@@ -518,11 +518,11 @@ class EightThirtyTwoSim
 				{
 					switch(opcode)
 					{
-						case 0x10: // mr
-						case 0x18: // exg
-						case 0x40: // add
-						case 0x58: // sub
-						case 0x80: // addt;
+						case 0x08: // mr
+						case 0x80: // exg
+						case 0x90: // add
+						case 0x10: // sub
+						case 0x98: // addt;
 							cond=1;
 					}
 				}
