@@ -84,7 +84,7 @@ lz4_depack:
 	mt	r3
 	sub	r4
 
-	li	IMW1(PCREL(.readLen+1))
+	li	IMW1(PCREL(.readLen-1))
 	li	IMW0(PCREL(.readLen))
 	addt	r7
 
@@ -108,7 +108,7 @@ lz4_depack:
 	li	4
 	lsr	r5
 	cond	EQ
-	li	IMW1(PCREL(.lenOffset+1))
+	li	IMW1(PCREL(.lenOffset-1))
 	li	IMW0(PCREL(.lenOffset))
 	add	r7
 
@@ -127,7 +127,7 @@ lz4_depack:
 	mt	r2
 	cmp	r0
 	cond	SGT
-	li	IMW1(PCREL(.lenOffset+1))
+	li	IMW1(PCREL(.lenOffset-1))
 	li	IMW0(PCREL(.lenOffset))
 	add	r7
 			
