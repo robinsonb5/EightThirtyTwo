@@ -134,6 +134,10 @@ class EightThirtyTwoMemory
 		}
 	}
 	virtual unsigned char &operator[](const int idx)=0;
+	virtual int GetRAMSize()
+	{
+		return(ramsize);
+	}
 	protected:
 	int uartbusyctr;
 	int *ram;
@@ -275,6 +279,7 @@ class EightThirtyTwoSim
 		for(int i=0;i<7;++i)
 			regfile[i]=0;
 		regfile[7]=initpc;
+                regfile[6]=prg.GetRAMSize();
 		zero=0; carry=0;
 		cond=1;
 
