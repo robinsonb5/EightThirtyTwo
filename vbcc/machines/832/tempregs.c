@@ -6,10 +6,6 @@ To do:
 
 */
 
-int reg_stackrel[LAST_GPR+1];
-int reg_stackoffset[LAST_GPR+1];
-
-
 zmax val2zmax(FILE *f,struct obj *o,int t)
 {
   union atyps *p=&o->val;
@@ -40,16 +36,16 @@ zmax val2zmax(FILE *f,struct obj *o,int t)
 
 static void emit_pcreltotemp(FILE *f,char *lab,int suffix)
 {
-  emit(f,"\tli\tIMW3(PCREL(%s%d)-3)\n",lab,suffix);
-  emit(f,"\tli\tIMW2(PCREL(%s%d)-2)\n",lab,suffix);
-  emit(f,"\tli\tIMW1(PCREL(%s%d)-1)\n",lab,suffix);
-  emit(f,"\tli\tIMW0(PCREL(%s%d))\n",lab,suffix);
+  emit(f,"pcrel\n");
+  emit(f,"\tli\t2\n"); // Assuming 16 bits will be enough for offset.
+  emit(f,"\t.byte\tIMW0(PCREL(%s%d)-1)\n",lab,suffix);
+  emit(f,"\t.byte\tIMW1(PCREL(%s%d)-0)\n",lab,suffix); // Let's go little-endian for now.
 }
 
 
 static void emit_externtotemp(FILE *f,char *lab)
 {
-  emit(f,"#FIXME extern not yet supported\n");
+//  emit(f,"#FIXME extern not yet supported\n");
   // extern support is either going to mean redefining how the li instruction works
   // so that it specifies that the following n bytes should be interpreted as
   // immediate data, or tracking the number of bytes output so we can use
@@ -61,25 +57,92 @@ static void emit_externtotemp(FILE *f,char *lab)
   // ldinc r7
   // .int _label // guarantees alignment for _label.  assembler doesn't care but we'd prefer not to implement unaligned loads.
   // Alternatively we could create a label table that we can access in pcrel mode.
+
+  // Experiment with new li format:
+  emit(f,"\tli\t4\n"); // Assuming 16 bits will be enough for offset.
+  emit(f,"\t.int\t%s\n",lab);
+}
+
+
+static void emit_statictotemp(FILE *f,char *lab,int suffix)
+{
+  emit(f,"'#static\n");
+  emit(f,"\tli\t4\n"); // Assuming 16 bits will be enough for offset.
+  emit(f,"\t.int\t%s%d\n",lab,suffix);
 }
 
 
 static void emit_constanttotemp(FILE *f,zmax v)
 {
-    int chunk=5;
-    zmax v2=v;
-    // li six bits at a time.  (xx (x) xxxxx (x)xxxxx (x)xxxxx (x)xxxxx (x)xxxxx)
-    if ((v&0xe0000000)!=0 && (v&0xe0000000)!=0xe0000000) // Do we need to emit the top two bits?
-      emit(f,"\tli\tIMW5(0x%x)\n",v2);
-    v<<=2;
-    while(chunk)
-    {
-      --chunk;
-//      emit(f," # %08x, %d\n",v,chunk);
-      if ((!chunk) || (((v&0xfe000000)!=0) && ((v&0xfe000000)!=0xfe000000))) // Do we need to emit the top two bits?
-        emit(f,"\tli\tIMW%d(0x%x)\n",chunk,v2);
-      v<<=6;
-    }
+  int chunk=1;
+  // FIXME - simple single-byte cases:
+  zmax v2=v;
+
+  switch(v)
+  {
+    case 0:
+      emit(f,"\tli\t0\n");
+      break;
+
+    case 1:
+      emit(f,"\tli\t5 # embedded 1\n");
+      break;
+
+    case 2:
+      emit(f,"\tli\t6 # embedded 2\n");
+      break;
+
+    case 0xffffffff:
+      emit(f,"\tli\t8 # embedded -1\n");
+      break;
+
+    case 4:
+      emit(f,"\tliq\t1 # embedded 4\n");
+      break;
+
+    case 8:
+      emit(f,"\tliq\t2 # embedded 8\n");
+      break;
+
+    case 12:
+      emit(f,"\tliq\t3 # embedded 12\n");
+      break;
+
+    case 16:
+      emit(f,"\tliq\t0 # embedded 16\n");
+      break;
+
+    case -4:
+      emit(f,"\tliq\t7 # embedded -4\n");
+      break;
+
+    case -8:
+      emit(f,"\tliq\t6 # embedded -8\n");
+      break;
+
+    case -12:
+      emit(f,"\tliq\t5 # embedded -12\n");
+      break;
+
+    case -16:
+      emit(f,"\tliq\t4 # embedded -16\n");
+      break;
+
+    default:
+      while(((v2&0xffffff80)!=0) && ((v2&0xffffff80)!=0xffffff80)) // Are we looking at a sign-extended 8-bit value yet?
+      {
+        v2>>=8;
+        ++chunk;
+      }
+  
+      emit(f,"\tli\t%d; # 0x%x\n",chunk,v);
+      while(chunk--) // Do we need to emit the top two bits?
+      {
+        emit(f,"\t.byte\t%d\n",v&255);
+        v>>=8;
+      }
+      break;
+  }
 }
 
 
@@ -109,7 +172,7 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg)
 //      emit(f,"\n\tld\t%s\n",regnames[p->reg]);
     }
     else if(p->flags&VAR) {  // FIXME - figure out what dereferencing means in these contexts
-      emit(f," var ");
+      emit(f," var FIXME - deref?");
       if(p->v->storage_class==AUTO||p->v->storage_class==REGISTER){
         emit(f," reg \n");
 	emit_constanttotemp(f,real_offset(p));
@@ -250,7 +313,9 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
           reg_stackrel[t1]=0;
         }
         if(p->v->storage_class==STATIC){
-          emit_pcreltotemp(f,labprefix,zm2l(p->v->offset));
+          // FIXME - not pc-relative!
+//          emit_pcreltotemp(f,labprefix,zm2l(p->v->offset));
+          emit_statictotemp(f,labprefix,zm2l(p->v->offset));
         }else{
           emit(f,"storage class %d\n",p->v->storage_class);
           emit_externtotemp(f,p->v->identifier);

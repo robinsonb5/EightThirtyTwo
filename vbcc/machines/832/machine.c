@@ -129,6 +129,10 @@ static int sp;                     /*  Stackpointer                        */
 static int t1,t2;                  /*  temporary gprs */
 static int f1,f2,f3;               /*  temporary fprs */
 
+int reg_stackrel[LAST_GPR+1];	/* Register currently contains a pointer to an item on the stack */
+int reg_stackoffset[LAST_GPR+1];	/* Offset of stack item */
+
+
 #define dt(t) (((t)&UNSIGNED)?udt[(t)&NQ]:sdt[(t)&NQ])
 static char *sdt[MAX_TYPE+1]={"??","c","s","i","l","ll","f","d","ld","v","p"};
 static char *udt[MAX_TYPE+1]={"??","uc","us","ui","ul","ull","f","d","ld","v","p"};
@@ -305,8 +309,11 @@ static int load_temp(FILE *f,int r,struct obj *o,int type)
 
 static void load_reg(FILE *f,int r,struct obj *o,int type)
 {
-    if(load_temp(f,r,o,type))
-      emit(f,"\tmr\t%s\n",regnames[r]);
+  if(load_temp(f,r,o,type))
+  {
+    emit(f,"\tmr\t%s\n",regnames[r]);
+    reg_stackrel[r]=0;
+  }
 }
 
 /*  Generates code to store register r into memory object o. */
@@ -427,6 +434,7 @@ void save_temp(FILE *f,struct IC *p)
     emit(f,"isreg\n");
 //    if(p->z.reg!=zreg)
       emit(f,"\tmr\t%s\n",regnames[p->z.reg]);
+      reg_stackrel[p->z.reg]=0;
   }else{
     emit(f,"store reg\n");
     emit(f,"\tst\t%s\n",regnames[t2]);
@@ -634,15 +642,17 @@ static void function_top(FILE *f,struct Var *v,long offset)
   }else
     emit(f,"%s%ld:\n",labprefix,zm2l(v->offset));
   emit(f,"\tstdec\t%s\n",regnames[sp]);
-  emit(f,"\tli\t%d\n\tsub\t%s\n",offset,regnames[sp]);
+  emit_constanttotemp(f,offset);
+  emit(f,"\tsub\t%s\n",regnames[sp]);
   // FIXME - need to save non-volatile registers here
 }
 
 /* generates the function exit code */
 static void function_bottom(FILE *f,struct Var *v,long offset)
 {
-  emit(f,"\tli\t%d\n\tadd\t%s\n",offset,regnames[sp]);
-  emit(f,"\tldinc\t%s\n\tmr\t%s\n",regnames[sp],regnames[pc]);
+  emit_constanttotemp(f,offset);
+  emit(f,"\tadd\t%s\n",regnames[sp]);
+  emit(f,"\tldinc\t%s\n\tmr\t%s\n\n",regnames[sp],regnames[pc]);
 }
 
 /****************************************/
@@ -986,8 +996,6 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
     idemp=1;
   }
 
-  /*FIXME*/
-//  ret="\tldinc\tr6\n\tmr\tr7\n";
 
   for(m=p;m;m=m->next){
     c=m->code;t=m->typf&NU;
@@ -1045,20 +1053,24 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
     if(c==NOP) {p->z.flags=0;continue;}
     if(c==ALLOCREG) {regs[p->q1.reg]=1;continue;}
     if(c==FREEREG) {regs[p->q1.reg]=0;continue;}
-    if(c==LABEL) {	printf("label\n");
-emit(f,"%s%d:\n",labprefix,t);continue;}
+    if(c==LABEL) {
+        int i;
+        emit(f,"%s%d: # \n",labprefix,t);
+        for(i=FIRST_GPR;i<=LAST_GPR;++i) // Can't carry register contexts across labels.
+          reg_stackrel[i]=0;
+	continue;
+    }
     if(c==BRA){
-	printf("bra\n");
       if(0/*t==exit_label&&framesize==0*/)
 	function_bottom(f,v,localsize);
       else
-	emit(f,"\tli\t%s%d-.\n\taddt\t%s\n",labprefix,t,regnames[pc]);
-/*	emit(f,"\tb\t%s%d\n",labprefix,t);*/
+        emit_pcreltotemp(f,labprefix,t);
+        emit(f,"\taddt\t%s\n",regnames[pc]);
       continue;
     }
     if(c>=BEQ&&c<BRA){
       printf("cond\n");
-      emit(f,"# FIXME - implement branching!");
+      emit(f,"# FIXME - implement branching!\n");
 #if 0
       emit(f,"\tb%s\t",ccs[c-BEQ]);
       if(isreg(q1)){
@@ -1135,8 +1147,13 @@ emit(f,"%s%d:\n",labprefix,t);continue;}
         emit_inline_asm(f,p->q1.v->fi->inline_asm);
       }else{
 	/* FIXME - deal with different object types here */
-        emit_objtotemp(f,&p->q1,t);
-	emit(f,"\taddt\t%s\n",regnames[pc]);
+        if(p->q1.v->storage_class==STATIC){
+          emit_pcreltotemp(f,labprefix,zm2l(p->q1.v->offset));
+          emit(f,"\taddt\t%s\n",regnames[pc]);
+        }else{
+          emit_externtotemp(f,p->q1.v->identifier);
+          emit(f,"\texg\t%s\n",regnames[pc]);
+        }
 	emit(f,"\n");
       }
       /*FIXME*/
@@ -1187,7 +1204,8 @@ emit(f,"%s%d:\n",labprefix,t);continue;}
 	printf("minus\n");
 	emit(f,"\t\t\t\t\t# (minus)\n");
       load_reg(f,zreg,&p->q1,t);
-      emit(f,"\tli 0\n\texg %s\n\tsub %s\n",regnames[zreg],regnames[zreg]);
+      emit_constanttotemp(f,0);
+      emit(f,"\texg %s\n\tsub %s\n",regnames[zreg],regnames[zreg]);
 /*      emit(f,"\tneg.%s\t%s\n",dt(t),regnames[zreg]);*/
       save_result(f,p);
       continue;
@@ -1239,6 +1257,7 @@ emit(f,"%s%d:\n",labprefix,t);continue;}
 //	load_reg(f,zreg,&p->q1,t);
 	emit_objtotemp(f,&p->q1,t);
 	emit(f,"\tmr\t%s\n",regnames[zreg]);
+	reg_stackrel[zreg]=0;
 	emit_prepobj(f,&p->z,t,t2);
 	emit_objtotemp(f,&p->q2,t);
       }
