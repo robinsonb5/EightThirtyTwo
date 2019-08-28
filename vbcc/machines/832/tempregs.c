@@ -66,7 +66,7 @@ static void emit_externtotemp(FILE *f,char *lab)
 
 static void emit_statictotemp(FILE *f,char *lab,int suffix)
 {
-  emit(f,"'#static\n");
+  emit(f,"#static\n");
   emit(f,"\tli\t4\n"); // Assuming 16 bits will be enough for offset.
   emit(f,"\t.int\t%s%d\n",lab,suffix);
 }
@@ -279,10 +279,10 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 
   if(p->flags&DREFOBJ)
   {
-    emit(f," deref ");
+    emit(f," deref \n");
     /* Dereferencing a pointer */
     if(p->flags&REG){
-      emit(f,"\n\tld\t%s\n",regnames[p->reg]);
+      emit(f,"\tld\t%s\n",regnames[p->reg]);
     }
     else {
       emit_prepobj(f,p,t,t1);
@@ -313,6 +313,7 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
           reg_stackrel[t1]=0;
         }
         if(p->v->storage_class==STATIC){
+          emit(f,"# static\n");
           // FIXME - not pc-relative!
 //          emit_pcreltotemp(f,labprefix,zm2l(p->v->offset));
           emit_statictotemp(f,labprefix,zm2l(p->v->offset));
@@ -322,10 +323,13 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
         }
       }
     }
-  }
-  if(p->flags&KONST){
-    emit(f," const\n");
-    emit_constanttotemp(f,val2zmax(f,p,t));
+    else if(p->flags&KONST){
+      emit(f," const\n");
+      emit_constanttotemp(f,val2zmax(f,p,t));
+    }
+    else {
+      emit(f," unknown type %d\n",p->flags);
+    }
   }
 }
 

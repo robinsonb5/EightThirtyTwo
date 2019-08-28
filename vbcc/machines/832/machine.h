@@ -34,9 +34,7 @@
 /*  addressing-modes.                                               */
 /*  Currently possible are (const,gpr) and (gpr,gpr)                */
 struct AddressingMode{
-    int flags;
-    int base;
-    long offset;
+    int never_used;
 };
 
 /*  The number of registers of the target machine.                  */

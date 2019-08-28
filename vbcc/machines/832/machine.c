@@ -227,9 +227,9 @@ static struct obj *cam(int flags,int base,long offset)
   static struct obj obj;
   static struct AddressingMode am;
   obj.am=&am;
-  am.flags=flags;
-  am.base=base;
-  am.offset=offset;
+//  am.flags=flags;
+//  am.base=base;
+//  am.offset=offset;
   return &obj;
 }
 
@@ -262,24 +262,6 @@ static void load_address(FILE *f,int r,struct obj *o,int type)
   if(o->v->storage_class==REGISTER){
     emit(f,"#FIXME - register!\n");
   }
-#if 0
-  emit(f,"\t\t\t\t#FIXME - load_address\n");
-  if(!(o->flags&VAR)) ierror(0);
-  if(o->v->storage_class==AUTO||o->v->storage_class==REGISTER){
-    long off=real_offset(o);
-    if(THREE_ADDR){
-      emit(f,"\tadd.%s\t%s,%s,%ld\n",dt(POINTER),regnames[r],regnames[sp],off);
-    }else{
-      emit(f,"\tmov.%s\t%s,%s\n",dt(POINTER),regnames[r],regnames[sp]);
-      if(off)
-	emit(f,"\tadd.%s\t%s,%ld\n",dt(POINTER),regnames[r],off);
-    }
-  }else{
-    emit(f,"\tmov.%s\t%s,",dt(POINTER),regnames[r]);
-    emit_obj(f,o,type);
-    emit(f,"\n");
-  }
-#endif
 }
 
 /* Generates code to load a memory object into temp.  Returns 1 if code was emitted, 0 if there's no need. */
@@ -303,7 +285,6 @@ static int load_temp(FILE *f,int r,struct obj *o,int type)
   return(1);
 }
 
-
 /* Generates code to load a memory object into register r. tmp is a
    general purpose register which may be used. tmp can be r. */
 
@@ -322,9 +303,6 @@ static void store_reg(FILE *f,int r,struct obj *o,int type)
   type&=NQ;
   emit_prepobj(f,o,type,t2);
   emit(f,"\tmt\t%s\n\tst\t%s\n",regnames[r],regnames[t2]);
-//  emit(f,"\tmov.%s\t",dt(type));
-//  emit_obj(f,o,type);
-//  emit(f,",%s\n",regnames[r]);
 }
 
 /*  Generates code to store temp register r into memory object o. */
@@ -357,7 +335,7 @@ static void function_bottom(FILE *f,struct Var *,long);
 
 static int q1reg,q2reg,zreg;
 
-static char *ccs[]={"eq","ne","slt","ge","le","sgt","ex",""};
+static char *ccs[]={"EQ","NEQ","SLT","GE","LE","SGT","EX",""};
 static char *logicals[]={"or","xor","and"};
 static char *arithmetics[]={"shl","asr","add","sub","mul","divw","mod"};
 
@@ -386,43 +364,6 @@ static struct IC *preload(FILE *f,struct IC *p)
       zreg=t1;
   }
 
-#if 0  
-  if((p->q1.flags&(DREFOBJ|REG))==DREFOBJ&&!p->q1.am){
-    emit(f,"\t\t\t\t\t#!q1 preload dref|reg\n");
-    p->q1.flags&=~DREFOBJ;
-    load_reg(f,t1,&p->q1,q1typ(p));
-    p->q1.reg=t1;
-    p->q1.flags|=(REG|DREFOBJ);
-  }
-  if(p->q1.flags&&LOAD_STORE&&!isreg(q1)){
-    emit(f,"\t\t\t\t\t#!q1 preload load_store\n");
-    if(ISFLOAT(q1typ(p)))
-      q1reg=f1;
-    else
-      q1reg=t1;
-    load_reg(f,q1reg,&p->q1,q1typ(p));
-    p->q1.reg=q1reg;
-    p->q1.flags=REG;
-  }
-
-  if((p->q2.flags&(DREFOBJ|REG))==DREFOBJ&&!p->q2.am){
-    emit(f,"\t\t\t\t\t#!q1 preload dref|reg\n");
-    p->q2.flags&=~DREFOBJ;
-    load_reg(f,t1,&p->q2,q2typ(p));
-    p->q2.reg=t1;
-    p->q2.flags|=(REG|DREFOBJ);
-  }
-  if(p->q2.flags&&LOAD_STORE&&!isreg(q2)){
-    emit(f,"\t\t\t\t\t#!q2 preload load_store\n");
-    if(ISFLOAT(q2typ(p)))
-      q2reg=f2;
-    else
-      q2reg=t2;
-    load_reg(f,q2reg,&p->q2,q2typ(p));
-    p->q2.reg=q2reg;
-    p->q2.flags=REG;
-  }
-#endif 
   return p;
 }
 
@@ -462,41 +403,7 @@ void save_result(FILE *f,struct IC *p)
   }
 }
 
-
 #include "tempregs.c"
-
-#if 0
-static void emit_obj(FILE *f,struct obj *p,int t)
-{
-  if(p->am){	/* not used by default */
-    emit(f,"FIXME - addressing modes not implemented\n");
-    return;
-  }
-  if((p->flags&(KONST|DREFOBJ))==(KONST|DREFOBJ)){
-    emitval(f,&p->val,p->dtyp&NU);
-    return;
-  }
-  if(p->flags&DREFOBJ) emit(f,"(");
-  if(p->flags&REG){
-    emit(f,"%s",regnames[p->reg]);
-  }else if(p->flags&VAR) {
-    if(p->v->storage_class==AUTO||p->v->storage_class==REGISTER)
-      emit(f,"%ld(%s)",real_offset(p),regnames[sp]);
-    else{
-      if(!zmeqto(l2zm(0L),p->val.vmax)){emitval(f,&p->val,LONG);emit(f,"+");}
-      if(p->v->storage_class==STATIC){
-        emit(f,"%s%ld",labprefix,zm2l(p->v->offset));
-      }else{
-        emit(f,"%s%s",idprefix,p->v->identifier);
-      }
-    }
-  }
-  if(p->flags&KONST){
-    emitval(f,&p->val,t&NU);
-  }
-  if(p->flags&DREFOBJ) emit(f,")");
-}
-#endif 
 
 /*  Test if there is a sequence of FREEREGs containing FREEREG reg.
     Used by peephole. */
@@ -514,6 +421,7 @@ static void peephole(struct IC *p)
 {
   int c,c2,r;struct IC *p2;struct AddressingMode *am;
 
+#if 0
   for(;p;p=p->next){
     c=p->code;
     if(c!=FREEREG&&c!=ALLOCREG&&(c!=SETRETURN||!isreg(q1)||p->q1.reg!=p->z.reg)) exit_label=0;
@@ -628,6 +536,7 @@ static void peephole(struct IC *p)
       }
     }
   }
+#endif
 }
 
 /* generates the function entry code */
@@ -925,7 +834,6 @@ void gen_dc(FILE *f,int t,struct const_list *p)
 /*  This function has to create static storage          */
 /*  initialized with const-list p.                      */
 {
-//  emit(f,"\t\t\t\t\t#dc.%s\t",dt(t&NQ));
   if(!p->tree){
     switch(t&NQ)
     {
@@ -1070,15 +978,10 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
     }
     if(c>=BEQ&&c<BRA){
       printf("cond\n");
-      emit(f,"# FIXME - implement branching!\n");
-#if 0
-      emit(f,"\tb%s\t",ccs[c-BEQ]);
-      if(isreg(q1)){
-	emit_obj(f,&p->q1,0);
-	emit(f,",");
-      }
-      emit(f,"%s%d\n",labprefix,t);
-#endif
+      emit(f,"\tcond\t%s\n",ccs[c-BEQ]);
+      emit(f,"\t\t\t\t\t#conditional branch ");
+      emit_pcreltotemp(f,labprefix,t);
+      emit(f,"\tadd\tr7\n");
       continue;
     }
     if(c==MOVETOREG){
@@ -1176,7 +1079,6 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
         emit(f,"\t\t\t\t\t# (a/p push)\n");
 	printf("push\n");
 
-/*	emit(f,"\tmov.%s\t%ld(%s),",dt(t),pushed,regnames[sp]); */
 /* FIXME - need to take dt into account */
 	emit(f,"\t\t\t\t\t# a: pushed %ld, regnames[sp] %s\n",pushed,regnames[sp]);
 	emit_objtotemp(f,&p->q1,t);
@@ -1186,7 +1088,6 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
       }
       if(c==ASSIGN){
 	// FIXME - have to deal with arrays and structs, not just elementary types
-	// FIXME - can make this much simpler when the 
 	emit(f,"\t\t\t\t\t# (a/p assign)\n");
 	emit_prepobj(f,&p->z,t,t2);
 	load_temp(f,zreg,&p->q1,t);
@@ -1206,40 +1107,27 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
       load_reg(f,zreg,&p->q1,t);
       emit_constanttotemp(f,0);
       emit(f,"\texg %s\n\tsub %s\n",regnames[zreg],regnames[zreg]);
-/*      emit(f,"\tneg.%s\t%s\n",dt(t),regnames[zreg]);*/
       save_result(f,p);
       continue;
     }
     if(c==TEST){
 	printf("test\n");
-      emit(f,"\t\t\t\t\t# (test)");
-      emit(f,"FIXME - implement test\n");
-#if 0
-      emit(f,"\tld\t");
-      if(multiple_ccs)
-	emit(f,"%s,",regnames[zreg]);
-      emit_obj(f,&p->q1,t);
-      emit(f,"\n");
-      if(multiple_ccs)
-	save_result(f,p);
-#endif
+      emit(f,"\t\t\t\t\t# (test)\n");
+      emit(f,"\tli\t0\n");
+      emit(f,"\tmr\t%s\n",regnames[t2]);
+      reg_stackrel[t2]=0;
+      emit_objtotemp(f,&p->q1,t);
+      emit(f,"\tcmp\t%s\n",regnames[t2]);
       continue;
     }
     if(c==COMPARE){
 	printf("compare\n");
       emit(f,"\t\t\t\t\t# (compare)");
-      emit(f,"FIXME - implement compare\n");
-#if 0
-      emit(f,"\tcmp.%s\t",dt(t));
-      if(multiple_ccs)
-	emit(f,"%s,",regnames[zreg]);
-      emit_obj(f,&p->q1,t);
-      emit(f,",");
-      emit_obj(f,&p->q2,t);
-      emit(f,"\n");
-      if(multiple_ccs)
-	save_result(f,p);
-#endif
+      emit_objtotemp(f,&p->q1,t);
+      emit(f,"\tmr\t%s\n",regnames[t2]);
+      reg_stackrel[t2]=0;
+      emit_objtotemp(f,&p->q2,t);
+      emit(f,"\tcmp\t%s\n",regnames[t2]);
       continue;
     }
     if((c>=OR&&c<=AND)||(c>=LSHIFT&&c<=MOD)){
@@ -1254,7 +1142,6 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
       else
       {
         emit(f,"loadreg\n");
-//	load_reg(f,zreg,&p->q1,t);
 	emit_objtotemp(f,&p->q1,t);
 	emit(f,"\tmr\t%s\n",regnames[zreg]);
 	reg_stackrel[zreg]=0;
