@@ -129,8 +129,8 @@ static int sp;                     /*  Stackpointer                        */
 static int t1,t2;                  /*  temporary gprs */
 static int f1,f2,f3;               /*  temporary fprs */
 
-int reg_stackrel[LAST_GPR+1];	/* Register currently contains a pointer to an item on the stack */
-int reg_stackoffset[LAST_GPR+1];	/* Offset of stack item */
+// int reg_stackrel[LAST_GPR+1];	/* Register currently contains a pointer to an item on the stack */
+// int reg_stackoffset[LAST_GPR+1];	/* Offset of stack item */
 
 
 #define dt(t) (((t)&UNSIGNED)?udt[(t)&NQ]:sdt[(t)&NQ])
@@ -168,13 +168,14 @@ static long frameoffset,pushed,maxpushed,framesize;
 #else
 /* variables to keep track of the current stack-offset in the case of
    a moving stack-pointer */
-static long notpopped,dontpop,stackoffset,maxpushed;
+static long notpopped,pushed,dontpop,stackoffset,maxpushed;
 #endif
 
 static long localsize,rsavesize,argsize;
 
 static void emit_obj(FILE *f,struct obj *p,int t);
 static void emit_prepobj(FILE *f,struct obj *p,int t,int reg);
+static void emit_prepobjtotemp(FILE *f,struct obj *p,int t,int reg);
 //static void emit_destobj(FILE *f,struct obj *p,int t);
 static void emit_objtotemp(FILE *f,struct obj *p,int t);
 
@@ -202,6 +203,22 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t);
 
    This is just an example layout. Other layouts are also possible.
 */
+
+
+static void push(long l)
+{
+  stackoffset-=l;
+  if(stackoffset<maxpushed) 
+    maxpushed=stackoffset;
+  if(-maxpushed>stack)
+    stack=-maxpushed;
+}
+
+static void pop(long l)
+{
+  stackoffset+=l;
+}
+
 
 static long real_offset(struct obj *o)
 {
@@ -251,7 +268,7 @@ static int special_section(FILE *f,struct Var *v)
 static void load_address_to_temp(FILE *f,int r,struct obj *o,int type)
 /*  Generates code to load the address of a variable into register r.   */
 {
-  emit(f,"\t\t\t\t#FIXME - load_address\n");
+  emit(f,"\t\t\t\t//FIXME - load_address\n");
 }
 
 /* generate code to load the address of a variable into register r */
@@ -267,7 +284,7 @@ static void load_address(FILE *f,int r,struct obj *o,int type)
 /* Generates code to load a memory object into temp.  Returns 1 if code was emitted, 0 if there's no need. */
 static int load_temp(FILE *f,int r,struct obj *o,int type)
 {
-  emit(f,"\t\t\t\t\t# (load_temp)");
+  emit(f,"\t\t\t\t\t// (load_temp)");
   type&=NU;
   if(o->flags&VARADR){
     emit(f," FIXME - check varadr - should we be dereferencing this?\n");
@@ -293,7 +310,7 @@ static void load_reg(FILE *f,int r,struct obj *o,int type)
   if(load_temp(f,r,o,type))
   {
     emit(f,"\tmr\t%s\n",regnames[r]);
-    reg_stackrel[r]=0;
+//    reg_stackrel[r]=0;
   }
 }
 
@@ -301,8 +318,8 @@ static void load_reg(FILE *f,int r,struct obj *o,int type)
 static void store_reg(FILE *f,int r,struct obj *o,int type)
 {
   type&=NQ;
-  emit_prepobj(f,o,type,t2);
-  emit(f,"\tmt\t%s\n\tst\t%s\n",regnames[r],regnames[t2]);
+  emit_prepobjtotemp(f,o,type,t2);
+  emit(f,"\tstmpdec\t%s\n",regnames[r]);
 }
 
 /*  Generates code to store temp register r into memory object o. */
@@ -370,22 +387,26 @@ static struct IC *preload(FILE *f,struct IC *p)
 /* save the result (in temp) into p->z */
 void save_temp(FILE *f,struct IC *p)
 {
-  emit(f,"\t\t\t\t\t# (save temp) ");
+  emit(f,"\t\t\t\t\t// (save temp) ");
   if(isreg(z)){
     emit(f,"isreg\n");
 //    if(p->z.reg!=zreg)
       emit(f,"\tmr\t%s\n",regnames[p->z.reg]);
-      reg_stackrel[p->z.reg]=0;
-  }else{
+//      reg_stackrel[p->z.reg]=0;
+  }else if ((p->z.flags&DREFOBJ) && (p->z.flags&REG)){
     emit(f,"store reg\n");
+    emit(f,"\tst\t%s\n",regnames[p->z.reg]);
+  } else {
+    emit(f,"store prepped reg\n");
     emit(f,"\tst\t%s\n",regnames[t2]);
   }
+  emit(f,"\t\t\t\t//save_temp done\n");
 }
 
 /* save the result (in zreg) into p->z */
 void save_result(FILE *f,struct IC *p)
 {
-  emit(f,"\t\t\t\t\t# (save result) ");
+  emit(f,"\t\t\t\t\t// (save result) ");
   if((p->z.flags&(REG|DREFOBJ))==DREFOBJ&&!p->z.am){
     emit(f,"deref\n");
     p->z.flags&=~DREFOBJ;
@@ -396,7 +417,7 @@ void save_result(FILE *f,struct IC *p)
   if(isreg(z)){
     emit(f,"isreg\n");
     if(p->z.reg!=zreg)
-      emit(f,"\tmov.%s\t%s,%s\n",dt(ztyp(p)),regnames[p->z.reg],regnames[zreg]);
+      emit(f,"\tmt\t%s\n\tmr\t%s\n",regnames[zreg],regnames[p->z.reg]);
   }else{
     emit(f,"store reg\n");
     store_reg(f,zreg,&p->z,ztyp(p));
@@ -416,132 +437,19 @@ static int exists_freereg(struct IC *p,int reg)
   return 0;
 }
 
-/* search for possible addressing-modes */
-static void peephole(struct IC *p)
-{
-  int c,c2,r;struct IC *p2;struct AddressingMode *am;
-
-#if 0
-  for(;p;p=p->next){
-    c=p->code;
-    if(c!=FREEREG&&c!=ALLOCREG&&(c!=SETRETURN||!isreg(q1)||p->q1.reg!=p->z.reg)) exit_label=0;
-    if(c==LABEL) exit_label=p->typf;
-
-    /* Try const(reg) */
-    if(IMM_IND&&(c==ADDI2P||c==SUBIFP)&&isreg(z)&&(p->q2.flags&(KONST|DREFOBJ))==KONST){
-      int base;zmax of;struct obj *o;
-      eval_const(&p->q2.val,p->typf);
-      if(c==SUBIFP) of=zmsub(l2zm(0L),vmax); else of=vmax;
-      if(1/*zmleq(l2zm(-32768L),vmax)&&zmleq(vmax,l2zm(32767L))*/){
-	r=p->z.reg;
-	if(isreg(q1)) base=p->q1.reg; else base=r;
-	o=0;
-	for(p2=p->next;p2;p2=p2->next){
-	  c2=p2->code;
-	  if(c2==CALL||c2==LABEL||(c2>=BEQ&&c2<=BRA)) break;
-	  if(c2!=FREEREG&&(p2->q1.flags&(REG|DREFOBJ))==REG&&p2->q1.reg==r) break;
-	  if(c2!=FREEREG&&(p2->q2.flags&(REG|DREFOBJ))==REG&&p2->q2.reg==r) break;
-	  if(c2!=CALL&&(c2<LABEL||c2>BRA)/*&&c2!=ADDRESS*/){
-	    if(!p2->q1.am&&(p2->q1.flags&(REG|DREFOBJ))==(REG|DREFOBJ)&&p2->q1.reg==r){
-	      if(o) break;
-	      o=&p2->q1;
-	    }
-	    if(!p2->q2.am&&(p2->q2.flags&(REG|DREFOBJ))==(REG|DREFOBJ)&&p2->q2.reg==r){
-	      if(o) break;
-	      o=&p2->q2;
-	    }
-	    if(!p2->z.am&&(p2->z.flags&(REG|DREFOBJ))==(REG|DREFOBJ)&&p2->z.reg==r){
-	      if(o) break;
-	      o=&p2->z;
-	    }
-	  }
-	  if(c2==FREEREG||(p2->z.flags&(REG|DREFOBJ))==REG){
-	    int m;
-	    if(c2==FREEREG)
-	      m=p2->q1.reg;
-	    else
-	      m=p2->z.reg;
-	    if(m==r){
-	      if(o){
-		o->am=am=mymalloc(sizeof(*am));
-		am->flags=IMM_IND;
-		am->base=base;
-		am->offset=zm2l(of);
-		if(isreg(q1)){
-		  p->code=c=NOP;p->q1.flags=p->q2.flags=p->z.flags=0;
-		}else{
-		  p->code=c=ASSIGN;p->q2.flags=0;
-		  p->typf=p->typf2;p->q2.val.vmax=sizetab[p->typf2&NQ];
-		}
-	      }
-	      break;
-	    }
-	    if(c2!=FREEREG&&m==base) break;
-	    continue;
-	  }
-        }
-      }
-    }
-    /* Try reg,reg */
-    if(GPR_IND&&c==ADDI2P&&isreg(q2)&&isreg(z)&&(isreg(q1)||p->q2.reg!=p->z.reg)){
-      int base,idx;struct obj *o;
-      r=p->z.reg;idx=p->q2.reg;
-      if(isreg(q1)) base=p->q1.reg; else base=r;
-      o=0;
-      for(p2=p->next;p2;p2=p2->next){
-        c2=p2->code;
-        if(c2==CALL||c2==LABEL||(c2>=BEQ&&c2<=BRA)) break;
-        if(c2!=FREEREG&&(p2->q1.flags&(REG|DREFOBJ))==REG&&p2->q1.reg==r) break;
-        if(c2!=FREEREG&&(p2->q2.flags&(REG|DREFOBJ))==REG&&p2->q2.reg==r) break;
-        if((p2->z.flags&(REG|DREFOBJ))==REG&&p2->z.reg==idx&&idx!=r) break;
-	
-        if(c2!=CALL&&(c2<LABEL||c2>BRA)/*&&c2!=ADDRESS*/){
-          if(!p2->q1.am&&(p2->q1.flags&(REG|DREFOBJ))==(REG|DREFOBJ)&&p2->q1.reg==r){
-            if(o||(q1typ(p2)&NQ)==LLONG) break;
-            o=&p2->q1;
-          }
-          if(!p2->q2.am&&(p2->q2.flags&(REG|DREFOBJ))==(REG|DREFOBJ)&&p2->q2.reg==r){
-            if(o||(q2typ(p2)&NQ)==LLONG) break;
-            o=&p2->q2;
-          }
-          if(!p2->z.am&&(p2->z.flags&(REG|DREFOBJ))==(REG|DREFOBJ)&&p2->z.reg==r){
-            if(o||(ztyp(p2)&NQ)==LLONG) break;
-            o=&p2->z;
-          }
-        }
-        if(c2==FREEREG||(p2->z.flags&(REG|DREFOBJ))==REG){
-          int m;
-          if(c2==FREEREG)
-            m=p2->q1.reg;
-          else
-            m=p2->z.reg;
-          if(m==r){
-            if(o){
-              o->am=am=mymalloc(sizeof(*am));
-              am->flags=GPR_IND;
-              am->base=base;
-              am->offset=idx;
-	      if(isreg(q1)){
-		p->code=c=NOP;p->q1.flags=p->q2.flags=p->z.flags=0;
-	      }else{
-		p->code=c=ASSIGN;p->q2.flags=0;
-		p->typf=p->typf2;p->q2.val.vmax=sizetab[p->typf2&NQ];
-	      }
-            }
-            break;
-          }
-          if(c2!=FREEREG&&m==base) break;
-          continue;
-        }
-      }
-    }
-  }
-#endif
-}
 
 /* generates the function entry code */
 static void function_top(FILE *f,struct Var *v,long offset)
 {
+  int i;
+  int regcount=0;
+  emit(f,"\t//registers used:\n");
+  for(i=FIRST_GPR;i<=LAST_GPR;++i)
+  {
+    emit(f,"\t\t//r%d: %s\n",i-FIRST_GPR,regused[i]?"yes":"no");
+    if(regused[i] && (i>FIRST_GPR) && (i<=LAST_GPR-3))
+      ++regcount;
+  }
   rsavesize=0;
   if(!special_section(f,v)&&section!=CODE){emit(f,codename);if(f) section=CODE;} 
   if(v->storage_class==EXTERN){
@@ -550,18 +458,87 @@ static void function_top(FILE *f,struct Var *v,long offset)
     emit(f,"%s%s:\n",idprefix,v->identifier);
   }else
     emit(f,"%s%ld:\n",labprefix,zm2l(v->offset));
-  emit(f,"\tstdec\t%s\n",regnames[sp]);
-  emit_constanttotemp(f,offset);
-  emit(f,"\tsub\t%s\n",regnames[sp]);
+
+  if(regcount<3)
+  {
+    emit(f,"\tstdec\t%s\n",regnames[sp]);
+    for(i=FIRST_GPR+1;i<=LAST_GPR-3;++i)
+    {
+      if(regused[i])
+        emit(f,"\tmt\t%s\n\tstdec\t%s\n",regnames[i],regnames[sp]);
+    }
+  }
+  else
+  {
+    emit(f,"\texg\t%s\n\tstmpdec\t%s\n",regnames[sp],regnames[sp]);
+    for(i=FIRST_GPR+1;i<=LAST_GPR-3;++i)
+    {
+      if(regused[i])
+        emit(f,"\tstmpdec\t%s\n",regnames[i]);
+    }
+    emit(f,"\texg\t%s\n",regnames[sp]);
+  }
+
+  // FIXME - Allow the stack to float, in the hope that we can use stdec to adjust it.
+
+  if(offset==4)
+	emit(f,"\tstdec\tr6\t// quickest way to decrement sp by 4\n");
+  else if(offset)
+  {
+	emit_constanttotemp(f,offset);
+	emit(f,"\tsub\t%s\n",regnames[sp]);
+  }
   // FIXME - need to save non-volatile registers here
 }
+
 
 /* generates the function exit code */
 static void function_bottom(FILE *f,struct Var *v,long offset)
 {
-  emit_constanttotemp(f,offset);
-  emit(f,"\tadd\t%s\n",regnames[sp]);
-  emit(f,"\tldinc\t%s\n\tmr\t%s\n\n",regnames[sp],regnames[pc]);
+  int i;
+
+  int regcount=0;
+  for(i=FIRST_GPR+1;i<=LAST_GPR-3;++i)
+  {
+    if(regused[i])
+      ++regcount;
+  }
+
+  if(regcount<3)
+  {
+    if(offset==4)
+      emit(f,"\tldinc\t%s\t// quickest way to add 4 to sp\n",regnames[sp]);
+    else if(offset)
+    {
+      emit_constanttotemp(f,offset);
+      emit(f,"\tadd\t%s\n",regnames[sp]);
+    }
+
+    for(i=FIRST_GPR+1;i<=LAST_GPR-3;++i)
+    {
+      if(regused[i])
+        emit(f,"\tldinc\t%s\n\tmr\t%s\n",regnames[sp],regnames[i]);
+    }
+    emit(f,"\tldinc\t%s\n\tmr\t%s\n\n",regnames[sp],regnames[pc]);
+  }
+  else
+  {
+    if(offset==4)
+      emit(f,"\tldinc\t%s\t// quickest way to add 4 to sp\n",regnames[sp]);
+    else if(offset)
+    {
+      emit_constanttotemp(f,offset);
+      emit(f,"\taddt\t%s\n",regnames[sp]);
+    }
+    else
+      emit(f,"\texg\t%s\n",regnames[sp]);
+    for(i=FIRST_GPR+1;i<=LAST_GPR-3;++i)
+    {
+      if(regused[i])
+        emit(f,"\tltmpinc\t%s\n",regnames[i]);
+    }
+    emit(f,"\tltmpinc\t%s\n\texg\t%s\n\tmr\t%s\n",regnames[sp],regnames[sp],regnames[pc]);
+  }
 }
 
 /****************************************/
@@ -575,7 +552,7 @@ int init_cg(void)
   int i;
   /*  Initialize some values which cannot be statically initialized   */
   /*  because they are stored in the target's arithmetic.             */
-  maxalign=l2zm(8L);
+  maxalign=l2zm(4L);
   char_bit=l2zm(8L);
   stackalign=l2zm(4);
 
@@ -638,29 +615,28 @@ int init_cg(void)
   pc=FIRST_GPR+7;
   sp=FIRST_GPR+6;
   t1=FIRST_GPR+5; // build source address here
-  t2=FIRST_GPR+4; // build dest address here
+  t2=FIRST_GPR+4; // build dest address here - mark
 //  f1=FIRST_FPR;
 //  f2=FIRST_FPR+1;
+
+  for(i=FIRST_GPR;i<=LAST_GPR-VOL_GPRS;i++)
+    regscratch[i]=0;
+  for(i=FIRST_FPR;i<=LAST_FPR-VOL_FPRS;i++)
+    regscratch[i]=0;
+  for(i=FIRST_CCR;i<=LAST_CCR-VOL_CCRS;i++)
+    regscratch[i]=0;
+
   regsa[t1]=1;
-  regsa[t2]=1;
+//  regsa[t2]=1;
   regsa[sp]=1;
   regsa[pc]=1;
-//  regsa[t2]=1;
-//  regsa[f1]=regsa[f2]=1;
   regscratch[t1]=0;
-  regscratch[t2]=0;
+//  regscratch[t2]=0;
   regscratch[sp]=0;
   regscratch[pc]=0;
 //regscratch[t2]=0;
 //  regscratch[f1]=regscratch[f2]=0;
 //  regscratch[sp]=0;
-
-  for(i=FIRST_GPR;i<=LAST_GPR-VOL_GPRS;i++)
-    regscratch[i]=1;
-  for(i=FIRST_FPR;i<=LAST_FPR-VOL_FPRS;i++)
-    regscratch[i]=1;
-  for(i=FIRST_CCR;i<=LAST_CCR-VOL_CCRS;i++)
-    regscratch[i]=1;
 
   target_macros=marray;
 
@@ -703,18 +679,16 @@ int cost_savings(struct IC *p,int r,struct obj *o)
 {
   int c=p->code;
   if(o->flags&VKONST){
-    if(!LOAD_STORE)
-      return 0;
     if(o==&p->q1&&p->code==ASSIGN&&(p->z.flags&DREFOBJ))
-      return 4;
+      return 3;
     else
-      return 2;
+      return 5;
   }
   if(o->flags&DREFOBJ)
-    return 4;
-  if(c==SETRETURN&&r==p->z.reg&&!(o->flags&DREFOBJ)) return 3;
-  if(c==GETRETURN&&r==p->q1.reg&&!(o->flags&DREFOBJ)) return 3;
-  return 2;
+    return 1;
+  if(c==SETRETURN&&r==p->z.reg&&!(o->flags&DREFOBJ)) return 1;
+  if(c==GETRETURN&&r==p->q1.reg&&!(o->flags&DREFOBJ)) return 1;
+  return 1;
 }
 
 int regok(int r,int t,int mode)
@@ -892,11 +866,12 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
   argsize=0;
   // if(DEBUG&1) 
   printf("gen_code() - stackframe %d bytes\n",offset);
-  for(c=1;c<=MAXR;c++) regs[c]=regsa[c];
+  for(c=1;c<=MAXR;c++)
+    regs[c]=regsa[c];
   maxpushed=0;
 
-  for(c=FIRST_GPR;c<=LAST_GPR;++c)
-    reg_stackrel[c]=0;
+//  for(c=FIRST_GPR;c<=LAST_GPR;++c)
+//    reg_stackrel[c]=0;
 
   if(!idemp)
   {
@@ -937,7 +912,6 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
     if(c==CALL&&argsize<zm2l(m->q2.val.vmax)) argsize=zm2l(m->q2.val.vmax);
 #endif
   }
-  peephole(p);
 
   for(c=1;c<=MAXR;c++){
     if(regsa[c]||regused[c]){
@@ -959,51 +933,74 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
   for(;p;p=p->next){
     c=p->code;t=p->typf;
     if(c==NOP) {p->z.flags=0;continue;}
-    if(c==ALLOCREG) {regs[p->q1.reg]=1;continue;}
-    if(c==FREEREG) {regs[p->q1.reg]=0;continue;}
+    if(c==ALLOCREG) {
+      emit(f,"\t\t\t\t// allocreg %s\n",regnames[p->q1.reg]);
+      regs[p->q1.reg]=1;continue;
+    }
+    if(c==FREEREG) {
+      emit(f,"\t\t\t\t// freereg %s\n",regnames[p->q1.reg]);
+      regs[p->q1.reg]=0;continue;
+    }
     if(c==LABEL) {
         int i;
         emit(f,"%s%d: # \n",labprefix,t);
-        for(i=FIRST_GPR;i<=LAST_GPR;++i) // Can't carry register contexts across labels.
-          reg_stackrel[i]=0;
+//        for(i=FIRST_GPR;i<=LAST_GPR;++i) // Can't carry register contexts across labels.
+//          reg_stackrel[i]=0;
 	continue;
     }
+
+    // OK
     if(c==BRA){
       if(0/*t==exit_label&&framesize==0*/)
 	function_bottom(f,v,localsize);
       else
         emit_pcreltotemp(f,labprefix,t);
-        emit(f,"\taddt\t%s\n",regnames[pc]);
+        emit(f,"\tadd\t%s\n",regnames[pc]);
       continue;
     }
+
+    // OK
     if(c>=BEQ&&c<BRA){
       printf("cond\n");
       emit(f,"\tcond\t%s\n",ccs[c-BEQ]);
-      emit(f,"\t\t\t\t\t#conditional branch ");
+      emit(f,"\t\t\t\t\t//conditional branch ");
       emit_pcreltotemp(f,labprefix,t);
       emit(f,"\tadd\tr7\n");
       continue;
     }
+
+    // Investigate - but not currently seeing it used.
     if(c==MOVETOREG){
-      emit(f,"\t\t\t\t\t#movetoreg\n");
+      emit(f,"\t\t\t\t\t//movetoreg\n");
       load_reg(f,p->z.reg,&p->q1,regtype[p->z.reg]->flags);
       continue;
     }
+
+    // Investigate - but not currently seeing it used.
     if(c==MOVEFROMREG){
-      emit(f,"\t\t\t\t\t#movefromreg\n");
+      emit(f,"\t\t\t\t\t//movefromreg\n");
       store_reg(f,p->z.reg,&p->q1,regtype[p->z.reg]->flags);
       continue;
     }
+
+    // Reject types we can't handle - anything beyond a pointer and chars with more than 1 byte.
     if((c==ASSIGN||c==PUSH)&&((t&NQ)>POINTER||((t&NQ)==CHAR&&zm2l(p->q2.val.vmax)!=1))){
       ierror(0);
     }
+
     p=preload(f,p); // Setup zreg, etc.
+
     c=p->code;
+
     if(c==SUBPFP) c=SUB;
     if(c==ADDI2P) c=ADD;
     if(c==SUBIFP) c=SUB;
+
+    // Investigate - but not currently seeing it used.
+    // Sign extension of a register involved moving to temp, extb or exth, move to dest
+    // 
     if(c==CONVERT){
-      emit(f,"\t\t\t\t\t#FIXME convert\n");
+      emit(f,"\t\t\t\t\t//FIXME convert\n");
 	printf("convert\n");
       if(ISFLOAT(q1typ(p))||ISFLOAT(ztyp(p))) ierror(0);
       if(sizetab[q1typ(p)&NQ]<sizetab[ztyp(p)&NQ]){
@@ -1015,25 +1012,31 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
       save_result(f,p);
       continue;
     }
+
+    // Investigate - Still to be implemented
     if(c==KOMPLEMENT){
-      emit(f,"\t\t\t\t\t#comp\n");
+      emit(f,"\t\t\t\t\t//comp\n");
 	printf("comp\n");
       load_reg(f,zreg,&p->q1,t);
       emit(f,"\tcpl.%s\t%s\n",dt(t),regnames[zreg]);
       save_result(f,p);
       continue;
     }
+
+    // May not need to actually load the register here - certainly check before emitting code.
     if(c==SETRETURN){
-      emit(f,"\t\t\t\t\t#setreturn\n");
+      emit(f,"\t\t\t\t\t//setreturn\n");
       load_reg(f,p->z.reg,&p->q1,t);
       BSET(regs_modified,p->z.reg);
       continue;
     }
+
+    // Investigate - May not be needed for register mode?
     if(c==GETRETURN){
-      emit(f,"\t\t\t\t\t# (getreturn)");
+      emit(f,"\t\t\t\t\t// (getreturn)");
       if(p->q1.reg){
-	emit(f," reg\n");
-        emit(f,"\tmt\t%s\n",regnames[p->q1.reg]);
+//        emit(f," reg\n");
+//        emit(f,"\tmt\t%s\n",regnames[p->q1.reg]);
         zreg=p->q1.reg;
 	save_result(f,p);
       }else
@@ -1043,9 +1046,11 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
       }
       continue;
     }
+
+    // OK - figure out what the bvunite stuff is all about.
     if(c==CALL){
       int reg;
-      emit(f,"\t\t\t\t\t#call\n");
+      emit(f,"\t\t\t\t\t//call\n");
       if((p->q1.flags&(VAR|DREFOBJ))==VAR&&p->q1.v->fi&&p->q1.v->fi->inline_asm){
         emit_inline_asm(f,p->q1.v->fi->inline_asm);
       }else{
@@ -1073,85 +1078,107 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
       }
       continue;
     }
+
     if(c==ASSIGN||c==PUSH){
       if(t==0) ierror(0);
+
+      // Basically OK - not used very much.  Perhaps don't use a fixed stackframe?
       if(c==PUSH){
-        emit(f,"\t\t\t\t\t# (a/p push)\n");
+        emit(f,"\t\t\t\t\t// (a/p push)\n");
 	printf("push\n");
 
 /* FIXME - need to take dt into account */
-	emit(f,"\t\t\t\t\t# a: pushed %ld, regnames[sp] %s\n",pushed,regnames[sp]);
+	emit(f,"\t\t\t\t\t// a: pushed %ld, regnames[sp] %s\n",pushed,regnames[sp]);
 	emit_objtotemp(f,&p->q1,t);
 	emit(f,"\tstdec\t%s\n",regnames[sp]);
 	pushed+=zm2l(p->q2.val.vmax);
 	continue;
       }
+
+      // Need to special case writing register to memory using addt and stt
       if(c==ASSIGN){
 	// FIXME - have to deal with arrays and structs, not just elementary types
-	emit(f,"\t\t\t\t\t# (a/p assign)\n");
-	emit_prepobj(f,&p->z,t,t2);
-	load_temp(f,zreg,&p->q1,t);
-	save_temp(f,p);
+#if 0
+	if((p->q1.flags&REG)&&(p->z.flags&VAR) && (p->z.v->storage_class==AUTO))
+	{
+		emit(f,"\t\t\t\t\t// (assign - reg to auto)\n");
+		emit_constanttotemp(f,real_offset(&p->z));
+		emit(f,"\taddt\tr6\n\tstt\t%s\n",regnames[p->q1.reg]);
+	}
+	else
+	if((p->q1.flags&REG)&&(p->z.flags&VAR) && (p->z.v->storage_class==REGISTER))
+	{
+		emit(f,"\t\t\t\t\t// (assign - reg to reg)\n");
+		emit_constanttotemp(f,real_offset(&p->z));
+		emit(f,"\tmt\t%s\n\tmr\t%s\n",regnames[p->q1.reg],regnames[p->z.reg]);
+	}
+	else
+#endif
+	{
+		emit(f,"\t\t\t\t\t// (a/p assign)\n");
+		emit_prepobj(f,&p->z,t,t2);
+		load_temp(f,zreg,&p->q1,t);
+		save_temp(f,p);
+	}
       }
       continue;
+
     }
+
+    // Not yet seen it used.
     if(c==ADDRESS){
-	emit(f,"\t\t\t\t\t# (address)\n");
+	emit(f,"\t\t\t\t\t// (address)\n");
       load_address(f,zreg,&p->q1,POINTER);
       save_result(f,p);
       continue;
     }
+
+    // OK
     if(c==MINUS){
-	printf("minus\n");
-	emit(f,"\t\t\t\t\t# (minus)\n");
+      emit(f,"\t\t\t\t\t// (minus)\n");
       load_reg(f,zreg,&p->q1,t);
-      emit_constanttotemp(f,0);
-      emit(f,"\texg %s\n\tsub %s\n",regnames[zreg],regnames[zreg]);
+      emit(f,"\tli\t0\n\texg %s\n\tsub %s\n",regnames[zreg],regnames[zreg]);
       save_result(f,p);
       continue;
     }
+
+    // Compare - replace with subt?  Probably not all that useful
+    // Revisit
     if(c==TEST){
-	printf("test\n");
-      emit(f,"\t\t\t\t\t# (test)\n");
-      emit(f,"\tli\t0\n");
-      emit(f,"\tmr\t%s\n",regnames[t2]);
-      reg_stackrel[t2]=0;
-      emit_objtotemp(f,&p->q1,t);
-      emit(f,"\tcmp\t%s\n",regnames[t2]);
+      emit(f,"\t\t\t\t\t// (test)\n");
+      emit_objtotemp(f,&p->q1,t); // Only need Z flag - moving to temp should be enough.
       continue;
     }
+
+    // Compare - replace with subt?  Probably not all that useful
+    // Revisit
     if(c==COMPARE){
 	printf("compare\n");
-      emit(f,"\t\t\t\t\t# (compare)");
+	// FIXME - determine if q2 is a register, if not move to reg, move q1 to temp, compare.
+      emit(f,"\t\t\t\t\t// (compare)");
       emit_objtotemp(f,&p->q1,t);
       emit(f,"\tmr\t%s\n",regnames[t2]);
-      reg_stackrel[t2]=0;
+//      reg_stackrel[t2]=0;
       emit_objtotemp(f,&p->q2,t);
       emit(f,"\tcmp\t%s\n",regnames[t2]);
       continue;
     }
+
+    // Bitwise operations - again check on operand marshalling
     if((c>=OR&&c<=AND)||(c>=LSHIFT&&c<=MOD)){
 	// FIXME - need to deal with loading both operands here.
-	printf("bitwise\n");
-        emit(f,"\t\t\t\t\t# (bitwise) ");
-      if(THREE_ADDR)
-      {
-        emit(f,"threeaddr\n");
-	emit_objtotemp(f,&p->q1,t);
-      }
-      else
-      {
+        emit(f,"\t\t\t\t\t// (bitwise) ");
         emit(f,"loadreg\n");
 	emit_objtotemp(f,&p->q1,t);
 	emit(f,"\tmr\t%s\n",regnames[zreg]);
-	reg_stackrel[zreg]=0;
-	emit_prepobj(f,&p->z,t,t2);
+//	reg_stackrel[zreg]=0;
+//	emit_prepobj(f,&p->z,t,t2);
 	emit_objtotemp(f,&p->q2,t);
-      }
       if(c>=OR&&c<=AND)
 	emit(f,"\t%s\t%s\n",logicals[c-OR],regnames[zreg]);
       else
 	emit(f,"\t%s\t%s\n",arithmetics[c-LSHIFT],regnames[zreg]);
+      save_result(f,p);
       continue;
     }
     pric2(stdout,p);

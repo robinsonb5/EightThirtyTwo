@@ -36,10 +36,9 @@ zmax val2zmax(FILE *f,struct obj *o,int t)
 
 static void emit_pcreltotemp(FILE *f,char *lab,int suffix)
 {
-  emit(f,"pcrel\n");
-  emit(f,"\tli\t2\n"); // Assuming 16 bits will be enough for offset.
-  emit(f,"\t.byte\tIMW0(PCREL(%s%d)-1)\n",lab,suffix);
-  emit(f,"\t.byte\tIMW1(PCREL(%s%d)-0)\n",lab,suffix); // Let's go little-endian for now.
+  emit(f,"#pcrel\n");
+  emit(f,"\tli\tIMW1(PCREL(%s%d)-1)\n",lab,suffix);
+  emit(f,"\tli\tIMW0(PCREL(%s%d))\n",lab,suffix);
 }
 
 
@@ -59,15 +58,15 @@ static void emit_externtotemp(FILE *f,char *lab)
   // Alternatively we could create a label table that we can access in pcrel mode.
 
   // Experiment with new li format:
-  emit(f,"\tli\t4\n"); // Assuming 16 bits will be enough for offset.
-  emit(f,"\t.int\t%s\n",lab);
+  emit(f,"\tldinc\t%s\n",regnames[pc]); // Assuming 16 bits will be enough for offset.
+  emit(f,"\t.int\t_%s\n",lab);
 }
 
 
 static void emit_statictotemp(FILE *f,char *lab,int suffix)
 {
   emit(f,"#static\n");
-  emit(f,"\tli\t4\n"); // Assuming 16 bits will be enough for offset.
+  emit(f,"\tldinc\t%s\n",regnames[pc]); // Assuming 16 bits will be enough for offset.
   emit(f,"\t.int\t%s%d\n",lab,suffix);
 }
 
@@ -76,81 +75,28 @@ static void emit_constanttotemp(FILE *f,zmax v)
 {
   int chunk=1;
   // FIXME - simple single-byte cases:
-  zmax v2=v;
-
-  switch(v)
+  int v2=(int)v;
+  while(((v2&0xffffffe0)!=0) && ((v2&0xffffffe0)!=0xffffffe0)) // Are we looking at a sign-extended 8-bit value yet?
   {
-    case 0:
-      emit(f,"\tli\t0\n");
-      break;
-
-    case 1:
-      emit(f,"\tli\t5 # embedded 1\n");
-      break;
-
-    case 2:
-      emit(f,"\tli\t6 # embedded 2\n");
-      break;
-
-    case 0xffffffff:
-      emit(f,"\tli\t8 # embedded -1\n");
-      break;
-
-    case 4:
-      emit(f,"\tliq\t1 # embedded 4\n");
-      break;
-
-    case 8:
-      emit(f,"\tliq\t2 # embedded 8\n");
-      break;
-
-    case 12:
-      emit(f,"\tliq\t3 # embedded 12\n");
-      break;
-
-    case 16:
-      emit(f,"\tliq\t0 # embedded 16\n");
-      break;
-
-    case -4:
-      emit(f,"\tliq\t7 # embedded -4\n");
-      break;
-
-    case -8:
-      emit(f,"\tliq\t6 # embedded -8\n");
-      break;
-
-    case -12:
-      emit(f,"\tliq\t5 # embedded -12\n");
-      break;
-
-    case -16:
-      emit(f,"\tliq\t4 # embedded -16\n");
-      break;
-
-    default:
-      while(((v2&0xffffff80)!=0) && ((v2&0xffffff80)!=0xffffff80)) // Are we looking at a sign-extended 8-bit value yet?
-      {
-        v2>>=8;
-        ++chunk;
-      }
-  
-      emit(f,"\tli\t%d; # 0x%x\n",chunk,v);
-      while(chunk--) // Do we need to emit the top two bits?
-      {
-        emit(f,"\t.byte\t%d\n",v&255);
-        v>>=8;
-      }
-      break;
+     printf("%08x\n",v2);
+     v2>>=6;
+     ++chunk;
   }
+
+  emit(f,"\t\t\t\t// constant: %x in %d chunks\n",v,chunk);
+
+   while(chunk--) // Do we need to emit the top two bits?
+   {
+     emit(f,"\tli\tIMW%d(%d)\n",chunk,v);
+   }
 }
 
 
 /* prepares a register to point to an object, in preparation for a load, store or move */
 
-static void emit_prepobj(FILE *f,struct obj *p,int t,int reg)
+static void emit_prepobjtotemp(FILE *f,struct obj *p,int t,int reg)
 {
-  emit(f,"\t\t\t\t\t# (prepobj %s)",regnames[reg]);
+  emit(f,"\t\t\t\t\t// (prepobjtotemp %s)",regnames[reg]);
   if(p->am){
     emit(f,"# FIXME - extended addressing modes not supported\n");
     return;
@@ -158,8 +104,7 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg)
   if((p->flags&(KONST|DREFOBJ))==(KONST|DREFOBJ)){
     emit(f," const/deref\n");
     emit_constanttotemp(f,val2zmax(f,p,p->dtyp));
-    emit(f,"\tmr\t%s\n",regnames[t1]);
-    reg_stackrel[reg]=0;
+//    reg_stackrel[reg]=0;
     return;
   }
 
@@ -177,9 +122,9 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg)
         emit(f," reg \n");
 	emit_constanttotemp(f,real_offset(p));
 
-        emit(f,"\taddt\t%s\n\texg\t%s\n\tmr\t%s\n",
-		regnames[sp],regnames[sp],regnames[reg]);
-        reg_stackrel[reg]=0; // Not sure this is correct enough to risk it here.
+        emit(f,"\taddt\t%s\n\tmr\t%s\n",
+		regnames[sp],regnames[reg]);
+//        reg_stackrel[reg]=0; // Not sure this is correct enough to risk it here.
       }
 
       else{
@@ -191,13 +136,119 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg)
           emit(f,"\tadd\t%s\n",regnames[reg]);
         }
         if(p->v->storage_class==STATIC){
-          emit_pcreltotemp(f,labprefix,zm2l(p->v->offset));
+//          emit_pcreltotemp(f,labprefix,zm2l(p->v->offset));
+          emit(f,"\tldinc\tr7\n\t.int\t%s%d\n",labprefix,zm2l(p->v->offset));
           emit(f,"\tmr\t%s\n",regnames[reg]);
         }else{
           emit_externtotemp(f,p->v->identifier);
           emit(f,"\tmr\t%s\n",regnames[reg]);
         }
-        reg_stackrel[reg]=0;
+//        reg_stackrel[reg]=0;
+      }
+    }
+  }
+  else
+  {
+    if(p->flags&REG){
+      emit(f,"\t mt%s\n",regnames[p->reg]);
+
+    }else if(p->flags&VAR) {
+      if(p->v->storage_class==AUTO||p->v->storage_class==REGISTER)
+      {
+        /* Set a register to point to a stack-base variable. */
+        emit(f," var, auto|reg\n");
+	if(p->v->storage_class==REGISTER) emit(f,"# (is actually REGISTER)\n");
+        if(real_offset(p)==0)  /* No offset? Just copy the stack pointer */
+        {
+          emit(f,"\tmt\t%s\n",regnames[sp]);
+//          reg_stackrel[reg]=1;
+//          reg_stackoffset[reg]=0;
+        }
+        else
+        {
+          emit_constanttotemp(f,real_offset(p));
+          emit(f,"\taddt\t%s\n",regnames[sp]);
+        }
+      }
+      else{
+        if(!zmeqto(l2zm(0L),p->val.vmax)){
+          emit(f," offset ");
+          emit_constanttotemp(f,val2zmax(f,p,LONG));
+//          emit(f,"\tmr\t%s\n",regnames[reg]);
+          emit_pcreltotemp(f,labprefix,zm2l(p->v->offset));
+          emit(f,"\taddt\t%s\n",regnames[reg]);
+        }
+        if(p->v->storage_class==STATIC){
+//          emit_pcreltotemp(f,labprefix,zm2l(p->v->offset)); //FIXME - is PCREL appropriate here?
+          emit(f,"\tldinc\tr7\n\t.int\t%s%d\n",labprefix,zm2l(p->v->offset));
+//          emit(f,"\tmr\t%s\n",regnames[reg]);
+//          emit(f,"\tmr\t%s\n",regnames[reg]);
+        }else{
+          emit_externtotemp(f,p->v->identifier);
+//          emit(f,"\tmr\t%s\n",regnames[reg]);
+        }
+//        reg_stackrel[reg]=0;
+      }
+    }
+  }
+//  if(p->flags&KONST){
+//    emit_constanttotemp(f,val2zmax(f,p,t));
+//  }
+}
+
+static void emit_prepobj(FILE *f,struct obj *p,int t,int reg)
+{
+  emit(f,"\t\t\t\t\t// (prepobj %s)",regnames[reg]);
+  if(p->am){
+    emit(f,"# FIXME - extended addressing modes not supported\n");
+    return;
+  }
+  if((p->flags&(KONST|DREFOBJ))==(KONST|DREFOBJ)){
+    emit(f," const/deref\n");
+    emit_constanttotemp(f,val2zmax(f,p,p->dtyp));
+    emit(f,"\tmr\t%s\n",regnames[t1]);
+//    reg_stackrel[reg]=0;
+    return;
+  }
+
+  if(p->flags&DREFOBJ)
+  {
+    emit(f," deref ");
+    /* Dereferencing a pointer */
+    if(p->flags&REG){
+      emit(f," reg - no need to prep\n");
+//      emit(f,"\n\tld\t%s\n",regnames[p->reg]);
+    }
+    else if(p->flags&VAR) {  // FIXME - figure out what dereferencing means in these contexts
+      emit(f," var FIXME - deref?");
+      if(p->v->storage_class==AUTO||p->v->storage_class==REGISTER){
+        emit(f," reg \n");
+	emit_constanttotemp(f,real_offset(p));
+
+        emit(f,"\taddt\t%s\n\tmr\t%s\n",
+		regnames[sp],regnames[reg]);
+//        reg_stackrel[reg]=0; // Not sure this is correct enough to risk it here.
+      }
+
+      else{
+        if(!zmeqto(l2zm(0L),p->val.vmax)){
+          emit(f," offset ");
+          emit_constanttotemp(f,val2zmax(f,p,LONG));
+          emit(f,"\tmr\t%s\n",regnames[reg]);
+          emit_pcreltotemp(f,labprefix,zm2l(p->v->offset));
+          emit(f,"\tadd\t%s\n",regnames[reg]);
+        }
+        if(p->v->storage_class==STATIC){
+          emit(f," static\n");
+//          emit_pcreltotemp(f,labprefix,zm2l(p->v->offset));
+//          emit(f,"\tmr\t%s\n",regnames[reg]);
+          emit(f,"\tldinc\tr7\n\t.int\t%s%d\n",labprefix,zm2l(p->v->offset));
+          emit(f,"\tmr\t%s\n",regnames[reg]);
+        }else{
+          emit_externtotemp(f,p->v->identifier);
+          emit(f,"\tmr\t%s\n",regnames[reg]);
+        }
+//        reg_stackrel[reg]=0;
       }
     }
   }
@@ -215,9 +266,10 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg)
         if(real_offset(p)==0)  /* No offset? Just copy the stack pointer */
         {
           emit(f,"\tmt\t%s\n\tmr\t%s\n",regnames[sp],regnames[reg]);
-          reg_stackrel[reg]=1;
-          reg_stackoffset[reg]=0;
+//          reg_stackrel[reg]=1;
+//          reg_stackoffset[reg]=0;
         }
+#if 0
         else if(reg_stackrel[reg])
         {
           if(real_offset(p)-reg_stackoffset[reg])
@@ -229,13 +281,14 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg)
           else
             emit(f,"\t\t  # %s offset unchanged\n",regnames[reg]);
         }
+#endif
         else
         {
           emit_constanttotemp(f,real_offset(p));
-          emit(f,"\taddt\t%s\n\texg\t%s\n\tmr\t%s\n\n",
-            regnames[sp],regnames[sp],regnames[reg]);
-          reg_stackrel[reg]=1;
-          reg_stackoffset[reg]=real_offset(p);
+          emit(f,"\taddt\t%s\n\tmr\t%s\n\n",
+            regnames[sp],regnames[reg]);
+//          reg_stackrel[reg]=1;
+//          reg_stackoffset[reg]=real_offset(p);
         }
       }
       else{
@@ -247,13 +300,16 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg)
           emit(f,"\tadd\t%s\n",regnames[reg]);
         }
         if(p->v->storage_class==STATIC){
-          emit_pcreltotemp(f,labprefix,zm2l(p->v->offset));
+//          emit_pcreltotemp(f,labprefix,zm2l(p->v->offset));
+//          emit(f,"\tmr\t%s\n",regnames[reg]);
+          emit(f," static\n");
+          emit(f,"\tldinc\tr7\n\t.int\t%s%d\n",labprefix,zm2l(p->v->offset));
           emit(f,"\tmr\t%s\n",regnames[reg]);
         }else{
           emit_externtotemp(f,p->v->identifier);
           emit(f,"\tmr\t%s\n",regnames[reg]);
         }
-        reg_stackrel[reg]=0;
+//        reg_stackrel[reg]=0;
       }
     }
   }
@@ -265,7 +321,7 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg)
 
 static void emit_objtotemp(FILE *f,struct obj *p,int t)
 {
-  emit(f,"\t\t\t\t\t# (objtotemp)");
+  emit(f,"\t\t\t\t\t// (objtotemp)");
   if(p->am){
     emit(f,"# FIXME - extended addressing modes not supported\n");
     return;
@@ -298,8 +354,9 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
       if(p->v->storage_class==AUTO||p->v->storage_class==REGISTER)
       {
         emit(f," var, auto|reg\n");
-        emit_prepobj(f,p,t,t1);
-        emit(f,"\tld\t%s\n",regnames[t1]);
+//        emit_prepobj(f,p,t,t1);
+        emit_constanttotemp(f,real_offset(p));
+        emit(f,"\taddt\t%s\n\tldt\n\n",regnames[sp]);
 //	emit(f,"\tli\tIMW0(%ld)\n\taddt\t%s\n\texg\t%s\n\tmr\t%s\n\tld\t%s\n",
 //		real_offset(p),regnames[sp],regnames[sp],regnames[t1],regnames[t1]);
       }
@@ -308,9 +365,11 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
           emit(f," offset ");
           emit_constanttotemp(f,val2zmax(f,p,LONG));
           emit(f,"\tmr\t%s\n",regnames[t1]);
+		// FIXME - not pc-relative!
           emit_pcreltotemp(f,labprefix,zm2l(p->v->offset));
-          emit(f,"\tadd\t%s\n",regnames[t1]);
-          reg_stackrel[t1]=0;
+          emit(f,"\taddt\t%s\n",regnames[t1]);
+		// FIXME - probably need to load here.
+//          reg_stackrel[t1]=0;
         }
         if(p->v->storage_class==STATIC){
           emit(f,"# static\n");

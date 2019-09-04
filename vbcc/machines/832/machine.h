@@ -14,11 +14,11 @@
     - number of caller-save-registers
 */
 
-/* buil-time configurable options: */
+/* build-time configurable options: */
 #define NUM_GPRS 8
 #define NUM_FPRS 0
 #define NUM_CCRS 1
-#define FIXED_SP 1
+#define FIXED_SP 0
 
 #include "dt.h"
 
@@ -75,11 +75,12 @@ struct AddressingMode{
 #define INLINEMEMCPY 1024
 
 /*  Parameters are sometimes passed in registers without __reg.     */
-#define HAVE_REGPARMS 1
+#define HAVE_REGPARMS 0
 
 /*  Parameters on the stack should be pushed in order rather than   */
 /*  in reverse order.                                               */
-#define ORDERED_PUSH FIXED_SP
+#define ORDERED_PUSH 1
+// FIXED_SP
 
 /*  Structure for reg_parm().                                       */
 struct reg_handle{
@@ -94,15 +95,15 @@ struct reg_handle{
 #define HAVE_TARGET_PRAGMAS
 
 /*  We keep track of all registers modified by a function.          */
-#define HAVE_REGS_MODIFIED 1
+#define HAVE_REGS_MODIFIED 0
 
 /* We have a implement our own cost-functions to adapt 
    register-allocation */
 #define HAVE_TARGET_RALLOC 1
 #define cost_move_reg(x,y) 1
-#define cost_load_reg(x,y) 2
-#define cost_save_reg(x,y) 2
-#define cost_pushpop_reg(x) 3
+#define cost_load_reg(x,y) 1
+#define cost_save_reg(x,y) 1
+#define cost_pushpop_reg(x) 1
 
 /* size of buffer for asm-output, this can be used to do
    peephole-optimizations of the generated assembly-output */
