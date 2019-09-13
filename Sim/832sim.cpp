@@ -16,7 +16,7 @@ class EightThirtyTwoMemory
 	public:
 	EightThirtyTwoMemory(int ramsize) : uartbusyctr(0), ram(0), ramsize(ramsize), uartin(0)
 	{
-		ram=new int[ramsize/4];
+		ram=new unsigned char[ramsize];
 	}
 	virtual ~EightThirtyTwoMemory()
 	{
@@ -73,7 +73,12 @@ class EightThirtyTwoMemory
 			default:
 				Debug[TRACE] << std::endl << "Reading from RAM" << addr << std::endl;
 //				if(addr<ramsize)
-					return(ram[(addr&(ramsize-1))/4]);
+				int r=(*this)[addr]<<24;
+				r|=(*this)[addr+1]<<16;
+				r|=(*this)[addr+2]<<8;
+				r|=(*this)[addr+3];
+				return(r);
+//					return(ram[(addr&(ramsize-1))/4]);
 		}
 		return(0);
 	}
@@ -126,21 +131,29 @@ class EightThirtyTwoMemory
 				break;
 
 			default:
+				(*this)[addr]=(v>>24)&255;
+				(*this)[addr+1]=(v>>16)&255;
+				(*this)[addr+2]=(v>>8)&255;
+				(*this)[addr+3]=v&255;
+
 //				if(addr<ramsize)
 //				{
-					Debug[TRACE] << std::endl << "Writing " << v << " to RAM " << addr << std::endl;
-					ram[(addr&(ramsize-1))/4]=v;
+//					Debug[TRACE] << std::endl << "Writing " << v << " to RAM " << addr << std::endl;
+//					ram[(addr&(ramsize-1))/4]=v;
 //				}
 		}
 	}
-	virtual unsigned char &operator[](const int idx)=0;
+	virtual unsigned char &operator[](const int idx)
+	{
+		return(ram[idx]);
+	}
 	virtual int GetRAMSize()
 	{
 		return(ramsize);
 	}
 	protected:
 	int uartbusyctr;
-	int *ram;
+	unsigned char *ram;
 	int ramsize;
 	const char *uartin;
 	char inbuf[4];
@@ -194,8 +207,8 @@ class EightThirtyTwoProgram : public BinaryBlob, public EightThirtyTwoMemory
 		if(idx<size)
 			return(BinaryBlob::operator[](idx));
 		else
-			throw "Byte accesses to general RAM not yet supported";
-//			return(EightThirtyTwoMemory::operator[](idx));
+//			throw "Byte accesses to general RAM not yet supported";
+			return(EightThirtyTwoMemory::operator[](idx));
 	}
 	protected:
 	int base;
@@ -362,33 +375,53 @@ class EightThirtyTwoSim
 							mnem << ("exg ") << operand;
 							break;
 
+#if 0
 						case 0xb0: // ldx
 							temp=prg.Read((regfile[operand]+regfile[5])&0xfffffffc);
 							mnem << ("ldx ") << operand;
 							break;
+#endif
 
 						case 0x20: // st
-							prg.Write(regfile[operand]&0xfffffffc,temp);
+							prg.Write(regfile[operand],temp); // &0xfffffffc,temp);
 							mnem << ("st ") << operand;
 							break;
 
 						case 0xa0: // ld
-							temp=prg.Read(regfile[operand]&0xfffffffc);
-							mnem << ("ld ") << operand;
+							if(operand==7)	//
+							{ 
+								temp=prg.Read(temp);
+								mnem << ("ldt ");
+							}
+							else
+							{
+								temp=prg.Read(regfile[operand]); // &0xfffffffc);
+								mnem << ("ld ") << operand;
+							}
 							break;
 
+#if 0
 						case 0x30: // stx
 							prg.Write((regfile[operand]+regfile[5])&0xfffffffc,temp);
 							mnem << ("stx ") << operand;
+							break;
+#endif
+						case 0x30: // stmpdec
+							temp-=4;
+							prg.Write(temp,regfile[operand]);
+							mnem << ("stmpdec ") << operand;
 							break;
 
 						case 0x90: // add
 							t2=regfile[operand]+temp;
 							carry=(t2>>32)&1;
-							regfile[operand]=t2;
 							zero=(t2&0xffffffff)==0;
 							if(operand==7)
+							{
 								cond=1; // cancel cond on write to r7
+								temp=regfile[operand];	// For r7, previous value goes to temp
+							}
+							regfile[operand]=t2;
 							mnem << ("add ") << operand;
 							break;
 
@@ -400,7 +433,7 @@ class EightThirtyTwoSim
 							break;
 
 						case 0xa8: // ldinc
-							temp=prg.Read(regfile[operand]&0xfffffffc);
+							temp=prg.Read(regfile[operand]); // &0xfffffffc);
 							regfile[operand]+=4;
 							mnem << ("ldinc ") << operand;
 							break;
@@ -416,9 +449,17 @@ class EightThirtyTwoSim
 							break;
 
 						case 0x28: // stdec
-							regfile[operand]-=4;
-							prg.Write(regfile[operand]&0xfffffffc,temp);
-							mnem << ("stdec ") << operand;
+							if(operand==7)	//
+							{ 
+								--temp;
+								mnem << ("dect ");
+							}
+							else
+							{
+								regfile[operand]-=4;
+								prg.Write(regfile[operand],temp); //&0xfffffffc,temp);
+								mnem << ("stdec ") << operand;
+							}
 							break;
 
 						case 0x40: // and
@@ -446,11 +487,11 @@ class EightThirtyTwoSim
 							t=regfile[operand];
 							t2=regfile[operand]+temp;
 							carry=(t2>>32)&1;
-							regfile[operand]=t2;
 							zero=(t2&0xffffffff)==0;
-							temp=t;
 							if(operand==7)
 								cond=1; // cancel cond on write to r7
+							temp=t2; // result goes to temp.
+
 							mnem << ("addt ") << operand;
 							break;
 
@@ -483,17 +524,33 @@ class EightThirtyTwoSim
 						case 0x70: // ror
 							t=regfile[operand]<<(32-temp);
 							regfile[operand]=(regfile[operand]>>temp)|t;
+                                                        mnem << ("ror ") << operand;
 //							throw "ror not yet implemented\n";
 							break;
 
-						case 0x78: // rorc
-							throw "rorc not yet implemented\n";
+//						case 0x78: // rorc
+//							throw "rorc not yet implemented\n";
+//							break;
+
+						case 0x78: // ltmpinc
+							regfile[operand]=prg.Read(temp);//&0xfffffffc);
+							temp+=4;
+							mnem << ("ldinc ") << operand;
 							break;
 
+
 						case 0x38: // stbinc
-							prg[regfile[operand]]=temp&0xff;
-							regfile[operand]++;
-							mnem << ("stbinc ") << operand;
+							if(operand==7)	//
+							{ 
+								++temp;
+								mnem << ("inct ");
+							}
+							else
+							{
+								prg[regfile[operand]]=temp&0xff;
+								regfile[operand]++;
+								mnem << ("stbinc ") << operand;
+							}
 //							putchar(temp&0xff);
 							break;
 
@@ -505,6 +562,7 @@ class EightThirtyTwoSim
 							carry=0;
 							mnem << ("ldbinc ") << operand;
 							break;
+
 					}
 				}
 			}

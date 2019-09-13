@@ -14,7 +14,7 @@
 #define cmp .byte 0x18 +
 #define st .byte 0x20 +
 #define stdec .byte 0x28 +
-#define stx .byte 0x30 +
+#define stt .byte 0x30 +
 #define stbinc .byte 0x38 +
  
 #define and .byte 0x40 +
@@ -29,12 +29,21 @@
 #define exg .byte 0x80 +
 #define mt .byte 0x88 +
 #define add .byte 0x90 +
+// Add's behaviour is different for r7 - perhaps use a different mnemonic?
 #define addt .byte 0x98 +
 #define ld .byte 0xa0 +
 #define ldinc .byte 0xa8 +
-#define ldx .byte 0xb0 +
+// #define ldx .byte 0xb0 +
 #define ldbinc .byte 0xb8 +
 #define li .byte 0xc0 +
+
+// Overloaded opcodes.  Mostly ops that make no sense when applied to R7
+
+#define ldt .byte 0xa7
+#define inct .byte 0x37
+#define dect .byte 0x2f
+
+
 
 #if 0 // old encoding
 #define cond .byte 0x0 +

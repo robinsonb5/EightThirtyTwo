@@ -23,7 +23,7 @@ start:
 	// Call the depack routine
 
 	li	IMW0(PCREL(lz4_depack))
-	addt	r7
+	add	r7
 
 	li	0
 	stbinc	r1	// Write a zero-termination.
@@ -86,7 +86,7 @@ lz4_depack:
 
 	li	IMW1(PCREL(.readLen-1))
 	li	IMW0(PCREL(.readLen))
-	addt	r7
+	add	r7
 
 	li	4
 	add	r5
@@ -113,7 +113,7 @@ lz4_depack:
 	add	r7
 
 	li	IMW0(PCREL(.readLen))
-	addt	r7
+	add	r7
 
 .litCopy:
 	ldbinc	r0
