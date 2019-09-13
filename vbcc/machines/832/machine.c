@@ -465,7 +465,10 @@ static void function_top(FILE *f,struct Var *v,long offset)
     for(i=FIRST_GPR+1;i<=LAST_GPR-3;++i)
     {
       if(regused[i])
+      {
         emit(f,"\tmt\t%s\n\tstdec\t%s\n",regnames[i],regnames[sp]);
+        rsavesize+=4;
+      }
     }
   }
   else
@@ -474,7 +477,10 @@ static void function_top(FILE *f,struct Var *v,long offset)
     for(i=FIRST_GPR+1;i<=LAST_GPR-3;++i)
     {
       if(regused[i])
+      {
         emit(f,"\tstmpdec\t%s\n",regnames[i]);
+        rsavesize+=4;
+      }
     }
     emit(f,"\texg\t%s\n",regnames[sp]);
   }
@@ -488,7 +494,6 @@ static void function_top(FILE *f,struct Var *v,long offset)
 	emit_constanttotemp(f,offset);
 	emit(f,"\tsub\t%s\n",regnames[sp]);
   }
-  // FIXME - need to save non-volatile registers here
 }
 
 
@@ -680,9 +685,9 @@ int cost_savings(struct IC *p,int r,struct obj *o)
   int c=p->code;
   if(o->flags&VKONST){
     if(o==&p->q1&&p->code==ASSIGN&&(p->z.flags&DREFOBJ))
-      return 3;
+      return 1;
     else
-      return 5;
+      return 1;
   }
   if(o->flags&DREFOBJ)
     return 1;
@@ -1062,6 +1067,8 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
           emit_externtotemp(f,p->q1.v->identifier);
           emit(f,"\texg\t%s\n",regnames[pc]);
         }
+        emit_constanttotemp(f,pushedargsize(p));
+        emit(f,"\tadd\t%s\n",regnames[sp]);
 	emit(f,"\n");
       }
       /*FIXME*/

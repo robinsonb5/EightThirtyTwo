@@ -8,7 +8,7 @@ start:
 	li	0
 	mr	r0
 	li	PCREL(Subroutine)
-	addt	r7
+	add	r7
 	cond	NEX
 
 Subroutine:

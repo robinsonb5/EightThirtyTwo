@@ -29,7 +29,7 @@
 #define exg .byte 0x80 +
 #define mt .byte 0x88 +
 #define add .byte 0x90 +
-// Addt's behaviour is different for r7 - perhaps use a different mnemonic?
+// Add's behaviour is different for r7 - perhaps use a different mnemonic?
 #define addt .byte 0x98 +
 #define ld .byte 0xa0 +
 #define ldinc .byte 0xa8 +
