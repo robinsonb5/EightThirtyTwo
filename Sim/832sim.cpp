@@ -7,6 +7,8 @@
 #include "binaryblob.h"
 #include "debug.h"
 
+#include "832_opcodes.h"
+
 #define STACKSIZE 1024
 int STACKOFFSET=0;
 
@@ -298,6 +300,7 @@ class EightThirtyTwoSim
 
 		bool run=true;
 		bool immediate_continuation=false;
+		bool sign_mod=false;
 
 		while(run)
 		{
@@ -340,12 +343,25 @@ class EightThirtyTwoSim
 						immediate_continuation=true;
 					}
 				}
-				else
+				else if((opcode|operand)==ovl_sgn)	// Evaluate overloaded (zero-operand) opcodes here
+				{
+					sign_mod=true;
+					// Set the sign modifier, cleared by the next instruction that could use it.
+				}
+				else if((opcode|operand)==ovl_ldt)
+				{
+					temp=prg.Read(temp);
+					mnem << ("ldt ");
+				}
+				else	// Now having dealt with special cases, consider full opcodes
 				{
 					immediate_continuation=false;
 					switch(opcode)
 					{
-						case 0x00: // cond
+
+						// Control flow:
+
+						case opc_cond: // cond
 							if(!operand)
 								steps=1;
 							t=((zero&carry)<<3)|((!zero&carry)<<2)|((zero&!carry)<<1)|(!zero&!carry);
@@ -354,19 +370,23 @@ class EightThirtyTwoSim
 							mnem << ("cond ") << operand << (", ") << t;
 							break;
 
-						case 0x88: // mt
+
+						// Register
+
+
+						case opc_mt: // mt
 							temp=regfile[operand];
 							mnem << ("mt ") << operand;
 							break;
 
-						case 0x08: // mr
+						case opc_mr: // mr
 							regfile[operand]=temp;
 							if(operand==7)
 								cond=1; // cancel cond on write to r7
 							mnem << ("mr ") << operand;
 							break;
 
-						case 0x80: // exg
+						case opc_exg: // exg
 							t=regfile[operand];
 							regfile[operand]=temp;
 							temp=t;
@@ -375,44 +395,65 @@ class EightThirtyTwoSim
 							mnem << ("exg ") << operand;
 							break;
 
-#if 0
-						case 0xb0: // ldx
-							temp=prg.Read((regfile[operand]+regfile[5])&0xfffffffc);
-							mnem << ("ldx ") << operand;
-							break;
-#endif
 
-						case 0x20: // st
+						// Memory
+
+
+						case opc_ld: // ld
+							temp=prg.Read(regfile[operand]); // &0xfffffffc);
+							mnem << ("ld ") << operand;
+							break;
+
+						case opc_ldinc: // ldinc
+							temp=prg.Read(regfile[operand]); // &0xfffffffc);
+							regfile[operand]+=4;
+							mnem << ("ldinc ") << operand;
+							break;
+
+						case opc_ldbinc: // ldbinc
+							temp=prg[regfile[operand]];
+							regfile[operand]++;
+							if(!temp)
+								zero=1;
+							carry=0;
+							mnem << ("ldbinc ") << operand;
+							break;
+
+						case opc_ltmpinc: // ltmpinc
+							regfile[operand]=prg.Read(temp);//&0xfffffffc);
+							temp+=4;
+							mnem << ("ldinc ") << operand;
+							break;
+
+
+						case opc_st: // st
 							prg.Write(regfile[operand],temp); // &0xfffffffc,temp);
 							mnem << ("st ") << operand;
 							break;
 
-						case 0xa0: // ld
-							if(operand==7)	//
-							{ 
-								temp=prg.Read(temp);
-								mnem << ("ldt ");
-							}
-							else
-							{
-								temp=prg.Read(regfile[operand]); // &0xfffffffc);
-								mnem << ("ld ") << operand;
-							}
+						case opc_stdec: // stdec
+							regfile[operand]-=4;
+							prg.Write(regfile[operand],temp); //&0xfffffffc,temp);
+							mnem << ("stdec ") << operand;
 							break;
 
-#if 0
-						case 0x30: // stx
-							prg.Write((regfile[operand]+regfile[5])&0xfffffffc,temp);
-							mnem << ("stx ") << operand;
-							break;
-#endif
-						case 0x30: // stmpdec
+						case opc_stmpdec: // stmpdec
 							temp-=4;
 							prg.Write(temp,regfile[operand]);
 							mnem << ("stmpdec ") << operand;
 							break;
 
-						case 0x90: // add
+						case opc_stbinc: // stbinc
+							prg[regfile[operand]]=temp&0xff;
+							regfile[operand]++;
+							mnem << ("stbinc ") << operand;
+							break;
+
+
+						// Arithmetic
+
+
+						case opc_add: // add
 							t2=regfile[operand]+temp;
 							carry=(t2>>32)&1;
 							zero=(t2&0xffffffff)==0;
@@ -425,65 +466,7 @@ class EightThirtyTwoSim
 							mnem << ("add ") << operand;
 							break;
 
-						case 0x18: // cmp
-							t2=regfile[operand]-temp;
-							carry=(t2>>32)&1;
-							zero=(t2&0xffffffff)==0;
-							mnem << ("cmp ") << operand;
-							break;
-
-						case 0xa8: // ldinc
-							temp=prg.Read(regfile[operand]); // &0xfffffffc);
-							regfile[operand]+=4;
-							mnem << ("ldinc ") << operand;
-							break;
-
-						case 0x10: // sub
-							t2=regfile[operand]-temp;
-							carry=(t2>>32)&1;
-							regfile[operand]=t2;
-							zero=(t2&0xffffffff)==0;
-							if(operand==7)
-								cond=1; // cancel cond on write to r7
-							mnem << ("sub ") << operand;
-							break;
-
-						case 0x28: // stdec
-							if(operand==7)	//
-							{ 
-								--temp;
-								mnem << ("dect ");
-							}
-							else
-							{
-								regfile[operand]-=4;
-								prg.Write(regfile[operand],temp); //&0xfffffffc,temp);
-								mnem << ("stdec ") << operand;
-							}
-							break;
-
-						case 0x40: // and
-							regfile[operand]&=temp;
-							carry=0;
-							zero=regfile[operand]==0;
-							mnem << ("and ") << operand;
-							break;
-
-						case 0x48: // or
-							regfile[operand]|=temp;
-							carry=0;
-							zero=regfile[operand]==0;
-							mnem << ("or ") << operand;
-							break;
-
-						case 0x50: // xor
-							regfile[operand]^=temp;
-							carry=0;
-							zero=regfile[operand]==0;
-							mnem << ("xor ") << operand;
-							break;
-
-						case 0x98: // addt;
+						case opc_addt: // addt;
 							t=regfile[operand];
 							t2=regfile[operand]+temp;
 							carry=(t2>>32)&1;
@@ -495,7 +478,49 @@ class EightThirtyTwoSim
 							mnem << ("addt ") << operand;
 							break;
 
-						case 0x58: // shl
+						case opc_cmp: // cmp - FIXME - heed then clear sign modifier.
+							t2=regfile[operand]-temp;
+							carry=(t2>>32)&1;
+							zero=(t2&0xffffffff)==0;
+							mnem << ("cmp ") << operand;
+							break;
+
+						case opc_sub: // sub - FIXME - heed then clear sign modifier.
+							t2=regfile[operand]-temp;
+							carry=(t2>>32)&1;
+							regfile[operand]=t2;
+							zero=(t2&0xffffffff)==0;
+							if(operand==7)
+								cond=1; // cancel cond on write to r7
+							mnem << ("sub ") << operand;
+							break;
+
+
+						// Logical
+
+
+						case opc_and: // and
+							regfile[operand]&=temp;
+							carry=0;
+							zero=regfile[operand]==0;
+							mnem << ("and ") << operand;
+							break;
+
+						case opc_or: // or
+							regfile[operand]|=temp;
+							carry=0;
+							zero=regfile[operand]==0;
+							mnem << ("or ") << operand;
+							break;
+
+						case opc_xor: // xor
+							regfile[operand]^=temp;
+							carry=0;
+							zero=regfile[operand]==0;
+							mnem << ("xor ") << operand;
+							break;
+
+						case opc_shl: // shl
 							t2=regfile[operand]<<(temp-1);
 							carry=t2>>32;
 							regfile[operand]<<=temp;
@@ -503,64 +528,29 @@ class EightThirtyTwoSim
 							mnem << ("shl ") << operand;
 							break;
 
-						case 0x60: // asr
+						case opc_shr: // asr FIXME heed sign bit
 							carry=regfile[operand]>>(temp-1);
 							carry&=1;
-							t=regfile[operand];
-							t>>=temp;
-							regfile[operand]=t;
-							zero=regfile[operand]==0;
-							mnem << ("asr ") << operand;
-							break;
-
-						case 0x68: // lsr
-							carry=regfile[operand]>>(temp-1);
-							carry&=1;
-							regfile[operand]>>=temp;
-							zero=regfile[operand]==0;
-							mnem << ("lsr ") << operand;
-							break;
-
-						case 0x70: // ror
-							t=regfile[operand]<<(32-temp);
-							regfile[operand]=(regfile[operand]>>temp)|t;
-                                                        mnem << ("ror ") << operand;
-//							throw "ror not yet implemented\n";
-							break;
-
-//						case 0x78: // rorc
-//							throw "rorc not yet implemented\n";
-//							break;
-
-						case 0x78: // ltmpinc
-							regfile[operand]=prg.Read(temp);//&0xfffffffc);
-							temp+=4;
-							mnem << ("ldinc ") << operand;
-							break;
-
-
-						case 0x38: // stbinc
-							if(operand==7)	//
-							{ 
-								++temp;
-								mnem << ("inct ");
+							if(sign_mod)
+							{
+								t=regfile[operand];
+								t>>=temp;
+								regfile[operand]=t;
+								mnem << ("shr(a) ") << operand;
 							}
 							else
 							{
-								prg[regfile[operand]]=temp&0xff;
-								regfile[operand]++;
-								mnem << ("stbinc ") << operand;
+								regfile[operand]>>=temp;
+								mnem << ("shr(l) ") << operand;
 							}
-//							putchar(temp&0xff);
+							sign_mod=false;
+							zero=regfile[operand]==0;
 							break;
 
-						case 0xb8: // ldbinc
-							temp=prg[regfile[operand]];
-							regfile[operand]++;
-							if(!temp)
-								zero=1;
-							carry=0;
-							mnem << ("ldbinc ") << operand;
+						case opc_ror: // ror
+							t=regfile[operand]<<(32-temp);
+							regfile[operand]=(regfile[operand]>>temp)|t;
+                                                        mnem << ("ror ") << operand;
 							break;
 
 					}
@@ -582,11 +572,11 @@ class EightThirtyTwoSim
 				{
 					switch(opcode)
 					{
-						case 0x08: // mr
-						case 0x80: // exg
-						case 0x90: // add
-						case 0x10: // sub
-						case 0x98: // addt;
+						case opc_mr: // mr
+						case opc_exg: // exg
+						case opc_add: // add
+						case opc_sub: // sub
+						case opc_addt: // addt;
 							cond=1;
 					}
 				}

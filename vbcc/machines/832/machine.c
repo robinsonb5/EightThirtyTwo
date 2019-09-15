@@ -631,6 +631,7 @@ int init_cg(void)
   for(i=FIRST_CCR;i<=LAST_CCR-VOL_CCRS;i++)
     regscratch[i]=0;
 
+  regsa[FIRST_GPR]=1;	// Allocate the return register
   regsa[t1]=1;
 //  regsa[t2]=1;
   regsa[sp]=1;
@@ -1062,7 +1063,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 	/* FIXME - deal with different object types here */
         if(p->q1.v->storage_class==STATIC){
           emit_pcreltotemp(f,labprefix,zm2l(p->q1.v->offset));
-          emit(f,"\taddt\t%s\n",regnames[pc]);
+          emit(f,"\tadd\t%s\n",regnames[pc]);
         }else{
           emit_externtotemp(f,p->q1.v->identifier);
           emit(f,"\texg\t%s\n",regnames[pc]);

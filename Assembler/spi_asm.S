@@ -136,7 +136,7 @@ SPI_Spin:	// GCC compiled ZPU equivalent, 26 bytes
 	li	IMW0(PCREL(.spinloop))
 	mr	r7
 
-ldinc	r6
+	ldinc	r6
 	mr	r7	// 12 bytes
 
 		// GCC ZPU equivalent: 120 bytes
@@ -150,14 +150,17 @@ SD_WaitInitV2:	// r0 is 1 on success, 0 on failure.  r5 must point to SPI_HW_DAT
 	li	IMW0(PCREL(SPI_Spin))
 	add	r7
 
+	li	IMW3(20000)
 	li	IMW1(20000)
-	mr	r2	// 9
+	li	IMW0(20000)
+	mr	r2	// 11
 .initv2loop:
 	li	1
 	sub	r2
 	cond	EQ
 	  li	0
 	  mr	r0
+	  li	IMW1(PCREL(.initv2done-1))
 	  li	IMW0(PCREL(.initv2done))
 	  mr	r7	// Escape loop
 
@@ -172,7 +175,7 @@ SD_WaitInitV2:	// r0 is 1 on success, 0 on failure.  r5 must point to SPI_HW_DAT
 	cmp	r0
 	cond	NEQ	// If we didn't get a 1, loop
 	  li	IMW0(PCREL(.initv2loop))
-	  mr	r7	// 19  ->  28
+	  mr	r7	// 20  ->  31
 
 	// CMD55 succeeded - try CMD41
 
@@ -196,19 +199,19 @@ SD_WaitInitV2:	// r0 is 1 on success, 0 on failure.  r5 must point to SPI_HW_DAT
 	li	0
 	cmp	r0
 	li	-1
-	cond	EQ	// 17 -> 45
+	cond	EQ	// 17 -> 48
 
 	  st	r5
 	  sub	r0
 	  li	IMW0(PCREL(.initv2done))
-	  mr	r7	// 49
+	  mr	r7	// 52
 
 	li	IMW1(PCREL(SPI_Spin-1))
 	li	IMW0(PCREL(SPI_Spin))
 	add	r7
 
 	li	IMW0(PCREL(.initv2loop))
-	mr	r7	// 54 bytes
+	mr	r7	// 57 bytes
 
 
 .initv2done:
@@ -217,33 +220,69 @@ SD_WaitInitV2:	// r0 is 1 on success, 0 on failure.  r5 must point to SPI_HW_DAT
 	ldinc	r6
 	mr	r1
 	ldinc	r6
-	mr	r7	// 60 bytes
+	mr	r7	// 63 bytes
 
 
-SD_WaitInit:	// 
+		// ZPU / gcc equivalent: 88 bytes
+SD_WaitInit:	// Sends init command, returns 1 in r0 for success, 0 for failure.  r5 must contain SPI_HW_DATA reg.
+	stdec	r6
+	mt	r1
+	stdec	r1
+	mt	r2
+	stdec	r2
+
+	li	20
+	mr	r2
+
+	li	-1
+	st	r5	// SPI(0xff)  - 9 bytes
+
+.waitinitloop:
+	li	-1
+	add	r2
+	cond	EQ	// Failed
+	  li	0
+	  mr	r0
+	  li	IMW0(PCREL(.waitinitdone))
+	  mr	r7
+
+	li	IMW2(cmd_init)
+	li	IMW1(cmd_init)
+	li	IMW0(cmd_init)
+	mr	r0
+	li	0
+	mr	r1
+	li	IMW1(PCREL(SPI_Send-1))
+	li	IMW0(PCREL(SPI_Send-1))
+	add	r7	// 16 -> 25 bytes
+
+	li	0
+	cmp	r0
+	cond	EQ
+	  li	-1
+	  st	r5
+	  li	1
+	  st	r0
+	  li	IMW0(PCREL(.waitinitdone))
+	  add	r7
+
+	li	IMW1(PCREL(SPI_Spin-1))
+	li	IMW0(PCREL(SPI_Spin))
+	add	r7
+
+	li	IMW0(PCREL(.waitinitloop))
+	mr	r7	// 14 -> 39 bytes
+
+.waitinitdone:
+	ldinc	r6
+	mr	r2
+	ldinc	r6
+	mr	r1
+	ldinc	r6
+	mr	r7	// 45 bytes
+
 
 #if 0
-
-int wait_init()
-{
-	int i=20;
-	int r;
-	SPI(0xff);
-	puts("CMD");
-	while(--i)
-	{
-		if((r=cmd_init())==0)
-		{
-//			printf("init %d\n  ",r);
-			SPI(0xff);
-			return(1);
-		}
-//		else
-//			printf("init %d\n  ",r);
-		spi_spin();
-	}
-	return(0);
-}
 
 
 int is_sdhc()

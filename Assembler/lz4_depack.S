@@ -106,7 +106,7 @@ lz4_depack:
 	li	15
 	and	r4
 	li	4
-	lsr	r5
+	shr	r5
 	cond	EQ
 	li	IMW1(PCREL(.lenOffset-1))
 	li	IMW0(PCREL(.lenOffset))
