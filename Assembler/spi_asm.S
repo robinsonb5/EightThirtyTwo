@@ -23,6 +23,8 @@
 #define cmd_CMD58 0xff7A
 
 
+// ZPU GCC SPI routines take up 1516 bytes in total, for comparison.
+
 SPI_Pump:	// Return longword in r0, HW_SPI_DATA must be in r5
 	stdec	r6
 
@@ -51,10 +53,10 @@ SPI_Pump:	// Return longword in r0, HW_SPI_DATA must be in r5
 is_sdhc:
 	.byte	0
 
-SPI_Send:	// command in r0, lba in r1, HW_SPI_DATA must be in r5
+SPI_Send:	// command in r0, lba in r1, expected response in r2, HW_SPI_DATA must be in r5
 	stdec	r6
-	mt	r2
-	stdec	r6
+//	mt	r2
+//	stdec	r6
 
 	mt	r0
 	st	r5	// SPI(cmd&255); // Assume only low 8 bits are active.
@@ -62,10 +64,11 @@ SPI_Send:	// command in r0, lba in r1, HW_SPI_DATA must be in r5
 	// FIXME - better to do this only for read / write commands
 	li	IMW1(PCREL(is_sdhc-1))
 	li	IMW0(PCREL(is_sdhc))
-	add	r7
+	addt	r7
 
-	mr	r2	// Use ldtmp if we implement it
-	ld	r2
+	ldt
+//	mr	r2	// Use ldtmp if we implement it
+//	ld	r2
 	cond	EQ	// Might have to test this to set z flag
 	li	9
 	shl	r1	// Multiply LBA by 512 if we have a standard SD card.
@@ -117,8 +120,8 @@ SPI_Send:	// command in r0, lba in r1, HW_SPI_DATA must be in r5
 	mr	r7
 
 .done:
-	ldinc	r6
-	mr	r2
+//	ldinc	r6
+//	mr	r2
 	ldinc	r6
 	mr	r7	// 59 bytes  -  GCC compiled ZPU equivalent 128 bytes
 
@@ -168,6 +171,8 @@ SD_WaitInitV2:	// r0 is 1 on success, 0 on failure.  r5 must point to SPI_HW_DAT
 	li	IMW1(cmd_CMD55)
 	li	IMW0(cmd_CMD55)
 	mr	r0
+	li	0
+	mr	r1
 	li	IMW1(PCREL(SPI_Send-1))
 	li	IMW0(PCREL(SPI_Send))
 	add	r7
@@ -282,6 +287,99 @@ SD_WaitInit:	// Sends init command, returns 1 in r0 for success, 0 for failure. 
 	mr	r7	// 45 bytes
 
 
+SD_Init:  // ZPU GCC equivalent: 219 bytes
+	exg	r6
+	stmpdec	r6
+	stmpdec	r1
+	stmpdec	r4
+	stmpdec	r5
+	mr	r6	// 6 bytes
+	
+
+	li	IMW1(SPIBASE+HW_SPI_CS)
+	li	IMW0(SPIBASE+HW_SPI_CS)
+	mr	r4
+	ltmpinc	r5
+	mr	r5	// SPI_DATA -> r5
+	li	0
+	st	r4	// SPI_CS(0)
+	li	IMW1(PCREL(SPI_Spin-1))
+	li	IMW0(PCREL(SPI_Spin))
+	add	r7	// 10 -> 16 bytes
+
+	li	1
+	st	r4	// SPI_CS(1)
+
+	li	8
+	mr	r4
+.spiinitloop1:
+	li	0
+	mr	r1
+	li	IMW2(cmd_reset)
+	li	IMW1(cmd_reset)
+	li	IMW0(cmd_reset)
+	mr	r0
+	li	IMW1(PCREL(SPI_Send))
+	li	IMW0(PCREL(SPI_Send))
+	add	r7	// 13 -> 29 bytes
+
+	li	1
+	cmp	r0
+	cond	EQ
+	  li	IMW0(PCREL(.spiinit_resetok))
+	  mr	r7
+
+	sub	r4
+	cond	EQ	// Bail out if the card doesn't respond.
+	  li	IMW0(PCREL(.spiinitdone))
+	  mr	r7	// 9 -> 38 bytes
+
+.spiinit_resetok:
+	li	1
+	mr	r4	// Return code
+	li	IMW1(PCREL(SD_IsSDHC))
+	li	IMW0(PCREL(SD_IsSDHC))
+	add	r7
+	li	0
+	cmp	r0
+	cond	NEQ
+	  li	IMW0(PCREL(.spiinitdone))
+	  mr	r7
+
+	li	1
+	mr	r1
+	li	IMW2(cmd_CMD16)
+	li	IMW1(cmd_CMD16)
+	li	IMW0(cmd_CMD16)
+	mr	r0
+	li	IMW1(PCREL(SPI_Send))
+	li	IMW0(PCREL(SPI_Send))
+	add	r7	// 19 -> 57 bytes
+
+.spiinitdone:
+	li	-1
+	st	r5	// SPI(0xff)
+	li	0
+	stdec	r5	// CS(0)
+	ldinc	r5	// Restore pointer
+	li	-1
+	st	r5	// SPI(0xff)
+
+	mt	r4
+	mr	r0
+	mt	r6
+	ltmpinc	r5
+	ltmpinc	r4
+	ltmpinc	r1
+	ltmpinc	r6
+	exg	r6
+	mr	r7	// 16 bytes -> 73 bytes
+
+
+SD_IsSDHC:
+
+	mr	r7
+
 #if 0
 
 
@@ -341,46 +439,6 @@ int is_sdhc()
 		}
 	}
 	return(0);
-}
-
-
-int spi_init()
-{
-	int i;
-	int r;
-	SDHCtype=1;
-	SPI_CS(0);	// Disable CS
-	spi_spin();
-	puts("SPI");
-	DBG("Activating CS\n");
-	SPI_CS(1);
-	i=8;
-	while(--i)
-	{
-		if(cmd_reset()==1) // Enable SPI mode
-			i=1;
-		DBG("Sent reset command\n");
-		if(i==2)
-		{
-			DBG("SD card initialization error!\n");
-			return(0);
-		}
-	}
-	DBG("Card responded to reset\n");
-	SDHCtype=is_sdhc();
-	if(SDHCtype)
-		DBG("SDHC card detected\n");
-	else // If not SDHC, Set blocksize to 512 bytes
-	{
-		DBG("Sending cmd16 (blocksize)\n");
-		cmd_CMD16(1);
-	}
-	SPI(0xFF);
-	SPI_CS(0);
-	SPI(0xFF);
-	DBG("Init done\n");
-
-	return(1);
 }
 
 

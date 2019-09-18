@@ -12,7 +12,6 @@ start:
 	li	IMW1(compressed-start)
 	li	IMW0(compressed-start)
 	mr	r0
-	mr	r1
 
 	li	IMW1(decompressed-start)
 	li	IMW0(decompressed-start)
@@ -57,6 +56,10 @@ start:
 	cond	NEX	// terminate simulation
 
 
+
+//	832 code: 72 bytes
+//	68K original: 74 bytes
+//	MIPS transliteration of 68K code: 200 bytes
 //	r0 packed buffer
 //	r1 destination pointer
 //	r2 packed buffer end
@@ -96,8 +99,8 @@ lz4_depack:
 	li	1
 	sub	r5
 	cond	NEQ
-	li	IMW0(PCREL(.copy))
-	add	r7
+	  li	IMW0(PCREL(.copy))
+	  add	r7
 			
 .tokenLoop:	
 	ldbinc	r0
@@ -108,9 +111,9 @@ lz4_depack:
 	li	4
 	shr	r5
 	cond	EQ
-	li	IMW1(PCREL(.lenOffset-1))
-	li	IMW0(PCREL(.lenOffset))
-	add	r7
+	  li	IMW1(PCREL(.lenOffset-1))
+	  li	IMW0(PCREL(.lenOffset))
+	  add	r7
 
 	li	IMW0(PCREL(.readLen))
 	add	r7
@@ -121,15 +124,15 @@ lz4_depack:
 	li	1
 	sub	r5
 	cond	NEQ
-	li	IMW0(PCREL(.litCopy))
-	add	r7
+	  li	IMW0(PCREL(.litCopy))
+	  add	r7
 
 	mt	r2
 	cmp	r0
 	cond	SGT
-	li	IMW1(PCREL(.lenOffset-1))
-	li	IMW0(PCREL(.lenOffset))
-	add	r7
+	  li	IMW1(PCREL(.lenOffset-1))
+	  li	IMW0(PCREL(.lenOffset))
+	  add	r7
 			
 .over:
 	ldinc	r6
@@ -140,8 +143,8 @@ lz4_depack:
 	li	15
 	cmp	r5
 	cond	NEQ
-	li	IMW0(PCREL(.readEnd))
-	add	r7
+	  li	IMW0(PCREL(.readEnd))
+	  add	r7
 
 .readLoop:
 	ldbinc	r0
@@ -151,8 +154,8 @@ lz4_depack:
 	li	IMW0(255)
 	xor	r3
 	cond	EQ
-	li	IMW0(PCREL(.readLoop))
-	add	r7
+	  li	IMW0(PCREL(.readLoop))
+	  add	r7
 
 .readEnd:
 	ldinc	r6
