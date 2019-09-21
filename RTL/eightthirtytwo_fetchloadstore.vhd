@@ -163,14 +163,16 @@ ram_addr<=std_logic_vector(pc(31 downto 2)) when ls_state=LS_WAIT and fetch_ram_
 	else ram_addr_r;
 
 	
-process(clk, reset_n, ls_req, ls_wr)
+process(clk, reset_n, ls_req, ls_wr,ram_ack,fetch_ram_req)
 begin
 	if reset_n='0' then
 		ls_state<=LS_WAIT;
+		load_store<='1';
 		ram_req_r<='0';
 	elsif rising_edge(clk) then
 
 		ls_addrplus4<=unsigned(ls_addr)+4;
+		ls_ack<='0';
 
 		case ls_state is
 			when LS_WAIT =>
@@ -245,18 +247,21 @@ begin
 				ram_bytesel<=ls_mask;
 				ram_req_r<='1';
 				if ram_ack='1' then
-					ls_state<=LS_STORE2;
+					if ls_mask2="0000" then
+						ram_req_r<='0';
+						ls_ack<='1';
+						ls_state<=LS_WAIT;
+					else
+						ram_addr_r<=std_logic_vector(ls_addrplus4(31 downto 2));
+						ram_bytesel<=ls_mask2;
+						ram_req_r<='1';
+						ls_state<=LS_STORE2;
+					end if;	-- FIXME - can we end the cycle early?
 				end if;
 
 			when LS_STORE2 =>
-				ram_addr_r<=std_logic_vector(ls_addrplus4(31 downto 2));
-				ram_bytesel<=ls_mask2;
-				ram_req_r<='1';
-				ls_ack<='1';
-				ls_state<=LS_STORE3;
-
-			when LS_STORE3 =>				
 				if ram_ack='1' then
+					ls_ack<='1';
 					ram_req_r<='0';
 					ls_state<=LS_WAIT;
 				end if;
