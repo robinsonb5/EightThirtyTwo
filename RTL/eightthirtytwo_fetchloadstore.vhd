@@ -49,6 +49,7 @@ architecture behavioural of eightthirtytwo_fetchloadstore is
 signal pc : unsigned(31 downto 0);
 signal pc_lsbs : std_logic_vector(1 downto 0);
 signal programword : std_logic_vector(31 downto 0);
+signal pfprogramword : std_logic_vector(31 downto 0);
 
 type fetchstates is (FS_RUNNING,FS_WAIT,FS_ABORT);
 signal fetchstate : fetchstates;
@@ -56,10 +57,15 @@ signal fetch_jump : std_logic;
 
 signal fetch_ram_req : std_logic;
 
+signal prefetched : std_logic;
+signal prefetching : std_logic;
+signal prefetch_ram_req : std_logic;
+signal prefetch_addr : std_logic_vector(31 downto 2);
+
 -- Load store signals
 
 signal load_store : std_logic; -- 1 for load, 0 for store.
-type ls_states is (LS_WAIT, LS_PREPSTORE, LS_STORE, LS_STORE2, LS_STORE3, LS_LOAD, LS_LOAD2, LS_FETCH);
+type ls_states is (LS_WAIT, LS_PREPSTORE, LS_STORE, LS_STORE2, LS_STORE3, LS_LOAD, LS_LOAD2, LS_FETCH, LS_PREFETCH);
 signal ls_state : ls_states;
 signal ls_mask : std_logic_vector(3 downto 0);
 signal ls_mask2 : std_logic_vector(3 downto 0);
@@ -93,6 +99,9 @@ begin
 		if reset_n='0' then
 			pc<=(others=>'0');
 			fetch_ram_req<='0';
+			prefetch_ram_req<='0';
+			prefetching<='0';
+			prefetched<='0';
 			fetchstate <= FS_RUNNING;
 			programword <= (others=>'0');
 			pc_lsbs<="00";
@@ -101,9 +110,22 @@ begin
 
 			case fetchstate is
 				when FS_RUNNING =>
-					if pc(1 downto 0)="00" then -- FIXME - deal with prefetch here
-						fetch_ram_req<='1';
-						fetchstate<=FS_WAIT;
+					if pc(1 downto 0)="00" then
+						if pc_next='1' and prefetched='1' then
+							programword<=pfprogramword;
+							prefetched<='0';
+							prefetch_ram_req<='1';
+							prefetching<='1';
+							prefetch_addr<=std_logic_vector(unsigned(pc(31 downto 2))+1);
+							pc_lsbs<=std_logic_vector(pc(1 downto 0));
+							pc<=pc+1;
+							opc_ready<='1';
+						else
+							if prefetching='0' then
+								fetch_ram_req<='1';
+								fetchstate<=FS_WAIT;
+							end if;
+						end if;
 					elsif pc_next='1' then
 						pc_lsbs<=std_logic_vector(pc(1 downto 0));
 						pc<=pc+1;
@@ -117,7 +139,7 @@ begin
 					end if;
 
 				when FS_WAIT =>
-					if ram_ack='1' then
+					if ram_ack='1' and ls_state=LS_FETCH then
 						fetch_ram_req<='0';
 						programword<=ram_d;
 						pc_lsbs<=std_logic_vector(pc(1 downto 0));
@@ -131,8 +153,15 @@ begin
 
 			end case;
 
+			if fetch_ram_req='1' then
+				prefetch_ram_req<='1';
+				prefetching<='1';
+				prefetch_addr<=std_logic_vector(unsigned(pc(31 downto 2))+1);
+			end if;
+
 			if pc_req='1' then	-- PC has changed - could happen while fetching...
 				pc<=unsigned(pc_d);
+				prefetching<='0';
 				fetch_ram_req<='1';
 				if fetchstate /= FS_RUNNING and ram_ack='0' then -- Is a fetch pending?
 					fetchstate<=FS_ABORT;
@@ -140,6 +169,13 @@ begin
 					fetch_ram_req<='1';
 					fetchstate<=FS_WAIT;
 				end if;
+			end if;
+
+			if ram_ack='1' and ls_state=LS_PREFETCH then
+				prefetch_ram_req<='0';
+				prefetched<=prefetching;
+				prefetching<='0';
+				pfprogramword<=ram_d;
 			end if;
 
 		end if;
@@ -191,9 +227,19 @@ begin
 						load_store<='1';
 						ls_state<=LS_LOAD;
 					end if;	
+				elsif prefetch_ram_req='1' then
+					ram_addr_r<=prefetch_addr;
+					ram_req_r<='1';
+					ls_state<=LS_PREFETCH;
 				end if;
 
 			when LS_FETCH =>
+				if ram_ack='1' then
+					ram_req_r<='0';
+					ls_state<=LS_WAIT;
+				end if;
+
+			when LS_PREFETCH =>
 				if ram_ack='1' then
 					ram_req_r<='0';
 					ls_state<=LS_WAIT;
