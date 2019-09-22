@@ -54,6 +54,8 @@ signal pc_lsbs : std_logic_vector(1 downto 0);
 signal programword : std_logic_vector(31 downto 0);
 signal pfprogramword : std_logic_vector(31 downto 0);
 
+signal opc_ready_r : std_logic;
+
 type fetchstates is (FS_RUNNING,FS_WAIT,FS_ABORT);
 signal fetchstate : fetchstates;
 signal fetch_jump : std_logic;
@@ -95,6 +97,8 @@ opcode <= programword(31 downto 24) when pc_lsbs="00"
 	else programword(15 downto 8) when pc_lsbs="10"
 	else programword(7 downto 0);
 
+opc_ready<=opc_ready_r and pc_next;
+
 process(pc_d,pc,clk,ram_ack,reset_n)
 begin
 
@@ -109,7 +113,7 @@ begin
 			programword <= (others=>'0');
 			pc_lsbs<="00";
 		else
-			opc_ready<='0';
+			opc_ready_r<='0';
 
 			case fetchstate is
 				when FS_RUNNING =>
@@ -122,7 +126,7 @@ begin
 							prefetch_addr<=std_logic_vector(unsigned(pc(31 downto 2))+1);
 							pc_lsbs<=std_logic_vector(pc(1 downto 0));
 							pc<=pc+1;
-							opc_ready<='1';
+							opc_ready_r<='1';
 						else
 							if prefetching='0' then
 								fetch_ram_req<='1';
@@ -132,7 +136,7 @@ begin
 					elsif pc_next='1' then
 						pc_lsbs<=std_logic_vector(pc(1 downto 0));
 						pc<=pc+1;
-						opc_ready<='1';
+						opc_ready_r<='1';
 					end if;
 
 				when FS_ABORT =>
@@ -147,7 +151,7 @@ begin
 						programword<=ram_d;
 						pc_lsbs<=std_logic_vector(pc(1 downto 0));
 						pc<=pc+1;
-						opc_ready<='1';
+						opc_ready_r<='1';
 						fetchstate<=FS_RUNNING;
 					end if;
 						
