@@ -10,7 +10,7 @@ end cpu_tb;
 
 architecture behaviour of cpu_tb
 is
-	constant clk_period : time := 10 ns;
+	constant clk_period : time := 100 ns;
 	signal clk : std_logic;
 
 	signal reset_n : std_logic;
@@ -56,7 +56,7 @@ begin
 	romout.MemAByteSel<=ram_bytesel;
 	from_ram<=romin.MemARead;
 
-	cpu : entity work.eightthirtytwo_cpu
+	cpu : entity work.eightthirtytwo_cpu_comb
 	port map
 	(
 		clk => clk,

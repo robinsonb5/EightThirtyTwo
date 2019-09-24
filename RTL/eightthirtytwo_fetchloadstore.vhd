@@ -97,7 +97,7 @@ opcode <= programword(31 downto 24) when pc_lsbs="00"
 	else programword(15 downto 8) when pc_lsbs="10"
 	else programword(7 downto 0);
 
-opc_ready<=opc_ready_r and pc_next;
+opc_ready<=opc_ready_r;
 
 process(pc_d,pc,clk,ram_ack,reset_n)
 begin
