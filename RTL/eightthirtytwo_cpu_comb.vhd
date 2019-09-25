@@ -47,16 +47,12 @@ signal ls_ack : std_logic;
 
 -- Fetch stage signals:
 
-signal f_nextop : std_logic;
-signal f_pc : std_logic_vector(31 downto 0);
+signal f_pc : unsigned(31 downto 0);
 signal f_op : std_logic_vector(7 downto 0);
-signal f_prevop : std_logic_vector(7 downto 0);
-signal f_op_ready : std_logic := '0' ;	-- Execute stage can use f_op
+signal f_op_valid : std_logic := '0' ;	-- Execute stage can use f_op
 
 
 -- Decode stage signals:
-
-signal stall : std_logic;
 
 signal d_stall : std_logic;
 signal d_bubble : std_logic;
@@ -92,6 +88,7 @@ signal e_nextop : std_logic;
 
 signal s_stall : std_logic;
 signal s_bubble : std_logic;
+signal es_bubble : std_logic;
 
 signal s_opcode : std_logic_vector(7 downto 0);
 signal s_reg : std_logic_vector(2 downto 0);
@@ -128,12 +125,10 @@ port map
 
 	-- cpu fetch interface
 
-	pc_d => e_newpc,
-	pc_q => f_pc,
+	pc => std_logic_vector(f_pc),
 	pc_req => e_setpc,
-	pc_next => f_nextop,
 	opcode => f_op,
-	opc_ready => f_op_ready,
+	opcode_valid => f_op_valid,
 
 	-- cpu load/store interface
 
@@ -159,143 +154,126 @@ port map
 
 ls_req<=ls_req_r and not ls_ack;
 
--- Execute stage
+d_opcode<=f_op(7 downto 3) & "000";
+d_reg<=f_op(2 downto 0);
 
--- FIXME - this is ugly.
-d_opcode<=f_op(7 downto 3) & "000"; -- when f_nextop='1' else f_prevop(7 downto 3) & "000";
-d_reg<=f_op(2 downto 0); -- when f_nextop='1' else f_prevop(2 downto 0);
-
-stall<=d_stall or e_stall or s_stall;
-f_nextop<=not stall;
-
-process(clk,reset_n,f_op_ready)
+process(clk,reset_n,f_op_valid)
 begin
 
 -- Decode stage - combinatorial logic:
 
-	if reset_n='0' then
-		d_stall<='0';
-	elsif rising_edge(clk) then
-		if f_nextop='1' then -- FIXME - ugly
-			f_prevop<=f_op;
-		end if;
-
-		if f_op_ready='0' then
-			d_bubble<='1';
-		end if;
-
-	end if;
-
+		d_bubble<=not f_op_valid;
 
 		d_stall<='0';
 
-		if f_op_ready='1' then
-			d_bubble<='0';
+		d_readreg<='0';
+		d_writereg<='0';
+		d_writetmp<='0';
+		d_alu<='0';
+		d_flags<='0';
+		d_loadstore<='0';
 
-			if e_stall='0' and s_stall='0' then
+		case d_opcode is
+			when X"00" =>	-- cond
+	
+			when X"08" =>   -- mr
+				if reg_busy='0' and tmp_busy='0' then
+					d_writereg<='1';
+				end if;
+	
+			when X"10" =>	-- sub
+	
+			when X"18" =>	-- cmp
+	
+			when X"20" =>	-- st
+			
+			when X"28" =>	-- stdec
+	
+			when X"30" =>	-- stbinc
+	
+			when X"38" =>	-- stmpdec
+	
+			when X"40" =>	-- and
+				if reg_busy='0' and tmp_busy='0' and loadstore_busy='0' then
+					d_writereg<='1';
+					d_readreg<='1';
+				else
+					d_stall<='1';
+					d_bubble<='1';
+				end if;
+	
+			when X"48" =>	-- or
+	
+			when X"50" =>	-- xor
 
-			d_readreg<='0';
-			d_writereg<='0';
-			d_writetmp<='0';
-			d_alu<='0';
-			d_flags<='0';
-			d_loadstore<='0';
+			when X"58" =>	-- shl
 
-			case d_opcode is
-				when X"00" =>	-- cond
-		
-				when X"08" =>   -- mr
-					if reg_busy='0' and tmp_busy='0' then
-						d_writereg<='1';
-					end if;
-		
-				when X"10" =>	-- sub
-		
-				when X"18" =>	-- cmp
-		
-				when X"20" =>	-- st
-				
-				when X"28" =>	-- stdec
-		
-				when X"30" =>	-- stbinc
-		
-				when X"38" =>	-- stmpdec
-		
-				when X"40" =>	-- and
-					if reg_busy='0' and tmp_busy='0' then
-						d_writereg<='1';
-						d_readreg<='1';
-					else
-						d_stall<='1';
-						d_bubble<='1';
-					end if;
-		
-				when X"48" =>	-- or
-		
-				when X"50" =>	-- xor
+			when X"60" =>	-- shr
 
-				when X"58" =>	-- shl
+			when X"68" =>	-- ror
 
-				when X"60" =>	-- shr
+			when X"70" =>	-- sth
 
-				when X"68" =>	-- ror
-
-				when X"70" =>	-- sth
-
-				when X"78" =>	-- mul
-		
-				when X"80" =>	-- exg
-					if reg_busy='0' and tmp_busy='0' then
-						d_writereg<='1';
-						d_writetmp<='1';
-					else
-						d_stall<='1';
-						d_bubble<='1';
-					end if;
-		
-				when X"88" =>	-- mt
-		
-				when X"90" =>	-- add
-
-				when X"98" =>	-- addt
-
-				when X"a0" =>	-- ld  - need to delay this if the previous ex op is writing to the register file.
-					if reg_busy='0' and tmp_busy='0' then
-						d_writereg<='1';
-						d_writetmp<='1';
-						d_loadstore<='1';
-					else
-						d_stall<='1';
-						d_bubble<='1';
-					end if;
-
-				when X"a8" =>	-- ldinc
-
-				when X"b0" =>	-- ldbinc
-
-				when X"b8" =>	-- ltmpinc
-
-				when others =>
-					null;
-
-			end case;
-
-			end if;
-
-			if d_opcode(7 downto 6)="11" then
-				if tmp_busy='0' then
+			when X"78" =>	-- mul
+	
+			when X"80" =>	-- exg
+				if reg_busy='0' and tmp_busy='0' then
+					d_readreg<='1';
+					d_writereg<='1';
 					d_writetmp<='1';
 				else
 					d_stall<='1';
 					d_bubble<='1';
 				end if;
-			end if;
+	
+			when X"88" =>	-- mt
+	
+			when X"90" =>	-- add
 
+			when X"98" =>	-- addt
+
+			when X"a0" =>	-- ld  - need to delay this if the previous ex op is writing to the register file.
+				if reg_busy='0' and tmp_busy='0' then
+					d_readreg<='1';
+					d_writereg<='1';
+					d_writetmp<='1';
+					d_loadstore<='1';
+				else
+					d_stall<='1';
+					d_bubble<='1';
+				end if;
+
+			when X"a8" =>	-- ldinc
+
+			when X"b0" =>	-- ldbinc
+
+			when X"b8" =>	-- ltmpinc
+
+			when others =>
+				null;
+
+		end case;
+
+		if d_opcode(7 downto 6)="11" then
+			if tmp_busy='0' then
+				d_writetmp<='1';
+			else
+				d_stall<='1';
+				d_bubble<='1';
+			end if;
 		end if;
+
 
 
 --		-- Execute stage
 
+
+
+-- Need to determine stall status combinationally
+-- Ideally, determine signals to forward to the Store stage combinationally as well.
+
+-- Instead of forwarding the signals, try deriving them in combinational logic since they don't necessarily
+-- need to last the full length of the pipeline.
 	
 	if reset_n='0' then
 		e_readreg<='0';
@@ -314,126 +292,122 @@ begin
 		s_bubble<='0';
 		s_stall<='0';
 
+		f_pc <= (others=>'0');
+		e_setpc <='1';
+		es_bubble<='0';
 	elsif rising_edge(clk) then
 
-		e_stall<='0';
-		e_bubble<=d_bubble;
-		if d_bubble='0' then
+			e_setpc<='0';
+			r_gpr_wr<='0';
+
+			e_stall<='0';	-- Need to hold off the following if we're doing a multicycle operation
+			e_bubble<=d_bubble;
 			e_opcode<=d_opcode;
 			e_reg<=d_reg;
-			e_writereg<=d_writereg;
-			e_readreg<=d_readreg;
-			e_writetmp<=d_writetmp;
-			e_loadstore<=d_loadstore;
-		end if;
-			
-		-- Execute load immediate...
-
-		if e_opcode(7 downto 6)="11" then
-			d_immediatestreak<='1';
-			if d_immediatestreak='1' then	-- shift existing value six bits left...
-				r_tmp<=r_tmp(25 downto 0) & e_opcode(5 downto 3) & e_reg(2 downto 0);
-			else
-				if e_opcode(5)='1' then
-					r_tmp(31 downto 5)<=(others=>'1');
-				else
-					r_tmp(31 downto 5)<=(others=>'0');
-				end if;
-				r_tmp(5 downto 0)<=e_opcode(5 downto 3) & e_reg(2 downto 0);
+			if d_bubble='0' then
+				f_pc <= f_pc+1;
 			end if;
-			r_gpr_wr<='1';
-			e_writetmp<='0'; -- We've already performed the write
-			e_bubble<='1';
-		else
-			d_immediatestreak<='0';
 
-			case e_opcode is
-				when X"00" =>	-- cond
+			-- Execute load immediate...
+
+			if e_bubble='0' then
+				if e_opcode(7 downto 6)="11" then
+					d_immediatestreak<='1';
+					if d_immediatestreak='1' then	-- shift existing value six bits left...
+						r_tmp<=r_tmp(25 downto 0) & e_opcode(5 downto 3) & e_reg(2 downto 0);
+					else
+						if e_opcode(5)='1' then
+							r_tmp(31 downto 5)<=(others=>'1');
+						else
+							r_tmp(31 downto 5)<=(others=>'0');
+						end if;
+						r_tmp(5 downto 0)<=e_opcode(5 downto 3) & e_reg(2 downto 0);
+					end if;
+				else
+					d_immediatestreak<='0';
+
+					case e_opcode is
+						when X"00" =>	-- cond
 		
-				when X"08" =>	-- mr
-					r_gpr_d<=r_tmp;
-					r_gpr_a<=e_reg;
-					r_gpr_wr<='1';
-					e_writetmp<='0'; -- We've already performed the write
-					e_bubble<='1';
+						when X"08" =>	-- mr
+							r_gpr_d<=r_tmp;
+							r_gpr_a<=e_reg;
+							r_gpr_wr<='1';
 		
-				when X"10" =>	-- sub
+						when X"10" =>	-- sub
 		
-				when X"18" =>	-- cmp
+						when X"18" =>	-- cmp
 		
-				when X"20" =>	-- st
+						when X"20" =>	-- st
 				
-				when X"28" =>	-- stdec
+						when X"28" =>	-- stdec
 		
-				when X"30" =>	-- stbinc
+						when X"30" =>	-- stbinc
 		
-				when X"38" =>	-- stmpdec
+						when X"38" =>	-- stmpdec
 		
-				when X"40" =>	-- and
+						when X"40" =>	-- and
 		
-				when X"48" =>	-- or
+						when X"48" =>	-- or
 		
-				when X"50" =>	-- xor
+						when X"50" =>	-- xor
 
-				when X"58" =>	-- shl
+						when X"58" =>	-- shl
 
-				when X"60" =>	-- shr
+						when X"60" =>	-- shr
 
-				when X"68" =>	-- ror
+						when X"68" =>	-- ror
 
-				when X"70" =>	-- sth
+						when X"70" =>	-- sth
 
-				when X"78" =>	-- mul
+						when X"78" =>	-- mul
 		
-				when X"80" =>	-- exg
-					r_tmp<=r_gpr_q;
-					r_gpr_d<=r_tmp;
-					r_gpr_a<=e_reg;
-					r_gpr_wr<='1';
-					e_writetmp<='0'; -- We've already performed the write
-					e_bubble<='1';
+						when X"80" =>	-- exg
+							r_gpr_a<=e_reg;
 		
-				when X"88" =>	-- mt
+						when X"88" =>	-- mt
 		
-				when X"90" =>	-- add
+						when X"90" =>	-- add
 
-				when X"98" =>	-- addt
+						when X"98" =>	-- addt
 
-				when X"a0" =>	-- ld
-					r_gpr_a<=d_reg;
-					ls_addr<=r_gpr_q;
-					ls_byte<='0';
-					ls_halfword<='0';
-					ls_wr<='0';
-					ls_req_r<='1';
+						when X"a0" =>	-- ld
+							r_gpr_a<=e_reg;
 
-				when X"a8" =>	-- ldinc
+						when X"a8" =>	-- ldinc
 
-				when X"b0" =>	-- ldbinc
+						when X"b0" =>	-- ldbinc
 
-				when X"b8" =>	-- ltmpinc
+						when X"b8" =>	-- ltmpinc
 
-				when others =>
-					null;
+						when others =>
+							null;
 
-			end case;
+					end case;
+
+				end if;
+
+			end if;
 
 		end if;
 
 		
 		--		-- Load/store stage
 
+		-- Figure out how to escape the stall stage.
+
 		
-		if s_stall='0' then
-			s_bubble<=e_bubble;
-			if e_bubble='0' then
-				s_opcode<=e_opcode;
-				s_reg<=e_reg;
-				s_writereg<=e_writereg;
-				s_readreg<=e_readreg;
-				s_writetmp<=e_writetmp;
-				s_loadstore<=e_loadstore;
-			end if;
+		s_bubble<=es_bubble;
+		s_opcode<=e_opcode;
+		s_reg<=e_reg;
+
+		if s_bubble='0' then
+
+			-- FIXME - derive these combinationally.
+			s_writereg<=e_writereg;
+			s_readreg<=e_readreg;
+			s_writetmp<=e_writetmp;
+			s_loadstore<=e_loadstore;
 
 			case s_opcode is		
 				when X"10" =>	-- sub
@@ -464,11 +438,23 @@ begin
 
 				when X"78" =>	-- mul
 
+				when X"80" =>	-- exg - write to both tmp and regfile
+					r_tmp<=r_gpr_q;
+					r_gpr_d<=r_tmp;
+--					r_gpr_a<=e_reg; -- should already be set.  No instruction touches more than one register.
+					r_gpr_wr<='1';
+
 				when X"90" =>	-- add
 
 				when X"98" =>	-- addt
 
 				when X"a0" =>	-- ld
+					ls_addr<=r_gpr_q;
+					ls_byte<='0';
+					ls_halfword<='0';
+					ls_wr<='0';
+					ls_req_r<='1';
+
 					if ls_ack='1' then
 						r_tmp<=ls_q;
 						ls_req_r<='0';
@@ -490,7 +476,74 @@ begin
 
 		end if;
 
-	end if;
+		es_bubble<='0';
+
+		-- Execute stage, combinational.
+
+			case e_opcode is
+				when X"00" =>	-- cond
+		
+				when X"08" =>	-- mr
+					es_bubble<='1';	 -- Nothing for store stage to do.
+		
+				when X"10" =>	-- sub
+		
+				when X"18" =>	-- cmp
+		
+				when X"20" =>	-- st
+				
+				when X"28" =>	-- stdec
+		
+				when X"30" =>	-- stbinc
+		
+				when X"38" =>	-- stmpdec
+		
+				when X"40" =>	-- and
+		
+				when X"48" =>	-- or
+		
+				when X"50" =>	-- xor
+
+				when X"58" =>	-- shl
+
+				when X"60" =>	-- shr
+
+				when X"68" =>	-- ror
+
+				when X"70" =>	-- sth
+
+				when X"78" =>	-- mul
+		
+				when X"80" =>	-- exg
+					e_writereg<='1';
+					e_writetmp<='1';
+					es_bubble<='1';	 -- Nothing for store stage to do.
+		
+				when X"88" =>	-- mt
+		
+				when X"90" =>	-- add
+
+				when X"98" =>	-- addt
+
+				when X"a0" =>	-- ld
+					e_writereg<='1';
+					e_readreg<='1';
+					e_writetmp<='1';
+					e_loadstore<='1';
+
+				when X"a8" =>	-- ldinc
+
+				when X"b0" =>	-- ldbinc
+
+				when X"b8" =>	-- ltmpinc
+
+				when others =>
+					null;
+
+			end case;
+
+
+
 
 end process;
 

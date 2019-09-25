@@ -51,7 +51,7 @@ signal f_nextop : std_logic;
 signal f_pc : std_logic_vector(31 downto 0);
 signal f_op : std_logic_vector(7 downto 0);
 signal f_prevop : std_logic_vector(7 downto 0);
-signal f_op_ready : std_logic := '0' ;	-- Execute stage can use f_op
+signal f_op_valid : std_logic := '0' ;	-- Execute stage can use f_op
 
 
 -- Decode stage signals:
@@ -108,12 +108,10 @@ port map
 
 	-- cpu fetch interface
 
-	pc_d => e_newpc,
-	pc_q => f_pc,
+	pc => f_pc,
 	pc_req => e_setpc,
-	pc_next => f_nextop,
 	opcode => f_op,
-	opc_ready => f_op_ready,
+	opcode_valid => f_op_valid,
 
 	-- cpu load/store interface
 
@@ -145,7 +143,7 @@ ls_req<=ls_req_r and not ls_ack;
 d_opcode<=f_op(7 downto 3) & "000" when f_nextop='1' else f_prevop(7 downto 3) & "000";
 d_reg<=f_op(2 downto 0) when f_nextop='1' else f_prevop(2 downto 0);
 
-process(clk,reset_n,f_op_ready)
+process(clk,reset_n,f_op_valid)
 begin
 	if reset_n='0' then
 		e_newpc<=X"00000000";
@@ -167,7 +165,7 @@ begin
 
 		-- Decode stage
 
-		if f_op_ready='1' then
+		if f_op_valid='1' then
 			f_nextop<='0';
 			d_immediatestreak<='0';
 
