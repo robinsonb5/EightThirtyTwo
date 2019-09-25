@@ -262,7 +262,7 @@ begin
 				d_bubble<='1';
 			end if;
 		end if;
-
+end process;
 
 
 --		-- Execute stage
@@ -275,6 +275,9 @@ begin
 -- Instead of forwarding the signals, try deriving them in combinational logic since they don't necessarily
 -- need to last the full length of the pipeline.
 	
+process(clk,reset_n,f_op_valid)
+begin 
+
 	if reset_n='0' then
 		e_readreg<='0';
 		e_writereg<='0';
@@ -294,104 +297,100 @@ begin
 
 		f_pc <= (others=>'0');
 		e_setpc <='1';
-		es_bubble<='0';
 	elsif rising_edge(clk) then
 
-			e_setpc<='0';
-			r_gpr_wr<='0';
+		e_setpc<='0';
+		r_gpr_wr<='0';
 
-			e_stall<='0';	-- Need to hold off the following if we're doing a multicycle operation
-			e_bubble<=d_bubble;
-			e_opcode<=d_opcode;
-			e_reg<=d_reg;
-			if d_bubble='0' then
-				f_pc <= f_pc+1;
-			end if;
+		e_stall<='0';	-- Need to hold off the following if we're doing a multicycle operation
+		e_bubble<=d_bubble;
+		e_opcode<=d_opcode;
+		e_reg<=d_reg;
+		if d_bubble='0' then
+			f_pc <= f_pc+1;
+		end if;
 
-			-- Execute load immediate...
+		-- Execute load immediate...
 
-			if e_bubble='0' then
-				if e_opcode(7 downto 6)="11" then
-					d_immediatestreak<='1';
-					if d_immediatestreak='1' then	-- shift existing value six bits left...
-						r_tmp<=r_tmp(25 downto 0) & e_opcode(5 downto 3) & e_reg(2 downto 0);
-					else
-						if e_opcode(5)='1' then
-							r_tmp(31 downto 5)<=(others=>'1');
-						else
-							r_tmp(31 downto 5)<=(others=>'0');
-						end if;
-						r_tmp(5 downto 0)<=e_opcode(5 downto 3) & e_reg(2 downto 0);
-					end if;
+		if e_bubble='0' then
+			if e_opcode(7 downto 6)="11" then
+				d_immediatestreak<='1';
+				if d_immediatestreak='1' then	-- shift existing value six bits left...
+					r_tmp<=r_tmp(25 downto 0) & e_opcode(5 downto 3) & e_reg(2 downto 0);
 				else
-					d_immediatestreak<='0';
-
-					case e_opcode is
-						when X"00" =>	-- cond
-		
-						when X"08" =>	-- mr
-							r_gpr_d<=r_tmp;
-							r_gpr_a<=e_reg;
-							r_gpr_wr<='1';
-		
-						when X"10" =>	-- sub
-		
-						when X"18" =>	-- cmp
-		
-						when X"20" =>	-- st
-				
-						when X"28" =>	-- stdec
-		
-						when X"30" =>	-- stbinc
-		
-						when X"38" =>	-- stmpdec
-		
-						when X"40" =>	-- and
-		
-						when X"48" =>	-- or
-		
-						when X"50" =>	-- xor
-
-						when X"58" =>	-- shl
-
-						when X"60" =>	-- shr
-
-						when X"68" =>	-- ror
-
-						when X"70" =>	-- sth
-
-						when X"78" =>	-- mul
-		
-						when X"80" =>	-- exg
-							r_gpr_a<=e_reg;
-		
-						when X"88" =>	-- mt
-		
-						when X"90" =>	-- add
-
-						when X"98" =>	-- addt
-
-						when X"a0" =>	-- ld
-							r_gpr_a<=e_reg;
-
-						when X"a8" =>	-- ldinc
-
-						when X"b0" =>	-- ldbinc
-
-						when X"b8" =>	-- ltmpinc
-
-						when others =>
-							null;
-
-					end case;
-
+					if e_opcode(5)='1' then
+						r_tmp(31 downto 5)<=(others=>'1');
+					else
+						r_tmp(31 downto 5)<=(others=>'0');
+					end if;
+					r_tmp(5 downto 0)<=e_opcode(5 downto 3) & e_reg(2 downto 0);
 				end if;
+			else
+				d_immediatestreak<='0';
+
+				case e_opcode is
+					when X"00" =>	-- cond
+	
+					when X"08" =>	-- mr
+						r_gpr_d<=r_tmp;
+						r_gpr_a<=e_reg;
+						r_gpr_wr<='1';
+	
+					when X"10" =>	-- sub
+	
+					when X"18" =>	-- cmp
+	
+					when X"20" =>	-- st
+			
+					when X"28" =>	-- stdec
+	
+					when X"30" =>	-- stbinc
+	
+					when X"38" =>	-- stmpdec
+	
+					when X"40" =>	-- and
+	
+					when X"48" =>	-- or
+	
+					when X"50" =>	-- xor
+
+					when X"58" =>	-- shl
+
+					when X"60" =>	-- shr
+
+					when X"68" =>	-- ror
+
+					when X"70" =>	-- sth
+
+					when X"78" =>	-- mul
+	
+					when X"80" =>	-- exg
+						r_gpr_a<=e_reg;
+	
+					when X"88" =>	-- mt
+	
+					when X"90" =>	-- add
+
+					when X"98" =>	-- addt
+
+					when X"a0" =>	-- ld
+						r_gpr_a<=e_reg;
+
+					when X"a8" =>	-- ldinc
+
+					when X"b0" =>	-- ldbinc
+
+					when X"b8" =>	-- ltmpinc
+
+					when others =>
+						null;
+
+				end case;
 
 			end if;
 
 		end if;
-
-		
+	
 		--		-- Load/store stage
 
 		-- Figure out how to escape the stall stage.
@@ -441,7 +440,7 @@ begin
 				when X"80" =>	-- exg - write to both tmp and regfile
 					r_tmp<=r_gpr_q;
 					r_gpr_d<=r_tmp;
---					r_gpr_a<=e_reg; -- should already be set.  No instruction touches more than one register.
+	--					r_gpr_a<=e_reg; -- should already be set.  No instruction touches more than one register.
 					r_gpr_wr<='1';
 
 				when X"90" =>	-- add
@@ -476,74 +475,73 @@ begin
 
 		end if;
 
-		es_bubble<='0';
+	end if;
+	
+	es_bubble<='0';
 
-		-- Execute stage, combinational.
+	-- Execute stage, combinational.
 
-			case e_opcode is
-				when X"00" =>	-- cond
+	case e_opcode is
+		when X"00" =>	-- cond
+
+		when X"08" =>	-- mr
+			es_bubble<='1';	 -- Nothing for store stage to do.
+
+		when X"10" =>	-- sub
+
+		when X"18" =>	-- cmp
+
+		when X"20" =>	-- st
 		
-				when X"08" =>	-- mr
-					es_bubble<='1';	 -- Nothing for store stage to do.
-		
-				when X"10" =>	-- sub
-		
-				when X"18" =>	-- cmp
-		
-				when X"20" =>	-- st
-				
-				when X"28" =>	-- stdec
-		
-				when X"30" =>	-- stbinc
-		
-				when X"38" =>	-- stmpdec
-		
-				when X"40" =>	-- and
-		
-				when X"48" =>	-- or
-		
-				when X"50" =>	-- xor
+		when X"28" =>	-- stdec
 
-				when X"58" =>	-- shl
+		when X"30" =>	-- stbinc
 
-				when X"60" =>	-- shr
+		when X"38" =>	-- stmpdec
 
-				when X"68" =>	-- ror
+		when X"40" =>	-- and
 
-				when X"70" =>	-- sth
+		when X"48" =>	-- or
 
-				when X"78" =>	-- mul
-		
-				when X"80" =>	-- exg
-					e_writereg<='1';
-					e_writetmp<='1';
-					es_bubble<='1';	 -- Nothing for store stage to do.
-		
-				when X"88" =>	-- mt
-		
-				when X"90" =>	-- add
+		when X"50" =>	-- xor
 
-				when X"98" =>	-- addt
+		when X"58" =>	-- shl
 
-				when X"a0" =>	-- ld
-					e_writereg<='1';
-					e_readreg<='1';
-					e_writetmp<='1';
-					e_loadstore<='1';
+		when X"60" =>	-- shr
 
-				when X"a8" =>	-- ldinc
+		when X"68" =>	-- ror
 
-				when X"b0" =>	-- ldbinc
+		when X"70" =>	-- sth
 
-				when X"b8" =>	-- ltmpinc
+		when X"78" =>	-- mul
 
-				when others =>
-					null;
+		when X"80" =>	-- exg
+			e_writereg<='1';
+			e_writetmp<='1';
+			es_bubble<='1';	 -- Nothing for store stage to do.
 
-			end case;
+		when X"88" =>	-- mt
 
+		when X"90" =>	-- add
 
+		when X"98" =>	-- addt
 
+		when X"a0" =>	-- ld
+			e_writereg<='1';
+			e_readreg<='1';
+			e_writetmp<='1';
+			e_loadstore<='1';
+
+		when X"a8" =>	-- ldinc
+
+		when X"b0" =>	-- ldbinc
+
+		when X"b8" =>	-- ltmpinc
+
+		when others =>
+			null;
+
+	end case;
 
 end process;
 
