@@ -2,6 +2,9 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
+library work;
+use work.eightthirtytwo_pkg.all;
+
 entity eightthirtytwo_cpu is
 generic(
 	pc_mask : std_logic_vector(31 downto 0) := X"ffffffff";
@@ -182,9 +185,9 @@ begin
 
 			if e_nextop='1' then
 				case d_opcode is
-					when X"00" =>	-- cond
+					when e32_op_cond =>	-- cond
 			
-					when X"08" =>
+					when e32_op_mr =>
 						if e_nextop='1' then
 							e_opcode<=d_opcode;
 							e_reg<=d_reg;
@@ -193,40 +196,40 @@ begin
 							f_nextop<='1';
 						end if;
 			
-					when X"10" =>	-- sub
+					when e32_op_sub =>	-- sub
 			
-					when X"18" =>	-- cmp
+					when e32_op_cmp =>	-- cmp
 			
-					when X"20" =>	-- st
+					when e32_op_st =>	-- st
 					
-					when X"28" =>	-- stdec
+					when e32_op_stdec =>	-- stdec
 			
-					when X"30" =>	-- stbinc
+					when e32_op_stbinc =>	-- stbinc
 			
-					when X"38" =>	-- stmpdec
+					when e32_op_stmpdec =>	-- stmpdec
 			
-					when X"40" =>	-- and
+					when e32_op_and =>	-- and
 						if e_writetmp='1' or s_writetmp='1' then
 							f_nextop<='0';
 						else
 
 						end if;
 			
-					when X"48" =>	-- or
+					when e32_op_or =>	-- or
 			
-					when X"50" =>	-- xor
+					when e32_op_xor =>	-- xor
 
-					when X"58" =>	-- shl
+					when e32_op_shl =>	-- shl
 
-					when X"60" =>	-- shr
+					when e32_op_shr =>	-- shr
 
-					when X"68" =>	-- ror
+					when e32_op_ror =>	-- ror
 
-					when X"70" =>	-- sth
+					when e32_op_sth =>	-- sth
 
-					when X"78" =>	-- mul
+					when e32_op_mul =>	-- mul
 			
-					when X"80" =>	-- exg
+					when e32_op_exg =>	-- exg
 						if e_nextop='1' then
 							r_gpr_a<=d_reg;
 							e_opcode<=d_opcode;
@@ -237,13 +240,13 @@ begin
 							f_nextop<='1';
 						end if;
 			
-					when X"88" =>	-- mt
+					when e32_op_mt =>	-- mt
 			
-					when X"90" =>	-- add
+					when e32_op_add =>	-- add
 
-					when X"98" =>	-- addt
+					when e32_op_addt =>	-- addt
 
-					when X"a0" =>	-- ld  - need to delay this if the previous ex op is writing to the register file.
+					when e32_op_ld =>	-- ld  - need to delay this if the previous ex op is writing to the register file.
 						if e_nextop='1' and e_writereg='0' then
 							r_gpr_a<=d_reg;
 							e_opcode<=d_opcode;
@@ -253,11 +256,11 @@ begin
 							f_nextop<='1';
 						end if;
 
-					when X"a8" =>	-- ldinc
+					when e32_op_ldinc =>	-- ldinc
 
-					when X"b0" =>	-- ldbinc
+					when e32_op_ldbinc =>	-- ldbinc
 
-					when X"b8" =>	-- ltmpinc
+					when e32_op_ltmpinc =>	-- ltmpinc
 
 					when others =>
 						null;
@@ -293,56 +296,56 @@ begin
 		if e_req='1' then
 
 			case e_opcode is
-				when X"00" =>	-- cond
+				when e32_op_cond =>	-- cond
 				
-				when X"08" =>	-- mr
+				when e32_op_mr =>	-- mr
 					r_gpr_d<=r_tmp;
 					r_gpr_a<=e_reg;
 					r_gpr_wr<='1';
 					e_nextop<='1';
 				
-				when X"10" =>	-- sub
+				when e32_op_sub =>	-- sub
 				
-				when X"18" =>	-- cmp
+				when e32_op_cmp =>	-- cmp
 				
-				when X"20" =>	-- st
+				when e32_op_st =>	-- st
 						
-				when X"28" =>	-- stdec
+				when e32_op_stdec =>	-- stdec
 				
-				when X"30" =>	-- stbinc
+				when e32_op_stbinc =>	-- stbinc
 				
-				when X"38" =>	-- stmpdec
+				when e32_op_stmpdec =>	-- stmpdec
 				
-				when X"40" =>	-- and
+				when e32_op_and =>	-- and
 				
-				when X"48" =>	-- or
+				when e32_op_or =>	-- or
 				
-				when X"50" =>	-- xor
+				when e32_op_xor =>	-- xor
 
-				when X"58" =>	-- shl
+				when e32_op_shl =>	-- shl
 
-				when X"60" =>	-- shr
+				when e32_op_shr =>	-- shr
 
-				when X"68" =>	-- ror
+				when e32_op_ror =>	-- ror
 
-				when X"70" =>	-- sth
+				when e32_op_sth =>	-- sth
 
-				when X"78" =>	-- mul
+				when e32_op_mul =>	-- mul
 				
-				when X"80" =>	-- exg
+				when e32_op_exg =>	-- exg
 					r_tmp<=r_gpr_q;
 					r_gpr_d<=r_tmp;
 					r_gpr_a<=e_reg;
 					r_gpr_wr<='1';
 					e_nextop<='1';
 				
-				when X"88" =>	-- mt
+				when e32_op_mt =>	-- mt
 				
-				when X"90" =>	-- add
+				when e32_op_add =>	-- add
 
-				when X"98" =>	-- addt
+				when e32_op_addt =>	-- addt
 
-				when X"a0" =>	-- ld
+				when e32_op_ld =>	-- ld
 					ls_addr<=r_gpr_q;
 					ls_byte<='0';
 					ls_halfword<='0';
@@ -353,11 +356,11 @@ begin
 					s_req<='1';
 
 
-				when X"a8" =>	-- ldinc
+				when e32_op_ldinc =>	-- ldinc
 
-				when X"b0" =>	-- ldbinc
+				when e32_op_ldbinc =>	-- ldbinc
 
-				when X"b8" =>	-- ltmpinc
+				when e32_op_ltmpinc =>	-- ltmpinc
 
 				when others =>
 					null;
@@ -372,39 +375,39 @@ begin
 		if s_req='1' then
 
 			case s_opcode is		
-				when X"10" =>	-- sub
+				when e32_op_sub =>	-- sub
 				
-				when X"18" =>	-- cmp
+				when e32_op_cmp =>	-- cmp
 				
-				when X"20" =>	-- st
+				when e32_op_st =>	-- st
 						
-				when X"28" =>	-- stdec
+				when e32_op_stdec =>	-- stdec
 				
-				when X"30" =>	-- stbinc
+				when e32_op_stbinc =>	-- stbinc
 				
-				when X"38" =>	-- stmpdec
+				when e32_op_stmpdec =>	-- stmpdec
 				
-				when X"40" =>	-- and
+				when e32_op_and =>	-- and
 				
-				when X"48" =>	-- or
+				when e32_op_or =>	-- or
 				
-				when X"50" =>	-- xor
+				when e32_op_xor =>	-- xor
 
-				when X"58" =>	-- shl
+				when e32_op_shl =>	-- shl
 
-				when X"60" =>	-- shr
+				when e32_op_shr =>	-- shr
 
-				when X"68" =>	-- ror
+				when e32_op_ror =>	-- ror
 
-				when X"70" =>	-- sth
+				when e32_op_sth =>	-- sth
 
-				when X"78" =>	-- mul
+				when e32_op_mul =>	-- mul
 
-				when X"90" =>	-- add
+				when e32_op_add =>	-- add
 
-				when X"98" =>	-- addt
+				when e32_op_addt =>	-- addt
 
-				when X"a0" =>	-- ld
+				when e32_op_ld =>	-- ld
 					if ls_ack='1' then
 						r_tmp<=ls_q;
 						ls_req_r<='0';
@@ -413,11 +416,11 @@ begin
 						s_req<='1';
 					end if;
 
-				when X"a8" =>	-- ldinc
+				when e32_op_ldinc =>	-- ldinc
 
-				when X"b0" =>	-- ldbinc
+				when e32_op_ldbinc =>	-- ldbinc
 
-				when X"b8" =>	-- ltmpinc
+				when e32_op_ltmpinc =>	-- ltmpinc
 
 				when others =>
 					null;
