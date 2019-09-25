@@ -12,12 +12,12 @@ architecture behaviour of fetchloadstore_tb
 is
 	constant clk_period : time := 10 ns;
 	signal clk : std_logic;
+	signal counter : unsigned(3 downto 0);
 
 	signal reset_n : std_logic;
-	signal pc :std_logic_vector(31 downto 0);
-	signal pc_q :std_logic_vector(31 downto 0);
+	signal pc : unsigned(31 downto 0);
 	signal pc_req : std_logic;
-	signal pc_next : std_logic;
+	signal opcode_valid : std_logic;
 
 	signal ls_addr : std_logic_vector(31 downto 0);
 	signal ls_byte : std_logic;
@@ -34,6 +34,7 @@ is
 	signal ram_bytesel : std_logic_vector(3 downto 0);
 	signal ram_req : std_logic;
 	signal ram_ack : std_logic;
+	signal ram_delay : unsigned(3 downto 0);
 
 	type tbstates is (RESET,INIT,MAIN,LOAD);
 	signal tbstate : tbstates:=RESET;
@@ -64,12 +65,10 @@ begin
 
 		-- cpu fetch interface
 
-		pc_d => pc,
-		pc_q => pc_q,
+		pc => std_logic_vector(pc),
 		pc_req => pc_req,
-		pc_next => pc_next,
 		opcode => open,
-		opc_ready => open,
+		opcode_valid => opcode_valid,
 
 		-- cpu load/store interface
 
@@ -109,7 +108,6 @@ begin
 
 			pc_req<='0';
 			reset_n<='1';
-			pc_next<='0';
 			ram_ack<='0';
 
 			ls_byte<='0';
@@ -118,23 +116,37 @@ begin
 			ls_req<='0';
 
 			if ram_req='1' then
+				ram_delay<=X"6";
+			end if;
+			if ram_delay=1 then
 				ram_ack<='1';
+			end if;
+			if ram_delay/=0 then
+				ram_delay<=ram_delay-1;
 			end if;
 
 			case tbstate is
 				when RESET =>
 					reset_n<='0';
+					ram_delay<=(others=>'0');
 					tbstate<=INIT;
+					counter<=X"b";
 				when INIT =>
 					pc<=(others => '0');
 					pc_req<='1';
 					tbstate<=MAIN;
 				when MAIN =>
-					if pc_q=X"00000010" then
+					if pc=X"00000010" then
 						tbstate<=LOAD;
 					else
-						pc_next<='1';
 						tbstate<=MAIN;
+						if opcode_valid='1' then
+							pc<=pc+1;
+						end if;
+						counter<=counter-1;
+						if counter=0 then
+							counter<=X"b";
+						end if;
 					end if;
 
 				when LOAD =>
@@ -144,6 +156,7 @@ begin
 					ls_req<='1' and not ls_ack;
 					if ls_ack='1' then
 						tbstate<=MAIN;
+						pc<=pc+1;
 					end if;
 
 			end case;
