@@ -2,6 +2,9 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
+library work;
+use work.eightthirtytwo_pkg.all;
+
 entity eightthirtytwo_cpu_comb is
 generic(
 	pc_mask : std_logic_vector(31 downto 0) := X"ffffffff";
@@ -157,113 +160,228 @@ ls_req<=ls_req_r and not ls_ack;
 d_opcode<=f_op(7 downto 3) & "000";
 d_reg<=f_op(2 downto 0);
 
+
+-- Decode stage, combinational logic:
+
+d_readreg<='1' when
+	d_opcode=e32_op_and or
+	d_opcode=e32_op_exg or
+	d_opcode=e32_op_ld
+	else '0';
+
+d_writereg<='1' when
+	d_opcode=e32_op_mr or
+	d_opcode=e32_op_exg
+	else '0';
+
+d_writetmp<='1' when
+	d_opcode(7 downto 6)="11" or -- li
+	d_opcode=e32_op_and or
+	d_opcode=e32_op_exg or
+	d_opcode=e32_op_ld
+	else '0';
+
+d_stall<='1' when (d_writetmp='1' and tmp_busy='1') or (d_writereg='1' and reg_busy='1')
+	else '0';
+
+	--
+--		d_readreg<='0';
+--		d_writereg<='0';
+--		d_writetmp<='0';
+--		d_alu<='0';
+--		d_flags<='0';
+--		d_loadstore<='0';
+--
+--		case d_opcode is
+--			when e32_op_cond =>	-- cond
+--	
+--			when e32_op_mr =>   -- mr
+--				if reg_busy='0' and tmp_busy='0' then
+--					d_writereg<='1';
+--				end if;
+--	
+--			when e32_op_sub =>	-- sub
+--	
+--			when e32_op_cmp =>	-- cmp
+--	
+--			when e32_op_st =>	-- st
+--			
+--			when e32_op_stdec =>	-- stdec
+--	
+--			when e32_op_stbinc =>	-- stbinc
+--	
+--			when e32_op_stmpdec =>	-- stmpdec
+--	
+--			when e32_op_and =>	-- and
+--				if reg_busy='0' and tmp_busy='0' and loadstore_busy='0' then
+--					d_writereg<='1';
+--					d_readreg<='1';
+--				else
+--					d_stall<='1';
+--				end if;
+--	
+--			when e32_op_or =>	-- or
+--	
+--			when e32_op_xor =>	-- xor
+--
+--			when e32_op_shl =>	-- shl
+--
+--			when e32_op_shr =>	-- shr
+--
+--			when e32_op_ror =>	-- ror
+--
+--			when e32_op_sth =>	-- sth
+--
+--			when e32_op_mul =>	-- mul
+--	
+--			when e32_op_exg =>	-- exg
+--				if reg_busy='0' and tmp_busy='0' then
+--					d_readreg<='1';
+--					d_writereg<='1';
+--					d_writetmp<='1';
+--				else
+--					d_stall<='1';
+--				end if;
+--	
+--			when e32_op_mt =>	-- mt
+--	
+--			when e32_op_add =>	-- add
+--
+--			when e32_op_addt =>	-- addt
+--
+--			when e32_op_ld =>	-- ld  - need to delay this if the previous ex op is writing to the register file.
+--				if reg_busy='0' and tmp_busy='0' then
+--					d_readreg<='1';
+--					d_writereg<='1';
+--					d_writetmp<='1';
+--					d_loadstore<='1';
+--				else
+--					d_stall<='1';
+--				end if;
+--
+--			when e32_op_ldinc =>	-- ldinc
+--
+--			when e32_op_ldbinc =>	-- ldbinc
+--
+--			when e32_op_ltmpinc =>	-- ltmpinc
+--
+--			when others =>
+--				null;
+--
+--		end case;
+--
+--		if d_opcode(7 downto 6)="11" then
+--			if tmp_busy='0' then
+--				d_writetmp<='1';
+--			else
+--				d_stall<='1';
+--			end if;
+--		end if;
+
+
 process(clk,reset_n,f_op_valid)
 begin
 
 -- Decode stage - combinatorial logic:
 
-		d_bubble<=not f_op_valid;
-
-		d_stall<='0';
-
-		d_readreg<='0';
-		d_writereg<='0';
-		d_writetmp<='0';
-		d_alu<='0';
-		d_flags<='0';
-		d_loadstore<='0';
-
-		case d_opcode is
-			when X"00" =>	-- cond
-	
-			when X"08" =>   -- mr
-				if reg_busy='0' and tmp_busy='0' then
-					d_writereg<='1';
-				end if;
-	
-			when X"10" =>	-- sub
-	
-			when X"18" =>	-- cmp
-	
-			when X"20" =>	-- st
-			
-			when X"28" =>	-- stdec
-	
-			when X"30" =>	-- stbinc
-	
-			when X"38" =>	-- stmpdec
-	
-			when X"40" =>	-- and
-				if reg_busy='0' and tmp_busy='0' and loadstore_busy='0' then
-					d_writereg<='1';
-					d_readreg<='1';
-				else
-					d_stall<='1';
-					d_bubble<='1';
-				end if;
-	
-			when X"48" =>	-- or
-	
-			when X"50" =>	-- xor
-
-			when X"58" =>	-- shl
-
-			when X"60" =>	-- shr
-
-			when X"68" =>	-- ror
-
-			when X"70" =>	-- sth
-
-			when X"78" =>	-- mul
-	
-			when X"80" =>	-- exg
-				if reg_busy='0' and tmp_busy='0' then
-					d_readreg<='1';
-					d_writereg<='1';
-					d_writetmp<='1';
-				else
-					d_stall<='1';
-					d_bubble<='1';
-				end if;
-	
-			when X"88" =>	-- mt
-	
-			when X"90" =>	-- add
-
-			when X"98" =>	-- addt
-
-			when X"a0" =>	-- ld  - need to delay this if the previous ex op is writing to the register file.
-				if reg_busy='0' and tmp_busy='0' then
-					d_readreg<='1';
-					d_writereg<='1';
-					d_writetmp<='1';
-					d_loadstore<='1';
-				else
-					d_stall<='1';
-					d_bubble<='1';
-				end if;
-
-			when X"a8" =>	-- ldinc
-
-			when X"b0" =>	-- ldbinc
-
-			when X"b8" =>	-- ltmpinc
-
-			when others =>
-				null;
-
-		end case;
-
-		if d_opcode(7 downto 6)="11" then
-			if tmp_busy='0' then
-				d_writetmp<='1';
-			else
-				d_stall<='1';
-				d_bubble<='1';
-			end if;
-		end if;
+--		d_stall<='0';
+--
+--		d_readreg<='0';
+--		d_writereg<='0';
+--		d_writetmp<='0';
+--		d_alu<='0';
+--		d_flags<='0';
+--		d_loadstore<='0';
+--
+--		case d_opcode is
+--			when e32_op_cond =>	-- cond
+--	
+--			when e32_op_mr =>   -- mr
+--				if reg_busy='0' and tmp_busy='0' then
+--					d_writereg<='1';
+--				end if;
+--	
+--			when e32_op_sub =>	-- sub
+--	
+--			when e32_op_cmp =>	-- cmp
+--	
+--			when e32_op_st =>	-- st
+--			
+--			when e32_op_stdec =>	-- stdec
+--	
+--			when e32_op_stbinc =>	-- stbinc
+--	
+--			when e32_op_stmpdec =>	-- stmpdec
+--	
+--			when e32_op_and =>	-- and
+--				if reg_busy='0' and tmp_busy='0' and loadstore_busy='0' then
+--					d_writereg<='1';
+--					d_readreg<='1';
+--				else
+--					d_stall<='1';
+--				end if;
+--	
+--			when e32_op_or =>	-- or
+--	
+--			when e32_op_xor =>	-- xor
+--
+--			when e32_op_shl =>	-- shl
+--
+--			when e32_op_shr =>	-- shr
+--
+--			when e32_op_ror =>	-- ror
+--
+--			when e32_op_sth =>	-- sth
+--
+--			when e32_op_mul =>	-- mul
+--	
+--			when e32_op_exg =>	-- exg
+--				if reg_busy='0' and tmp_busy='0' then
+--					d_readreg<='1';
+--					d_writereg<='1';
+--					d_writetmp<='1';
+--				else
+--					d_stall<='1';
+--				end if;
+--	
+--			when e32_op_mt =>	-- mt
+--	
+--			when e32_op_add =>	-- add
+--
+--			when e32_op_addt =>	-- addt
+--
+--			when e32_op_ld =>	-- ld  - need to delay this if the previous ex op is writing to the register file.
+--				if reg_busy='0' and tmp_busy='0' then
+--					d_readreg<='1';
+--					d_writereg<='1';
+--					d_writetmp<='1';
+--					d_loadstore<='1';
+--				else
+--					d_stall<='1';
+--				end if;
+--
+--			when e32_op_ldinc =>	-- ldinc
+--
+--			when e32_op_ldbinc =>	-- ldbinc
+--
+--			when e32_op_ltmpinc =>	-- ltmpinc
+--
+--			when others =>
+--				null;
+--
+--		end case;
+--
+--		if d_opcode(7 downto 6)="11" then
+--			if tmp_busy='0' then
+--				d_writetmp<='1';
+--			else
+--				d_stall<='1';
+--			end if;
+--		end if;
+		
 end process;
 
+d_bubble<=(not f_op_valid) or d_stall;
 
 --		-- Execute stage
 
@@ -329,58 +447,58 @@ begin
 				d_immediatestreak<='0';
 
 				case e_opcode is
-					when X"00" =>	-- cond
+					when e32_op_cond =>	-- cond
 	
-					when X"08" =>	-- mr
+					when e32_op_mr =>	-- mr
 						r_gpr_d<=r_tmp;
 						r_gpr_a<=e_reg;
 						r_gpr_wr<='1';
 	
-					when X"10" =>	-- sub
+					when e32_op_sub =>	-- sub
 	
-					when X"18" =>	-- cmp
+					when e32_op_cmp =>	-- cmp
 	
-					when X"20" =>	-- st
+					when e32_op_st =>	-- st
 			
-					when X"28" =>	-- stdec
+					when e32_op_stdec =>	-- stdec
 	
-					when X"30" =>	-- stbinc
+					when e32_op_stbinc =>	-- stbinc
 	
-					when X"38" =>	-- stmpdec
+					when e32_op_stmpdec =>	-- stmpdec
 	
-					when X"40" =>	-- and
+					when e32_op_and =>	-- and
 	
-					when X"48" =>	-- or
+					when e32_op_or =>	-- or
 	
-					when X"50" =>	-- xor
+					when e32_op_xor =>	-- xor
 
-					when X"58" =>	-- shl
+					when e32_op_shl =>	-- shl
 
-					when X"60" =>	-- shr
+					when e32_op_shr =>	-- shr
 
-					when X"68" =>	-- ror
+					when e32_op_ror =>	-- ror
 
-					when X"70" =>	-- sth
+					when e32_op_sth =>	-- sth
 
-					when X"78" =>	-- mul
+					when e32_op_mul =>	-- mul
 	
-					when X"80" =>	-- exg
+					when e32_op_exg =>	-- exg
 						r_gpr_a<=e_reg;
 	
-					when X"88" =>	-- mt
+					when e32_op_mt =>	-- mt
 	
-					when X"90" =>	-- add
+					when e32_op_add =>	-- add
 
-					when X"98" =>	-- addt
+					when e32_op_addt =>	-- addt
 
-					when X"a0" =>	-- ld
+					when e32_op_ld =>	-- ld
 						r_gpr_a<=e_reg;
 
-					when X"a8" =>	-- ldinc
+					when e32_op_ldinc =>	-- ldinc
 
-					when X"b0" =>	-- ldbinc
+					when e32_op_ldbinc =>	-- ldbinc
 
-					when X"b8" =>	-- ltmpinc
+					when e32_op_ltmpinc =>	-- ltmpinc
 
 					when others =>
 						null;
@@ -407,47 +525,50 @@ begin
 			s_readreg<=e_readreg;
 			s_writetmp<=e_writetmp;
 			s_loadstore<=e_loadstore;
+			s_alu<=e_loadstore;
 
 			case s_opcode is		
-				when X"10" =>	-- sub
+				when e32_op_sub =>	-- sub
 			
-				when X"18" =>	-- cmp
+				when e32_op_cmp =>	-- cmp
 			
-				when X"20" =>	-- st
+				when e32_op_st =>	-- st
 					
-				when X"28" =>	-- stdec
+				when e32_op_stdec =>	-- stdec
 			
-				when X"30" =>	-- stbinc
+				when e32_op_stbinc =>	-- stbinc
 			
-				when X"38" =>	-- stmpdec
+				when e32_op_stmpdec =>	-- stmpdec
 			
-				when X"40" =>	-- and
+				when e32_op_and =>	-- and
 			
-				when X"48" =>	-- or
+				when e32_op_or =>	-- or
 			
-				when X"50" =>	-- xor
+				when e32_op_xor =>	-- xor
 
-				when X"58" =>	-- shl
+				when e32_op_shl =>	-- shl
 
-				when X"60" =>	-- shr
+				when e32_op_shr =>	-- shr
 
-				when X"68" =>	-- ror
+				when e32_op_ror =>	-- ror
 
-				when X"70" =>	-- sth
+				when e32_op_sth =>	-- sth
 
-				when X"78" =>	-- mul
+				when e32_op_mul =>	-- mul
 
-				when X"80" =>	-- exg - write to both tmp and regfile
+				when e32_op_exg =>	-- exg - write to both tmp and regfile
 					r_tmp<=r_gpr_q;
 					r_gpr_d<=r_tmp;
 	--					r_gpr_a<=e_reg; -- should already be set.  No instruction touches more than one register.
 					r_gpr_wr<='1';
 
-				when X"90" =>	-- add
+				when e32_op_mt =>	-- mt
 
-				when X"98" =>	-- addt
+				when e32_op_add =>	-- add
 
-				when X"a0" =>	-- ld
+				when e32_op_addt =>	-- addt
+
+				when e32_op_ld =>	-- ld
 					ls_addr<=r_gpr_q;
 					ls_byte<='0';
 					ls_halfword<='0';
@@ -462,11 +583,11 @@ begin
 						s_stall<='1';
 					end if;
 
-				when X"a8" =>	-- ldinc
+				when e32_op_ldinc =>	-- ldinc
 
-				when X"b0" =>	-- ldbinc
+				when e32_op_ldbinc =>	-- ldbinc
 
-				when X"b8" =>	-- ltmpinc
+				when e32_op_ltmpinc =>	-- ltmpinc
 
 				when others =>
 					null;
@@ -478,65 +599,70 @@ begin
 	end if;
 	
 	es_bubble<='0';
+	e_readreg<='0';
+	e_writereg<='0';
+	e_writetmp<='0';
+	e_alu<='0';
+	e_loadstore<='0';
 
 	-- Execute stage, combinational.
 
 	case e_opcode is
-		when X"00" =>	-- cond
+		when e32_op_cond =>	-- cond
 
-		when X"08" =>	-- mr
+		when e32_op_mr =>	-- mr
 			es_bubble<='1';	 -- Nothing for store stage to do.
 
-		when X"10" =>	-- sub
+		when e32_op_sub =>	-- sub
 
-		when X"18" =>	-- cmp
+		when e32_op_cmp =>	-- cmp
 
-		when X"20" =>	-- st
+		when e32_op_st =>	-- st
 		
-		when X"28" =>	-- stdec
+		when e32_op_stdec =>	-- stdec
 
-		when X"30" =>	-- stbinc
+		when e32_op_stbinc =>	-- stbinc
 
-		when X"38" =>	-- stmpdec
+		when e32_op_stmpdec =>	-- stmpdec
 
-		when X"40" =>	-- and
+		when e32_op_and =>	-- and
 
-		when X"48" =>	-- or
+		when e32_op_or =>	-- or
 
-		when X"50" =>	-- xor
+		when e32_op_xor =>	-- xor
 
-		when X"58" =>	-- shl
+		when e32_op_shl =>	-- shl
 
-		when X"60" =>	-- shr
+		when e32_op_shr =>	-- shr
 
-		when X"68" =>	-- ror
+		when e32_op_ror =>	-- ror
 
-		when X"70" =>	-- sth
+		when e32_op_sth =>	-- sth
 
-		when X"78" =>	-- mul
+		when e32_op_mul =>	-- mul
 
-		when X"80" =>	-- exg
+		when e32_op_exg =>	-- exg
 			e_writereg<='1';
 			e_writetmp<='1';
 			es_bubble<='1';	 -- Nothing for store stage to do.
 
-		when X"88" =>	-- mt
+		when e32_op_mt =>	-- mt
 
-		when X"90" =>	-- add
+		when e32_op_add =>	-- add
 
-		when X"98" =>	-- addt
+		when e32_op_addt =>	-- addt
 
-		when X"a0" =>	-- ld
+		when e32_op_ld =>	-- ld
 			e_writereg<='1';
 			e_readreg<='1';
 			e_writetmp<='1';
 			e_loadstore<='1';
 
-		when X"a8" =>	-- ldinc
+		when e32_op_ldinc =>	-- ldinc
 
-		when X"b0" =>	-- ldbinc
+		when e32_op_ldbinc =>	-- ldbinc
 
-		when X"b8" =>	-- ltmpinc
+		when e32_op_ltmpinc =>	-- ltmpinc
 
 		when others =>
 			null;
