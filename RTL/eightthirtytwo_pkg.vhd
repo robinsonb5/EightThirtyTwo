@@ -38,5 +38,25 @@ constant e32_op_li : std_logic_vector(7 downto 0) := X"c0";
 constant e32_op_sgn : std_logic_vector(7 downto 0) := X"17";
 constant e32_op_ldt : std_logic_vector(7 downto 0) := X"a7";
 
+-- Condional codes
+
+constant e32_cond_nex : std_logic_vector(2 downto 0) := "000";
+constant e32_cond_sgt : std_logic_vector(2 downto 0) := "001";
+constant e32_cond_eq : std_logic_vector(2 downto 0) := "010";
+constant e32_cond_ge : std_logic_vector(2 downto 0) := "011";
+constant e32_cond_slt : std_logic_vector(2 downto 0) := "100";
+constant e32_cond_neq : std_logic_vector(2 downto 0) := "101";
+constant e32_cond_le : std_logic_vector(2 downto 0) := "110";
+constant e32_cond_ex : std_logic_vector(2 downto 0) := "111";
+
+-- ALU functions
+
+constant e32_alu_and : std_logic_vector(2 downto 0) := "000";
+constant e32_alu_or : std_logic_vector(2 downto 0) := "000";
+constant e32_alu_xor : std_logic_vector(2 downto 0) := "000";
+constant e32_alu_add : std_logic_vector(2 downto 0) := "000";
+constant e32_alu_sub : std_logic_vector(2 downto 0) := "000";
+constant e32_alu_mul : std_logic_vector(2 downto 0) := "000";
+
 end package;
 

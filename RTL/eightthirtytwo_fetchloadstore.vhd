@@ -58,7 +58,6 @@ signal fetch_jump : std_logic;
 signal fetch_ram_req : std_logic;
 
 signal prefetch_ram_req : std_logic;
-signal prefetch_buffer : std_logic;
 signal prefetch_addr : std_logic_vector(31 downto 2);
 
 -- Load store signals
@@ -234,7 +233,6 @@ begin
 						ls_state<=LS_LOAD;
 					end if;	
 				elsif prefetch_ram_req='1' then
-					prefetch_buffer<=prefetch_addr(2);
 					ram_addr_r<=prefetch_addr;
 					ram_req_r<='1';
 					ls_state<=LS_PREFETCH;

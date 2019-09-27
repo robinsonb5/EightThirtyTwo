@@ -59,7 +59,7 @@ start:
 
 //	832 code: 72 bytes
 //	68K original: 74 bytes
-//	MIPS transliteration of 68K code: 200 bytes
+//	MIPS transliteration of 68K code: 204 bytes
 //	r0 packed buffer
 //	r1 destination pointer
 //	r2 packed buffer end
@@ -162,7 +162,7 @@ lz4_depack:
 	mr	r7
 
 compressed:
-.incbin "compressed.lz4"
+	.incbin "compressed.lz4"
 decompressed:
 	.fill	550,1,-1  // Reserve space for the decompressed data
 

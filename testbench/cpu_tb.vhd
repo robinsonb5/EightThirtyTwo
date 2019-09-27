@@ -54,7 +54,7 @@ begin
 	romout.MemAWrite<=to_ram;
 	romout.MemAWriteEnable<=ram_wr and ram_req;
 	romout.MemAByteSel<=ram_bytesel;
-	from_ram<=romin.MemARead;
+	from_ram<=romin.MemARead when ram_addr(31)='0' else X"000002f0";
 
 	cpu : entity work.eightthirtytwo_cpu_comb
 	port map
