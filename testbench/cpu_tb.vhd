@@ -35,6 +35,8 @@ is
 	signal ram_req : std_logic;
 	signal ram_ack : std_logic;
 
+	signal rom_wr :std_logic;
+
 	type tbstates is (RESET,INIT,MAIN,LOAD);
 	signal tbstate : tbstates:=RESET;
 
@@ -52,9 +54,11 @@ begin
 
 	romout.MemAAddr<=ram_addr(15 downto 2);
 	romout.MemAWrite<=to_ram;
-	romout.MemAWriteEnable<=ram_wr and ram_req;
+	romout.MemAWriteEnable<=rom_wr;
 	romout.MemAByteSel<=ram_bytesel;
-	from_ram<=romin.MemARead when ram_addr(31)='0' else X"000002f0";
+	from_ram<=romin.MemARead when ram_addr(31)='0' else X"00000300";
+
+	ram_wr<=(ram_wr and ram_req) when ram_addr(31)='0' else '0';
 
 	cpu : entity work.eightthirtytwo_cpu_comb
 	port map
@@ -98,6 +102,9 @@ begin
 			ls_req<='0';
 
 			if ram_req='1' then
+				if ram_wr='1' and ram_addr(31)='1' then
+					report "Writing character " & integer'image(to_integer(unsigned(to_ram)));
+				end if;
 				ram_ack<='1';
 			end if;
 

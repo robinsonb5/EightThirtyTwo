@@ -193,6 +193,7 @@ begin
 						load_store<='0';	-- Store operation.  Need to set mask
 						ls_state<=LS_STORE;
 					else
+						ls_q<=(others => '0'); -- FIXME - sign extension?
 						ram_addr_r<=ls_addr(31 downto 2);
 						ram_req_r<='1';
 						load_store<='1';

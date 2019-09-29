@@ -117,6 +117,7 @@ signal e_opcode : std_logic_vector(7 downto 0);
 signal e_reg : std_logic_vector(2 downto 0);
 signal e_regpc : std_logic;
 signal e_writepc : std_logic;
+signal e_regfile_s : std_logic; -- just an intermediate result
 signal e_regfile : std_logic;
 signal e_readtmp : std_logic;
 signal e_writetmp : std_logic;
@@ -222,7 +223,7 @@ port map
 );
 
 
-ls_req<=ls_req_r and not ls_ack;
+--ls_req<=ls_req_r; --  and not ls_ack;
 alu_req<=alu_req_r;
 shifter_req<=shifter_req_r and not shifter_ack;
 
@@ -362,17 +363,24 @@ e_writepc<='1' when
 	(e_opcode=e32_op_mr and e_regpc='1')
 	else '0';
 
-e_regfile<='1' when
-	(e_opcode=e32_op_exg and e_regpc='0') or
-	(e_opcode=e32_op_and and e_regpc='0') or
-	(e_opcode=e32_op_or and e_regpc='0') or
-	(e_opcode=e32_op_xor and e_regpc='0') or
-	(e_opcode=e32_op_add and e_regpc='0') or
-	(e_opcode=e32_op_addt and e_regpc='0') or
-	(e_opcode=e32_op_sub and e_regpc='0') or
-	(e_opcode=e32_op_mul and e_regpc='0')
+e_regfile_s<='1' when
+	e_opcode=e32_op_exg or
+	e_opcode=e32_op_and or
+	e_opcode=e32_op_or or
+	e_opcode=e32_op_xor or
+	e_opcode=e32_op_add or
+	e_opcode=e32_op_addt or
+	e_opcode=e32_op_sub or
+	e_opcode=e32_op_mul or
+	e_opcode=e32_op_ld or
+	e_opcode=e32_op_ldinc or
+	e_opcode=e32_op_ldbinc or
+	e_opcode=e32_op_st or
+	e_opcode=e32_op_stdec or
+	e_opcode=e32_op_stbinc
 	else '0';
 
+e_regfile<=e_regfile_s and not e_regpc;
 
 e_readtmp<='1' when
 	e_opcode=e32_op_exg or
@@ -391,7 +399,10 @@ e_readtmp<='1' when
 -- FIXME - this must include overloaded ops such as ldt
 e_writetmp<='1' when
 	e_opcode=e32_op_exg or
-	e_opcode=e32_op_mt
+	e_opcode=e32_op_mt or
+	e_opcode=e32_op_ld or
+	e_opcode=e32_op_ldinc or
+	e_opcode=e32_op_ldbinc
 	else '0';
 
 e_loadstore<='1' when
@@ -410,7 +421,11 @@ e_alu<='1' when
 	e_opcode=e32_op_add or
 	e_opcode=e32_op_addt or
 	e_opcode=e32_op_sub or
-	e_opcode=e32_op_mul
+	e_opcode=e32_op_mul or
+	e_opcode=e32_op_ldinc or
+	e_opcode=e32_op_ldbinc or
+	e_opcode=e32_op_stdec or
+	e_opcode=e32_op_stbinc
 	else '0';
 
 e_writeflags<='1' when
@@ -432,8 +447,9 @@ e_readflags<='1' when
 
 e_blocked<=(e_readtmp and (s_writetmp or w_writetmp)) or
 	(e_regfile and (s_regfile or w_regfile)) or
-	(e_readflags and s_writeflags) or
-	(e_alu and s_alu);
+	(e_readflags and (s_writeflags or w_writeflags)) or
+	(e_alu and s_alu) or
+	w_writepc;
 
 -- Load/Store stage, combinational logic:
 
@@ -472,11 +488,21 @@ s_writeflags<='1' when
 	s_opcode=e32_op_addt or
 	s_opcode=e32_op_sub or
 	s_opcode=e32_op_cmp or
-	s_opcode=e32_op_mul
+	s_opcode=e32_op_mul or
+	s_opcode=e32_op_ld or
+	s_opcode=e32_op_ldinc or
+	s_opcode=e32_op_ldbinc
 	else '0';
 
 s_loadstore<='1' when
-	s_opcode=e32_op_ld
+	s_opcode=e32_op_ld or
+	s_opcode=e32_op_ldinc or
+	s_opcode=e32_op_ldbinc or
+	s_opcode=e32_op_st or
+	s_opcode=e32_op_stdec or
+	s_opcode=e32_op_stbinc or
+	s_opcode=e32_op_ltmpinc or
+	s_opcode=e32_op_stmpdec
 	else '0';
 
 s_alu<='1' when
@@ -554,7 +580,7 @@ begin
 		w_waitshifter<='0';
 		s_stall<='0';
 
-		ls_req_r<='0';
+		ls_req<='0';
 		alu_d1<=(others=>'0');
 		alu_d2<=(others=>'0');
 		alu_op<=e32_alu_add;
@@ -582,7 +608,7 @@ begin
 		-- Transfer op from E to S, if possible, filling the bubble left in the S to W transfer.
 		--  Leave a bubble behind.
 
-		if w_stall='0' then -- and e_blocked='0' then
+		if w_stall='0' and flag_cond='0' then -- and e_blocked='0' then
 			s_opcode<=e_opcode;
 			s_bubble<='0';
 			e_bubble<='1';
@@ -601,10 +627,13 @@ begin
 			f_pc <= f_pc+1;
 		end if;
 
+		if flag_cond='1' and e_writepc='1' then
+			flag_cond<='0';
+		end if;
 
 		-- Execute load immediate...
 
-		if d_bubble='0' and e_bubble='0' and w_stall='0' then
+		if d_bubble='0' and e_bubble='0' and w_stall='0' and (flag_cond='0' or e_opcode=e32_op_cond) then
 			if e_opcode(7 downto 6)="11" then
 				d_immediatestreak<='1';
 				if d_immediatestreak='1' then	-- shift existing value six bits left...
@@ -640,16 +669,22 @@ begin
 						end if;
 	
 					when e32_op_sub =>	-- sub
+						r_gpr_a<=e_reg;
 	
 					when e32_op_cmp =>	-- cmp
+						r_gpr_a<=e_reg;
 	
 					when e32_op_st =>	-- st
+						r_gpr_a<=e_reg;
 			
 					when e32_op_stdec =>	-- stdec
+						r_gpr_a<=e_reg;
 	
 					when e32_op_stbinc =>	-- stbinc
+						r_gpr_a<=e_reg;
 	
 					when e32_op_stmpdec =>	-- stmpdec
+						r_gpr_a<=e_reg;
 	
 					when e32_op_and =>	-- and
 						r_gpr_a<=e_reg;
@@ -661,15 +696,20 @@ begin
 						r_gpr_a<=e_reg;
 
 					when e32_op_shl =>	-- shl
+						r_gpr_a<=e_reg;
 
 					when e32_op_shr =>	-- shr
+						r_gpr_a<=e_reg;
 
 					when e32_op_ror =>	-- ror
+						r_gpr_a<=e_reg;
 
 					when e32_op_sth =>	-- sth
+						r_gpr_a<=e_reg;
 
 					when e32_op_mul =>	-- mul
-	
+						r_gpr_a<=e_reg;
+
 					when e32_op_exg =>	-- exg
 						if e_regpc='1' then
 							f_pc<=unsigned(r_tmp);
@@ -680,19 +720,25 @@ begin
 						end if;
 	
 					when e32_op_mt =>	-- mt
+						r_gpr_a<=e_reg;
 	
 					when e32_op_add =>	-- add
+						r_gpr_a<=e_reg;
 
 					when e32_op_addt =>	-- addt
+						r_gpr_a<=e_reg;
 
 					when e32_op_ld =>	-- ld
 						r_gpr_a<=e_reg;
 
 					when e32_op_ldinc =>	-- ldinc
+						r_gpr_a<=e_reg;
 
 					when e32_op_ldbinc =>	-- ldbinc
+						r_gpr_a<=e_reg;
 
 					when e32_op_ltmpinc =>	-- ltmpinc
+						alu_d1<=r_tmp;
 
 					when others =>
 						null;
@@ -728,11 +774,13 @@ begin
 
 				w_writetmp<='0';
 				w_regfile<='0';
+				w_writeflags<='0';
 				w_writepc<='0';
 				w_waitloadstore<='0';
 				w_waitalu<='0';
 				w_waitshifter<='0';
-				ls_req_r<='0';
+				ls_req<='0';
+				ls_wr<='0';
 				shifter_req_r<='0';
 			end if;
 		end if;
@@ -770,15 +818,71 @@ begin
 					w_regfile<='0';
 					w_writetmp<='0';
 					w_waitalu<='1';
-			
+
+
 				when e32_op_st =>	-- st
+					ls_addr<=r_gpr_q;
+					ls_d<=r_tmp;
+					ls_byte<='0';
+					ls_halfword<='0';
+					ls_wr<='1';
+					ls_req<='1';
+
+					w_writeflags<='0';
+					w_writepc<='0';
+					w_regfile<='0';
+					w_writetmp<='0';
+					w_waitloadstore<='1';
 					
 				when e32_op_stdec =>	-- stdec
+					r_gpr_d<=std_logic_vector(unsigned(r_gpr_q)-4); -- FIXME - this hurts performance.  ALU?
+					r_gpr_wr<='1';
+
+					ls_addr<=std_logic_vector(unsigned(r_gpr_q)-4); -- FIXME - this hurts performance.  ALU?
+					ls_d<=r_tmp;
+					ls_byte<='0';
+					ls_halfword<='0';
+					ls_wr<='1';
+					ls_req<='1';
+
+					w_writeflags<='0';
+					w_writepc<='0';
+					w_regfile<='0';
+					w_writetmp<='0';
+					w_waitloadstore<='1';
 			
 				when e32_op_stbinc =>	-- stbinc
+					r_gpr_d<=std_logic_vector(unsigned(r_gpr_q)+1); -- FIXME - this hurts performance.  ALU?
+					r_gpr_wr<='1';
+
+					ls_addr<=r_gpr_q;
+					ls_d<=r_tmp;
+					ls_byte<='1';
+					ls_halfword<='0';
+					ls_wr<='1';
+					ls_req<='1';
+
+					w_writeflags<='0';
+					w_writepc<='0';
+					w_regfile<='0';
+					w_writetmp<='0';
+					w_waitloadstore<='1';
 			
 				when e32_op_stmpdec =>	-- stmpdec
-			
+					ls_addr<=r_tmp;
+					ls_d<=r_gpr_q;
+					ls_byte<='0';
+					ls_halfword<='0';
+					ls_wr<='1';
+					ls_req<='1';
+
+					w_writeflags<='0';
+					w_writepc<='0';
+					w_regfile<='0';
+					w_writetmp<='0';
+					w_waitloadstore<='1';
+
+
 				when e32_op_and =>	-- and
 					r_gpr_d<=r_tmp and r_gpr_q;
 					r_gpr_wr<='1';
@@ -832,7 +936,7 @@ begin
 					r_gpr_wr<='1';
 
 				when e32_op_mt =>	-- mt
-
+					r_tmp<=r_gpr_d;
 
 				when e32_op_add =>	-- add
 					if s_regpc='1' then -- Special-case adding to R7; old contents go to tmp
@@ -853,7 +957,6 @@ begin
 					w_writetmp<='0';
 					w_waitalu<='1';
 
-
 				when e32_op_addt =>	-- addt
 					if s_regpc='1' then
 						alu_d1<=std_logic_vector(f_pc);
@@ -870,13 +973,12 @@ begin
 					w_writetmp<='1';
 					w_waitalu<='1';
 
-
 				when e32_op_ld =>	-- ld
 					ls_addr<=r_gpr_q;
 					ls_byte<='0';
 					ls_halfword<='0';
 					ls_wr<='0';
-					ls_req_r<='1';
+					ls_req<='1';
 
 					w_writeflags<='1';
 					w_writepc<='0';
@@ -889,7 +991,7 @@ begin
 					ls_byte<='0';
 					ls_halfword<='0';
 					ls_wr<='0';
-					ls_req_r<='1';
+					ls_req<='1';
 
 					-- FIXME - this can apply to the PC too.
 					r_gpr_d<=std_logic_vector(unsigned(r_gpr_q)+4); -- FIXME - this hurts performance.  ALU?
@@ -905,7 +1007,7 @@ begin
 					ls_byte<='1';
 					ls_halfword<='0';
 					ls_wr<='0';
-					ls_req_r<='1';
+					ls_req<='1';
 
 					r_gpr_d<=std_logic_vector(unsigned(r_gpr_q)+1); -- FIXME - this hurts performance.  ALU?
 					r_gpr_wr<='1';
