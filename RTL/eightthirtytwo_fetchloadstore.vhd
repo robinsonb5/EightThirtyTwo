@@ -51,14 +51,10 @@ signal opcodebuffer : std_logic_vector(63 downto 0);
 signal opcodebuffer_valid : std_logic_vector(1 downto 0);
 signal opcode_valid_i : std_logic;
 
-type fetchstates is (FS_RUNNING,FS_WAIT,FS_PFWAIT,FS_ABORT);
-signal fetchstate : fetchstates;
-signal fetch_jump : std_logic;
-
 signal fetch_ram_req : std_logic;
-
-signal prefetch_ram_req : std_logic;
-signal prefetch_addr : std_logic_vector(31 downto 2);
+signal fetch_addr : std_logic_vector(31 downto 2);
+signal fetch_abort : std_logic;
+signal fetch_prevpc : std_logic_vector(1 downto 0);
 
 -- Load store signals
 
@@ -92,97 +88,67 @@ opcode <= opcodebuffer(63 downto 56) when pc(2 downto 0)="000"
 	else opcodebuffer(15 downto 8) when pc(2 downto 0)="110"
 	else opcodebuffer(7 downto 0);
 
-opcode_valid_i<=opcodebuffer_valid(1) when pc(2)='1' else opcodebuffer_valid(0);
+opcode_valid_i<=opcodebuffer_valid(1) when pc(2)='0' else opcodebuffer_valid(0);
 opcode_valid<=opcode_valid_i and not pc_req;
 
 process(pc,clk,ram_ack,reset_n)
 begin
 
-	if rising_edge(clk) then
-		if reset_n='0' then
-			opcodebuffer_valid<="00";
+	if reset_n='0' then
+		opcodebuffer_valid<="00";
+		fetch_ram_req<='0';
+		fetch_abort<='0';
+	elsif rising_edge(clk) then
+
+		fetch_prevpc<=pc(1 downto 0);
+	 	-- We double-buffer the opcodes; as program flow enters one word we invalidate the other.
+		if fetch_prevpc="11" and pc(1 downto 0)="00" then
+			if pc(2)='1' then
+				opcodebuffer_valid(1)<='0';
+			else
+				opcodebuffer_valid(0)<='0';
+			end if;
 			fetch_ram_req<='0';
-			prefetch_ram_req<='0';
-			fetchstate <= FS_RUNNING;
-		else
+		end if;
 
-			case fetchstate is
-				when FS_RUNNING =>
-					if pc(1 downto 0)="00" then	-- We double-buffer the opcodes; as program flow enters one word we invalidate the other.
-						if pc(2)='1' then
-							opcodebuffer_valid(0)<='0';
-						else
-							opcodebuffer_valid(1)<='0';
-						end if;
-						prefetch_ram_req<='1';
-						fetchstate<=FS_PFWAIT;
-						prefetch_addr<=std_logic_vector(unsigned(pc(31 downto 2))+1);
-					end if;
+		-- If an operation is in progress when we set the PC, we must wait for it to complete.
+		if fetch_abort='1' and ram_ack='1' then
+			fetch_abort<='0';
+			fetch_ram_req<='1';
+		end if;
 
-				when FS_ABORT =>
-					if ram_ack='1' then
-						fetch_ram_req<='1';
-						fetchstate<=FS_WAIT;
-					end if;
-
-				when FS_WAIT =>
-					if ram_ack='1' and ls_state=LS_FETCH then
-						fetch_ram_req<='0';
-						if pc(2)='0' then
-							opcodebuffer(63 downto 32)<=ram_d;
-						else
-							opcodebuffer(31 downto 0)<=ram_d;
-						end if;
-						if pc(2)='1' then
-							opcodebuffer_valid(1)<='1';
-						else
-							opcodebuffer_valid(0)<='1';
-						end if;
-
-						if prefetch_ram_req='1' then
-							fetchstate<=FS_RUNNING;
-						else
-							fetchstate<=FS_PFWAIT;
-						end if;
-					end if;
-
-				when FS_PFWAIT =>
-					if ram_ack='1' and ls_state=LS_PREFETCH then
-						prefetch_ram_req<='0';
-						if prefetch_addr(2)='0' then
-							opcodebuffer(63 downto 32)<=ram_d;
-						else
-							opcodebuffer(31 downto 0)<=ram_d;
-						end if;
-						if prefetch_addr(2)='1' then
-							opcodebuffer_valid(1)<='1';
-						else
-							opcodebuffer_valid(0)<='1';
-						end if;
-
-						fetchstate<=FS_RUNNING;
-					end if;
-						
-				when others =>
-					NULL;
-
-			end case;
-
-			if fetch_ram_req='1' then
-				prefetch_ram_req<='1';
-				prefetch_addr<=std_logic_vector(unsigned(pc(31 downto 2))+1);
-			end if;
-
-			if pc_req='1' then	-- PC has changed - could happen while fetching...
+		if fetch_abort='0' and ram_ack='1' and ls_state=LS_FETCH then
+			fetch_addr<=std_logic_vector(unsigned(fetch_addr)+1);
+			if opcodebuffer_valid="00" then
 				fetch_ram_req<='1';
-				opcodebuffer_valid<="00"; -- Invalidate both halves of the buffer.
-				if fetchstate /= FS_RUNNING and ram_ack='0' then -- Is a fetch pending?
-					fetchstate<=FS_ABORT;
-				else
-					fetchstate<=FS_WAIT;
-				end if;
+			else
+				fetch_ram_req<='0';
 			end if;
 
+			if fetch_addr(2)='0' then
+				opcodebuffer(63 downto 32)<=ram_d;
+			else
+				opcodebuffer(31 downto 0)<=ram_d;
+			end if;
+			if fetch_addr(2)='0' then
+				opcodebuffer_valid(1)<='1';
+			else
+				opcodebuffer_valid(0)<='1';
+			end if;
+		end if;
+
+		if fetch_abort='0' and fetch_ram_req='0' and opcodebuffer_valid/="11" then
+			fetch_ram_req<='1';
+--			fetch_addr<=std_logic_vector(unsigned(fetch_addr)+1);
+		end if;
+
+		if pc_req='1' then	-- PC has changed - could happen while fetching...
+			fetch_ram_req<='1';
+			fetch_addr<=pc(31 downto 2);
+			opcodebuffer_valid<="00"; -- Invalidate both halves of the buffer.
+			if ls_state=LS_FETCH and ram_ack='0' then -- Is a fetch pending?
+				fetch_abort<='1';
+			end if;
 		end if;
 
 	end if;
@@ -199,7 +165,7 @@ end process;
 ram_req<='0' when reset_n='0' else fetch_ram_req when ls_state=LS_WAIT
 	else ram_req_r and not ram_ack;
 
-ram_addr<=std_logic_vector(pc(31 downto 2)) when ls_state=LS_WAIT and fetch_ram_req='1'
+ram_addr<=std_logic_vector(fetch_addr(31 downto 2)) when ls_state=LS_WAIT and fetch_ram_req='1'
 	else	ls_addr(31 downto 2) when ls_state=LS_WAIT and ls_req='1' and ls_wr='0'
 	else ram_addr_r;
 
@@ -219,7 +185,7 @@ begin
 			when LS_WAIT =>
 
 				if fetch_ram_req='1' then
-					ram_addr_r<=std_logic_vector(pc(31 downto 2));
+					ram_addr_r<=std_logic_vector(fetch_addr(31 downto 2));
 					ram_req_r<='1';
 					ls_state<=LS_FETCH;
 				elsif ls_req='1' then
@@ -232,19 +198,9 @@ begin
 						load_store<='1';
 						ls_state<=LS_LOAD;
 					end if;	
-				elsif prefetch_ram_req='1' then
-					ram_addr_r<=prefetch_addr;
-					ram_req_r<='1';
-					ls_state<=LS_PREFETCH;
 				end if;
 
 			when LS_FETCH =>
-				if ram_ack='1' then
-					ram_req_r<='0';
-					ls_state<=LS_WAIT;
-				end if;
-
-			when LS_PREFETCH =>
 				if ram_ack='1' then
 					ram_req_r<='0';
 					ls_state<=LS_WAIT;

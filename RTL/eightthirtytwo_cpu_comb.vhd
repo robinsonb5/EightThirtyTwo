@@ -545,6 +545,10 @@ begin
 		flag_cond<='0';
 		e_bubble<='0';
 		s_bubble<='0';
+		w_writepc<='0';
+		w_writetmp<='0';
+		w_writeflags<='0';
+		w_regfile<='0';
 		w_waitloadstore<='0';
 		w_waitalu<='0';
 		w_waitshifter<='0';
@@ -817,6 +821,7 @@ begin
 					alu_req_r<='1';
 
 					w_writeflags<='1';
+					w_writepc<='0';
 					w_regfile<='1';
 					w_writetmp<='0';
 					w_waitalu<='1';
@@ -833,8 +838,10 @@ begin
 					if s_regpc='1' then -- Special-case adding to R7; old contents go to tmp
 						alu_d1<=std_logic_vector(f_pc);
 						r_tmp<=std_logic_vector(f_pc);
+						w_regfile<='0';
 						w_writepc<='1';
 					else
+						w_writepc<='0';
 						w_regfile<='1';
 						alu_d1<=r_gpr_q;
 					end if;
@@ -858,6 +865,7 @@ begin
 					alu_req_r<='1';
 
 					w_writeflags<='1';
+					w_writepc<='0';
 					w_regfile<='0';
 					w_writetmp<='1';
 					w_waitalu<='1';
@@ -871,6 +879,7 @@ begin
 					ls_req_r<='1';
 
 					w_writeflags<='1';
+					w_writepc<='0';
 					w_regfile<='0';
 					w_writetmp<='1';
 					w_waitloadstore<='1';
@@ -882,6 +891,7 @@ begin
 					ls_wr<='0';
 					ls_req_r<='1';
 
+					-- FIXME - this can apply to the PC too.
 					r_gpr_d<=std_logic_vector(unsigned(r_gpr_q)+4); -- FIXME - this hurts performance.  ALU?
 					r_gpr_wr<='1';
 
@@ -901,6 +911,7 @@ begin
 					r_gpr_wr<='1';
 
 					w_writeflags<='1';
+					w_writepc<='0';
 					w_regfile<='0';
 					w_writetmp<='1';
 					w_waitloadstore<='1';
