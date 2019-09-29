@@ -1,6 +1,10 @@
 library ieee;
 use ieee.std_logic_1164.all;
 
+-- Attempted an alternative encoding - logic use went up significantly
+-- and fmax came down significantly.
+-- Encoding is almost certainly not yet optimal - how to improve it?
+
 package eightthirtytwo_pkg is
 
 constant e32_op_cond : std_logic_vector(7 downto 0) := X"00";
@@ -51,9 +55,12 @@ constant e32_cond_ex : std_logic_vector(2 downto 0) := "111";
 
 -- ALU functions
 
-constant e32_alu_add : std_logic_vector(1 downto 0) := "01";
-constant e32_alu_sub : std_logic_vector(1 downto 0) := "10";
-constant e32_alu_mul : std_logic_vector(1 downto 0) := "11";
+constant e32_alu_add : std_logic_vector(2 downto 0) := "001";
+constant e32_alu_sub : std_logic_vector(2 downto 0) := "010";
+constant e32_alu_mul : std_logic_vector(2 downto 0) := "011";
+constant e32_alu_and : std_logic_vector(2 downto 0) := "100";
+constant e32_alu_or : std_logic_vector(2 downto 0) := "101";
+constant e32_alu_xor : std_logic_vector(2 downto 0) := "110";
 
 end package;
 

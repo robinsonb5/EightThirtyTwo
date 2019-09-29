@@ -64,7 +64,7 @@ signal alu_c : std_logic;
 signal alu_q : std_logic_vector(31 downto 0);
 signal alu_d1 : std_logic_vector(31 downto 0);
 signal alu_d2 : std_logic_vector(31 downto 0);
-signal alu_op : std_logic_vector(1 downto 0);
+signal alu_op : std_logic_vector(2 downto 0);
 
 
 -- Shifter signals
@@ -160,6 +160,14 @@ signal w_waitloadstore : std_logic;
 signal w_waitalu : std_logic;
 signal w_waitshifter : std_logic;
 
+signal w_ls_to_tmp : std_logic;
+signal w_ls_to_reg : std_logic;
+signal w_ls_to_flags : std_logic;
+signal w_ls_to_pc : std_logic;
+signal w_alu_to_tmp : std_logic;
+signal w_alu_to_reg : std_logic;
+signal w_alu_to_flags : std_logic;
+signal w_alu_to_pc : std_logic;
 
 begin
 
@@ -753,36 +761,87 @@ begin
 		--		-- Writeback stage:
 
 		if w_wait='1' then
-			if w_stall='0' then -- One of the data sources has received an ack.
-				if w_writetmp='1' then
-					r_tmp<=w_q;
-				end if;
-				if w_writepc='1' then -- We're writing to the program counter
-					f_pc<=unsigned(w_q);
-					e_setpc<='1';
-				end if;
-				if w_regfile='1' then
-					r_gpr_d<=w_q;
-					r_gpr_wr<='1';
-				end if;
 
-				flag_z<='0';
-				if ls_q=X"00000000" then
-					flag_z<='1';
-				end if;
-				flag_c<=alu_c;
-
-				w_writetmp<='0';
-				w_regfile<='0';
-				w_writeflags<='0';
-				w_writepc<='0';
+			if ls_ack='1' then
 				w_waitloadstore<='0';
-				w_waitalu<='0';
-				w_waitshifter<='0';
+				w_ls_to_tmp<='0';
+				w_ls_to_reg<='0';
+				w_ls_to_flags<='0';
+				w_ls_to_pc<='0';
 				ls_req<='0';
 				ls_wr<='0';
-				shifter_req_r<='0';
+				w_writetmp<='0'; -- FIXME - won't work for ldtmp / stmpinc
+				w_regfile<='0'; -- FIXME - won't work for ldtmp / stmpinc
+				w_writeflags<='0'; -- FIXME - won't work for ldtmp / stmpinc
+
+				if w_ls_to_flags='1' then
+					flag_z<='0';
+					if ls_q=X"00000000" then
+						flag_z<='1';
+					end if;
+				end if;
+
+				if w_ls_to_tmp='1' then
+					r_tmp<=ls_q;
+					w_writetmp<='0';
+				end if;
+
+				if w_ls_to_reg='1' then
+					r_gpr_d<=ls_q;
+					r_gpr_wr<='1';
+					w_regfile<='0';
+				end if;
+
+				if w_ls_to_pc='1' then
+					f_pc<=unsigned(ls_q);
+					e_setpc<='1';
+					w_writepc<='0';
+				end if;
 			end if;
+
+
+			if alu_busy='0' and w_waitalu='1' then
+				w_waitalu<='0';
+				w_alu_to_tmp<='0';
+				w_alu_to_reg<='0';
+				w_alu_to_flags<='0';
+				w_alu_to_pc<='0';
+
+				if w_alu_to_flags='1' then
+					flag_z<='0';
+					if alu_q=X"00000000" then
+						flag_z<='1';
+					end if;
+					flag_c<=alu_c;
+				end if;
+
+				if w_alu_to_tmp='1' then
+					r_tmp<=alu_q;
+					w_writetmp<='0';
+				end if;
+
+				if w_alu_to_reg='1' then
+					r_gpr_d<=alu_q;
+					r_gpr_wr<='1';
+					w_regfile<='0';
+				end if;
+
+				if w_alu_to_pc='1' then
+					f_pc<=unsigned(alu_q);
+					e_setpc<='1';
+					w_writepc<='0';
+				end if;
+
+			end if;
+
+			if shifter_ack='1' then
+				w_waitshifter<='0';
+
+				r_gpr_d<=shifter_q;
+				r_gpr_wr<='1';
+				w_regfile<='0';
+			end if;
+
 		end if;
 
 
@@ -796,8 +855,11 @@ begin
 				when e32_op_sub =>	-- sub
 					if s_regpc='1' then
 						alu_d1<=std_logic_vector(f_pc);
+						w_alu_to_pc<='1';
 					else
 						alu_d1<=r_gpr_q;
+						w_alu_to_reg<='1';
+						w_alu_to_flags<='1';
 					end if;
 					alu_d2<=r_tmp;
 					alu_op<=e32_alu_sub;
@@ -813,6 +875,7 @@ begin
 					alu_d2<=r_tmp;
 					alu_op<=e32_alu_add;
 					alu_req_r<='1';
+					w_alu_to_flags<='1';
 
 					w_writeflags<='1';
 					w_regfile<='0';
@@ -884,31 +947,40 @@ begin
 
 
 				when e32_op_and =>	-- and
-					r_gpr_d<=r_tmp and r_gpr_q;
-					r_gpr_wr<='1';
-					if (r_tmp and r_gpr_q)=X"00000000" then
-						flag_z<='1';
-					else
-						flag_z<='0';
-					end if;
+					alu_d1<=r_gpr_q;
+					alu_d2<=r_tmp;
+					alu_op<=e32_alu_and;
+					alu_req_r<='1';
+
+					w_writeflags<='1';
+					w_writepc<='0';
+					w_regfile<='1';
+					w_writetmp<='0';
+					w_waitalu<='1';
 			
 				when e32_op_or =>	-- or
-					r_gpr_d<=r_tmp or r_gpr_q;
-					r_gpr_wr<='1';
-					if (r_tmp or r_gpr_q)=X"00000000" then
-						flag_z<='1';
-					else
-						flag_z<='0';
-					end if;
+					alu_d1<=r_gpr_q;
+					alu_d2<=r_tmp;
+					alu_op<=e32_alu_or;
+					alu_req_r<='1';
+
+					w_writeflags<='1';
+					w_writepc<='0';
+					w_regfile<='1';
+					w_writetmp<='0';
+					w_waitalu<='1';
 			
 				when e32_op_xor =>	-- xor
-					r_gpr_d<=r_tmp xor r_gpr_q;
-					r_gpr_wr<='1';
-					if (r_tmp xor r_gpr_q)=X"00000000" then
-						flag_z<='1';
-					else
-						flag_z<='0';
-					end if;
+					alu_d1<=r_gpr_q;
+					alu_d2<=r_tmp;
+					alu_op<=e32_alu_xor;
+					alu_req_r<='1';
+
+					w_writeflags<='1';
+					w_writepc<='0';
+					w_regfile<='1';
+					w_writetmp<='0';
+					w_waitalu<='1';
 
 				when e32_op_shl =>	-- shl
 
@@ -921,8 +993,10 @@ begin
 				when e32_op_mul =>	-- mul
 					alu_d1<=r_gpr_q;
 					alu_d2<=r_tmp;
-					alu_op<=e32_alu_add;
+					alu_op<=e32_alu_mul;
 					alu_req_r<='1';
+					w_alu_to_reg<='1';
+					w_alu_to_flags<='1';
 
 					w_writeflags<='1';
 					w_writepc<='0';
@@ -944,9 +1018,12 @@ begin
 						r_tmp<=std_logic_vector(f_pc);
 						w_regfile<='0';
 						w_writepc<='1';
+						w_alu_to_pc<='1';
 					else
 						w_writepc<='0';
 						w_regfile<='1';
+						w_alu_to_reg<='1';
+						w_alu_to_flags<='1';
 						alu_d1<=r_gpr_q;
 					end if;
 					alu_d2<=r_tmp;
@@ -963,6 +1040,8 @@ begin
 					else
 						alu_d1<=r_gpr_q;
 					end if;
+					w_alu_to_tmp<='1';
+					w_alu_to_flags<='1';
 					alu_d2<=r_tmp;
 					alu_op<=e32_alu_add;
 					alu_req_r<='1';
@@ -979,6 +1058,7 @@ begin
 					ls_halfword<='0';
 					ls_wr<='0';
 					ls_req<='1';
+					w_ls_to_tmp<='1';
 
 					w_writeflags<='1';
 					w_writepc<='0';
@@ -987,20 +1067,34 @@ begin
 					w_waitloadstore<='1';
 
 				when e32_op_ldinc =>	-- ldinc
+					-- FIXME - this can apply to the PC too.
+--					r_gpr_d<=std_logic_vector(unsigned(r_gpr_q)+4); -- FIXME - this hurts performance.  ALU?
+--					r_gpr_wr<='1';
+
 					ls_addr<=r_gpr_q;
 					ls_byte<='0';
 					ls_halfword<='0';
 					ls_wr<='0';
 					ls_req<='1';
-
-					-- FIXME - this can apply to the PC too.
-					r_gpr_d<=std_logic_vector(unsigned(r_gpr_q)+4); -- FIXME - this hurts performance.  ALU?
-					r_gpr_wr<='1';
-
 					w_writeflags<='1';
-					w_regfile<='0';
 					w_writetmp<='1';
+					w_ls_to_tmp<='1';
 					w_waitloadstore<='1';
+
+					alu_d1<=r_gpr_q;
+					alu_d2<=X"00000004";
+					alu_op<=e32_alu_add;
+					alu_req_r<='1';
+					w_waitalu<='1';
+					w_alu_to_reg<='1';
+					w_regfile<='1';
+					if s_regpc='1' then -- Special-case adding to R7
+						alu_d1<=std_logic_vector(f_pc);
+						w_regfile<='0';
+						w_writepc<='1';
+					end if;
+					w_waitalu<='1';
+
 
 				when e32_op_ldbinc =>	-- ldbinc
 					ls_addr<=r_gpr_q;
@@ -1008,15 +1102,24 @@ begin
 					ls_halfword<='0';
 					ls_wr<='0';
 					ls_req<='1';
-
-					r_gpr_d<=std_logic_vector(unsigned(r_gpr_q)+1); -- FIXME - this hurts performance.  ALU?
-					r_gpr_wr<='1';
-
 					w_writeflags<='1';
-					w_writepc<='0';
-					w_regfile<='0';
 					w_writetmp<='1';
+					w_ls_to_tmp<='1';
 					w_waitloadstore<='1';
+
+					alu_d1<=r_gpr_q;
+					alu_d2<=X"00000001";
+					alu_op<=e32_alu_add;
+					alu_req_r<='1';
+					w_waitalu<='1';
+					w_alu_to_reg<='1';
+					w_regfile<='1';
+					if s_regpc='1' then -- Special-case adding to R7
+						alu_d1<=std_logic_vector(f_pc);
+						w_regfile<='0';
+						w_writepc<='1';
+					end if;
+					w_waitalu<='1';
 
 				when e32_op_ltmpinc =>	-- ltmpinc
 
