@@ -57,7 +57,25 @@ signal ls_ack : std_logic;
 
 -- ALU signals
 
-signal alu_ack : std_logic;
+signal alu_req : std_logic;
+signal alu_req_r : std_logic;
+signal alu_busy : std_logic;
+signal alu_c : std_logic;
+signal alu_q : std_logic_vector(31 downto 0);
+signal alu_d1 : std_logic_vector(31 downto 0);
+signal alu_d2 : std_logic_vector(31 downto 0);
+signal alu_op : std_logic_vector(1 downto 0);
+
+
+-- Shifter signals
+
+signal shifter_req : std_logic;
+signal shifter_req_r : std_logic;
+signal shifter_ack : std_logic;
+signal shifter_q : std_logic_vector(31 downto 0);
+signal shifter_d : std_logic_vector(31 downto 0);
+signal shifter_amt : std_logic_vector(5 downto 0);
+
 
 -- Fetch stage signals:
 
@@ -126,20 +144,27 @@ signal s_writeflags : std_logic;
 signal s_waitloadstore : std_logic;
 signal s_waitalu : std_logic;
 
--- Busy signals
---signal reg_busy : std_logic;
---signal tmp_busy : std_logic;
---signal alu_busy : std_logic;
---signal loadstore_busy : std_logic;
+
+-- Store stage signals
+
+signal w_stall : std_logic;
+
+signal w_q : std_logic_vector(31 downto 0);
+signal w_wait : std_logic;
+signal w_regfile : std_logic;
+signal w_writepc : std_logic;
+signal w_writetmp : std_logic;
+signal w_writeflags : std_logic;
+signal w_waitloadstore : std_logic;
+signal w_waitalu : std_logic;
+signal w_waitshifter : std_logic;
+
 
 begin
 
---reg_busy<='1' when s_writereg='1' or e_writereg='1' or s_readreg='1' or s_writereg='1' else '0';
---tmp_busy<='1' when s_writetmp='1' or e_writetmp='1' else '0';
---alu_busy<='1' when s_alu='1' or e_alu='1' else '0';
---loadstore_busy<='1' when s_loadstore='1' or e_loadstore='1' else '0';
 
 -- Fetch/Load/Store unit is responsible for interfacing with main memory.
+
 fetchloadstore : entity work.eightthirtytwo_fetchloadstore 
 generic map(
 	pc_mask => X"ffffffff"
@@ -178,7 +203,28 @@ port map
 	ram_ack => ack
 );
 
+
+alu : entity work.eightthirtytwo_alu 
+port map
+(
+	clk => clk,
+	reset_n => reset_n,
+
+	operand1 => alu_d1,
+	operand2 => alu_d2,
+	operation => alu_op,
+	sgn => flag_sgn,
+	req => alu_req,
+
+	result => alu_q,
+	carry => alu_c,
+	busy => alu_busy
+);
+
+
 ls_req<=ls_req_r and not ls_ack;
+alu_req<=alu_req_r;
+shifter_req<=shifter_req_r and not shifter_ack;
 
 d_opcode<=f_op(7 downto 3) & "000";
 d_reg<=f_op(2 downto 0);
@@ -196,9 +242,19 @@ cond_minterms(0)<= (not flag_z) and (not flag_c);
 -- Stall / bubble / hazard logic:
 
 -- We have three pipeline stages: Fetch (F) / Decode (D), Execute (E) and Load/Store (S)
+-- FIXME - need a fourth - Writeback (W)
 
--- D stage is purely combinatorial, so not really a stage in its own right.  
+-- D stage is purely combinational, so not really a stage in its own right.  
 -- It extracts from the opcode which resources are required to start the operation.
+-- Currently the critical path - this may be fixable just by using a smarter encoding.
+-- Otherwise simply insert a register stage, at the cost of 1 cycle's latency between
+-- PC changing and E.
+-- Might also be better to calculate all stages' resources at D stage, rather than deriving
+-- them combinationaly at each stage. 
+
+-- FIXME D stage identifies instructions which write to R7.
+-- Once one of these reached the EX stage we need to insert bubbles until it's cleared the
+-- pipeline.
 
 -- D stage creates bubbles when waiting for the opcode valid flag
 -- FIXME - Needs to create them when resources are still tied up by the S stage too.  too.
@@ -208,7 +264,7 @@ cond_minterms(0)<= (not flag_z) and (not flag_c);
 -- heavy-handed, and if the instruction being passed from D to E doesn't need the S stage
 -- and doesn't collide with whatever S is doing, it can proceed.
 
--- All three stages generate combinatorial signals indicating which resources are in use:
+-- All three stages generate combinational signals indicating which resources are in use:
 -- writetmp, writereg, readtmp, readreg, writeflags, readflags, loadstore, alu
 -- 'Cond', for example, can't be executed until after the flags have been written to,
 -- so we want a d_bubble while anything that affects the flags is in S stage.
@@ -217,13 +273,16 @@ cond_minterms(0)<= (not flag_z) and (not flag_c);
 
 -- Again, use an e_blocked signal to indicate when resources used by S are needed by E.
 
--- The S stage's resource signals indicate hazards to the previous stages, combinatorially
+-- The S stage's resource signals indicate hazards to the previous stages, combinationally
 -- from the opcode, and since those signals may cause the rest of the pipeline to stall,
 -- we need to be able to clear them without anything coming from the previous stage.
 -- Suggest simply setting s_opcode to 0.
 
 -- D bubbles need to propagate through the pipeline, too - need to make sure we don't
 -- retrigger the S part of an instruction.
+
+-- W stage simply needs to wait for LS, ALU or Shifter operations to finish, and write the
+-- results to either the regfile or tmp.
 
 
 
@@ -371,8 +430,8 @@ e_readflags<='1' when
 	e_opcode=e32_op_cond
 	else '0';
 
-e_blocked<=(e_readtmp and s_writetmp) or
-	(e_regfile and s_regfile) or
+e_blocked<=(e_readtmp and (s_writetmp or w_writetmp)) or
+	(e_regfile and (s_regfile or w_regfile)) or
 	(e_readflags and s_writeflags) or
 	(e_alu and s_alu);
 
@@ -430,21 +489,42 @@ s_alu<='1' when
 
 s_waitloadstore<='1' when
 	s_opcode=e32_op_ld or
-	s_opcode=e32_op_ldinc
+	s_opcode=e32_op_ldinc or
+	s_opcode=e32_op_ldbinc
 	else '0';
 
-s_waitalu<='1' when
-	s_opcode=e32_op_add or
-	s_opcode=e32_op_addt or
-	s_opcode=e32_op_sub or
-	s_opcode=e32_op_cmp or
-	s_opcode=e32_op_mul
+--w_waitloadstore<='1' when
+--	w_opcode=e32_op_ld or
+--	w_opcode=e32_op_ldinc or
+--	w_opcode=e32_op_ldbinc
+--	else '0';
+
+--w_waitalu<='1' when
+--	w_opcode=e32_op_add or
+--	w_opcode=e32_op_addt or
+--	w_opcode=e32_op_sub or
+--	w_opcode=e32_op_cmp or
+--	w_opcode=e32_op_mul
+--	else '0';
+
+--w_waitshifter<='1' when
+--	w_opcode=e32_op_shr or
+--	w_opcode=e32_op_shl or
+--	w_opcode=e32_op_ror
+--	else '0';
+
+w_stall <='1' when
+	(w_waitloadstore='1' and ls_ack='0')
+	or (w_waitalu='1' and alu_busy='1')
+	or (w_waitshifter='1' and shifter_ack='0')
 	else '0';
 
-s_stall <='1' when
-	(s_waitloadstore='1' and ls_ack='0') or
-	(s_waitalu='1' and alu_ack='0')
-	else '0';
+w_q <= ls_q when w_waitloadstore='1' else
+	alu_q when w_waitalu='1' else
+	shifter_q when w_waitshifter='1' else
+	(others=>'X');
+
+w_wait <= w_waitloadstore or w_waitalu or w_waitshifter;
 
 d_bubble<=not f_op_valid;
 
@@ -465,6 +545,18 @@ begin
 		flag_cond<='0';
 		e_bubble<='0';
 		s_bubble<='0';
+		w_waitloadstore<='0';
+		w_waitalu<='0';
+		w_waitshifter<='0';
+		s_stall<='0';
+
+		ls_req_r<='0';
+		alu_d1<=(others=>'0');
+		alu_d2<=(others=>'0');
+		alu_op<=e32_alu_add;
+		alu_req_r<='0';
+		shifter_req_r<='0';
+
 	elsif rising_edge(clk) then
 
 		e_setpc<='0';
@@ -475,10 +567,20 @@ begin
 		e_stall<='0';
 
 
-		-- Transfer op from E to S, if possible.  Leave a bubble behind.
+		-- Transfer op from S to W, if possible.  Leave a bubble behind.
 
-		if s_stall='0' and e_blocked='0' then
+		if w_stall='0' then
+			s_bubble<='1';
+			s_opcode<=e32_op_li;
+		end if;
+
+
+		-- Transfer op from E to S, if possible, filling the bubble left in the S to W transfer.
+		--  Leave a bubble behind.
+
+		if w_stall='0' then -- and e_blocked='0' then
 			s_opcode<=e_opcode;
+			s_bubble<='0';
 			e_bubble<='1';
 			e_opcode<=e32_op_li;
 			s_reg<=e_reg;
@@ -498,7 +600,7 @@ begin
 
 		-- Execute load immediate...
 
-		if d_bubble='0' and e_bubble='0' and s_stall='0' then
+		if d_bubble='0' and e_bubble='0' and w_stall='0' then
 			if e_opcode(7 downto 6)="11" then
 				d_immediatestreak<='1';
 				if d_immediatestreak='1' then	-- shift existing value six bits left...
@@ -598,15 +700,72 @@ begin
 		end if;
 	
 
+		--		-- Writeback stage:
+
+		if w_wait='1' then
+			if w_stall='0' then -- One of the data sources has received an ack.
+				if w_writetmp='1' then
+					r_tmp<=w_q;
+				end if;
+				if w_writepc='1' then -- We're writing to the program counter
+					f_pc<=unsigned(w_q);
+					e_setpc<='1';
+				end if;
+				if w_regfile='1' then
+					r_gpr_d<=w_q;
+					r_gpr_wr<='1';
+				end if;
+
+				flag_z<='0';
+				if ls_q=X"00000000" then
+					flag_z<='1';
+				end if;
+				flag_c<=alu_c;
+
+				w_writetmp<='0';
+				w_regfile<='0';
+				w_writepc<='0';
+				w_waitloadstore<='0';
+				w_waitalu<='0';
+				w_waitshifter<='0';
+				ls_req_r<='0';
+				shifter_req_r<='0';
+			end if;
+		end if;
+
+
 		--		-- Load/store stage
 
+		alu_req_r<='0';
 
 		if s_bubble='0' then
 
 			case s_opcode is		
 				when e32_op_sub =>	-- sub
+					if s_regpc='1' then
+						alu_d1<=std_logic_vector(f_pc);
+					else
+						alu_d1<=r_gpr_q;
+					end if;
+					alu_d2<=r_tmp;
+					alu_op<=e32_alu_sub;
+					alu_req_r<='1';
+
+					w_writeflags<='1';
+					w_regfile<='1';
+					w_writetmp<='0';
+					w_waitalu<='1';
 			
 				when e32_op_cmp =>	-- cmp
+					alu_d1<=r_gpr_q;
+					alu_d2<=r_tmp;
+					alu_op<=e32_alu_add;
+					alu_req_r<='1';
+
+					w_writeflags<='1';
+					w_regfile<='0';
+					w_writetmp<='0';
+					w_waitalu<='1';
 			
 				when e32_op_st =>	-- st
 					
@@ -652,6 +811,15 @@ begin
 				when e32_op_sth =>	-- sth
 
 				when e32_op_mul =>	-- mul
+					alu_d1<=r_gpr_q;
+					alu_d2<=r_tmp;
+					alu_op<=e32_alu_add;
+					alu_req_r<='1';
+
+					w_writeflags<='1';
+					w_regfile<='1';
+					w_writetmp<='0';
+					w_waitalu<='1';
 
 				when e32_op_exg =>	-- exg - write to both tmp and regfile
 					r_tmp<=r_gpr_q;
@@ -660,9 +828,40 @@ begin
 
 				when e32_op_mt =>	-- mt
 
+
 				when e32_op_add =>	-- add
+					if s_regpc='1' then -- Special-case adding to R7; old contents go to tmp
+						alu_d1<=std_logic_vector(f_pc);
+						r_tmp<=std_logic_vector(f_pc);
+						w_writepc<='1';
+					else
+						w_regfile<='1';
+						alu_d1<=r_gpr_q;
+					end if;
+					alu_d2<=r_tmp;
+					alu_op<=e32_alu_add;
+					alu_req_r<='1';
+
+					w_writeflags<='1';
+					w_writetmp<='0';
+					w_waitalu<='1';
+
 
 				when e32_op_addt =>	-- addt
+					if s_regpc='1' then
+						alu_d1<=std_logic_vector(f_pc);
+					else
+						alu_d1<=r_gpr_q;
+					end if;
+					alu_d2<=r_tmp;
+					alu_op<=e32_alu_add;
+					alu_req_r<='1';
+
+					w_writeflags<='1';
+					w_regfile<='0';
+					w_writetmp<='1';
+					w_waitalu<='1';
+
 
 				when e32_op_ld =>	-- ld
 					ls_addr<=r_gpr_q;
@@ -671,15 +870,40 @@ begin
 					ls_wr<='0';
 					ls_req_r<='1';
 
-					if ls_ack='1' then
-						r_tmp<=ls_q;
-						ls_req_r<='0';
-						s_opcode<=X"00";	-- Insert a bubble
-					end if;
+					w_writeflags<='1';
+					w_regfile<='0';
+					w_writetmp<='1';
+					w_waitloadstore<='1';
 
 				when e32_op_ldinc =>	-- ldinc
+					ls_addr<=r_gpr_q;
+					ls_byte<='0';
+					ls_halfword<='0';
+					ls_wr<='0';
+					ls_req_r<='1';
+
+					r_gpr_d<=std_logic_vector(unsigned(r_gpr_q)+4); -- FIXME - this hurts performance.  ALU?
+					r_gpr_wr<='1';
+
+					w_writeflags<='1';
+					w_regfile<='0';
+					w_writetmp<='1';
+					w_waitloadstore<='1';
 
 				when e32_op_ldbinc =>	-- ldbinc
+					ls_addr<=r_gpr_q;
+					ls_byte<='1';
+					ls_halfword<='0';
+					ls_wr<='0';
+					ls_req_r<='1';
+
+					r_gpr_d<=std_logic_vector(unsigned(r_gpr_q)+1); -- FIXME - this hurts performance.  ALU?
+					r_gpr_wr<='1';
+
+					w_writeflags<='1';
+					w_regfile<='0';
+					w_writetmp<='1';
+					w_waitloadstore<='1';
 
 				when e32_op_ltmpinc =>	-- ltmpinc
 

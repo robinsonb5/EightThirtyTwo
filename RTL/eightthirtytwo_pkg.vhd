@@ -51,12 +51,9 @@ constant e32_cond_ex : std_logic_vector(2 downto 0) := "111";
 
 -- ALU functions
 
-constant e32_alu_and : std_logic_vector(2 downto 0) := "000";
-constant e32_alu_or : std_logic_vector(2 downto 0) := "000";
-constant e32_alu_xor : std_logic_vector(2 downto 0) := "000";
-constant e32_alu_add : std_logic_vector(2 downto 0) := "000";
-constant e32_alu_sub : std_logic_vector(2 downto 0) := "000";
-constant e32_alu_mul : std_logic_vector(2 downto 0) := "000";
+constant e32_alu_add : std_logic_vector(1 downto 0) := "01";
+constant e32_alu_sub : std_logic_vector(1 downto 0) := "10";
+constant e32_alu_mul : std_logic_vector(1 downto 0) := "11";
 
 end package;
 
