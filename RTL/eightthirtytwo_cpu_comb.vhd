@@ -569,6 +569,14 @@ d_bubble<=not f_op_valid;
 process(clk,reset_n,f_op_valid)
 begin 
 
+	-- Set 
+	if falling_edge(clk) then
+		if d_bubble='0' and e_bubble='0' and w_stall='0' and e_opcode/=e32_op_cond and e_opcode(7 downto 6)/="11" then
+			r_gpr_a<=e_reg;
+		end if;
+	end if;
+
+
 	if reset_n='0' then
 		f_pc <= (others=>'0');
 --		r_tmp<= (others=>'0');
@@ -668,7 +676,7 @@ begin
 	
 					when e32_op_mr =>	-- mr
 						r_gpr_d<=r_tmp;
-						r_gpr_a<=e_reg;
+--						r_gpr_a<=e_reg;
 						if e_regpc='1' then -- Updating the PC
 							f_pc<=unsigned(r_tmp);
 							e_setpc<='1';
@@ -677,75 +685,75 @@ begin
 						end if;
 	
 					when e32_op_sub =>	-- sub
-						r_gpr_a<=e_reg;
+--						r_gpr_a<=e_reg;
 	
 					when e32_op_cmp =>	-- cmp
-						r_gpr_a<=e_reg;
+--						r_gpr_a<=e_reg;
 	
 					when e32_op_st =>	-- st
-						r_gpr_a<=e_reg;
+--						r_gpr_a<=e_reg;
 			
 					when e32_op_stdec =>	-- stdec
-						r_gpr_a<=e_reg;
+--						r_gpr_a<=e_reg;
 	
 					when e32_op_stbinc =>	-- stbinc
-						r_gpr_a<=e_reg;
+--						r_gpr_a<=e_reg;
 	
 					when e32_op_stmpdec =>	-- stmpdec
-						r_gpr_a<=e_reg;
+--						r_gpr_a<=e_reg;
 	
 					when e32_op_and =>	-- and
-						r_gpr_a<=e_reg;
+--						r_gpr_a<=e_reg;
 	
 					when e32_op_or =>	-- or
-						r_gpr_a<=e_reg;
+--						r_gpr_a<=e_reg;
 	
 					when e32_op_xor =>	-- xor
-						r_gpr_a<=e_reg;
+--						r_gpr_a<=e_reg;
 
 					when e32_op_shl =>	-- shl
-						r_gpr_a<=e_reg;
+--						r_gpr_a<=e_reg;
 
 					when e32_op_shr =>	-- shr
-						r_gpr_a<=e_reg;
+--						r_gpr_a<=e_reg;
 
 					when e32_op_ror =>	-- ror
-						r_gpr_a<=e_reg;
+--						r_gpr_a<=e_reg;
 
 					when e32_op_sth =>	-- sth
-						r_gpr_a<=e_reg;
+--						r_gpr_a<=e_reg;
 
 					when e32_op_mul =>	-- mul
-						r_gpr_a<=e_reg;
+--						r_gpr_a<=e_reg;
 
 					when e32_op_exg =>	-- exg
+--						r_gpr_a<=e_reg;
 						if e_regpc='1' then
 							f_pc<=unsigned(r_tmp);
 							r_tmp<=std_logic_vector(f_pc+1);
 							e_bubble<='1';
-						else
-							r_gpr_a<=e_reg;
 						end if;
 	
 					when e32_op_mt =>	-- mt
-						r_gpr_a<=e_reg;
+--						r_gpr_a<=e_reg;
 	
 					when e32_op_add =>	-- add
-						r_gpr_a<=e_reg;
+--						r_gpr_a<=e_reg;
 
 					when e32_op_addt =>	-- addt
-						r_gpr_a<=e_reg;
+--						r_gpr_a<=e_reg;
 
 					when e32_op_ld =>	-- ld
-						r_gpr_a<=e_reg;
+--						r_gpr_a<=e_reg;
 
 					when e32_op_ldinc =>	-- ldinc
-						r_gpr_a<=e_reg;
+--						r_gpr_a<=e_reg;
 
 					when e32_op_ldbinc =>	-- ldbinc
-						r_gpr_a<=e_reg;
+--						r_gpr_a<=e_reg;
 
 					when e32_op_ltmpinc =>	-- ltmpinc
+--						r_gpr_a<=e_reg;
 						alu_d1<=r_tmp;
 
 					when others =>
@@ -898,10 +906,10 @@ begin
 					w_waitloadstore<='1';
 					
 				when e32_op_stdec =>	-- stdec
-					r_gpr_d<=std_logic_vector(unsigned(r_gpr_q)-4); -- FIXME - this hurts performance.  ALU?
-					r_gpr_wr<='1';
+--					r_gpr_d<=std_logic_vector(unsigned(r_gpr_q)-4); -- FIXME - this hurts performance.  ALU?
+--					r_gpr_wr<='1';
 
-					ls_addr<=std_logic_vector(unsigned(r_gpr_q)-4); -- FIXME - this hurts performance.  ALU?
+--					ls_addr<=std_logic_vector(unsigned(r_gpr_q)-4); -- FIXME - this hurts performance.  ALU?
 					ls_d<=r_tmp;
 					ls_byte<='0';
 					ls_halfword<='0';
@@ -915,8 +923,8 @@ begin
 					w_waitloadstore<='1';
 			
 				when e32_op_stbinc =>	-- stbinc
-					r_gpr_d<=std_logic_vector(unsigned(r_gpr_q)+1); -- FIXME - this hurts performance.  ALU?
-					r_gpr_wr<='1';
+--					r_gpr_d<=std_logic_vector(unsigned(r_gpr_q)+1); -- FIXME - this hurts performance.  ALU?
+--					r_gpr_wr<='1';
 
 					ls_addr<=r_gpr_q;
 					ls_d<=r_tmp;
@@ -930,8 +938,19 @@ begin
 					w_regfile<='0';
 					w_writetmp<='0';
 					w_waitloadstore<='1';
+					
+					alu_d1<=r_gpr_q;
+					alu_d2<=X"00000001";
+					alu_op<=e32_alu_add;
+					alu_req_r<='1';
+					w_waitalu<='1';
+					w_alu_to_reg<='1';
+					w_regfile<='1';
+					w_waitalu<='1';
+					
 			
 				when e32_op_stmpdec =>	-- stmpdec
+					-- FIXME - implement predec
 					ls_addr<=r_tmp;
 					ls_d<=r_gpr_q;
 					ls_byte<='0';
