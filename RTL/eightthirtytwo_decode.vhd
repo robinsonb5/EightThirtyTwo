@@ -11,8 +11,8 @@ port(
 	reset_n : in std_logic;
 	opcode : in std_logic_vector(7 downto 0);
 	alu_func : out std_logic_vector(3 downto 0);
-	alu_reg1 : out std_logic_vector(4 downto 0);
-	alu_reg2 : out std_logic_vector(4 downto 0);
+	alu_reg1 : out std_logic_vector(5 downto 0);
+	alu_reg2 : out std_logic_vector(5 downto 0);
 	ex_op : out std_logic_vector(7 downto 0)
 );
 end entity;
@@ -21,12 +21,12 @@ architecture behavoural of eightthirtytwo_decode is
 
 signal op : std_logic_vector(7 downto 0);
 signal regpc : std_logic;
-signal reg : std_logic_vector(4 downto 0);
+signal reg : std_logic_vector(5 downto 0);
 
 begin
 
-op<=opcode(7 downto 3)&"000";
-reg<="00" & opcode(2 downto 0) when regpc='0' else "10000";
+op<="11000000" when opcode(7 downto 6)="11" else opcode(7 downto 3)&"000";
+reg<="000" & opcode(2 downto 0) when regpc='0' else "010000";
 
 -- Decode stage, combinational logic:
 
@@ -86,7 +86,7 @@ with op select alu_reg1 <=
 	reg when e32_op_stdec,
 
 	e32_reg_tmp when e32_op_stmpdec,
-	e32_reg_dontcare when e32_op_li, -- FIXME - need to decode this separately
+	opcode(5 downto 0) when e32_op_li, -- FIXME - need to decode this separately
 	reg when e32_op_and,
 	reg when e32_op_or,
 
@@ -116,7 +116,7 @@ with op select alu_reg2 <=
 	e32_reg_tmp when e32_op_stbinc,
 
 	e32_reg_tmp when e32_op_ldinc,
-	reg when e32_op_ltmpinc,
+	e32_reg_dontcare when e32_op_ltmpinc,
 	e32_reg_tmp when e32_op_ldbinc,
 	e32_reg_tmp when e32_op_stdec,
 
@@ -156,7 +156,7 @@ with op select ex_op <=
 	(e32_ex_store or e32_ex_q1toreg) when e32_op_stdec,
 
 	(e32_ex_store or e32_ex_q1totmp) when e32_op_stmpdec,
-	e32_ex_li when e32_op_li, -- FIXME - need to decode this separately
+	e32_ex_li when e32_op_li,
 	(e32_ex_q1toreg or e32_ex_flags) when e32_op_and,
 	(e32_ex_q1toreg or e32_ex_flags) when e32_op_or,
 

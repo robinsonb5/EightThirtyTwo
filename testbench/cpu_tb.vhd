@@ -10,7 +10,7 @@ end cpu_tb;
 
 architecture behaviour of cpu_tb
 is
-	constant clk_period : time := 100 ns;
+	constant clk_period : time := 10 ns;
 	signal clk : std_logic;
 
 	signal reset_n : std_logic;
@@ -60,7 +60,7 @@ begin
 
 	ram_wr<=(ram_wr and ram_req) when ram_addr(31)='0' else '0';
 
-	cpu : entity work.eightthirtytwo_cpu_comb
+	cpu : entity work.eightthirtytwo_cpu
 	port map
 	(
 		clk => clk,

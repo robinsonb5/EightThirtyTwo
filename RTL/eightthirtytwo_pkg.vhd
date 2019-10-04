@@ -77,18 +77,18 @@ constant e32_alu_ror : std_logic_vector(3 downto 0) := "1111";
 
 -- Register sources
 
-constant e32_reg_r0 : std_logic_vector(4 downto 0) := "00000";
-constant e32_reg_r1 : std_logic_vector(4 downto 0) := "00001";
-constant e32_reg_r2 : std_logic_vector(4 downto 0) := "00010";
-constant e32_reg_r3 : std_logic_vector(4 downto 0) := "00011";
-constant e32_reg_r4 : std_logic_vector(4 downto 0) := "00100";
-constant e32_reg_r5 : std_logic_vector(4 downto 0) := "00101";
-constant e32_reg_r6 : std_logic_vector(4 downto 0) := "00110";
-constant e32_reg_tmp : std_logic_vector(4 downto 0) := "01000";
+constant e32_reg_r0 : std_logic_vector(5 downto 0) := "000000";
+constant e32_reg_r1 : std_logic_vector(5 downto 0) := "000001";
+constant e32_reg_r2 : std_logic_vector(5 downto 0) := "000010";
+constant e32_reg_r3 : std_logic_vector(5 downto 0) := "000011";
+constant e32_reg_r4 : std_logic_vector(5 downto 0) := "000100";
+constant e32_reg_r5 : std_logic_vector(5 downto 0) := "000101";
+constant e32_reg_r6 : std_logic_vector(5 downto 0) := "000110";
+constant e32_reg_tmp : std_logic_vector(5 downto 0) := "001000";
 constant e32_regb_tmp : integer := 3;
-constant e32_reg_pc : std_logic_vector(4 downto 0) := "10000";
+constant e32_reg_pc : std_logic_vector(5 downto 0) := "010000";
 constant e32_regb_pc : integer := 4;
-constant e32_reg_dontcare : std_logic_vector(4 downto 0) := "XXXXX";
+constant e32_reg_dontcare : std_logic_vector(5 downto 0) := "XXXXXX";
 
 -- Execute stage operations:
 constant e32_exb_cond : integer := 0;
