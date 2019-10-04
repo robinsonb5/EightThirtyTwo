@@ -212,8 +212,8 @@ begin
 	if reset_n='0' then
 		f_pc<=(others=>'0');
 		e_setpc<='1';
-		d_run<='1';
 	elsif rising_edge(clk) then
+		d_run<='1';
 		e_setpc<='0';
 
 		if d_run='1' and f_op_valid='1' then
@@ -239,6 +239,7 @@ begin
 			else
 				alu_d1<=r_gpr_q;
 			end if;
+			alu_req<='1';
 
 			m_alu_reg1<=e_alu_reg1;
 			m_alu_reg2<=e_alu_reg2;
