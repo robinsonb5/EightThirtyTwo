@@ -1,0 +1,188 @@
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+library work;
+use work.eightthirtytwo_pkg.all;
+
+entity eightthirtytwo_decode is
+port(
+	clk : in std_logic;
+	reset_n : in std_logic;
+	opcode : in std_logic_vector(7 downto 0);
+	alu_func : out std_logic_vector(3 downto 0);
+	alu_reg1 : out std_logic_vector(4 downto 0);
+	alu_reg2 : out std_logic_vector(4 downto 0);
+	ex_op : out std_logic_vector(7 downto 0)
+);
+end entity;
+
+architecture behavoural of eightthirtytwo_decode is
+
+signal op : std_logic_vector(7 downto 0);
+signal regpc : std_logic;
+signal reg : std_logic_vector(4 downto 0);
+
+begin
+
+op<=opcode(7 downto 3)&"000";
+reg<="00" & opcode(2 downto 0) when regpc='0' else "10000";
+
+-- Decode stage, combinational logic:
+
+-- ALU functions
+
+with op select alu_func <=
+	e32_alu_nop when e32_op_cond,
+	e32_alu_nop when e32_op_mr,
+	e32_alu_nop when e32_op_sth,
+	e32_alu_nop when e32_op_st,
+
+	e32_alu_nop when e32_op_ld,
+	e32_alu_sub when e32_op_sub,
+	e32_alu_sub when e32_op_cmp,
+	e32_alu_incw when e32_op_stbinc,
+
+	e32_alu_incw when e32_op_ldinc,
+	e32_alu_incw when e32_op_ltmpinc,
+	e32_alu_incb when e32_op_ldbinc,
+	e32_alu_decw when e32_op_stdec,
+
+	e32_alu_decw when e32_op_stmpdec,
+	e32_alu_li when e32_op_li, -- FIXME - need to decode this separately
+	e32_alu_and when e32_op_and,
+	e32_alu_or when e32_op_or,
+
+	e32_alu_xor when e32_op_xor,
+	e32_alu_shl when e32_op_shl,
+	e32_alu_shr when e32_op_shr,
+	e32_alu_ror when e32_op_ror,
+
+	e32_alu_mul when e32_op_mul,
+	e32_alu_exg when e32_op_exg,
+	e32_alu_nop when e32_op_mt,
+	e32_alu_add when e32_op_add,
+
+	e32_alu_addt when e32_op_addt,
+	e32_alu_nop when others;
+
+
+-- Register to ALU mappings:
+
+with op select alu_reg1 <=
+	e32_reg_dontcare when e32_op_cond,
+	e32_reg_tmp when e32_op_mr,
+	reg when e32_op_sth,
+	reg when e32_op_st,
+
+	reg when e32_op_ld,
+	reg when e32_op_sub,
+	reg when e32_op_cmp,
+	reg when e32_op_stbinc,
+
+	reg when e32_op_ldinc,
+	e32_reg_tmp when e32_op_ltmpinc,
+	reg when e32_op_ldbinc,
+	reg when e32_op_stdec,
+
+	e32_reg_tmp when e32_op_stmpdec,
+	e32_reg_dontcare when e32_op_li, -- FIXME - need to decode this separately
+	reg when e32_op_and,
+	reg when e32_op_or,
+
+	reg when e32_op_xor,
+	reg when e32_op_shl,
+	reg when e32_op_shr,
+	reg when e32_op_ror,
+
+	reg when e32_op_mul,
+	e32_reg_tmp when e32_op_exg,
+	reg when e32_op_mt,
+	e32_reg_tmp when e32_op_add, -- Swapped because we want the old value in q2
+
+	reg when e32_op_addt,
+	e32_reg_dontcare when others;
+
+
+with op select alu_reg2 <=
+	e32_reg_dontcare when e32_op_cond,
+	e32_reg_tmp when e32_op_mr,
+	e32_reg_tmp when e32_op_sth,
+	e32_reg_tmp when e32_op_st,
+
+	e32_reg_tmp when e32_op_ld,
+	e32_reg_tmp when e32_op_sub,
+	e32_reg_tmp when e32_op_cmp,
+	e32_reg_tmp when e32_op_stbinc,
+
+	e32_reg_tmp when e32_op_ldinc,
+	reg when e32_op_ltmpinc,
+	e32_reg_tmp when e32_op_ldbinc,
+	e32_reg_tmp when e32_op_stdec,
+
+	reg when e32_op_stmpdec,
+	e32_reg_dontcare when e32_op_li, -- FIXME - need to decode this separately
+	e32_reg_tmp when e32_op_and,
+	e32_reg_tmp when e32_op_or,
+
+	e32_reg_tmp when e32_op_xor,
+	e32_reg_tmp when e32_op_shl,
+	e32_reg_tmp when e32_op_shr,
+	e32_reg_tmp when e32_op_ror,
+
+	e32_reg_tmp when e32_op_mul,
+	reg when e32_op_exg,
+	e32_reg_tmp when e32_op_mt,
+	reg when e32_op_add, -- Swapped because we want the old value in q2
+
+	e32_reg_tmp when e32_op_addt,
+	e32_reg_dontcare when others;
+
+
+with op select ex_op <=
+	e32_ex_cond when e32_op_cond,
+	e32_ex_q1toreg when e32_op_mr,
+	e32_ex_store when e32_op_sth,
+	e32_ex_store when e32_op_st,
+
+	e32_ex_load when e32_op_ld,
+	(e32_ex_q1toreg or e32_ex_flags) when e32_op_sub,
+	e32_ex_flags when e32_op_cmp,
+	(e32_ex_store or e32_ex_q1toreg) when e32_op_stbinc,
+
+	(e32_ex_load or e32_ex_q1toreg) when e32_op_ldinc,
+	(e32_ex_load or e32_ex_q1totmp) when e32_op_ltmpinc,
+	(e32_ex_load or e32_ex_q1toreg) when e32_op_ldbinc,
+	(e32_ex_store or e32_ex_q1toreg) when e32_op_stdec,
+
+	(e32_ex_store or e32_ex_q1totmp) when e32_op_stmpdec,
+	e32_ex_li when e32_op_li, -- FIXME - need to decode this separately
+	(e32_ex_q1toreg or e32_ex_flags) when e32_op_and,
+	(e32_ex_q1toreg or e32_ex_flags) when e32_op_or,
+
+	(e32_ex_q1toreg or e32_ex_flags) when e32_op_xor,
+	(e32_ex_q1toreg or e32_ex_flags) when e32_op_shl,
+	(e32_ex_q1toreg or e32_ex_flags) when e32_op_shr,
+	(e32_ex_q1toreg or e32_ex_flags) when e32_op_ror,
+
+	(e32_ex_q1toreg or e32_ex_q2totmp or e32_ex_flags) when e32_op_mul,
+	(e32_ex_q1toreg or e32_ex_q2totmp) when e32_op_exg,
+	e32_ex_q2totmp when e32_op_mt,
+	(e32_ex_q1toreg or e32_ex_q2totmp or e32_ex_flags) when e32_op_add, -- Swapped because we want the old value in q2
+
+	(e32_ex_q1totmp or e32_ex_flags) when e32_op_addt,
+	(others => 'X') when others;
+
+
+-- The following instructions can access the Program Counter.
+with op select regpc <=
+	'1' when e32_op_mr,
+	'1' when e32_op_sub,
+	'1' when e32_op_ldinc,
+	'1' when e32_op_ltmpinc,
+	'1' when e32_op_exg,
+	'1' when e32_op_add,
+	'1' when e32_op_addt,
+	'0' when others;
+
+end architecture;

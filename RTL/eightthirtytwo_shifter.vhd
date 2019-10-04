@@ -11,7 +11,7 @@ port(
 	d : in std_logic_vector(31 downto 0);
 	q : out std_logic_vector(31 downto 0);
 	shift : in std_logic_vector(4 downto 0);
-	immediate : in std_logic_vector(5 downto 0);
+--	immediate : in std_logic_vector(5 downto 0);
 	right_left : in std_logic; -- 1 for right, 0 for left
 	sgn : in std_logic;	-- Right shift only - logical (0) or arithmetic (1)?
 	rotate : in std_logic;
@@ -66,15 +66,15 @@ begin
 							count<=count-1;
 						end if;
 					elsif right_left='0' then -- shift left - always shift in zeros
-						if count>6 then	-- six bits, incorporate immediate data if we have any.
-							result(31 downto 6)<=result(25 downto 0);
-							result(5 downto 0)<=immediate;
-							count<=count-6;
-						else
+--						if count>6 then	-- six bits, incorporate immediate data if we have any.
+--							result(31 downto 6)<=result(25 downto 0);
+--							result(5 downto 0)<=immediate;
+--							count<=count-6;
+--						else
 							result(31 downto 1)<=result(30 downto 0);
 							result(0)<='0';
 							count<=count-1;
-						end if;
+--						end if;
 					end if;
 
 				end if;				
