@@ -10,10 +10,10 @@ port(
 	clk : in std_logic;
 	reset_n : in std_logic;
 	opcode : in std_logic_vector(7 downto 0);
-	alu_func : out std_logic_vector(3 downto 0);
-	alu_reg1 : out std_logic_vector(5 downto 0);
-	alu_reg2 : out std_logic_vector(5 downto 0);
-	ex_op : out std_logic_vector(7 downto 0)
+	alu_func : out std_logic_vector(e32_alu_maxbit downto 0);
+	alu_reg1 : out std_logic_vector(e32_reg_maxbit downto 0);
+	alu_reg2 : out std_logic_vector(e32_reg_maxbit downto 0);
+	ex_op : out std_logic_vector(e32_ex_maxbit downto 0)
 );
 end entity;
 
@@ -21,12 +21,12 @@ architecture behavoural of eightthirtytwo_decode is
 
 signal op : std_logic_vector(7 downto 0);
 signal regpc : std_logic;
-signal reg : std_logic_vector(5 downto 0);
+signal reg : std_logic_vector(e32_reg_maxbit downto 0);
 
 begin
 
 op<="11000000" when opcode(7 downto 6)="11" else opcode(7 downto 3)&"000";
-reg<="000" & opcode(2 downto 0) when regpc='0' else "010000";
+reg<=e32_reg_gpr when regpc='0' else e32_reg_pc;
 
 -- Decode stage, combinational logic:
 
@@ -49,7 +49,7 @@ with op select alu_func <=
 	e32_alu_decw when e32_op_stdec,
 
 	e32_alu_decw when e32_op_stmpdec,
-	e32_alu_li when e32_op_li, -- FIXME - need to decode this separately
+	e32_alu_li when e32_op_li,
 	e32_alu_and when e32_op_and,
 	e32_alu_or when e32_op_or,
 
@@ -70,8 +70,12 @@ with op select alu_func <=
 -- Register to ALU mappings:
 
 with op select alu_reg1 <=
-	e32_reg_dontcare when e32_op_cond,
+--	opcode(5 downto 0) when e32_op_li,
 	e32_reg_tmp when e32_op_mr,
+	e32_reg_tmp when e32_op_ltmpinc,
+	e32_reg_tmp when e32_op_stmpdec,
+	e32_reg_tmp when e32_op_exg,
+	e32_reg_tmp when e32_op_add, -- Swapped because we want the old value in q2
 	reg when e32_op_sth,
 	reg when e32_op_st,
 
@@ -81,12 +85,9 @@ with op select alu_reg1 <=
 	reg when e32_op_stbinc,
 
 	reg when e32_op_ldinc,
-	e32_reg_tmp when e32_op_ltmpinc,
 	reg when e32_op_ldbinc,
 	reg when e32_op_stdec,
 
-	e32_reg_tmp when e32_op_stmpdec,
-	opcode(5 downto 0) when e32_op_li, -- FIXME - need to decode this separately
 	reg when e32_op_and,
 	reg when e32_op_or,
 
@@ -96,16 +97,17 @@ with op select alu_reg1 <=
 	reg when e32_op_ror,
 
 	reg when e32_op_mul,
-	e32_reg_tmp when e32_op_exg,
 	reg when e32_op_mt,
-	e32_reg_tmp when e32_op_add, -- Swapped because we want the old value in q2
 
 	reg when e32_op_addt,
+	e32_reg_dontcare when e32_op_cond,
 	e32_reg_dontcare when others;
 
 
 with op select alu_reg2 <=
-	e32_reg_dontcare when e32_op_cond,
+	reg when e32_op_stmpdec,
+	reg when e32_op_exg,
+	reg when e32_op_add, -- Swapped because we want the old value in q2
 	e32_reg_tmp when e32_op_mr,
 	e32_reg_tmp when e32_op_sth,
 	e32_reg_tmp when e32_op_st,
@@ -120,8 +122,6 @@ with op select alu_reg2 <=
 	e32_reg_tmp when e32_op_ldbinc,
 	e32_reg_tmp when e32_op_stdec,
 
-	reg when e32_op_stmpdec,
-	e32_reg_dontcare when e32_op_li, -- FIXME - need to decode this separately
 	e32_reg_tmp when e32_op_and,
 	e32_reg_tmp when e32_op_or,
 
@@ -131,32 +131,35 @@ with op select alu_reg2 <=
 	e32_reg_tmp when e32_op_ror,
 
 	e32_reg_tmp when e32_op_mul,
-	reg when e32_op_exg,
 	e32_reg_tmp when e32_op_mt,
-	reg when e32_op_add, -- Swapped because we want the old value in q2
 
 	e32_reg_tmp when e32_op_addt,
+	e32_reg_dontcare when e32_op_li,
+	e32_reg_dontcare when e32_op_cond,
 	e32_reg_dontcare when others;
 
 
 with op select ex_op <=
 	e32_ex_cond when e32_op_cond,
+	e32_ex_q2totmp when e32_op_mt,
 	e32_ex_q1toreg when e32_op_mr,
-	e32_ex_store when e32_op_sth,
+
+	e32_ex_flags when e32_op_cmp,
+
+	(e32_ex_store or e32_ex_halfword) when e32_op_sth,
 	e32_ex_store when e32_op_st,
 
 	e32_ex_load when e32_op_ld,
 	(e32_ex_q1toreg or e32_ex_flags) when e32_op_sub,
-	e32_ex_flags when e32_op_cmp,
-	(e32_ex_store or e32_ex_q1toreg) when e32_op_stbinc,
+	(e32_ex_store or e32_ex_q1toreg or e32_ex_byte) when e32_op_stbinc,
+	(e32_ex_store or e32_ex_q1toreg) when e32_op_stdec,
 
 	(e32_ex_load or e32_ex_q1toreg) when e32_op_ldinc,
 	(e32_ex_load or e32_ex_q1totmp) when e32_op_ltmpinc,
-	(e32_ex_load or e32_ex_q1toreg) when e32_op_ldbinc,
-	(e32_ex_store or e32_ex_q1toreg) when e32_op_stdec,
+	(e32_ex_load or e32_ex_q1toreg or e32_ex_byte) when e32_op_ldbinc,
 
 	(e32_ex_store or e32_ex_q1totmp) when e32_op_stmpdec,
-	e32_ex_li when e32_op_li,
+	(e32_ex_li or e32_ex_q2totmp) when e32_op_li,
 	(e32_ex_q1toreg or e32_ex_flags) when e32_op_and,
 	(e32_ex_q1toreg or e32_ex_flags) when e32_op_or,
 
@@ -165,9 +168,8 @@ with op select ex_op <=
 	(e32_ex_q1toreg or e32_ex_flags) when e32_op_shr,
 	(e32_ex_q1toreg or e32_ex_flags) when e32_op_ror,
 
-	(e32_ex_q1toreg or e32_ex_q2totmp or e32_ex_flags) when e32_op_mul,
 	(e32_ex_q1toreg or e32_ex_q2totmp) when e32_op_exg,
-	e32_ex_q2totmp when e32_op_mt,
+	(e32_ex_q1toreg or e32_ex_q2totmp or e32_ex_flags) when e32_op_mul,
 	(e32_ex_q1toreg or e32_ex_q2totmp or e32_ex_flags) when e32_op_add, -- Swapped because we want the old value in q2
 
 	(e32_ex_q1totmp or e32_ex_flags) when e32_op_addt,

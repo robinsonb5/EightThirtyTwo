@@ -79,14 +79,16 @@ begin
 
 -- Fetch
 
-opcode <= opcodebuffer(63 downto 56) when pc(2 downto 0)="000"
-	else opcodebuffer(55 downto 48) when pc(2 downto 0)="001"
-	else opcodebuffer(47 downto 40) when pc(2 downto 0)="010"
-	else opcodebuffer(39 downto 32) when pc(2 downto 0)="011"
-	else opcodebuffer(31 downto 24) when pc(2 downto 0)="100"
-	else opcodebuffer(23 downto 16) when pc(2 downto 0)="101"
-	else opcodebuffer(15 downto 8) when pc(2 downto 0)="110"
-	else opcodebuffer(7 downto 0);
+with pc(2 downto 0) select opcode <=
+	opcodebuffer(63 downto 56) when "000",
+	opcodebuffer(55 downto 48) when "001",
+	opcodebuffer(47 downto 40) when "010",
+	opcodebuffer(39 downto 32) when "011",
+	opcodebuffer(31 downto 24) when "100",
+	opcodebuffer(23 downto 16) when "101",
+	opcodebuffer(15 downto 8) when "110",
+	opcodebuffer(7 downto 0) when "111",
+	(others =>'X') when others;
 
 opcode_valid_i<=opcodebuffer_valid(1) when pc(2)='0' else opcodebuffer_valid(0);
 opcode_valid<=opcode_valid_i and not pc_req;
@@ -254,15 +256,18 @@ begin
 				ram_addr_r<=ls_addr(31 downto 2);
 				ram_bytesel<=ls_mask;
 				ram_req_r<='1';
+				ram_wr<='1';
 				if ram_ack='1' then
 					if ls_mask2="0000" then
 						ram_req_r<='0';
+						ram_wr<='0';
 						ls_ack<='1';
 						ls_state<=LS_WAIT;
 					else
 						ram_addr_r<=std_logic_vector(ls_addrplus4(31 downto 2));
 						ram_bytesel<=ls_mask2;
 						ram_req_r<='1';
+						ram_wr<='1';
 						ls_state<=LS_STORE2;
 					end if;	-- FIXME - can we end the cycle early?
 				end if;
@@ -270,6 +275,7 @@ begin
 			when LS_STORE2 =>
 				if ram_ack='1' then
 					ls_ack<='1';
+					ram_wr<='0';
 					ram_req_r<='0';
 					ls_state<=LS_WAIT;
 				end if;

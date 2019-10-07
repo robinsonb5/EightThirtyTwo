@@ -26,140 +26,146 @@ begin
 
 	-- First figure out the shift amount and masks from the lower two address bits.
 
-	shift <=
+	with key select shift <=
 		-- full word load:
-		"00" when key="10000" else
-		"01" when key="10001" else
-		"10" when key="10010" else
-		"11" when key="10011" else
+		"00" when "10000",
+		"01" when "10001",
+		"10" when "10010",
+		"11" when "10011",
 		-- byte load:
-		"01" when key="10100" else
-		"10" when key="10101" else
-		"11" when key="10110" else
-		"00" when key="10111" else
+		"01" when "10100",
+		"10" when "10101",
+		"11" when "10110",
+		"00" when "10111",
 		-- halfword load:
-		"10" when key="11000" else
-		"11" when key="11001" else
-		"00" when key="11010" else
-		"01" when key="11011" else
+		"10" when "11000",
+		"11" when "11001",
+		"00" when "11010",
+		"01" when "11011",
 		
 		-- full word store:
-		"00" when key="00000" else
-		"11" when key="00001" else
-		"10" when key="00010" else
-		"01" when key="00011" else
+		"00" when "00000",
+		"11" when "00001",
+		"10" when "00010",
+		"01" when "00011",
 		-- byte store:
-		"11" when key="00100" else
-		"10" when key="00101" else
-		"01" when key="00110" else
-		"00" when key="00111" else
+		"11" when "00100",
+		"10" when "00101",
+		"01" when "00110",
+		"00" when "00111",
 		-- halfword store:
-		"10" when key="01000" else
-		"01" when key="01001" else
-		"00" when key="01010" else
-		"11" when key="01011" else
+		"10" when "01000",
+		"01" when "01001",
+		"00" when "01010",
+		"11" when "01011",
 
-		"XX";
+		"XX" when others;
 
 		
 	-- First word's mask
 
-	mask <=
+	with key select mask <=
 		-- Full word load:
-		"1111" when key="10000" else
-		"1110" when key="10001" else
-		"1100" when key="10010" else
-		"1000" when key="10011" else
+		"1111" when "10000",
+		"1110" when "10001",
+		"1100" when "10010",
+		"1000" when "10011",
 		-- byte load:
-		"0001" when key="10100" else
-		"0001" when key="10101" else
-		"0001" when key="10110" else
-		"0001" when key="10111" else
+		"0001" when "10100",
+		"0001" when "10101",
+		"0001" when "10110",
+		"0001" when "10111",
 		-- halfword load:
-		"0011" when key="11000" else
-		"0011" when key="11001" else
-		"0011" when key="11010" else
-		"0010" when key="11011" else
+		"0011" when "11000",
+		"0011" when "11001",
+		"0011" when "11010",
+		"0010" when "11011",
 		
 		-- Full word store:
-		"1111" when key="00000" else
-		"0111" when key="00001" else
-		"0011" when key="00010" else
-		"0001" when key="00011" else
+		"1111" when "00000",
+		"0111" when "00001",
+		"0011" when "00010",
+		"0001" when "00011",
 		-- byte store:
-		"1000" when key="00100" else
-		"0100" when key="00101" else
-		"0010" when key="00110" else
-		"0001" when key="00111" else
+		"1000" when "00100",
+		"0100" when "00101",
+		"0010" when "00110",
+		"0001" when "00111",
 		-- halfword store:
-		"1100" when key="01000" else
-		"0110" when key="01001" else
-		"0011" when key="01010" else
-		"0001" when key="01011" else
+		"1100" when "01000",
+		"0110" when "01001",
+		"0011" when "01010",
+		"0001" when "01011",
 
-		"XXXX";
+		"XXXX" when others;
 
 
 	-- Second word's mask
 		
-	mask2 <= 
+	with key select mask2 <= 
 		-- Full word load:
-		"0000" when key="10000" else
-		"0001" when key="10001" else
-		"0011" when key="10010" else
-		"0111" when key="10011" else
+		"0000" when "10000",
+		"0001" when "10001",
+		"0011" when "10010",
+		"0111" when "10011",
 		-- byte load:
-		"0000" when key="10100" else
-		"0000" when key="10101" else
-		"0000" when key="10110" else
-		"0000" when key="10111" else
+		"0000" when "10100",
+		"0000" when "10101",
+		"0000" when "10110",
+		"0000" when "10111",
 		-- halfword accesses:
-		"0000" when key="11000" else
-		"0000" when key="11001" else
-		"0000" when key="11010" else
-		"0001" when key="11011" else
+		"0000" when "11000",
+		"0000" when "11001",
+		"0000" when "11010",
+		"0001" when "11011",
 		
 		-- Full word store:
-		"0000" when key="00000" else
-		"1000" when key="00001" else
-		"1100" when key="00010" else
-		"1110" when key="00011" else
+		"0000" when "00000",
+		"1000" when "00001",
+		"1100" when "00010",
+		"1110" when "00011",
 		-- byte store:
-		"0000" when key="00100" else
-		"0000" when key="00101" else
-		"0000" when key="00110" else
-		"0000" when key="00111" else
+		"0000" when "00100",
+		"0000" when "00101",
+		"0000" when "00110",
+		"0000" when "00111",
 		-- halfword store:
-		"0000" when key="01000" else
-		"0000" when key="01001" else
-		"0000" when key="01010" else
-		"1000" when key="01011" else
+		"0000" when "01000",
+		"0000" when "01001",
+		"0000" when "01010",
+		"1000" when "01011",
 
-		"XXXX";
+		"XXXX" when others;
 
 	-- Now do the actual shifting...
 	
-	q(31 downto 24) <= d(31 downto 24) when shift="00"
-		else d(23 downto 16) when shift="01"
-		else d(15 downto 8) when shift="10"
-		else d(7 downto 0);
+	with shift select q(31 downto 24) <= 
+		d(31 downto 24) when "00",
+		d(23 downto 16) when "01",
+		d(15 downto 8) when "10",
+		d(7 downto 0) when "11",
+		(others=>'X') when others;
+		
 
-	q(23 downto 16) <= 
-		d(23 downto 16) when shift="00"
-		else d(15 downto 8) when shift="01"
-		else d(7 downto 0) when shift="10"
-		else d(31 downto 24);
+	with shift select q(23 downto 16) <= 
+		d(23 downto 16) when "00",
+		d(15 downto 8) when "01",
+		d(7 downto 0) when "10",
+		d(31 downto 24) when "11",
+		(others => 'X') when others;
 
-	q(15 downto 8) <= 
-		d(15 downto 8) when shift="00"
-		else d(7 downto 0) when shift="01"
-		else d(31 downto 24) when shift="10"
-		else d(23 downto 16);
+	with shift select q(15 downto 8) <= 
+		d(15 downto 8) when "00",
+		d(7 downto 0) when "01",
+		d(31 downto 24) when "10",
+		d(23 downto 16) when "11",
+		(others => 'X') when others;
 
-	q(7 downto 0) <= 
-		d(7 downto 0) when shift="00"
-		else d(31 downto 24) when shift="01"
-		else d(23 downto 16) when shift="10"
-		else d(15 downto 8);
+	with shift select q(7 downto 0) <= 
+		d(7 downto 0) when "00",
+		d(31 downto 24) when "01",
+		d(23 downto 16) when "10",
+		d(15 downto 8) when "11",
+		(others => 'X') when others;
 		
 end architecture;

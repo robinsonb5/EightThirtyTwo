@@ -51,7 +51,6 @@ signal ls_ack : std_logic;
 
 -- Fetch stage signals:
 
-signal f_nextop : std_logic;
 signal f_pc : std_logic_vector(31 downto 0);
 signal f_op : std_logic_vector(7 downto 0);
 signal f_prevop : std_logic_vector(7 downto 0);
@@ -60,24 +59,26 @@ signal f_op_valid : std_logic := '0' ;	-- Execute stage can use f_op
 
 -- Decode stage signals:
 
-signal d_alu_func : std_logic_vector(3 downto 0);
-signal d_alu_reg1 : std_logic_vector(5 downto 0);
-signal d_alu_reg2 : std_logic_vector(5 downto 0);
-signal d_ex_op : std_logic_vector(7 downto 0);
+signal d_alu_func : std_logic_vector(e32_alu_maxbit downto 0);
+signal d_alu_reg1 : std_logic_vector(e32_reg_maxbit downto 0);
+signal d_alu_reg2 : std_logic_vector(e32_reg_maxbit downto 0);
+signal d_ex_op : std_logic_vector(e32_ex_maxbit downto 0);
 signal d_run : std_logic;
 
 -- Execute stage signals:
 
-signal e_alu_func : std_logic_vector(3 downto 0);
-signal e_alu_reg1 : std_logic_vector(5 downto 0);
-signal e_alu_reg2 : std_logic_vector(5 downto 0);
-signal e_ex_op : std_logic_vector(7 downto 0);
+signal e_alu_func : std_logic_vector(e32_alu_maxbit downto 0);
+signal e_alu_reg1 : std_logic_vector(e32_reg_maxbit downto 0);
+signal e_alu_reg2 : std_logic_vector(e32_reg_maxbit downto 0);
+signal e_reg : std_logic_vector(2 downto 0);
+signal e_ex_op : std_logic_vector(e32_ex_maxbit downto 0);
 
 signal e_setpc : std_logic;
 
+signal alu_imm : std_logic_vector(5 downto 0);
 signal alu_d1 : std_logic_vector(31 downto 0);
 signal alu_d2 : std_logic_vector(31 downto 0);
-signal alu_op : std_logic_vector(3 downto 0);
+signal alu_op : std_logic_vector(e32_alu_maxbit downto 0);
 signal alu_q1 : std_logic_vector(31 downto 0);
 signal alu_q2 : std_logic_vector(31 downto 0);
 signal alu_sgn : std_logic;
@@ -88,15 +89,17 @@ signal alu_busy : std_logic;
 
 -- Memory stage signals
 
-signal m_alu_reg1 : std_logic_vector(5 downto 0);
-signal m_alu_reg2 : std_logic_vector(5 downto 0);
-signal m_ex_op : std_logic_vector(7 downto 0);
+signal m_alu_reg1 : std_logic_vector(e32_reg_maxbit downto 0);
+signal m_alu_reg2 : std_logic_vector(e32_reg_maxbit downto 0);
+signal m_reg : std_logic_vector(2 downto 0);
+signal m_ex_op : std_logic_vector(e32_ex_maxbit downto 0);
 
 -- Writeback stage signals
 
-signal w_alu_reg1 : std_logic_vector(5 downto 0);
-signal w_alu_reg2 : std_logic_vector(5 downto 0);
-signal w_ex_op : std_logic_vector(7 downto 0);
+signal w_alu_reg1 : std_logic_vector(e32_reg_maxbit downto 0);
+signal w_alu_reg2 : std_logic_vector(e32_reg_maxbit downto 0);
+signal w_reg : std_logic_vector(2 downto 0);
+signal w_ex_op : std_logic_vector(e32_ex_maxbit downto 0);
 
 -- hazard / stall signals
 
@@ -164,6 +167,7 @@ port map(
 	clk => clk,
 	reset_n => reset_n,
 
+	imm => alu_imm,
 	d1 => alu_d1,
 	d2 => alu_d2,
 	op => alu_op,
@@ -204,14 +208,22 @@ port map(
 	gpr_q => r_gpr_q
 );
 
+r_gpr_ra<=f_op(2 downto 0);
 
-f_nextop<=d_run and f_op_valid;
+-- Experimentally making this combinational.  Will probably kill fmax!
+e_alu_func<=d_alu_func;
+e_alu_reg1<=d_alu_reg1;
+e_alu_reg2<=d_alu_reg2;
+e_reg<=f_op(2 downto 0);
+e_ex_op<=d_ex_op;
+
 
 process(clk,reset_n,f_op_valid)
 begin
 	if reset_n='0' then
 		f_pc<=(others=>'0');
 		e_setpc<='1';
+		ls_req_r<='0';
 	elsif rising_edge(clk) then
 		d_run<='1';
 		e_setpc<='0';
@@ -220,35 +232,108 @@ begin
 			f_pc<=std_logic_vector(unsigned(f_pc)+1);
 
 			-- Decode stage:
-			r_gpr_ra<=d_alu_reg1(2 downto 0);
 
-			e_alu_func<=d_alu_func;
-			e_alu_reg1<=d_alu_reg1;
-			e_alu_reg2<=d_alu_reg2;
-			e_ex_op<=d_ex_op;
+			alu_imm<=f_op(5 downto 0);
 
-			-- Execute stage:
+			-- Execute stage:  (Can we do some this combinationally?)
 			alu_op<=e_alu_func;
-			if e_ex_op(e32_exb_li)='1' then -- Load immediate instruction
-				alu_d1(5 downto 0)<=e_alu_reg1;
-				alu_d1(31 downto 6)<=(others=>'X');
-			elsif e_alu_reg1(e32_regb_tmp)='1' then
-				alu_d1<=r_tmp;
+--			if e_ex_op(e32_exb_li)='1' then -- Load immediate instruction
+--				alu_d1(5 downto 0)<=e_alu_reg1;
+--				alu_d1(31 downto 6)<=(others=>'X');
+			if e_alu_reg1(e32_regb_tmp)='1' then
+--				if m_ex_op(e32_exb_q2totmp)='1' then -- result forwarding
+--					alu_d1<=alu_q2;
+--				else
+					alu_d1<=r_tmp;
+--				end if;
 			elsif e_alu_reg1(e32_regb_pc)='1' then
 				alu_d1<=f_pc;
 			else
 				alu_d1<=r_gpr_q;
 			end if;
+
+--			if e_ex_op(e32_exb_li)='1' then -- Load immediate instruction
+--				alu_d2<=(others=>'X');
+			if e_alu_reg2(e32_regb_tmp)='1' then
+--				if m_ex_op(e32_exb_q2totmp)='1' then -- result forwarding
+--					alu_d2<=alu_q2;
+--				else
+					alu_d2<=r_tmp;
+--				end if;
+			elsif e_alu_reg2(e32_regb_pc)='1' then
+				alu_d2<=f_pc;
+			else
+				alu_d2<=r_gpr_q;
+			end if;
+
 			alu_req<='1';
 
 			m_alu_reg1<=e_alu_reg1;
 			m_alu_reg2<=e_alu_reg2;
+			m_reg<=e_reg;
 			m_ex_op<=e_ex_op;
+			
+			-- Mem stage
+			-- FIXME - just plumbed in to evalate logic usage - still need to handle hazards / busy signals
+
+			ls_halfword<=m_ex_op(e32_exb_halfword);
+			ls_byte<=m_ex_op(e32_exb_halfword);
+			if m_ex_op(e32_exb_load)='1' then
+				ls_addr<=alu_q1;
+				if ls_ack='1' then
+					ls_req_r<='0';
+					if w_alu_reg2(e32_regb_tmp)='1' then
+						r_tmp<=ls_q;
+					elsif w_alu_reg2(e32_regb_pc)='1' then
+						f_pc<=ls_q;
+						e_setpc<='1';
+					else
+						r_gpr_wa<=w_reg;
+						r_gpr_wr<='1';
+					end if;		
+				else
+					ls_req_r<='1';
+				end if;
+			end if;			
+
+			if m_ex_op(e32_exb_store)='1' then
+				ls_addr<=alu_q1;
+				ls_d<=alu_q2;
+				ls_wr<='1';
+				if ls_ack='1' then
+					ls_req_r<='0';
+				else
+					ls_req_r<='1';
+				end if;
+			end if;			
+		
+			-- Writeback stage
+
+			if w_ex_op(e32_exb_q1totmp)='1' then
+				r_tmp<=alu_q1;
+			elsif w_ex_op(e32_exb_q2totmp)='1' then
+				r_tmp<=alu_q2;
+			end if;
+			
+			r_gpr_wa<=w_reg(2 downto 0);
+			r_gpr_d<=alu_q1;
+			r_gpr_wr<='0';
+			if w_ex_op(e32_exb_q1toreg)='1' then
+				if w_reg(2 downto 0)="111" then
+					e_setpc<='1';
+					f_pc<=alu_q1;
+				else
+					r_gpr_wr<='1';
+				end if;
+			end if;
 			
 			w_alu_reg1<=m_alu_reg1;
 			w_alu_reg2<=m_alu_reg2;
+			w_reg<=m_reg;
 			w_ex_op<=m_ex_op;
-		
+
+	
+	
 		end if;
 		
 	end if;
