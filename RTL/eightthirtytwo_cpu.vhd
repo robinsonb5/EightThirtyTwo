@@ -218,19 +218,25 @@ port map(
 
 r_gpr_ra<=f_op(2 downto 0);
 
--- Experimentally making this combinational.  Will probably kill fmax!
-e_alu_func<=d_alu_func;
-e_alu_reg1<=d_alu_reg1;
-e_alu_reg2<=d_alu_reg2;
-e_reg<=f_op(2 downto 0);
-e_ex_op<=d_ex_op;
-
 e_blocked<='1' when
-		((m_ex_op(e32_exb_q1totmp)='1' or m_ex_op(e32_exb_q2totmp)='1'
+		((e_ex_op(e32_exb_q1totmp)='1' or e_ex_op(e32_exb_q2totmp)='1'
+			or m_ex_op(e32_exb_q1totmp)='1' or m_ex_op(e32_exb_q2totmp)='1'
 			or w_ex_op(e32_exb_q1totmp)='1' or w_ex_op(e32_exb_q2totmp)='1')	-- Blocks on tmp
 			and (d_alu_reg1(e32_regb_tmp)='1' or d_alu_reg2(e32_regb_tmp)='1'))
 	else '0';
 
+--	alu_op<=e_alu_func;
+--	alu_imm<=f_op(5 downto 0);
+--	alu_d1<=r_tmp when e_alu_reg1(e32_regb_tmp)='1' else
+--		f_pc when e_alu_reg1(e32_regb_pc)='1' else
+--		r_gpr_q;
+--		
+--	alu_d2<=r_tmp when e_alu_reg2(e32_regb_tmp)='1' else
+--		f_pc when e_alu_reg2(e32_regb_pc)='1' else
+--		r_gpr_q;
+--	alu_req<='1';
+
+		
 process(clk,reset_n,f_op_valid)
 begin
 	if reset_n='0' then
@@ -243,7 +249,6 @@ begin
 
 		if d_run='1' and f_op_valid='1' then
 
-
 			-- Decode stage:
 
 			alu_imm<=f_op(5 downto 0);
@@ -252,37 +257,45 @@ begin
 			-- must be registered so it doesn't change during ALU op.
 
 			if e_blocked='1' then
-				m_ex_op<=e32_ex_bubble;
+				e_ex_op<=e32_ex_bubble;
 			else
 				f_pc<=std_logic_vector(unsigned(f_pc)+1);
-				m_alu_reg1<=e_alu_reg1;
-				m_alu_reg2<=e_alu_reg2;
-				m_reg<=e_reg;
-				m_ex_op<=e_ex_op;
-				alu_req<='1';
+				e_alu_func<=d_alu_func;
+				e_alu_reg1<=d_alu_reg1;
+				e_alu_reg2<=d_alu_reg2;
+				e_reg<=f_op(2 downto 0);
+				e_ex_op<=d_ex_op;
 			end if;
 
-			alu_op<=e_alu_func;
-			if e_alu_reg1(e32_regb_tmp)='1' then
+			alu_op<=d_alu_func;
+			if d_alu_reg1(e32_regb_tmp)='1' then
 				alu_d1<=r_tmp;
-			elsif e_alu_reg1(e32_regb_pc)='1' then
+			elsif d_alu_reg1(e32_regb_pc)='1' then
 				alu_d1<=f_pc;
 			else
 				alu_d1<=r_gpr_q;
 			end if;
 
-			if e_alu_reg2(e32_regb_tmp)='1' then
+			if d_alu_reg2(e32_regb_tmp)='1' then
 				alu_d2<=r_tmp;
-			elsif e_alu_reg2(e32_regb_pc)='1' then
+			elsif d_alu_reg2(e32_regb_pc)='1' then
 				alu_d2<=f_pc;
 			else
 				alu_d2<=r_gpr_q;
 			end if;
-			
+			alu_req<='1';
+
+
 			-- Mem stage
 			-- FIXME - just plumbed in to evalate logic usage - still need to handle hazards / busy signals
 
 			-- FIXME - need to move back a stage in the pipeline - addr from ALU isn't ready yet
+
+				m_alu_reg1<=e_alu_reg1;
+				m_alu_reg2<=e_alu_reg2;
+				m_reg<=e_reg;
+				m_ex_op<=e_ex_op;
+
 			
 			ls_halfword<=m_ex_op(e32_exb_halfword);
 			ls_byte<=m_ex_op(e32_exb_halfword);
@@ -317,17 +330,17 @@ begin
 		
 			-- Writeback stage
 
-			if w_ex_op(e32_exb_q1totmp)='1' then
+			if m_ex_op(e32_exb_q1totmp)='1' then
 				r_tmp<=alu_q1;
-			elsif w_ex_op(e32_exb_q2totmp)='1' then
+			elsif m_ex_op(e32_exb_q2totmp)='1' then
 				r_tmp<=alu_q2;
 			end if;
 			
-			r_gpr_wa<=w_reg(2 downto 0);
+			r_gpr_wa<=m_reg(2 downto 0);
 			r_gpr_d<=alu_q1;
 			r_gpr_wr<='0';
-			if w_ex_op(e32_exb_q1toreg)='1' then
-				if w_reg(2 downto 0)="111" then
+			if m_ex_op(e32_exb_q1toreg)='1' then
+				if m_reg(2 downto 0)="111" then
 					e_setpc<='1';
 					f_pc<=alu_q1;
 				else

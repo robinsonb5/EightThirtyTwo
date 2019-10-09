@@ -8,39 +8,42 @@
 #define PCREL(x) ((x-.)-2)
 
 #define cond .byte 0x00 +
- 
-#define mr .byte 0x08 +
-#define sub .byte 0x10 +
-#define cmp .byte 0x18 +
-#define st .byte 0x20 +
-#define stdec .byte 0x28 +
-#define stbinc .byte 0x30 +
-#define stmpdec .byte 0x38 +
- 
-#define and .byte 0x40 +
-#define or .byte 0x48 +
-#define xor .byte 0x50 +
-#define shl .byte 0x58 +
-#define shr .byte 0x60 +
-#define ror .byte 0x68 +
-#define sth .byte 0x70 +
-#define mul .byte 0x78 +
+#define exg .byte 0x08 +
+#define ldbinc .byte 0x10 +
+#define stdec .byte 0x18 +
 
-#define exg .byte 0x80 +
-#define mt .byte 0x88 +
-#define add .byte 0x90 +
+#define ldinc .byte 0x20 +
+#define shr .byte 0x28 +
+#define shl .byte 0x30 +
+#define ror .byte 0x38 +
+
+#define sth .byte 0x40 +
+#define mr .byte 0x48 +
+#define stbinc .byte 0x50 +
+#define stmpdec .byte 0x58 +
+
+#define ltmpinc .byte 0x60 +
+#define ld .byte 0x68 +
+#define mt .byte 0x70 +
+#define st .byte 0x78 +
+
+#define add .byte 0x80 +
 // Add's behaviour is different for r7 - perhaps use a different mnemonic?
-#define addt .byte 0x98 +
-#define ld .byte 0xa0 +
-#define ldinc .byte 0xa8 +
-#define ldbinc .byte 0xb0 +
-#define ltmpinc .byte 0xb8 +
+#define sub .byte 0x88 +
+#define mul .byte 0x90 +
+#define and .byte 0x98 +
+
+#define addt .byte 0xa0 +
+#define cmp .byte 0xa8 +
+#define or .byte 0xb0 +
+#define xor .byte 0xb8 +
+
 #define li .byte 0xc0 +
 
 // Overloaded opcodes.  Mostly ops that make no sense when applied to R7
 
-#define	sgn .byte 0x17
-#define ldt .byte 0xa7
+#define	sgn .byte 0xb7
+#define ldt .byte 0xbf
 
 
 #define r0 0
