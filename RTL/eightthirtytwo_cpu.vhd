@@ -5,6 +5,13 @@ use ieee.numeric_std.all;
 library work;
 use work.eightthirtytwo_pkg.all;
 
+-- To do:
+-- Flags - conditional execution
+-- Sgn modifier
+-- Hazards / stalls / bubbles
+-- Load/store results
+-- Predec / postinc
+
 entity eightthirtytwo_cpu is
 generic(
 	pc_mask : std_logic_vector(31 downto 0) := X"ffffffff";
@@ -103,6 +110,7 @@ signal w_ex_op : std_logic_vector(e32_ex_maxbit downto 0);
 
 -- hazard / stall signals
 
+signal e_blocked : std_logic;
 
 begin
 
@@ -217,6 +225,11 @@ e_alu_reg2<=d_alu_reg2;
 e_reg<=f_op(2 downto 0);
 e_ex_op<=d_ex_op;
 
+e_blocked<='1' when
+		((m_ex_op(e32_exb_q1totmp)='1' or m_ex_op(e32_exb_q2totmp)='1'
+			or w_ex_op(e32_exb_q1totmp)='1' or w_ex_op(e32_exb_q2totmp)='1')	-- Blocks on tmp
+			and (d_alu_reg1(e32_regb_tmp)='1' or d_alu_reg2(e32_regb_tmp)='1'))
+	else '0';
 
 process(clk,reset_n,f_op_valid)
 begin
@@ -229,53 +242,48 @@ begin
 		e_setpc<='0';
 
 		if d_run='1' and f_op_valid='1' then
-			f_pc<=std_logic_vector(unsigned(f_pc)+1);
+
 
 			-- Decode stage:
 
 			alu_imm<=f_op(5 downto 0);
 
-			-- Execute stage:  (Can we do some this combinationally?)
+			-- Execute stage:  (Can we do some this combinationally? Probably not -
+			-- must be registered so it doesn't change during ALU op.
+
+			if e_blocked='1' then
+				m_ex_op<=e32_ex_bubble;
+			else
+				f_pc<=std_logic_vector(unsigned(f_pc)+1);
+				m_alu_reg1<=e_alu_reg1;
+				m_alu_reg2<=e_alu_reg2;
+				m_reg<=e_reg;
+				m_ex_op<=e_ex_op;
+				alu_req<='1';
+			end if;
+
 			alu_op<=e_alu_func;
---			if e_ex_op(e32_exb_li)='1' then -- Load immediate instruction
---				alu_d1(5 downto 0)<=e_alu_reg1;
---				alu_d1(31 downto 6)<=(others=>'X');
 			if e_alu_reg1(e32_regb_tmp)='1' then
---				if m_ex_op(e32_exb_q2totmp)='1' then -- result forwarding
---					alu_d1<=alu_q2;
---				else
-					alu_d1<=r_tmp;
---				end if;
+				alu_d1<=r_tmp;
 			elsif e_alu_reg1(e32_regb_pc)='1' then
 				alu_d1<=f_pc;
 			else
 				alu_d1<=r_gpr_q;
 			end if;
 
---			if e_ex_op(e32_exb_li)='1' then -- Load immediate instruction
---				alu_d2<=(others=>'X');
 			if e_alu_reg2(e32_regb_tmp)='1' then
---				if m_ex_op(e32_exb_q2totmp)='1' then -- result forwarding
---					alu_d2<=alu_q2;
---				else
-					alu_d2<=r_tmp;
---				end if;
+				alu_d2<=r_tmp;
 			elsif e_alu_reg2(e32_regb_pc)='1' then
 				alu_d2<=f_pc;
 			else
 				alu_d2<=r_gpr_q;
 			end if;
-
-			alu_req<='1';
-
-			m_alu_reg1<=e_alu_reg1;
-			m_alu_reg2<=e_alu_reg2;
-			m_reg<=e_reg;
-			m_ex_op<=e_ex_op;
 			
 			-- Mem stage
 			-- FIXME - just plumbed in to evalate logic usage - still need to handle hazards / busy signals
 
+			-- FIXME - need to move back a stage in the pipeline - addr from ALU isn't ready yet
+			
 			ls_halfword<=m_ex_op(e32_exb_halfword);
 			ls_byte<=m_ex_op(e32_exb_halfword);
 			if m_ex_op(e32_exb_load)='1' then

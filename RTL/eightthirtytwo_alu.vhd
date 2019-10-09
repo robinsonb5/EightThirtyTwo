@@ -18,8 +18,8 @@ port(
 	sgn : in std_logic;
 	req : in std_logic;
 
-	q1 : out std_logic_vector(31 downto 0);
-	q2 : out std_logic_vector(31 downto 0);
+	q1 : buffer std_logic_vector(31 downto 0);
+	q2 : buffer std_logic_vector(31 downto 0);
 	carry : out std_logic;
 	busy : out std_logic
 );
@@ -69,35 +69,11 @@ with op select d1_2 <=
 	X"00000004" when e32_alu_decw,
 	d1 when others;
 
-with op_d select q1 <=
-	std_logic_vector(addresult(31 downto 0)) when e32_alu_add,
-	std_logic_vector(addresult(31 downto 0)) when e32_alu_incb,
-	std_logic_vector(addresult(31 downto 0)) when e32_alu_incw,
-	std_logic_vector(subresult(31 downto 0)) when e32_alu_sub,
-	std_logic_vector(subresult(31 downto 0)) when e32_alu_decw,
-	std_logic_vector(mulresult(31 downto 0)) when e32_alu_mul,
-	(d1 and d2) when e32_alu_and,
-	(d1 or d2) when e32_alu_or,
-	(d1 xor d2) when e32_alu_xor,
-	shiftresult when e32_alu_shl,
-	shiftresult when e32_alu_shr,
-	shiftresult when e32_alu_ror,
-	d1 when others;
-
-with op_d select q2 <=
-	std_logic_vector(addresult(31 downto 0)) when e32_alu_addt,
-	std_logic_vector(mulresult(63 downto 32)) when e32_alu_mul,
-	immresult when e32_alu_li,
-	d2 when others;
-
-with op_d select carry <=
-	addresult(32) xor sgn_mod when e32_alu_add,
-	addresult(32) xor sgn_mod when e32_alu_addt,
-	addresult(32) xor sgn_mod when e32_alu_sub,
-	mulresult(63) xor sgn_mod when e32_alu_mul,
-	'0' when others;
 	
-busy <=req or shiftbusy when busycounter="00" else '1';
+busy <=shiftbusy when busycounter="00" else '1';
+
+addresult <= unsigned('0'&d1_2) + unsigned('0'&d2);
+subresult <= unsigned('0'&d1_2) - unsigned('0'&d2);
 
 process(clk,reset_n)
 begin
@@ -109,26 +85,67 @@ begin
 			busycounter<=busycounter-1;
 		end if;
 
-		addresult <= unsigned('0'&d1_2) + unsigned('0'&d2);
-		subresult <= unsigned('0'&d1_2) - unsigned('0'&d2);
-		mulresult <= unsigned(d1) * unsigned(d2);
-		op_d<=op;
-
 		immediatestreak<='0';
-		
+	
+		mulresult <= unsigned(d1) * unsigned(d2);
+		q1 <= d1;
+		q2 <= d2;
+
 		if req='1' then
 			case op is
+				when e32_alu_and =>
+					q1<=d1 and d2;
+			
+				when e32_alu_or =>
+					q1<=d1 or d2;
+					
+				when e32_alu_xor =>
+					q1<=d1 xor d2;
+					
+				when e32_alu_shl =>
+					q1<=shiftresult; -- fixme - unnecessary delay here
+
+				when e32_alu_shr =>
+					q1<=shiftresult; -- fixme - unnecessary delay here
+				
+				when e32_alu_ror =>
+					q1<=shiftresult; -- fixme - unnecessary delay here
+
+				when e32_alu_incb =>
+					q1<=std_logic_vector(addresult(31 downto 0));
+
+				when e32_alu_incw =>
+					q1<=std_logic_vector(addresult(31 downto 0));
+				
+				when e32_alu_decw =>
+					q1<=std_logic_vector(subresult(31 downto 0));
+			
+				when e32_alu_addt =>
+					q2 <=std_logic_vector(addresult(31 downto 0));
+					carry<=addresult(32) xor sgn_mod;
+			
+				when e32_alu_add =>
+					q1 <=std_logic_vector(addresult(31 downto 0));
+					carry<=addresult(32) xor sgn_mod;
+			
+				when e32_alu_sub =>
+					q1 <=std_logic_vector(subresult(31 downto 0));
+					carry<=subresult(32) xor sgn_mod;
+			
 				when e32_alu_mul =>
+					carry<=mulresult(63) xor sgn_mod;
+					q1 <= std_logic_vector(mulresult(31 downto 0));
+					q2 <= std_logic_vector(mulresult(63 downto 32));
 					busycounter<="01";
 
 				when e32_alu_li =>
 					immediatestreak<='1';
 					if immediatestreak='0' then
-						immresult(31 downto 6)<=(others=>imm(5));
+						q2(31 downto 6)<=(others=>imm(5));
 					else
-						immresult(31 downto 6)<=immresult(25 downto 0);
+						q2(31 downto 6)<=q2(25 downto 0);
 					end if;
-					immresult(5 downto 0)<=imm(5 downto 0);
+					q2(5 downto 0)<=imm(5 downto 0);
 
 				when others =>
 					busycounter<="00";

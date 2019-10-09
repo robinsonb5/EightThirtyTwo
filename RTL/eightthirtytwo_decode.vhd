@@ -17,6 +17,9 @@ port(
 );
 end entity;
 
+-- FIXME - need to deal with overloaded instructions.  Perhaps add an encoding bit
+-- based on r=7?
+
 architecture behavoural of eightthirtytwo_decode is
 
 signal op : std_logic_vector(7 downto 0);
