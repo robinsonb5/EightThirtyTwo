@@ -218,11 +218,13 @@ port map(
 
 r_gpr_ra<=f_op(2 downto 0);
 
+-- FIXME - need to block on reg too.
 e_blocked<='1' when
 		((e_ex_op(e32_exb_q1totmp)='1' or e_ex_op(e32_exb_q2totmp)='1'
 			or m_ex_op(e32_exb_q1totmp)='1' or m_ex_op(e32_exb_q2totmp)='1'
 			or w_ex_op(e32_exb_q1totmp)='1' or w_ex_op(e32_exb_q2totmp)='1')	-- Blocks on tmp
 			and (d_alu_reg1(e32_regb_tmp)='1' or d_alu_reg2(e32_regb_tmp)='1'))
+			or (e_ex_op(e32_exb_load)='1' or m_ex_op(e32_exb_load)='1' or w_ex_op(e32_exb_load)='1')
 	else '0';
 
 --	alu_op<=e_alu_func;
@@ -243,6 +245,7 @@ begin
 		f_pc<=(others=>'0');
 		e_setpc<='1';
 		ls_req_r<='0';
+		ls_wr<='0';
 	elsif rising_edge(clk) then
 		d_run<='1';
 		e_setpc<='0';
@@ -291,45 +294,27 @@ begin
 
 			-- FIXME - need to move back a stage in the pipeline - addr from ALU isn't ready yet
 
-				m_alu_reg1<=e_alu_reg1;
-				m_alu_reg2<=e_alu_reg2;
-				m_reg<=e_reg;
-				m_ex_op<=e_ex_op;
+			m_alu_reg1<=e_alu_reg1;
+			m_alu_reg2<=e_alu_reg2;
+			m_reg<=e_reg;
+			m_ex_op<=e_ex_op;
 
+			-- FIXME - how to handle predec / postinc addresses?
 			
 			ls_halfword<=m_ex_op(e32_exb_halfword);
 			ls_byte<=m_ex_op(e32_exb_halfword);
 			if m_ex_op(e32_exb_load)='1' then
 				ls_addr<=alu_q1;
-				if ls_ack='1' then
-					ls_req_r<='0';
-					if w_alu_reg2(e32_regb_tmp)='1' then
-						r_tmp<=ls_q;
-					elsif w_alu_reg2(e32_regb_pc)='1' then
-						f_pc<=ls_q;
-						e_setpc<='1';
-					else
-						r_gpr_wa<=w_reg;
-						r_gpr_wr<='1';
-					end if;		
-				else
-					ls_req_r<='1';
-				end if;
+				ls_req_r<='1';
 			end if;			
 
 			if m_ex_op(e32_exb_store)='1' then
 				ls_addr<=alu_q1;
 				ls_d<=alu_q2;
 				ls_wr<='1';
-				if ls_ack='1' then
-					ls_req_r<='0';
-				else
-					ls_req_r<='1';
-				end if;
+				ls_req_r<='1';
 			end if;			
 		
-			-- Writeback stage
-
 			if m_ex_op(e32_exb_q1totmp)='1' then
 				r_tmp<=alu_q1;
 			elsif m_ex_op(e32_exb_q2totmp)='1' then
@@ -347,14 +332,38 @@ begin
 					r_gpr_wr<='1';
 				end if;
 			end if;
-			
-			w_alu_reg1<=m_alu_reg1;
-			w_alu_reg2<=m_alu_reg2;
-			w_reg<=m_reg;
-			w_ex_op<=m_ex_op;
 
-	
-	
+			-- Writeback stage
+
+			if ls_req_r='0' or ls_ack='1' then
+				if m_ex_op(e32_exb_load)='1' or m_ex_op(e32_exb_store)='1' then
+					w_alu_reg1<=m_alu_reg1;
+					w_alu_reg2<=m_alu_reg2;
+					w_reg<=m_reg;
+					w_ex_op<=m_ex_op;
+				else
+					w_ex_op<=e32_ex_bubble;
+				end if;
+			end if;
+
+			if w_ex_op(e32_exb_store)='1' and ls_ack='1' then
+				ls_req_r<='0';
+			end if;			
+
+			-- FIXME - stall pipeline based on write to PC or write to reg
+			if w_ex_op(e32_exb_load)='1' and ls_ack='1' then
+				ls_req_r<='0';
+				if w_alu_reg2(e32_regb_tmp)='1' then
+					r_tmp<=ls_q;
+				elsif w_alu_reg2(e32_regb_pc)='1' then
+					f_pc<=ls_q;
+					e_setpc<='1';
+				else
+					r_gpr_wa<=w_reg;
+					r_gpr_wr<='1';
+				end if;		
+			end if;
+
 		end if;
 		
 	end if;

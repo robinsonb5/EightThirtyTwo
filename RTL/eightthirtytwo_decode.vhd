@@ -25,13 +25,21 @@ architecture behavoural of eightthirtytwo_decode is
 signal op : std_logic_vector(7 downto 0);
 signal regpc : std_logic;
 signal reg : std_logic_vector(e32_reg_maxbit downto 0);
+signal addop : std_logic_vector(e32_ex_maxbit downto 0);
 
 begin
+
+-- Decode stage, combinational logic:
 
 op<="11000000" when opcode(7 downto 6)="11" else opcode(7 downto 3)&"000";
 reg<=e32_reg_gpr when regpc='0' else e32_reg_pc;
 
--- Decode stage, combinational logic:
+-- Add is overloaded when r=7; old value goes to temp.
+addop<=e32_ex_q1toreg or e32_ex_q2totmp or e32_ex_flags when opcode(2 downto 0)="111"
+	else e32_ex_q1toreg or e32_ex_flags;
+
+-- FIXME - pick an op to overload for sgn and ldt.
+	
 
 -- ALU functions
 
@@ -173,7 +181,7 @@ with op select ex_op <=
 
 	(e32_ex_q1toreg or e32_ex_q2totmp) when e32_op_exg,
 	(e32_ex_q1toreg or e32_ex_q2totmp or e32_ex_flags) when e32_op_mul,
-	(e32_ex_q1toreg or e32_ex_q2totmp or e32_ex_flags) when e32_op_add, -- Swapped because we want the old value in q2
+	addop when e32_op_add, -- Overloaded so we can modify its behaviour with r7
 
 	(e32_ex_q1totmp or e32_ex_flags) when e32_op_addt,
 	(others => 'X') when others;
