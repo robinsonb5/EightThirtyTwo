@@ -79,6 +79,8 @@ signal e_alu_reg1 : std_logic_vector(e32_reg_maxbit downto 0);
 signal e_alu_reg2 : std_logic_vector(e32_reg_maxbit downto 0);
 signal e_reg : std_logic_vector(2 downto 0);
 signal e_ex_op : std_logic_vector(e32_ex_maxbit downto 0);
+signal e_cond : std_logic;
+signal cond_minterms : std_logic_vector(3 downto 0);
 
 signal e_setpc : std_logic;
 
@@ -109,7 +111,10 @@ signal w_reg : std_logic_vector(2 downto 0);
 signal w_ex_op : std_logic_vector(e32_ex_maxbit downto 0);
 
 -- hazard / stall signals
-
+signal hazard_tmp : std_logic;
+signal hazard_pc : std_logic;
+signal hazard_reg : std_logic;
+signal hazard_load : std_logic;
 signal e_blocked : std_logic;
 
 begin
@@ -184,7 +189,7 @@ port map(
 
 	q1 => alu_q1,
 	q2 => alu_q2,
-	carry => alu_carry,
+	cond_minterms => cond_minterms,
 	busy => alu_busy
 );
 
@@ -219,13 +224,33 @@ port map(
 r_gpr_ra<=f_op(2 downto 0);
 
 -- FIXME - need to block on reg too.
-e_blocked<='1' when
-		((e_ex_op(e32_exb_q1totmp)='1' or e_ex_op(e32_exb_q2totmp)='1'
-			or m_ex_op(e32_exb_q1totmp)='1' or m_ex_op(e32_exb_q2totmp)='1'
-			or w_ex_op(e32_exb_q1totmp)='1' or w_ex_op(e32_exb_q2totmp)='1')	-- Blocks on tmp
-			and (d_alu_reg1(e32_regb_tmp)='1' or d_alu_reg2(e32_regb_tmp)='1'))
-			or (e_ex_op(e32_exb_load)='1' or m_ex_op(e32_exb_load)='1' or w_ex_op(e32_exb_load)='1')
+
+hazard_tmp<='1' when
+	(e_ex_op(e32_exb_q1totmp)='1' or e_ex_op(e32_exb_q2totmp)='1'
+		or m_ex_op(e32_exb_q1totmp)='1' or m_ex_op(e32_exb_q2totmp)='1'
+		or w_ex_op(e32_exb_q1totmp)='1' or w_ex_op(e32_exb_q2totmp)='1')
+		and (d_alu_reg1(e32_regb_tmp)='1' or d_alu_reg2(e32_regb_tmp)='1')
 	else '0';
+
+hazard_reg<='1' when
+	(e_ex_op(e32_exb_q1toreg)='1'
+		or m_ex_op(e32_exb_q1toreg)='1'
+		or w_ex_op(e32_exb_q1toreg)='1')
+		and ((d_alu_reg1(e32_regb_gpr)='1' or d_alu_reg2(e32_regb_gpr)='1'))
+	else '0';
+
+-- FIXME - need an e32_exb_q1topc bit
+hazard_pc<='1' when
+	(e_ex_op(e32_exb_q1toreg)='1' and e_reg="111")
+		or (m_ex_op(e32_exb_q1toreg)='1' and m_reg="111")
+		or (w_ex_op(e32_exb_q1toreg)='1' and w_reg="111")
+	else '0';
+
+hazard_load<='1' when
+	e_ex_op(e32_exb_load)='1' or m_ex_op(e32_exb_load)='1' or w_ex_op(e32_exb_load)='1'
+	else '0';
+
+e_blocked<=hazard_tmp or hazard_reg or hazard_pc or hazard_load;
 
 --	alu_op<=e_alu_func;
 --	alu_imm<=f_op(5 downto 0);
@@ -246,18 +271,47 @@ begin
 		e_setpc<='1';
 		ls_req_r<='0';
 		ls_wr<='0';
+		e_cond<='0';
+		alu_sgn<='0';
 	elsif rising_edge(clk) then
 		d_run<='1';
 		e_setpc<='0';
+		alu_req<='0';
 
 		if d_run='1' and f_op_valid='1' then
 
 			-- Decode stage:
 
+			-- Set ALU registers
 			alu_imm<=f_op(5 downto 0);
+			
+			alu_op<=d_alu_func;
+			if d_alu_reg1(e32_regb_tmp)='1' then
+				alu_d1<=r_tmp;
+			elsif d_alu_reg1(e32_regb_pc)='1' then
+				alu_d1<=std_logic_vector(unsigned(f_pc)+1);
+			else
+				alu_d1<=r_gpr_q;
+			end if;
 
+			if d_alu_reg2(e32_regb_tmp)='1' then
+				alu_d2<=r_tmp;
+			elsif d_alu_reg2(e32_regb_pc)='1' then
+				alu_d2<=std_logic_vector(unsigned(f_pc)+1);
+			else
+				alu_d2<=r_gpr_q;
+			end if;
+			
+			-- FIXME - need to heed the busy flag.  Only mul and l<X>inc will use it.
+			alu_req<='1';
+
+			
 			-- Execute stage:  (Can we do some this combinationally? Probably not -
 			-- must be registered so it doesn't change during ALU op.
+
+			-- If we have a hazard or we're blocked by conditional execution
+			-- then we insert a bubble,
+			-- otherwise advance the PC, forward context from D to E.
 
 			if e_blocked='1' then
 				e_ex_op<=e32_ex_bubble;
@@ -269,31 +323,11 @@ begin
 				e_reg<=f_op(2 downto 0);
 				e_ex_op<=d_ex_op;
 			end if;
-
-			alu_op<=d_alu_func;
-			if d_alu_reg1(e32_regb_tmp)='1' then
-				alu_d1<=r_tmp;
-			elsif d_alu_reg1(e32_regb_pc)='1' then
-				alu_d1<=f_pc;
-			else
-				alu_d1<=r_gpr_q;
-			end if;
-
-			if d_alu_reg2(e32_regb_tmp)='1' then
-				alu_d2<=r_tmp;
-			elsif d_alu_reg2(e32_regb_pc)='1' then
-				alu_d2<=f_pc;
-			else
-				alu_d2<=r_gpr_q;
-			end if;
-			alu_req<='1';
-
+			
 
 			-- Mem stage
-			-- FIXME - just plumbed in to evalate logic usage - still need to handle hazards / busy signals
 
-			-- FIXME - need to move back a stage in the pipeline - addr from ALU isn't ready yet
-
+			-- Forward context from E to M
 			m_alu_reg1<=e_alu_reg1;
 			m_alu_reg2<=e_alu_reg2;
 			m_reg<=e_reg;
@@ -364,6 +398,27 @@ begin
 				end if;		
 			end if;
 
+			
+			-- Conditional execution:
+
+			if e_cond='1' then	-- advance PC but replace instructions with bubbles
+				e_ex_op<=e32_ex_bubble;
+				m_ex_op<=e32_ex_bubble;
+				if d_ex_op(e32_exb_q1toreg)='1' and f_op(2 downto 0)="111" then -- Writing to PC?
+					e_ex_op<=e32_ex_cond;
+				end if;
+			end if;
+
+
+			if e_ex_op(e32_exb_cond)='1' then
+				if (e_reg(1)&e_reg and cond_minterms) = "0000" then
+					e_cond<='1';
+				else
+					e_cond<='0';
+				end if;			
+			end if;
+
+			
 		end if;
 		
 	end if;

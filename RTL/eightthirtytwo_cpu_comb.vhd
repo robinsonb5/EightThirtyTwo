@@ -64,7 +64,7 @@ signal alu_c : std_logic;
 signal alu_q : std_logic_vector(31 downto 0);
 signal alu_d1 : std_logic_vector(31 downto 0);
 signal alu_d2 : std_logic_vector(31 downto 0);
-signal alu_op : std_logic_vector(2 downto 0);
+signal alu_op : std_logic_vector(e32_alu_maxbit downto 0);
 
 
 -- Shifter signals
@@ -219,14 +219,15 @@ port map
 	clk => clk,
 	reset_n => reset_n,
 
-	operand1 => alu_d1,
-	operand2 => alu_d2,
-	operation => alu_op,
+	d1 => alu_d1,
+	d2 => alu_d2,
+	op => alu_op,
 	sgn => flag_sgn,
 	req => alu_req,
 
-	result => alu_q,
-	carry => alu_c,
+	imm => (others=>'X'),
+	q1 => alu_q,
+--	carry => alu_c,
 	busy => alu_busy
 );
 
@@ -1154,16 +1155,13 @@ begin
 end process;
 
 regfile : entity work.eightthirtytwo_regfile
-generic map(
-	pc_mask => X"ffffffff",
-	stack_mask => X"ffffffff"
-	)
 port map(
 	clk => clk,
 	reset_n => reset_n,
 	
-	gpr_a => r_gpr_a,
+	gpr_wa => r_gpr_a,
 	gpr_q => r_gpr_q,
+	gpr_ra => r_gpr_a,
 	gpr_d => r_gpr_d,
 	gpr_wr => r_gpr_wr
 );

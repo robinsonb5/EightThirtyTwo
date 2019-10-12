@@ -20,7 +20,7 @@ port(
 
 	q1 : buffer std_logic_vector(31 downto 0);
 	q2 : buffer std_logic_vector(31 downto 0);
-	carry : out std_logic;
+	cond_minterms : out std_logic_vector(3 downto 0);
 	busy : out std_logic
 );
 end entity;
@@ -28,7 +28,6 @@ end entity;
 architecture rtl of eightthirtytwo_alu is
 
 signal sgn_mod : std_logic;
-signal op_d : std_logic_vector(3 downto 0);
 signal d1_2 : std_logic_vector(31 downto 0);
 signal busycounter : unsigned(1 downto 0);
 signal addresult : unsigned(32 downto 0);
@@ -42,9 +41,20 @@ signal shiftrl : std_logic;
 signal shiftrot : std_logic;
 signal shiftreq : std_logic;
 
+signal flag_c : std_logic;
+signal flag_z : std_logic;
+
 signal immediatestreak : std_logic;
 
 begin
+
+-- Condition minterms:
+
+cond_minterms(3)<= flag_z and flag_c;
+cond_minterms(2)<= (not flag_z) and flag_c;
+cond_minterms(1)<= flag_z and (not flag_c);
+cond_minterms(0)<= (not flag_z) and (not flag_c);
+
 
 sgn_mod<=sgn and (d1(31) xor d2(31));
 
@@ -79,6 +89,8 @@ process(clk,reset_n)
 begin
 	if reset_n='0' then
 		busycounter<="00";
+		flag_z<='0';
+		flag_c<='0';
 	elsif rising_edge(clk) then
 
 		if busycounter/="00" then
@@ -94,6 +106,11 @@ begin
 		if req='1' then
 			case op is
 				when e32_alu_and =>
+					if (d1 and d2)=X"00000000" then
+						flag_z<='1';
+					else
+						flag_z<='0';
+					end if;
 					q1<=d1 and d2;
 			
 				when e32_alu_or =>
@@ -122,18 +139,33 @@ begin
 			
 				when e32_alu_addt =>
 					q2 <=std_logic_vector(addresult(31 downto 0));
-					carry<=addresult(32) xor sgn_mod;
+					flag_c<=addresult(32) xor sgn_mod;
+					if addresult(31 downto 0)=X"00000000" then
+						flag_z<='1';
+					else
+						flag_z<='0';
+					end if;
 			
 				when e32_alu_add =>
 					q1 <=std_logic_vector(addresult(31 downto 0));
-					carry<=addresult(32) xor sgn_mod;
+					flag_c<=addresult(32) xor sgn_mod;
+					if addresult(31 downto 0)=X"00000000" then
+						flag_z<='1';
+					else
+						flag_z<='0';
+					end if;
 			
 				when e32_alu_sub =>
 					q1 <=std_logic_vector(subresult(31 downto 0));
-					carry<=subresult(32) xor sgn_mod;
+					flag_c<=subresult(32) xor sgn_mod;
+					if subresult(31 downto 0)=X"00000000" then
+						flag_z<='1';
+					else
+						flag_z<='0';
+					end if;
 			
 				when e32_alu_mul =>
-					carry<=mulresult(63) xor sgn_mod;
+					flag_c<=mulresult(63) xor sgn_mod;
 					q1 <= std_logic_vector(mulresult(31 downto 0));
 					q2 <= std_logic_vector(mulresult(63 downto 32));
 					busycounter<="01";

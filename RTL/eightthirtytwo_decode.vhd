@@ -31,6 +31,7 @@ begin
 
 -- Decode stage, combinational logic:
 
+-- Special case for li
 op<="11000000" when opcode(7 downto 6)="11" else opcode(7 downto 3)&"000";
 reg<=e32_reg_gpr when regpc='0' else e32_reg_pc;
 
@@ -149,6 +150,7 @@ with op select alu_reg2 <=
 	e32_reg_dontcare when e32_op_cond,
 	e32_reg_dontcare when others;
 
+-- FIXME - ldtmpinc's result goes to regfile - how to deal with this?
 
 with op select ex_op <=
 	e32_ex_cond when e32_op_cond,
