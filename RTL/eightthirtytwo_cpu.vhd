@@ -96,7 +96,8 @@ signal alu_q2 : std_logic_vector(31 downto 0);
 signal alu_sgn : std_logic;
 signal alu_req : std_logic;
 signal alu_carry : std_logic;
-signal alu_busy : std_logic;
+signal alu_ack : std_logic;
+signal alu_busy :std_logic;
 
 
 -- Memory stage signals
@@ -193,7 +194,7 @@ port map(
 	q1 => alu_q1,
 	q2 => alu_q2,
 	carry => alu_carry,
-	busy => alu_busy
+	ack => alu_ack
 );
 
 
@@ -253,7 +254,7 @@ hazard_load<='1' when
 	e_ex_op(e32_exb_load)='1' or m_ex_op(e32_exb_load)='1' or w_ex_op(e32_exb_load)='1'
 	else '0';
 
-e_blocked<=hazard_tmp or hazard_reg or hazard_pc or hazard_load;
+e_blocked<=hazard_tmp or hazard_reg or hazard_pc or hazard_load or (alu_busy and not alu_ack);
 
 --	alu_op<=e_alu_func;
 --	alu_imm<=f_op(5 downto 0);
@@ -273,7 +274,6 @@ cond_minterms(2)<= (not flag_z) and flag_c;
 cond_minterms(1)<= flag_z and (not flag_c);
 cond_minterms(0)<= (not flag_z) and (not flag_c);
 
-		
 process(clk,reset_n,f_op_valid)
 begin
 	if reset_n='0' then
@@ -283,6 +283,8 @@ begin
 		ls_wr<='0';
 		e_cond<='0';
 		alu_sgn<='0';
+		alu_busy<='0';
+		e_ex_op<=e32_ex_bubble;
 	elsif rising_edge(clk) then
 		d_run<='1';
 		e_setpc<='0';
@@ -311,10 +313,14 @@ begin
 			else
 				alu_d2<=r_gpr_q;
 			end if;
-			
-			-- FIXME - need to heed the busy flag.  Only mul and l<X>inc will use it.
-			alu_req<='1';
 
+			if d_ex_op(e32_exb_waitalu)='1' and alu_busy='0' and e_blocked='0' then
+				alu_req<='1';
+				alu_busy<='1';
+			end if;
+			if alu_ack='1' then
+				alu_busy<='0';
+			end if;
 			
 			-- Execute stage:  (Can we do some this combinationally? Probably not -
 			-- must be registered so it doesn't change during ALU op.
@@ -323,7 +329,7 @@ begin
 			-- then we insert a bubble,
 			-- otherwise advance the PC, forward context from D to E.
 
-			if e_blocked='1' then
+			if e_blocked='1' or (d_ex_op(e32_exb_waitalu)='1' and alu_ack='0') then
 				e_ex_op<=e32_ex_bubble;
 			else
 				f_pc<=std_logic_vector(unsigned(f_pc)+1);

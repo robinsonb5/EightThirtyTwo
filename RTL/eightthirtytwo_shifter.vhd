@@ -18,6 +18,7 @@ port(
 	sgn : in std_logic;	-- Right shift only - logical (0) or arithmetic (1)?
 	rotate : in std_logic;
 	req : in std_logic;
+	ack : out std_logic;
 	busy : out std_logic
 );
 end entity;
@@ -36,8 +37,10 @@ begin
 
 		if reset_n='0' then
 			count<=(others=>'0');
+			busy<='0';
 		elsif rising_edge(clk) then
 
+			ack<='0';
 			if req='1' then
 				count<=unsigned(shift);
 				result<=d;
@@ -56,7 +59,7 @@ begin
 					end if;
 					
 					if count="00001" then
-						busy<='0';
+						ack<='1';
 					end if;
 					count<=count-1;
 

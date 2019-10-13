@@ -13,7 +13,6 @@ port(
 	alu_func : out std_logic_vector(e32_alu_maxbit downto 0);
 	alu_reg1 : out std_logic_vector(e32_reg_maxbit downto 0);
 	alu_reg2 : out std_logic_vector(e32_reg_maxbit downto 0);
-	alu_slow : out std_logic;
 	ex_op : out std_logic_vector(e32_ex_maxbit downto 0)
 );
 end entity;
@@ -37,8 +36,9 @@ op<="11000000" when opcode(7 downto 6)="11" else opcode(7 downto 3)&"000";
 reg<=e32_reg_gpr when regpc='0' else e32_reg_pc;
 
 -- Add is overloaded when r=7; old value goes to temp.
-addop<=e32_ex_q1toreg or e32_ex_q2totmp or e32_ex_flags when opcode(2 downto 0)="111"
+addop<=e32_ex_q1toreg or e32_ex_q2totmp when opcode(2 downto 0)="111"
 	else e32_ex_q1toreg or e32_ex_flags;
+
 
 -- FIXME - pick an op to overload for sgn and ldt.
 	
@@ -151,7 +151,10 @@ with op select alu_reg2 <=
 	e32_reg_dontcare when e32_op_cond,
 	e32_reg_dontcare when others;
 
+	
 -- FIXME - ldtmpinc's result goes to regfile - how to deal with this?
+
+-- Some ALU operations take more than one cycle; indicate this with exb_waitalu
 
 with op select ex_op <=
 	e32_ex_cond when e32_op_cond,
@@ -168,9 +171,9 @@ with op select ex_op <=
 	(e32_ex_store or e32_ex_q1toreg or e32_ex_byte) when e32_op_stbinc,
 	(e32_ex_store or e32_ex_q1toreg) when e32_op_stdec,
 
-	(e32_ex_load or e32_ex_q1toreg) when e32_op_ldinc,
-	(e32_ex_load or e32_ex_q1totmp) when e32_op_ltmpinc,
-	(e32_ex_load or e32_ex_q1toreg or e32_ex_byte) when e32_op_ldbinc,
+	(e32_ex_load or e32_ex_q1toreg or e32_ex_waitalu) when e32_op_ldinc,
+	(e32_ex_load or e32_ex_q1totmp or e32_ex_waitalu) when e32_op_ltmpinc,
+	(e32_ex_load or e32_ex_q1toreg or e32_ex_byte or e32_ex_waitalu) when e32_op_ldbinc,
 
 	(e32_ex_store or e32_ex_q1totmp) when e32_op_stmpdec,
 	(e32_ex_li or e32_ex_q2totmp) when e32_op_li,
@@ -178,12 +181,12 @@ with op select ex_op <=
 	(e32_ex_q1toreg or e32_ex_flags) when e32_op_or,
 
 	(e32_ex_q1toreg or e32_ex_flags) when e32_op_xor,
-	(e32_ex_q1toreg or e32_ex_flags) when e32_op_shl,
-	(e32_ex_q1toreg or e32_ex_flags) when e32_op_shr,
-	(e32_ex_q1toreg or e32_ex_flags) when e32_op_ror,
+	(e32_ex_q1toreg or e32_ex_flags or e32_ex_waitalu) when e32_op_shl,
+	(e32_ex_q1toreg or e32_ex_flags or e32_ex_waitalu) when e32_op_shr,
+	(e32_ex_q1toreg or e32_ex_flags or e32_ex_waitalu) when e32_op_ror,
 
 	(e32_ex_q1toreg or e32_ex_q2totmp) when e32_op_exg,
-	(e32_ex_q1toreg or e32_ex_q2totmp or e32_ex_flags) when e32_op_mul,
+	(e32_ex_q1toreg or e32_ex_q2totmp or e32_ex_flags or e32_ex_waitalu) when e32_op_mul,
 	addop when e32_op_add, -- Overloaded so we can modify its behaviour with r7
 
 	(e32_ex_q1totmp or e32_ex_flags) when e32_op_addt,

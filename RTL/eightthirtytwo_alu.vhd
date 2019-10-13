@@ -21,7 +21,7 @@ port(
 	q1 : out std_logic_vector(31 downto 0);
 	q2 : buffer std_logic_vector(31 downto 0);
 	carry : out std_logic;
-	busy : out std_logic
+	ack : out std_logic
 );
 end entity;
 
@@ -29,13 +29,14 @@ architecture rtl of eightthirtytwo_alu is
 
 signal sgn_mod : std_logic;
 signal d2_2 : std_logic_vector(31 downto 0);
-signal busycounter : unsigned(1 downto 0);
+signal busyflag : std_logic;
+signal alu_ack : std_logic;
 signal addresult : unsigned(33 downto 0);
 signal mulresult : unsigned(63 downto 0);
 signal immresult : std_logic_vector(31 downto 0);
 
 signal shiftresult : std_logic_vector(31 downto 0);
-signal shiftbusy : std_logic;
+signal shiftack : std_logic;
 signal shiftrl : std_logic;
 signal shiftrot : std_logic;
 signal shiftreq : std_logic;
@@ -73,19 +74,21 @@ with op select d2_2 <=
 
 sublsb<='1' when op=e32_alu_sub else '0';
 
-busy <=shiftbusy when busycounter="00" else '1';
+ack <= shiftack or alu_ack;
 
 addresult <= unsigned('0'&d1&sublsb) + unsigned('0'&d2_2&sublsb);
--- subresult <= unsigned('0'&d1_2) - unsigned('0'&d2);
 
 process(clk,reset_n)
 begin
 	if reset_n='0' then
-		busycounter<="00";
+		busyflag<='0';
 	elsif rising_edge(clk) then
 
-		if busycounter/="00" then
-			busycounter<=busycounter-1;
+		if busyflag='1' then
+			alu_ack<='1';
+			busyflag<='0';
+		else
+			alu_ack<='0';
 		end if;
 
 		immediatestreak<='0';
@@ -94,68 +97,66 @@ begin
 		q1 <= d1;
 		q2 <= d2;
 
-		if req='1' then
-			case op is
-				when e32_alu_and =>
-					q1<=d1 and d2;
+		case op is
+			when e32_alu_and =>
+				q1<=d1 and d2;
 			
-				when e32_alu_or =>
-					q1<=d1 or d2;
+			when e32_alu_or =>
+				q1<=d1 or d2;
 					
-				when e32_alu_xor =>
-					q1<=d1 xor d2;
+			when e32_alu_xor =>
+				q1<=d1 xor d2;
 					
-				when e32_alu_shl =>
-					q1<=shiftresult; -- fixme - unnecessary delay here
+			when e32_alu_shl =>
+				q1<=shiftresult; -- fixme - unnecessary delay here
 
-				when e32_alu_shr =>
-					q1<=shiftresult; -- fixme - unnecessary delay here
+			when e32_alu_shr =>
+				q1<=shiftresult; -- fixme - unnecessary delay here
 				
-				when e32_alu_ror =>
-					q1<=shiftresult; -- fixme - unnecessary delay here
+			when e32_alu_ror =>
+				q1<=shiftresult; -- fixme - unnecessary delay here
 
-				when e32_alu_incb =>
-					q1<=std_logic_vector(addresult(32 downto 1));
+			when e32_alu_incb =>
+				busyflag<='1';
+				q1<=std_logic_vector(addresult(32 downto 1));
 
-				when e32_alu_incw =>
-					q1<=std_logic_vector(addresult(32 downto 1));
+			when e32_alu_incw =>
+				busyflag<='1';
+				q1<=std_logic_vector(addresult(32 downto 1));
 				
-				when e32_alu_decw =>
-					q1<=std_logic_vector(addresult(32 downto 1));
+			when e32_alu_decw =>
+				q1<=std_logic_vector(addresult(32 downto 1));
 			
-				when e32_alu_addt =>
-					q1 <=std_logic_vector(addresult(32 downto 1));
-					carry<=addresult(32) xor sgn_mod;
+			when e32_alu_addt =>
+				q1 <=std_logic_vector(addresult(32 downto 1));
+				carry<=addresult(32) xor sgn_mod;
 			
-				when e32_alu_add =>
-					q1 <=std_logic_vector(addresult(32 downto 1));
-					carry<=addresult(32) xor sgn_mod;
+			when e32_alu_add =>
+				q1 <=std_logic_vector(addresult(32 downto 1));
+				carry<=addresult(32) xor sgn_mod;
 			
-				when e32_alu_sub =>
-					q1 <=std_logic_vector(addresult(32 downto 1));
-					carry<=addresult(32) xor sgn_mod;
+			when e32_alu_sub =>
+				q1 <=std_logic_vector(addresult(32 downto 1));
+				carry<=addresult(32) xor sgn_mod;
 
-				when e32_alu_mul =>
-					carry<=mulresult(63) xor sgn_mod;
-					q1 <= std_logic_vector(mulresult(31 downto 0));
-					q2 <= std_logic_vector(mulresult(63 downto 32));
-					busycounter<="01";
+			when e32_alu_mul =>
+				busyflag<='1';
+				carry<=mulresult(63) xor sgn_mod;
+				q1 <= std_logic_vector(mulresult(31 downto 0));
+				q2 <= std_logic_vector(mulresult(63 downto 32));
 
-				when e32_alu_li =>
-					immediatestreak<='1';
-					if immediatestreak='0' then
-						q2(31 downto 6)<=(others=>imm(5));
-					else
-						q2(31 downto 6)<=q2(25 downto 0);
-					end if;
-					q2(5 downto 0)<=imm(5 downto 0);
+			when e32_alu_li =>
+				immediatestreak<='1';
+				if immediatestreak='0' then
+					q2(31 downto 6)<=(others=>imm(5));
+				else
+					q2(31 downto 6)<=q2(25 downto 0);
+				end if;
+				q2(5 downto 0)<=imm(5 downto 0);
 
-				when others =>
-					busycounter<="00";
+			when others =>
 
-			end case;
-			
-		end if;
+		end case;
 		
 	end if;
 	
@@ -173,7 +174,7 @@ port map(
 	sgn => sgn,
 	rotate => shiftrot,
 	req => shiftreq,
-	busy => shiftbusy
+	ack => shiftack
 );
 
 end architecture;

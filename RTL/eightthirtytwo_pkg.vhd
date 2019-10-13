@@ -99,20 +99,22 @@ constant e32_exb_q2totmp : integer := 6;
 constant e32_exb_flags : integer := 7;
 constant e32_exb_halfword : integer := 8;
 constant e32_exb_byte : integer := 9;
+constant e32_exb_waitalu : integer := 10;
 
-constant e32_ex_maxbit : integer := 9;
+constant e32_ex_maxbit : integer := 10;
 
-constant e32_ex_bubble : std_logic_vector(e32_ex_maxbit downto 0) := "0000000000";
-constant e32_ex_cond : std_logic_vector(e32_ex_maxbit downto 0) := "0000000001";
-constant e32_ex_li : std_logic_vector(e32_ex_maxbit downto 0) := "0000000010";
-constant e32_ex_load : std_logic_vector(e32_ex_maxbit downto 0) := "0000000100";
-constant e32_ex_store : std_logic_vector(e32_ex_maxbit downto 0) := "0000001000";
-constant e32_ex_q1toreg : std_logic_vector(e32_ex_maxbit downto 0) := "0000010000";
-constant e32_ex_q1totmp : std_logic_vector(e32_ex_maxbit downto 0) := "0000100000";
-constant e32_ex_q2totmp : std_logic_vector(e32_ex_maxbit downto 0) := "0001000000";
-constant e32_ex_flags : std_logic_vector(e32_ex_maxbit downto 0) := "0010000000";
-constant e32_ex_halfword : std_logic_vector(e32_ex_maxbit downto 0) := "0100000000";
-constant e32_ex_byte : std_logic_vector(e32_ex_maxbit downto 0) := "1000000000";
+constant e32_ex_bubble : std_logic_vector(e32_ex_maxbit downto 0) := "00000000000";
+constant e32_ex_cond : std_logic_vector(e32_ex_maxbit downto 0) := "00000000001";
+constant e32_ex_li : std_logic_vector(e32_ex_maxbit downto 0) := "00000000010";
+constant e32_ex_load : std_logic_vector(e32_ex_maxbit downto 0) := "00000000100";
+constant e32_ex_store : std_logic_vector(e32_ex_maxbit downto 0) := "00000001000";
+constant e32_ex_q1toreg : std_logic_vector(e32_ex_maxbit downto 0) := "00000010000";
+constant e32_ex_q1totmp : std_logic_vector(e32_ex_maxbit downto 0) := "00000100000";
+constant e32_ex_q2totmp : std_logic_vector(e32_ex_maxbit downto 0) := "00001000000";
+constant e32_ex_flags : std_logic_vector(e32_ex_maxbit downto 0) := "00010000000";
+constant e32_ex_halfword : std_logic_vector(e32_ex_maxbit downto 0) := "00100000000";
+constant e32_ex_byte : std_logic_vector(e32_ex_maxbit downto 0) := "01000000000";
+constant e32_ex_waitalu : std_logic_vector(e32_ex_maxbit downto 0) := "10000000000";
 
 end package;
 
