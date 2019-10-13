@@ -28,10 +28,9 @@ end entity;
 architecture rtl of eightthirtytwo_alu is
 
 signal sgn_mod : std_logic;
-signal d1_2 : std_logic_vector(31 downto 0);
+signal d2_2 : std_logic_vector(31 downto 0);
 signal busycounter : unsigned(1 downto 0);
-signal addresult : unsigned(32 downto 0);
-signal subresult : unsigned(32 downto 0);
+signal addresult : unsigned(33 downto 0);
 signal mulresult : unsigned(63 downto 0);
 signal immresult : std_logic_vector(31 downto 0);
 
@@ -40,6 +39,8 @@ signal shiftbusy : std_logic;
 signal shiftrl : std_logic;
 signal shiftrot : std_logic;
 signal shiftreq : std_logic;
+
+signal sublsb : std_logic;
 
 signal flag_c : std_logic;
 signal flag_z : std_logic;
@@ -73,17 +74,19 @@ with op select shiftrot <=
 	'1' when e32_alu_ror,
 	'0' when others;
 
-with op select d1_2 <=
+with op select d2_2 <=
 	X"00000001" when e32_alu_incb,
 	X"00000004" when e32_alu_incw,
-	X"00000004" when e32_alu_decw,
-	d1 when others;
+	X"FFFFFFFC" when e32_alu_decw,
+	d2 xor X"FFFFFFFF" when e32_alu_sub,
+	d2 when others;
 
-	
+sublsb<='1' when op=e32_alu_sub else '0';
+
 busy <=shiftbusy when busycounter="00" else '1';
 
-addresult <= unsigned('0'&d1_2) + unsigned('0'&d2);
-subresult <= unsigned('0'&d1_2) - unsigned('0'&d2);
+addresult <= unsigned('0'&d1&sublsb) + unsigned('0'&d2_2&sublsb);
+-- subresult <= unsigned('0'&d1_2) - unsigned('0'&d2);
 
 process(clk,reset_n)
 begin
@@ -129,36 +132,36 @@ begin
 					q1<=shiftresult; -- fixme - unnecessary delay here
 
 				when e32_alu_incb =>
-					q1<=std_logic_vector(addresult(31 downto 0));
+					q1<=std_logic_vector(addresult(32 downto 1));
 
 				when e32_alu_incw =>
-					q1<=std_logic_vector(addresult(31 downto 0));
+					q1<=std_logic_vector(addresult(32 downto 1));
 				
 				when e32_alu_decw =>
-					q1<=std_logic_vector(subresult(31 downto 0));
+					q1<=std_logic_vector(addresult(32 downto 1));
 			
 				when e32_alu_addt =>
-					q2 <=std_logic_vector(addresult(31 downto 0));
+					q2 <=std_logic_vector(addresult(32 downto 1));
 					flag_c<=addresult(32) xor sgn_mod;
-					if addresult(31 downto 0)=X"00000000" then
+					if addresult(32 downto 1)=X"00000000" then
 						flag_z<='1';
 					else
 						flag_z<='0';
 					end if;
 			
 				when e32_alu_add =>
-					q1 <=std_logic_vector(addresult(31 downto 0));
+					q1 <=std_logic_vector(addresult(32 downto 1));
 					flag_c<=addresult(32) xor sgn_mod;
-					if addresult(31 downto 0)=X"00000000" then
+					if addresult(32 downto 1)=X"00000000" then
 						flag_z<='1';
 					else
 						flag_z<='0';
 					end if;
 			
 				when e32_alu_sub =>
-					q1 <=std_logic_vector(subresult(31 downto 0));
-					flag_c<=subresult(32) xor sgn_mod;
-					if subresult(31 downto 0)=X"00000000" then
+					q1 <=std_logic_vector(addresult(32 downto 1));
+					flag_c<=addresult(32) xor sgn_mod;
+					if addresult(32 downto 1)=X"00000000" then
 						flag_z<='1';
 					else
 						flag_z<='0';

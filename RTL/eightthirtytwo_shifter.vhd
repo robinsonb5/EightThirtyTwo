@@ -3,6 +3,8 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 -- Shift and rotate unit
+-- Very simple and slow - software should use the 64-bit multiplier
+-- instead wherever possible.
 
 entity eightthirtytwo_shifter is
 port(
@@ -36,53 +38,31 @@ begin
 			count<=(others=>'0');
 		elsif rising_edge(clk) then
 
-			busy<='1';
-
 			if req='1' then
 				count<=unsigned(shift);
 				result<=d;
+				busy<='1';
 			else
-				if count="00000" then
-					busy<='0';
-				else
+				if count/="00000" then
 					if rotate='1' then
-						if count(4 downto 2)/="000" then
-							result(31 downto 28)<=result(3 downto 0);
-							result(27 downto 0)<=result(31 downto 4);
-							count<=count-4;
-						else
-							result(31)<=result(0);
-							result(30 downto 0)<=result(31 downto 1);
-							count<=count-1;
-						end if;
+						result(31)<=result(0);
+						result(30 downto 0)<=result(31 downto 1);
 					elsif right_left='1' then -- shift right, both logical and arithmetic
-						if count(4 downto 2)/="000" then
-							result(31 downto 28)<=signbit & signbit & signbit & signbit;
-							result(27 downto 0)<=result(31 downto 4);
-							count<=count-4;
-						else
-							result(31)<=signbit;
-							result(30 downto 0)<=result(31 downto 1);
-							count<=count-1;
-						end if;
-					elsif right_left='0' then -- shift left - always shift in zeros
---						if count>6 then	-- six bits, incorporate immediate data if we have any.
---							result(31 downto 6)<=result(25 downto 0);
---							result(5 downto 0)<=immediate;
---							count<=count-6;
---						else
-							result(31 downto 1)<=result(30 downto 0);
-							result(0)<='0';
-							count<=count-1;
---						end if;
+						result(31)<=signbit;
+						result(30 downto 0)<=result(31 downto 1);
+					else -- shift left - always shift in zeros
+						result(31 downto 1)<=result(30 downto 0);
+						result(0)<='0';
 					end if;
+					
+					if count="00001" then
+						busy<='0';
+					end if;
+					count<=count-1;
 
 				end if;				
 			end if;
 
 		end if;
 	end process;
-
-
-
 end architecture;

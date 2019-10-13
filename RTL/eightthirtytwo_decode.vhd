@@ -124,14 +124,14 @@ with op select alu_reg2 <=
 	e32_reg_tmp when e32_op_sth,
 	e32_reg_tmp when e32_op_st,
 
-	e32_reg_tmp when e32_op_ld,
+	e32_reg_dontcare when e32_op_ld,
 	e32_reg_tmp when e32_op_sub,
 	e32_reg_tmp when e32_op_cmp,
 	e32_reg_tmp when e32_op_stbinc,
 
-	e32_reg_tmp when e32_op_ldinc,
+	e32_reg_dontcare when e32_op_ldinc,
 	e32_reg_dontcare when e32_op_ltmpinc,
-	e32_reg_tmp when e32_op_ldbinc,
+	e32_reg_dontcare when e32_op_ldbinc,
 	e32_reg_tmp when e32_op_stdec,
 
 	e32_reg_tmp when e32_op_and,
