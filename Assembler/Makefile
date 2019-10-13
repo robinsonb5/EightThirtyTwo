@@ -1,3 +1,6 @@
+ROMGENDIR = ../romgen
+ROMGEN = $(ROMGENDIR)/romgen
+
 all:
 
 
@@ -16,4 +19,12 @@ clean :
 
 %.s : %.832 Makefile
 	cpp -P $< > $*.s
+
+%_ROM.vhd: %.bin $(ROMGEN)
+	sed 's/dualportram/$*_ROM/' >$*_ROM.vhd <$(ROMGENDIR)/rom_prologue.vhd
+	$(ROMGEN) $*.bin >>$*_ROM.vhd
+	cat >>$*_ROM.vhd $(ROMGENDIR)/rom_epilogue.vhd
+
+$(ROMGEN): $(ROMGENDIR)/romgen.c
+	gcc -o $(ROMGENDIR)/romgen $(ROMGENDIR)/romgen.c
 

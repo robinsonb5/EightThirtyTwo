@@ -13,6 +13,7 @@ port(
 	alu_func : out std_logic_vector(e32_alu_maxbit downto 0);
 	alu_reg1 : out std_logic_vector(e32_reg_maxbit downto 0);
 	alu_reg2 : out std_logic_vector(e32_reg_maxbit downto 0);
+	alu_slow : out std_logic;
 	ex_op : out std_logic_vector(e32_ex_maxbit downto 0)
 );
 end entity;

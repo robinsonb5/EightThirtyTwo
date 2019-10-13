@@ -43,6 +43,9 @@ signal r_gpr_wr : std_logic;
 
 signal r_tmp : std_logic_vector(31 downto 0); -- Working around a GHDL problem...
 
+signal flag_z : std_logic;
+signal flag_c : std_logic;
+
 -- Load / store signals
 
 signal ls_addr : std_logic_vector(31 downto 0);
@@ -189,7 +192,7 @@ port map(
 
 	q1 => alu_q1,
 	q2 => alu_q2,
-	cond_minterms => cond_minterms,
+	carry => alu_carry,
 	busy => alu_busy
 );
 
@@ -263,6 +266,13 @@ e_blocked<=hazard_tmp or hazard_reg or hazard_pc or hazard_load;
 --		r_gpr_q;
 --	alu_req<='1';
 
+-- Condition minterms:
+
+cond_minterms(3)<= flag_z and flag_c;
+cond_minterms(2)<= (not flag_z) and flag_c;
+cond_minterms(1)<= flag_z and (not flag_c);
+cond_minterms(0)<= (not flag_z) and (not flag_c);
+
 		
 process(clk,reset_n,f_op_valid)
 begin
@@ -334,6 +344,16 @@ begin
 			m_ex_op<=e_ex_op;
 
 			-- FIXME - how to handle predec / postinc addresses?
+
+			-- Record flags from ALU
+			if m_ex_op(e32_exb_flags)='1' then
+				flag_c<=alu_carry;
+				if alu_q1=X"00000000" then
+					flag_z<='1';
+				else
+					flag_z<='0';
+				end if;
+			end if;
 			
 			ls_halfword<=m_ex_op(e32_exb_halfword);
 			ls_byte<=m_ex_op(e32_exb_halfword);
@@ -349,6 +369,8 @@ begin
 				ls_req_r<='1';
 			end if;			
 		
+			-- FIXME - Need to make sure ALU results are correctly stored
+			-- for all ldinc / stdec variants
 			if m_ex_op(e32_exb_q1totmp)='1' then
 				r_tmp<=alu_q1;
 			elsif m_ex_op(e32_exb_q2totmp)='1' then
@@ -385,17 +407,19 @@ begin
 			end if;			
 
 			-- FIXME - stall pipeline based on write to PC or write to reg
+			-- FIXME - if we're going to support ldtmpinc we need to have
+			-- a way of signalling load target.  All other loads go to tmp.
 			if w_ex_op(e32_exb_load)='1' and ls_ack='1' then
 				ls_req_r<='0';
-				if w_alu_reg2(e32_regb_tmp)='1' then
+--				if w_alu_reg2(e32_regb_tmp)='1' then
 					r_tmp<=ls_q;
-				elsif w_alu_reg2(e32_regb_pc)='1' then
-					f_pc<=ls_q;
-					e_setpc<='1';
-				else
-					r_gpr_wa<=w_reg;
-					r_gpr_wr<='1';
-				end if;		
+--				elsif w_alu_reg2(e32_regb_pc)='1' then
+--					f_pc<=ls_q;
+--					e_setpc<='1';
+--				else
+--					r_gpr_wa<=w_reg;
+--					r_gpr_wr<='1';
+--				end if;		
 			end if;
 
 			

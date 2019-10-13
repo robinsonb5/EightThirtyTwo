@@ -73,7 +73,7 @@ class EightThirtyTwoMemory
 				}
 				break;
 			default:
-				Debug[TRACE] << std::endl << "Reading from RAM" << addr << std::endl;
+				Debug[TRACE] << std::endl << "Reading from RAM " << addr << std::endl;
 //				if(addr<ramsize)
 				int r=(*this)[addr]<<24;
 				r|=(*this)[addr+1]<<16;
@@ -178,7 +178,7 @@ class EightThirtyTwoProgram : public BinaryBlob, public EightThirtyTwoMemory
 	}
 	virtual int Read(unsigned int addr)
 	{
-		if(((addr-base)>=0) && ((addr-base)<(size-3)))
+		if(((addr-base)>=0) && ((addr-base)<=(size&~3)))
 		{
 			int r=(*this)[addr]<<24;
 			r|=(*this)[addr+1]<<16;
@@ -209,7 +209,6 @@ class EightThirtyTwoProgram : public BinaryBlob, public EightThirtyTwoMemory
 		if(idx<size)
 			return(BinaryBlob::operator[](idx));
 		else
-//			throw "Byte accesses to general RAM not yet supported";
 			return(EightThirtyTwoMemory::operator[](idx));
 	}
 	protected:
@@ -346,6 +345,7 @@ class EightThirtyTwoSim
 				else if((opcode|operand)==ovl_sgn)	// Evaluate overloaded (zero-operand) opcodes here
 				{
 					sign_mod=true;
+					mnem << ("sgn ");
 					// Set the sign modifier, cleared by the next instruction that could use it.
 				}
 				else if((opcode|operand)==ovl_ldt)
@@ -454,7 +454,8 @@ class EightThirtyTwoSim
 
 
 						case opc_add: // add
-							t2=regfile[operand]+temp;
+							t2=regfile[operand];
+							t2+=temp;
 							carry=(t2>>32)&1;
 							zero=(t2&0xffffffff)==0;
 							if(operand==7)
@@ -468,7 +469,8 @@ class EightThirtyTwoSim
 
 						case opc_addt: // addt;
 							t=regfile[operand];
-							t2=regfile[operand]+temp;
+							t2=regfile[operand];
+							t2+=temp;
 							carry=(t2>>32)&1;
 							zero=(t2&0xffffffff)==0;
 							if(operand==7)
@@ -479,14 +481,17 @@ class EightThirtyTwoSim
 							break;
 
 						case opc_cmp: // cmp - FIXME - heed then clear sign modifier.
-							t2=regfile[operand]-temp;
+							t2=regfile[operand];
+							t2-=temp;
+							Debug[TRACE] << "Compare result: " << t2 << std::endl;
 							carry=(t2>>32)&1;
 							zero=(t2&0xffffffff)==0;
 							mnem << ("cmp ") << operand;
 							break;
 
 						case opc_sub: // sub - FIXME - heed then clear sign modifier.
-							t2=regfile[operand]-temp;
+							t2=regfile[operand];
+							t2-=temp;
 							carry=(t2>>32)&1;
 							regfile[operand]=t2;
 							zero=(t2&0xffffffff)==0;
@@ -559,14 +564,13 @@ class EightThirtyTwoSim
 			else // execution disabled by cond
 			{
 				mnem << ("(");
-				if(opcode==0x00)
+				if(opcode==opc_cond)
 				{
 					// FIXME - match against zero and carry, set cond flag accordingly.
 					t=((zero&carry)<<3)|((!zero&carry)<<2)|((zero&!carry)<<1)|(!zero&!carry);
 					operand|=(operand&2)<<2;
 					cond=(operand&t)>0;
-					mnem << ("cond ") << operand;
-					break;
+					mnem << ("cond ") << operand << (", ") << t;
 				}
 				else if(operand==7)
 				{
@@ -577,6 +581,7 @@ class EightThirtyTwoSim
 						case opc_add: // add
 						case opc_sub: // sub
 						case opc_addt: // addt;
+						case opc_ltmpinc: // addt;
 							cond=1;
 					}
 				}
@@ -588,6 +593,9 @@ class EightThirtyTwoSim
 			Debug[TRACE] << "r7: " << regfile[7] << "\tOp: " << opcode << ", " << mnem.str() << "\n\t\t";
 			DumpRegs();
 			Debug[TRACE] << std::endl;
+
+			if(!run)
+				Debug[TRACE] << "Simulation ended\n" << std::endl;
 		}
 	}
 	void DumpRegs()
