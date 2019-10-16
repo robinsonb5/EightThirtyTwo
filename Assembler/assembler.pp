@@ -22,7 +22,7 @@
 #define stbinc .byte 0x50 +
 #define stmpdec .byte 0x58 +
 
-#define ltmpinc .byte 0x60 +
+#define ldidx .byte 0x60 +
 #define ld .byte 0x68 +
 #define mt .byte 0x70 +
 #define st .byte 0x78 +

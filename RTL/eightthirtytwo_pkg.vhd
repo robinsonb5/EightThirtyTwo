@@ -18,7 +18,7 @@ constant e32_op_mr : std_logic_vector(7 downto 0) := X"48";
 constant e32_op_stbinc : std_logic_vector(7 downto 0) := X"50";
 constant e32_op_stmpdec : std_logic_vector(7 downto 0) := X"58";
 
-constant e32_op_ltmpinc : std_logic_vector(7 downto 0) := X"60";
+constant e32_op_ldidx : std_logic_vector(7 downto 0) := X"60";
 constant e32_op_ld : std_logic_vector(7 downto 0) := X"68";
 constant e32_op_mt : std_logic_vector(7 downto 0) := X"70";
 constant e32_op_st : std_logic_vector(7 downto 0) := X"78";
@@ -78,14 +78,14 @@ constant e32_alu_maxbit : integer := 3;
 
 -- Register sources
 
-constant e32_reg_maxbit : integer := 2;
-constant e32_reg_gpr : std_logic_vector(e32_reg_maxbit downto 0) := "001";
+constant e32_reg_maxbit : integer := 1;
+constant e32_reg_gpr : std_logic_vector(e32_reg_maxbit downto 0) := "01";
 constant e32_regb_gpr : integer := 0;
-constant e32_reg_tmp : std_logic_vector(e32_reg_maxbit downto 0) := "010";
+constant e32_reg_tmp : std_logic_vector(e32_reg_maxbit downto 0) := "10";
 constant e32_regb_tmp : integer := 1;
-constant e32_reg_pc : std_logic_vector(e32_reg_maxbit downto 0) := "100";
-constant e32_regb_pc : integer := 2;
-constant e32_reg_dontcare : std_logic_vector(e32_reg_maxbit downto 0) := "XXX";
+--constant e32_reg_pc : std_logic_vector(e32_reg_maxbit downto 0) := "100";
+--constant e32_regb_pc : integer := 2;
+constant e32_reg_dontcare : std_logic_vector(e32_reg_maxbit downto 0) := (others=>'X');
 
 
 -- Execute stage operations:

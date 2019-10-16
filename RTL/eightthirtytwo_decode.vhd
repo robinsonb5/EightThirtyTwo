@@ -49,9 +49,6 @@ orop<=e32_ex_sgn when opcode(2 downto 0)="111"
 xorop<=e32_ex_load when opcode(2 downto 0)="111"
 	else e32_ex_q1toreg or e32_ex_flags; -- FIXME - need to overload register source too.
 
--- Modify source operand to PC if it's set to r7.
-reg<=e32_reg_gpr when regpc='0' else e32_reg_pc;
-
 -- ALU functions
 
 with op select alu_func <=
@@ -66,7 +63,7 @@ with op select alu_func <=
 	e32_alu_incw when e32_op_stbinc,
 
 	e32_alu_incw when e32_op_ldinc,
-	e32_alu_incw when e32_op_ltmpinc,
+	e32_alu_add when e32_op_ldidx,
 	e32_alu_incb when e32_op_ldbinc,
 	e32_alu_decw when e32_op_stdec,
 
@@ -94,42 +91,42 @@ with op select alu_func <=
 with op select alu_reg1 <=
 --	opcode(5 downto 0) when e32_op_li,
 	e32_reg_tmp when e32_op_mr,
-	e32_reg_tmp when e32_op_ltmpinc,
+	e32_reg_tmp when e32_op_ldidx,
 	e32_reg_tmp when e32_op_stmpdec,
 	e32_reg_tmp when e32_op_exg,
 	e32_reg_tmp when e32_op_add, -- Swapped because we want the old value in q2
-	reg when e32_op_sth,
-	reg when e32_op_st,
+	e32_reg_gpr when e32_op_sth,
+	e32_reg_gpr when e32_op_st,
 
-	reg when e32_op_ld,
-	reg when e32_op_sub,
-	reg when e32_op_cmp,
-	reg when e32_op_stbinc,
+	e32_reg_gpr when e32_op_ld,
+	e32_reg_gpr when e32_op_sub,
+	e32_reg_gpr when e32_op_cmp,
+	e32_reg_gpr when e32_op_stbinc,
 
-	reg when e32_op_ldinc,
-	reg when e32_op_ldbinc,
-	reg when e32_op_stdec,
+	e32_reg_gpr when e32_op_ldinc,
+	e32_reg_gpr when e32_op_ldbinc,
+	e32_reg_gpr when e32_op_stdec,
 
-	reg when e32_op_and,
-	reg when e32_op_or,
+	e32_reg_gpr when e32_op_and,
+	e32_reg_gpr when e32_op_or,
 
 	e32_reg_tmp when e32_op_xor,	-- Swapped because we overload xor r7 as ldt
-	reg when e32_op_shl,
-	reg when e32_op_shr,
-	reg when e32_op_ror,
+	e32_reg_gpr when e32_op_shl,
+	e32_reg_gpr when e32_op_shr,
+	e32_reg_gpr when e32_op_ror,
 
-	reg when e32_op_mul,
-	reg when e32_op_mt,
+	e32_reg_gpr when e32_op_mul,
+	e32_reg_gpr when e32_op_mt,
 
-	reg when e32_op_addt,
+	e32_reg_gpr when e32_op_addt,
 	e32_reg_dontcare when e32_op_cond,
 	e32_reg_dontcare when others;
 
 
 with op select alu_reg2 <=
-	reg when e32_op_stmpdec,
-	reg when e32_op_exg,
-	reg when e32_op_add, -- Swapped because we want the old value in q2
+	e32_reg_gpr when e32_op_stmpdec,
+	e32_reg_gpr when e32_op_exg,
+	e32_reg_gpr when e32_op_add, -- Swapped because we want the old value in q2
 	e32_reg_tmp when e32_op_mr,
 	e32_reg_tmp when e32_op_sth,
 	e32_reg_tmp when e32_op_st,
@@ -140,14 +137,14 @@ with op select alu_reg2 <=
 	e32_reg_tmp when e32_op_stbinc,
 
 	e32_reg_dontcare when e32_op_ldinc,
-	e32_reg_dontcare when e32_op_ltmpinc,
+	e32_reg_gpr when e32_op_ldidx,
 	e32_reg_dontcare when e32_op_ldbinc,
 	e32_reg_tmp when e32_op_stdec,
 
 	e32_reg_tmp when e32_op_and,
 	e32_reg_tmp when e32_op_or,
 
-	reg when e32_op_xor,	-- Swapped because we overload xor r7 as ldt.
+	e32_reg_gpr when e32_op_xor,	-- Swapped because we overload xor r7 as ldt.
 	e32_reg_tmp when e32_op_shl,
 	e32_reg_tmp when e32_op_shr,
 	e32_reg_tmp when e32_op_ror,
@@ -181,7 +178,7 @@ with op select ex_op <=
 	(e32_ex_store or e32_ex_q1toreg) when e32_op_stdec,
 
 	(e32_ex_load or e32_ex_q1toreg or e32_ex_waitalu) when e32_op_ldinc,
-	(e32_ex_load or e32_ex_q1totmp or e32_ex_waitalu) when e32_op_ltmpinc,
+	e32_ex_load when e32_op_ldidx,
 	(e32_ex_load or e32_ex_q1toreg or e32_ex_byte or e32_ex_waitalu) when e32_op_ldbinc,
 
 	(e32_ex_store or e32_ex_q1totmp) when e32_op_stmpdec,
@@ -209,7 +206,6 @@ with op select regpc <=
 	'1' when e32_op_mr,
 	'1' when e32_op_sub,
 	'1' when e32_op_ldinc,
-	'1' when e32_op_ltmpinc,
 	'1' when e32_op_exg,
 	'1' when e32_op_add,
 	'1' when e32_op_addt,

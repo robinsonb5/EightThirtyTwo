@@ -24,7 +24,7 @@
 #define	opc_ld	0x68
 #define	opc_ldinc	0x20
 #define	opc_ldbinc	0x10
-#define	opc_ltmpinc	0x60
+#define	opc_ldidx	0x60
 			
 			
 #define	opc_li	0xc0

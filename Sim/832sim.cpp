@@ -419,10 +419,9 @@ class EightThirtyTwoSim
 							mnem << ("ldbinc ") << operand;
 							break;
 
-						case opc_ltmpinc: // ltmpinc
-							regfile[operand]=prg.Read(temp);//&0xfffffffc);
-							temp+=4;
-							mnem << ("ldinc ") << operand;
+						case opc_ldidx: // ldidx
+							temp=prg.Read(temp+regfile[operand]);//&0xfffffffc);
+							mnem << ("ldidx ") << operand;
 							break;
 
 
@@ -581,7 +580,6 @@ class EightThirtyTwoSim
 						case opc_add: // add
 						case opc_sub: // sub
 						case opc_addt: // addt;
-						case opc_ltmpinc: // addt;
 							cond=1;
 					}
 				}
