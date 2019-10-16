@@ -13,10 +13,6 @@ use work.eightthirtytwo_pkg.all;
 -- Predec / postinc
 
 entity eightthirtytwo_cpu is
-generic(
-	pc_mask : std_logic_vector(31 downto 0) := X"ffffffff";
-	stack_mask : std_logic_vector(31 downto 0) := X"ffffffff"
-	);
 port(
 	clk : in std_logic;
 	reset_n : in std_logic;
@@ -44,11 +40,14 @@ signal r_gpr3 : std_logic_vector(31 downto 0);
 signal r_gpr4 : std_logic_vector(31 downto 0);
 signal r_gpr5 : std_logic_vector(31 downto 0);
 signal r_gpr6 : std_logic_vector(31 downto 0);
+signal r_gpr7 : std_logic_vector(31 downto 0);
 
 signal r_tmp : std_logic_vector(31 downto 0); -- Working around a GHDL problem...
 
 signal flag_z : std_logic;
 signal flag_c : std_logic;
+signal flag_cond : std_logic;
+signal flag_sgn : std_logic;
 
 -- Load / store signals
 
@@ -65,7 +64,8 @@ signal ls_ack : std_logic;
 
 -- Fetch stage signals:
 
-signal f_pc : std_logic_vector(31 downto 0);
+signal f_pc : std_logic_vector(e32_pc_maxbit downto 0);
+signal f_nextpc : std_logic_vector(e32_pc_maxbit downto 0);
 signal f_op : std_logic_vector(7 downto 0);
 signal f_prevop : std_logic_vector(7 downto 0);
 signal f_op_valid : std_logic := '0' ;	-- Execute stage can use f_op
@@ -143,10 +143,8 @@ port map(
 
 
 -- Fetch/Load/Store unit is responsible for interfacing with main memory.
+
 fetchloadstore : entity work.eightthirtytwo_fetchloadstore 
-generic map(
-	pc_mask => X"ffffffff"
-	)
 port map
 (
 	clk => clk,
@@ -154,7 +152,8 @@ port map
 
 	-- cpu fetch interface
 
-	pc => f_pc,
+	pc(31 downto e32_pc_maxbit+1) => (others => '0'),
+	pc(e32_pc_maxbit downto 0) => f_pc,
 	pc_req => e_setpc,
 	opcode => f_op,
 	opcode_valid => f_op_valid,
@@ -181,10 +180,18 @@ port map
 	ram_ack => ack
 );
 
-
 -- Register file logic:
 
+f_nextpc<=std_logic_vector(unsigned(f_pc)+1);
 r_gpr_ra<=f_op(2 downto 0);
+
+r_gpr7(e32_fb_zero)<=flag_z;
+r_gpr7(e32_fb_carry)<=flag_c;
+r_gpr7(e32_fb_cond)<=flag_cond;
+r_gpr7(e32_fb_sgn)<=flag_sgn;
+r_gpr7(e32_pc_maxbit downto 0)<=f_nextpc;
+r_gpr7(27 downto e32_pc_maxbit+1)<=(others=>'X');
+
 with r_gpr_ra select r_gpr_q <=
 	r_gpr0 when "000",
 	r_gpr1 when "001",
@@ -193,7 +200,7 @@ with r_gpr_ra select r_gpr_q <=
 	r_gpr4 when "100",
 	r_gpr5 when "101",
 	r_gpr6 when "110",
-	f_pc when "111",
+	r_gpr7 when "111",
 	(others=>'X') when others;	-- r7 is the program counter. FIXME - Needs to return f_pc+1
 
 
@@ -338,16 +345,16 @@ begin
 			alu_op<=d_alu_func;
 			if d_alu_reg1(e32_regb_tmp)='1' then
 				alu_d1<=r_tmp;
-			elsif d_alu_reg1(e32_regb_pc)='1' then
-				alu_d1<=std_logic_vector(unsigned(f_pc)+1);
+--			elsif d_alu_reg1(e32_regb_pc)='1' then
+--				alu_d1<=nextpc;
 			else
 				alu_d1<=r_gpr_q;
 			end if;
 
 			if d_alu_reg2(e32_regb_tmp)='1' then
 				alu_d2<=r_tmp;
-			elsif d_alu_reg2(e32_regb_pc)='1' then
-				alu_d2<=std_logic_vector(unsigned(f_pc)+1);
+--			elsif d_alu_reg2(e32_regb_pc)='1' then
+--				alu_d2<=std_logic_vector(unsigned(f_pc)+1);
 			else
 				alu_d2<=r_gpr_q;
 			end if;
@@ -370,7 +377,7 @@ begin
 			if e_blocked='1' or (d_ex_op(e32_exb_waitalu)='1' and alu_ack='0') then
 				e_ex_op<=e32_ex_bubble;
 			else
-				f_pc<=std_logic_vector(unsigned(f_pc)+1);
+				f_pc<=f_nextpc;
 				e_alu_func<=d_alu_func;
 				e_alu_reg1<=d_alu_reg1;
 				e_alu_reg2<=d_alu_reg2;
@@ -439,7 +446,11 @@ begin
 						r_gpr6<=alu_q1;
 					when "111" =>
 						e_setpc<='1';
-						f_pc<=alu_q1;
+						f_pc<=alu_q1(e32_pc_maxbit downto 0);
+						flag_z<=alu_q1(e32_fb_zero);
+						flag_c<=alu_q1(e32_fb_carry);
+						flag_cond<=alu_q1(e32_fb_cond);
+						flag_sgn<=alu_q1(e32_fb_sgn);
 					when others =>
 						null;
 				end case;

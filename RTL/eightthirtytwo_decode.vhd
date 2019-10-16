@@ -17,8 +17,6 @@ port(
 );
 end entity;
 
--- FIXME - need to deal with overloaded instructions.  Perhaps add an encoding bit
--- based on r=7?
 
 architecture behavoural of eightthirtytwo_decode is
 
@@ -33,9 +31,11 @@ begin
 
 -- Decode stage, combinational logic:
 
--- Special case for li
+-- Special case for li and overloaded instructions:
+
+-- li only uses 2 bits for decoding; the other two bits are are of the immediate value
+
 op<="11000000" when opcode(7 downto 6)="11" else opcode(7 downto 3)&"000";
-reg<=e32_reg_gpr when regpc='0' else e32_reg_pc;
 
 -- Add is overloaded when r=7; old value goes to temp.
 addop<=e32_ex_q1toreg or e32_ex_q2totmp when opcode(2 downto 0)="111"
@@ -48,7 +48,9 @@ orop<=e32_ex_sgn when opcode(2 downto 0)="111"
 -- Xor is overloaded when r=7; becomes the ldt instruction
 xorop<=e32_ex_load when opcode(2 downto 0)="111"
 	else e32_ex_q1toreg or e32_ex_flags; -- FIXME - need to overload register source too.
-	
+
+-- Modify source operand to PC if it's set to r7.
+reg<=e32_reg_gpr when regpc='0' else e32_reg_pc;
 
 -- ALU functions
 
@@ -111,7 +113,7 @@ with op select alu_reg1 <=
 	reg when e32_op_and,
 	reg when e32_op_or,
 
-	reg when e32_op_xor,
+	e32_reg_tmp when e32_op_xor,	-- Swapped because we overload xor r7 as ldt
 	reg when e32_op_shl,
 	reg when e32_op_shr,
 	reg when e32_op_ror,
@@ -145,7 +147,7 @@ with op select alu_reg2 <=
 	e32_reg_tmp when e32_op_and,
 	e32_reg_tmp when e32_op_or,
 
-	e32_reg_tmp when e32_op_xor,
+	reg when e32_op_xor,	-- Swapped because we overload xor r7 as ldt.
 	e32_reg_tmp when e32_op_shl,
 	e32_reg_tmp when e32_op_shr,
 	e32_reg_tmp when e32_op_ror,

@@ -5,9 +5,6 @@ use ieee.numeric_std.all;
 -- FIXME - add sign extension and zeroing of upper bits for byte or halfword loads
 
 entity eightthirtytwo_fetchloadstore is
-generic(
-	pc_mask : std_logic_vector(31 downto 0) := X"ffffffff"
-	);
 port
 (
 	clk : in std_logic;
