@@ -6,7 +6,7 @@ library work;
 use work.eightthirtytwo_pkg.all;
 
 -- To do:
--- Flags - conditional execution
+-- Done - more testing needed: Flags - conditional execution
 -- Sgn modifier
 -- Hazards / stalls / bubbles
 -- Load/store results
@@ -36,10 +36,14 @@ architecture behavoural of eightthirtytwo_cpu is
 -- Register file signals:
 
 signal r_gpr_ra : std_logic_vector(2 downto 0);
-signal r_gpr_wa : std_logic_vector(2 downto 0);
 signal r_gpr_q : std_logic_vector(31 downto 0);
-signal r_gpr_d : std_logic_vector(31 downto 0);
-signal r_gpr_wr : std_logic;
+signal r_gpr0 : std_logic_vector(31 downto 0);
+signal r_gpr1 : std_logic_vector(31 downto 0);
+signal r_gpr2 : std_logic_vector(31 downto 0);
+signal r_gpr3 : std_logic_vector(31 downto 0);
+signal r_gpr4 : std_logic_vector(31 downto 0);
+signal r_gpr5 : std_logic_vector(31 downto 0);
+signal r_gpr6 : std_logic_vector(31 downto 0);
 
 signal r_tmp : std_logic_vector(31 downto 0); -- Working around a GHDL problem...
 
@@ -119,6 +123,7 @@ signal hazard_tmp : std_logic;
 signal hazard_pc : std_logic;
 signal hazard_reg : std_logic;
 signal hazard_load : std_logic;
+signal hazard_flags : std_logic;
 signal e_blocked : std_logic;
 
 begin
@@ -177,6 +182,22 @@ port map
 );
 
 
+-- Register file logic:
+
+r_gpr_ra<=f_op(2 downto 0);
+with r_gpr_ra select r_gpr_q <=
+	r_gpr0 when "000",
+	r_gpr1 when "001",
+	r_gpr2 when "010",
+	r_gpr3 when "011",
+	r_gpr4 when "100",
+	r_gpr5 when "101",
+	r_gpr6 when "110",
+	f_pc when "111",
+	(others=>'X') when others;	-- r7 is the program counter. FIXME - Needs to return f_pc+1
+
+
+
 -- Execute
 
 alu : entity work.eightthirtytwo_alu
@@ -210,24 +231,19 @@ ls_req<=ls_req_r and not ls_ack;
 
 
 
-regfile : entity work.eightthirtytwo_regfile
-generic map(
-	pc_mask => X"ffffffff"
-	)
-port map(
-	clk => clk,
-	reset_n => reset_n,
-	
-	gpr_wa => r_gpr_wa,
-	gpr_d => r_gpr_d,
-	gpr_wr => r_gpr_wr,
-	gpr_ra => r_gpr_ra,
-	gpr_q => r_gpr_q
-);
+-- Hazard / stall logic.
+-- We don't yet attempt any results forwarding or instruction fusing.
 
-r_gpr_ra<=f_op(2 downto 0);
+-- f_op_valid:
+-- If the opcode supplied for the current PC is invalid, we must block D and the transfer
+-- to E - but E, M and W must operate as usual, filling up with bubbles.
 
--- FIXME - need to block on reg too.
+-- hazard_tmp:
+-- If the instruction being decoded requires tmp as either source we
+-- block the transfer from D to E and the advance of PC
+-- until any previous instruction writing to tmp has cleared the pipeline.
+-- (If we don't implement ltmpinc or ltmp then nothing beyond M will write to tmp.)
+
 
 hazard_tmp<='1' when
 	(e_ex_op(e32_exb_q1totmp)='1' or e_ex_op(e32_exb_q2totmp)='1'
@@ -236,10 +252,18 @@ hazard_tmp<='1' when
 		and (d_alu_reg1(e32_regb_tmp)='1' or d_alu_reg2(e32_regb_tmp)='1')
 	else '0';
 
+-- hazard_reg:
+-- If the instruction being decoded requires a register as source we block
+-- the transfer from D to E and the advance of PC until any previous
+-- instruction writing to the regfile has cleared the pipeline.
+-- (FIXME Can potentially make this finer-grained and match the actual register, but
+-- then need to consider clashes between M and W for writing to the regfile.
+-- Second write port?  If we don't implement ltmpinc then all loads write to tmp anyway.)
 hazard_reg<='1' when
 	(e_ex_op(e32_exb_q1toreg)='1'
 		or m_ex_op(e32_exb_q1toreg)='1'
-		or w_ex_op(e32_exb_q1toreg)='1')
+--		or w_ex_op(e32_exb_q1toreg)='1'
+			)
 		and ((d_alu_reg1(e32_regb_gpr)='1' or d_alu_reg2(e32_regb_gpr)='1'))
 	else '0';
 
@@ -250,9 +274,23 @@ hazard_pc<='1' when
 		or (w_ex_op(e32_exb_q1toreg)='1' and w_reg="111")
 	else '0';
 
+-- FIXME - this won't work if we implement ltmpinc since we'll then be writing to regfile in W.
 hazard_load<='1' when
-	e_ex_op(e32_exb_load)='1' or m_ex_op(e32_exb_load)='1' or w_ex_op(e32_exb_load)='1'
+	(e_ex_op(e32_exb_load)='1' or m_ex_op(e32_exb_load)='1' or w_ex_op(e32_exb_load)='1')
+		and (d_alu_reg1(e32_regb_tmp)='1' or d_alu_reg2(e32_regb_tmp)='1')
 	else '0';
+
+hazard_flags<='1' when
+	e_ex_op(e32_exb_cond)='1' and (m_ex_op(e32_exb_flags)='1' or w_ex_op(e32_exb_load)='1')
+	else '0';
+
+-- ALU busy logic:
+-- Some ALU operations are two-cycle, notably mul and post-increment operations.
+-- (The latter so that the M logic can use the old value to trigger a memory
+-- operation before writing the new value to the regfile.)
+-- Shift operations can take many cycles.
+-- While the ALU is busy the PC can't increment, however we do want mem ops to be
+-- triggered (once), then the op to handed over to M when the op finishes.
 
 e_blocked<=hazard_tmp or hazard_reg or hazard_pc or hazard_load or (alu_busy and not alu_ack);
 
@@ -382,17 +420,29 @@ begin
 			elsif m_ex_op(e32_exb_q2totmp)='1' then
 				r_tmp<=alu_q2;
 			end if;
-			
-			r_gpr_wa<=m_reg(2 downto 0);
-			r_gpr_d<=alu_q1;
-			r_gpr_wr<='0';
+
 			if m_ex_op(e32_exb_q1toreg)='1' then
-				if m_reg(2 downto 0)="111" then
-					e_setpc<='1';
-					f_pc<=alu_q1;
-				else
-					r_gpr_wr<='1';
-				end if;
+				case m_reg(2 downto 0) is
+					when "000" =>
+						r_gpr0<=alu_q1;
+					when "001" =>
+						r_gpr1<=alu_q1;
+					when "010" =>
+						r_gpr2<=alu_q1;
+					when "011" =>
+						r_gpr3<=alu_q1;
+					when "100" =>
+						r_gpr4<=alu_q1;
+					when "101" =>
+						r_gpr5<=alu_q1;
+					when "110" =>
+						r_gpr6<=alu_q1;
+					when "111" =>
+						e_setpc<='1';
+						f_pc<=alu_q1;
+					when others =>
+						null;
+				end case;
 			end if;
 
 			-- Writeback stage
