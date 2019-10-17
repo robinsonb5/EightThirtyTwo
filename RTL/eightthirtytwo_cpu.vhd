@@ -270,15 +270,15 @@ hazard_pc<='1' when
 -- FIXME - this won't work if we implement ltmpinc since we'll then be writing to regfile in W.
 hazard_load<='1' when
 	(e_ex_op(e32_exb_load)='1' or m_ex_op(e32_exb_load)='1' or w_ex_op(e32_exb_load)='1')
-		and (d_alu_reg1(e32_regb_tmp)='1' or d_alu_reg2(e32_regb_tmp)='1')
+--		and (d_alu_reg1(e32_regb_tmp)='1' or d_alu_reg2(e32_regb_tmp)='1')
 	else '0';
 
 
 -- We have a flags hazard when the E stage is executing either the sgn or cond instructions
 -- and anything still in the pipeline is writing to the flags.
 hazard_flags<='1' when
-	(e_ex_op(e32_exb_cond)='1' or e_ex_op(e32_exb_sgn)='1')
-		and (m_ex_op(e32_exb_flags)='1' or w_ex_op(e32_exb_load)='1')
+	(d_ex_op(e32_exb_cond)='1' or d_ex_op(e32_exb_sgn)='1')
+		and (e_ex_op(e32_exb_flags)='1' or m_ex_op(e32_exb_flags)='1' or w_ex_op(e32_exb_load)='1')
 	else '0';
 
 -- ALU busy logic:
@@ -289,9 +289,7 @@ hazard_flags<='1' when
 -- While the ALU is busy the PC can't increment, however we do want mem ops to be
 -- triggered (once), then the op to handed over to M when the op finishes.
 
-e_blocked<=hazard_tmp or hazard_reg or hazard_pc or hazard_load or hazard_flags
-	or (alu_busy and not alu_ack);
-
+e_blocked<=hazard_tmp or hazard_reg or hazard_pc or hazard_load or hazard_flags;
 
 -- Condition minterms:
 
@@ -350,9 +348,6 @@ begin
 				alu_busy<='0';
 			end if;
 			
-			-- Execute stage:  (Can we do some this combinationally? Probably not -
-			-- must be registered so it doesn't change during ALU op.
-
 			-- If we have a hazard or we're blocked by conditional execution
 			-- then we insert a bubble,
 			-- otherwise advance the PC, forward context from D to E.
@@ -360,17 +355,20 @@ begin
 			if e_blocked='1' or (d_ex_op(e32_exb_waitalu)='1' and alu_ack='0') then
 				e_ex_op<=e32_ex_bubble;
 			else
-				f_pc<=f_nextpc;
+--				if d_ex_op(e32_exb_waitalu)='0' or alu_ack='1' then
+					f_pc<=f_nextpc;
+--				end if;
 				e_reg<=f_op(2 downto 0);
 				e_ex_op<=d_ex_op;
 			end if;
 			
-
 			-- Mem stage
 
 			-- Forward context from E to M
-			m_reg<=e_reg;
-			m_ex_op<=e_ex_op;
+			if m_ex_op(e32_exb_waitalu)='0' or alu_busy='0' then
+				m_reg<=e_reg;
+				m_ex_op<=e_ex_op;
+			end if;
 
 			-- FIXME - how to handle predec / postinc addresses?
 
@@ -387,7 +385,7 @@ begin
 			
 			ls_halfword<=m_ex_op(e32_exb_halfword);
 			ls_byte<=m_ex_op(e32_exb_halfword);
-			if m_ex_op(e32_exb_load)='1' then
+			if m_ex_op(e32_exb_load)='1' then -- and  (m_ex_op(e32_exb_waitalu)='0' or alu_busy='1') then
 				ls_addr<=alu_q1;
 				ls_req_r<='1';
 			end if;			
@@ -464,7 +462,8 @@ begin
 			if flag_cond='1' then	-- advance PC but replace instructions with bubbles
 				e_ex_op<=e32_ex_bubble;
 				m_ex_op<=e32_ex_bubble;
-				if d_ex_op(e32_exb_q1toreg)='1' and f_op(2 downto 0)="111" then -- Writing to PC?
+				if d_ex_op(e32_exb_cond)='1' or
+								(d_ex_op(e32_exb_q1toreg)='1' and f_op(2 downto 0)="111") then -- Writing to PC?
 					e_ex_op<=e32_ex_cond;
 				end if;
 			end if;

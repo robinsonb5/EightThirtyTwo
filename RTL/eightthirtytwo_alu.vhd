@@ -74,7 +74,7 @@ with op select d2_2 <=
 
 sublsb<='1' when op=e32_alu_sub else '0';
 
-ack <= shiftack or alu_ack;
+ack <= shiftack or busyflag; -- alu_ack;
 
 addresult <= unsigned('0'&d1&sublsb) + unsigned('0'&d2_2&sublsb);
 
@@ -86,7 +86,6 @@ begin
 
 		if busyflag='1' then
 			alu_ack<='1';
-			busyflag<='0';
 		else
 			alu_ack<='0';
 		end if;
@@ -117,12 +116,20 @@ begin
 				q1<=shiftresult; -- fixme - unnecessary delay here
 
 			when e32_alu_incb =>
-				busyflag<='1';
-				q1<=std_logic_vector(addresult(32 downto 1));
+				busyflag<=req;
+				if req='1' then
+					q1<=d1;
+				else
+					q1<=std_logic_vector(addresult(32 downto 1));
+				end if;
 
 			when e32_alu_incw =>
-				busyflag<='1';
-				q1<=std_logic_vector(addresult(32 downto 1));
+				busyflag<=req;
+				if req='1' then
+					q1<=d1;
+				else
+					q1<=std_logic_vector(addresult(32 downto 1));
+				end if;
 				
 			when e32_alu_decw =>
 				q1<=std_logic_vector(addresult(32 downto 1));
@@ -140,7 +147,7 @@ begin
 				carry<=addresult(32) xor sgn_mod;
 
 			when e32_alu_mul =>
-				busyflag<='1';
+				busyflag<=req;
 				carry<=mulresult(63) xor sgn_mod;
 				q1 <= std_logic_vector(mulresult(31 downto 0));
 				q2 <= std_logic_vector(mulresult(63 downto 32));

@@ -25,6 +25,7 @@ signal reg : std_logic_vector(e32_reg_maxbit downto 0);
 signal addop : std_logic_vector(e32_ex_maxbit downto 0);
 signal orop : std_logic_vector(e32_ex_maxbit downto 0);
 signal xorop : std_logic_vector(e32_ex_maxbit downto 0);
+signal xoraluop : std_logic_vector(e32_alu_maxbit downto 0);
 
 begin
 
@@ -46,7 +47,10 @@ orop<=e32_ex_sgn when opcode(2 downto 0)="111"
 
 -- Xor is overloaded when r=7; becomes the ldt instruction
 xorop<=e32_ex_load when opcode(2 downto 0)="111"
-	else e32_ex_q1toreg or e32_ex_flags; -- FIXME - need to overload register source too.
+	else e32_ex_q1toreg or e32_ex_flags;
+
+xoraluop<=e32_alu_nop when opcode(2 downto 0)="111"
+	else e32_alu_xor;
 
 
 -- ALU functions
@@ -72,7 +76,7 @@ with op select alu_func <=
 	e32_alu_and when e32_op_and,
 	e32_alu_or when e32_op_or,
 
-	e32_alu_xor when e32_op_xor,
+	xoraluop when e32_op_xor,
 	e32_alu_shl when e32_op_shl,
 	e32_alu_shr when e32_op_shr,
 	e32_alu_ror when e32_op_ror,
