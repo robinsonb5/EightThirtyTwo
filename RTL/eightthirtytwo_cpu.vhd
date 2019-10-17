@@ -81,12 +81,8 @@ signal d_run : std_logic;
 
 -- Execute stage signals:
 
-signal e_alu_func : std_logic_vector(e32_alu_maxbit downto 0);
-signal e_alu_reg1 : std_logic_vector(e32_reg_maxbit downto 0);
-signal e_alu_reg2 : std_logic_vector(e32_reg_maxbit downto 0);
 signal e_reg : std_logic_vector(2 downto 0);
 signal e_ex_op : std_logic_vector(e32_ex_maxbit downto 0);
-signal e_cond : std_logic;
 signal cond_minterms : std_logic_vector(3 downto 0);
 
 signal e_setpc : std_logic;
@@ -97,7 +93,6 @@ signal alu_d2 : std_logic_vector(31 downto 0);
 signal alu_op : std_logic_vector(e32_alu_maxbit downto 0);
 signal alu_q1 : std_logic_vector(31 downto 0);
 signal alu_q2 : std_logic_vector(31 downto 0);
-signal alu_sgn : std_logic;
 signal alu_req : std_logic;
 signal alu_carry : std_logic;
 signal alu_ack : std_logic;
@@ -106,15 +101,11 @@ signal alu_busy :std_logic;
 
 -- Memory stage signals
 
-signal m_alu_reg1 : std_logic_vector(e32_reg_maxbit downto 0);
-signal m_alu_reg2 : std_logic_vector(e32_reg_maxbit downto 0);
 signal m_reg : std_logic_vector(2 downto 0);
 signal m_ex_op : std_logic_vector(e32_ex_maxbit downto 0);
 
 -- Writeback stage signals
 
-signal w_alu_reg1 : std_logic_vector(e32_reg_maxbit downto 0);
-signal w_alu_reg2 : std_logic_vector(e32_reg_maxbit downto 0);
 signal w_reg : std_logic_vector(2 downto 0);
 signal w_ex_op : std_logic_vector(e32_ex_maxbit downto 0);
 
@@ -128,18 +119,30 @@ signal e_blocked : std_logic;
 
 begin
 
--- Decoder
 
-decoder: entity work.eightthirtytwo_decode
-port map(
-	clk => clk,
-	reset_n => reset_n,
-	opcode => f_op,
-	alu_func => d_alu_func,
-	alu_reg1 => d_alu_reg1,
-	alu_reg2 => d_alu_reg2,
-	ex_op => d_ex_op
-);
+-- Register file logic:
+
+f_nextpc<=std_logic_vector(unsigned(f_pc)+1);
+r_gpr_ra<=f_op(2 downto 0);
+
+r_gpr7(e32_fb_zero)<=flag_z;
+r_gpr7(e32_fb_carry)<=flag_c;
+r_gpr7(e32_fb_cond)<=flag_cond;
+r_gpr7(e32_fb_sgn)<=flag_sgn;
+r_gpr7(e32_pc_maxbit downto 0)<=f_nextpc;
+r_gpr7(27 downto e32_pc_maxbit+1)<=(others=>'X');
+
+with r_gpr_ra select r_gpr_q <=
+	r_gpr0 when "000",
+	r_gpr1 when "001",
+	r_gpr2 when "010",
+	r_gpr3 when "011",
+	r_gpr4 when "100",
+	r_gpr5 when "101",
+	r_gpr6 when "110",
+	r_gpr7 when "111",
+	(others=>'X') when others;	-- r7 is the program counter. FIXME - Needs to return f_pc+1
+
 
 
 -- Fetch/Load/Store unit is responsible for interfacing with main memory.
@@ -180,29 +183,19 @@ port map
 	ram_ack => ack
 );
 
--- Register file logic:
 
-f_nextpc<=std_logic_vector(unsigned(f_pc)+1);
-r_gpr_ra<=f_op(2 downto 0);
+-- Decoder
 
-r_gpr7(e32_fb_zero)<=flag_z;
-r_gpr7(e32_fb_carry)<=flag_c;
-r_gpr7(e32_fb_cond)<=flag_cond;
-r_gpr7(e32_fb_sgn)<=flag_sgn;
-r_gpr7(e32_pc_maxbit downto 0)<=f_nextpc;
-r_gpr7(27 downto e32_pc_maxbit+1)<=(others=>'X');
-
-with r_gpr_ra select r_gpr_q <=
-	r_gpr0 when "000",
-	r_gpr1 when "001",
-	r_gpr2 when "010",
-	r_gpr3 when "011",
-	r_gpr4 when "100",
-	r_gpr5 when "101",
-	r_gpr6 when "110",
-	r_gpr7 when "111",
-	(others=>'X') when others;	-- r7 is the program counter. FIXME - Needs to return f_pc+1
-
+decoder: entity work.eightthirtytwo_decode
+port map(
+	clk => clk,
+	reset_n => reset_n,
+	opcode => f_op,
+	alu_func => d_alu_func,
+	alu_reg1 => d_alu_reg1,
+	alu_reg2 => d_alu_reg2,
+	ex_op => d_ex_op
+);
 
 
 -- Execute
@@ -216,7 +209,7 @@ port map(
 	d1 => alu_d1,
 	d2 => alu_d2,
 	op => alu_op,
-	sgn => alu_sgn,
+	sgn => flag_sgn,
 	req => alu_req,
 
 	q1 => alu_q1,
@@ -229,13 +222,6 @@ port map(
 -- Load/store
 
 ls_req<=ls_req_r and not ls_ack;
-
-
-
-
-
--- Store stage
-
 
 
 -- Hazard / stall logic.
@@ -287,8 +273,12 @@ hazard_load<='1' when
 		and (d_alu_reg1(e32_regb_tmp)='1' or d_alu_reg2(e32_regb_tmp)='1')
 	else '0';
 
+
+-- We have a flags hazard when the E stage is executing either the sgn or cond instructions
+-- and anything still in the pipeline is writing to the flags.
 hazard_flags<='1' when
-	e_ex_op(e32_exb_cond)='1' and (m_ex_op(e32_exb_flags)='1' or w_ex_op(e32_exb_load)='1')
+	(e_ex_op(e32_exb_cond)='1' or e_ex_op(e32_exb_sgn)='1')
+		and (m_ex_op(e32_exb_flags)='1' or w_ex_op(e32_exb_load)='1')
 	else '0';
 
 -- ALU busy logic:
@@ -299,18 +289,9 @@ hazard_flags<='1' when
 -- While the ALU is busy the PC can't increment, however we do want mem ops to be
 -- triggered (once), then the op to handed over to M when the op finishes.
 
-e_blocked<=hazard_tmp or hazard_reg or hazard_pc or hazard_load or (alu_busy and not alu_ack);
+e_blocked<=hazard_tmp or hazard_reg or hazard_pc or hazard_load or hazard_flags
+	or (alu_busy and not alu_ack);
 
---	alu_op<=e_alu_func;
---	alu_imm<=f_op(5 downto 0);
---	alu_d1<=r_tmp when e_alu_reg1(e32_regb_tmp)='1' else
---		f_pc when e_alu_reg1(e32_regb_pc)='1' else
---		r_gpr_q;
---		
---	alu_d2<=r_tmp when e_alu_reg2(e32_regb_tmp)='1' else
---		f_pc when e_alu_reg2(e32_regb_pc)='1' else
---		r_gpr_q;
---	alu_req<='1';
 
 -- Condition minterms:
 
@@ -326,8 +307,10 @@ begin
 		e_setpc<='1';
 		ls_req_r<='0';
 		ls_wr<='0';
-		e_cond<='0';
-		alu_sgn<='0';
+		flag_cond<='0';
+		flag_sgn<='0';
+		flag_c<='0';
+		flag_z<='0';
 		alu_busy<='0';
 		e_ex_op<=e32_ex_bubble;
 	elsif rising_edge(clk) then
@@ -378,9 +361,6 @@ begin
 				e_ex_op<=e32_ex_bubble;
 			else
 				f_pc<=f_nextpc;
-				e_alu_func<=d_alu_func;
-				e_alu_reg1<=d_alu_reg1;
-				e_alu_reg2<=d_alu_reg2;
 				e_reg<=f_op(2 downto 0);
 				e_ex_op<=d_ex_op;
 			end if;
@@ -389,8 +369,6 @@ begin
 			-- Mem stage
 
 			-- Forward context from E to M
-			m_alu_reg1<=e_alu_reg1;
-			m_alu_reg2<=e_alu_reg2;
 			m_reg<=e_reg;
 			m_ex_op<=e_ex_op;
 
@@ -398,6 +376,7 @@ begin
 
 			-- Record flags from ALU
 			if m_ex_op(e32_exb_flags)='1' then
+				flag_sgn<='0'; -- Any ALU op that sets flags will clear the sign modifier.
 				flag_c<=alu_carry;
 				if alu_q1=X"00000000" then
 					flag_z<='1';
@@ -460,8 +439,6 @@ begin
 
 			if ls_req_r='0' or ls_ack='1' then
 				if m_ex_op(e32_exb_load)='1' or m_ex_op(e32_exb_store)='1' then
-					w_alu_reg1<=m_alu_reg1;
-					w_alu_reg2<=m_alu_reg2;
 					w_reg<=m_reg;
 					w_ex_op<=m_ex_op;
 				else
@@ -478,21 +455,13 @@ begin
 			-- a way of signalling load target.  All other loads go to tmp.
 			if w_ex_op(e32_exb_load)='1' and ls_ack='1' then
 				ls_req_r<='0';
---				if w_alu_reg2(e32_regb_tmp)='1' then
-					r_tmp<=ls_q;
---				elsif w_alu_reg2(e32_regb_pc)='1' then
---					f_pc<=ls_q;
---					e_setpc<='1';
---				else
---					r_gpr_wa<=w_reg;
---					r_gpr_wr<='1';
---				end if;		
+				r_tmp<=ls_q;
 			end if;
 
 			
 			-- Conditional execution:
 
-			if e_cond='1' then	-- advance PC but replace instructions with bubbles
+			if flag_cond='1' then	-- advance PC but replace instructions with bubbles
 				e_ex_op<=e32_ex_bubble;
 				m_ex_op<=e32_ex_bubble;
 				if d_ex_op(e32_exb_q1toreg)='1' and f_op(2 downto 0)="111" then -- Writing to PC?
@@ -503,12 +472,15 @@ begin
 
 			if e_ex_op(e32_exb_cond)='1' then
 				if (e_reg(1)&e_reg and cond_minterms) = "0000" then
-					e_cond<='1';
+					flag_cond<='1';
 				else
-					e_cond<='0';
+					flag_cond<='0';
 				end if;			
 			end if;
 
+			if e_ex_op(e32_exb_sgn)='1' then
+				flag_sgn<='1';
+			end if;
 			
 		end if;
 		

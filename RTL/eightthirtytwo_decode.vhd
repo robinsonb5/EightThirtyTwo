@@ -21,7 +21,6 @@ end entity;
 architecture behavoural of eightthirtytwo_decode is
 
 signal op : std_logic_vector(7 downto 0);
-signal regpc : std_logic;
 signal reg : std_logic_vector(e32_reg_maxbit downto 0);
 signal addop : std_logic_vector(e32_ex_maxbit downto 0);
 signal orop : std_logic_vector(e32_ex_maxbit downto 0);
@@ -48,6 +47,7 @@ orop<=e32_ex_sgn when opcode(2 downto 0)="111"
 -- Xor is overloaded when r=7; becomes the ldt instruction
 xorop<=e32_ex_load when opcode(2 downto 0)="111"
 	else e32_ex_q1toreg or e32_ex_flags; -- FIXME - need to overload register source too.
+
 
 -- ALU functions
 
@@ -89,7 +89,6 @@ with op select alu_func <=
 -- Register to ALU mappings:
 
 with op select alu_reg1 <=
---	opcode(5 downto 0) when e32_op_li,
 	e32_reg_tmp when e32_op_mr,
 	e32_reg_tmp when e32_op_ldidx,
 	e32_reg_tmp when e32_op_stmpdec,
@@ -158,7 +157,7 @@ with op select alu_reg2 <=
 	e32_reg_dontcare when others;
 
 	
--- FIXME - ldtmpinc's result goes to regfile - how to deal with this?
+-- FIXME - if we implement ldtmpinc, its result has to go to the regfile. How to deal with this?
 
 -- Some ALU operations take more than one cycle; indicate this with exb_waitalu
 
@@ -199,16 +198,5 @@ with op select ex_op <=
 
 	(e32_ex_q1totmp or e32_ex_flags) when e32_op_addt,
 	(others => 'X') when others;
-
-
--- The following instructions can access the Program Counter.
-with op select regpc <=
-	'1' when e32_op_mr,
-	'1' when e32_op_sub,
-	'1' when e32_op_ldinc,
-	'1' when e32_op_exg,
-	'1' when e32_op_add,
-	'1' when e32_op_addt,
-	'0' when others;
 
 end architecture;

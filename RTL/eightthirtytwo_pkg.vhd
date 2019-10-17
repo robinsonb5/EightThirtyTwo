@@ -100,7 +100,7 @@ constant e32_exb_flags : integer := 7;
 constant e32_exb_halfword : integer := 8;
 constant e32_exb_byte : integer := 9;
 constant e32_exb_waitalu : integer := 10;
-constant e32_exb_sign : integer := 11;
+constant e32_exb_sgn : integer := 11;
 
 constant e32_ex_maxbit : integer := 11;
 
