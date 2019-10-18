@@ -289,7 +289,12 @@ hazard_flags<='1' when
 -- While the ALU is busy the PC can't increment, however we do want mem ops to be
 -- triggered (once), then the op to handed over to M when the op finishes.
 
-e_blocked<=(not f_op_valid) or hazard_tmp or hazard_reg or hazard_pc or hazard_load or hazard_flags;
+e_blocked<=(not f_op_valid)
+				or hazard_tmp
+				or hazard_reg
+				or hazard_pc
+				or hazard_load
+				or hazard_flags;
 
 -- Condition minterms:
 
@@ -337,11 +342,11 @@ begin
 			end if;
 
 			if d_alu_func=e32_alu_li then
-				alu_req<='1';
+				alu_req<=not flag_cond;
 			end if;
 			if (d_ex_op(e32_exb_postinc)='1' or d_ex_op(e32_exb_waitalu)='1') and alu_busy='0' and e_blocked='0' then
-				alu_req<='1';
-				alu_busy<='1';
+				alu_req<=not flag_cond;
+				alu_busy<=not flag_cond;
 			end if;
 			if alu_ack='1' then
 				alu_busy<='0';
@@ -358,6 +363,7 @@ begin
 		-- address in q1 in successive cycles.  We need to use the first one to trigger the
 		-- load/store operation and the second one to update the address register.
 		
+		-- FIXME - the end of a cond block causes problems here.
 		if e_blocked='1' or (d_ex_op(e32_exb_waitalu)='1' and alu_ack='0') then
 			if e_ex_op(e32_exb_postinc)='1' and alu_req='1' then -- This detects the second cycle of a load/store with postincrement.
 				e_ex_op<=d_ex_op;
@@ -365,7 +371,7 @@ begin
 				e_ex_op<=e32_ex_bubble;
 			end if;
 		else
-			if d_ex_op(e32_exb_postinc)='0' or alu_req='1' then
+			if d_ex_op(e32_exb_postinc)='0' or alu_req='1' then	-- Stall for 1 cycle if postinc.
 				f_pc<=f_nextpc;
 			end if;
 			e_reg<=f_op(2 downto 0);
@@ -378,9 +384,6 @@ begin
 		if m_ex_op(e32_exb_waitalu)='0' or alu_busy='0' then
 			m_reg<=e_reg;
 			m_ex_op<=e_ex_op;
-		end if;
-		if e_ex_op(e32_exb_postinc)='1' then
-			m_ex_op(e32_exb_load)<=e_ex_op(e32_exb_load);
 		end if;
 
 
@@ -397,22 +400,23 @@ begin
 		
 		
 		-- Load / store operations.
-		
-		ls_halfword<=m_ex_op(e32_exb_halfword);
-		ls_byte<=m_ex_op(e32_exb_halfword);
-		
+			
 		-- If we have a postinc operation we need to avoid triggering the load/store a
 		-- second time, so we filter on ls_req='0'
 		
 		if m_ex_op(e32_exb_load)='1' and ls_req_r='0' then -- and  (m_ex_op(e32_exb_waitalu)='0' or alu_busy='1') then
 			ls_addr<=alu_q1;
 			ls_d<=alu_q2;
+			ls_halfword<=m_ex_op(e32_exb_halfword);
+			ls_byte<=m_ex_op(e32_exb_byte);
 			ls_req_r<='1';
 		end if;			
 
 		if m_ex_op(e32_exb_store)='1' and ls_req_r='0' then
 			ls_addr<=alu_q1;
 			ls_d<=alu_q2;
+			ls_halfword<=m_ex_op(e32_exb_halfword);
+			ls_byte<=m_ex_op(e32_exb_byte);
 			ls_wr<='1';
 			ls_req_r<='1';
 		end if;			

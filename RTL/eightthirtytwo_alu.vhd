@@ -82,6 +82,7 @@ process(clk,reset_n)
 begin
 	if reset_n='0' then
 		busyflag<='0';
+		carry<='0';
 	elsif rising_edge(clk) then
 
 		if busyflag='1' then

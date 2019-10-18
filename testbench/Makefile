@@ -26,7 +26,8 @@ init: force
 	# /usr/local/lib/ghdl/ieee/v93/../../src/ieee/numeric_std.v93
 	# /usr/local/lib/ghdl/ieee/v93/../../src/ieee/numeric_std-body.v93
 	$(GHDL) -a $(GHDLFLAGS) ../romgen/rom_pkg.vhd
-	$(GHDL) -a $(GHDLFLAGS) helloworld_ROM.vhd
+	$(GHDL) -a $(GHDLFLAGS) ../Assembler/HelloWorld_ROM.vhd
+	$(GHDL) -a $(GHDLFLAGS) ../Assembler/alutest_ROM.vhd
 	$(GHDL) -a $(GHDLFLAGS) ../RTL/eightthirtytwo_pkg.vhd
 	$(GHDL) -a $(GHDLFLAGS) ../RTL/eightthirtytwo_decode.vhd
 	$(GHDL) -a $(GHDLFLAGS) ../RTL/eightthirtytwo_aligner.vhd
