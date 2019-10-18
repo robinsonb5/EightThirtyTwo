@@ -289,7 +289,7 @@ hazard_flags<='1' when
 -- While the ALU is busy the PC can't increment, however we do want mem ops to be
 -- triggered (once), then the op to handed over to M when the op finishes.
 
-e_blocked<=hazard_tmp or hazard_reg or hazard_pc or hazard_load or hazard_flags;
+e_blocked<=(not f_op_valid) or hazard_tmp or hazard_reg or hazard_pc or hazard_load or hazard_flags;
 
 -- Condition minterms:
 
@@ -316,7 +316,7 @@ begin
 		e_setpc<='0';
 		alu_req<='0';
 
-		if d_run='1' and f_op_valid='1' then
+		if f_op_valid='1' then
 
 			-- Decode stage:
 
@@ -326,21 +326,20 @@ begin
 			alu_op<=d_alu_func;
 			if d_alu_reg1(e32_regb_tmp)='1' then
 				alu_d1<=r_tmp;
---			elsif d_alu_reg1(e32_regb_pc)='1' then
---				alu_d1<=nextpc;
 			else
 				alu_d1<=r_gpr_q;
 			end if;
 
 			if d_alu_reg2(e32_regb_tmp)='1' then
 				alu_d2<=r_tmp;
---			elsif d_alu_reg2(e32_regb_pc)='1' then
---				alu_d2<=std_logic_vector(unsigned(f_pc)+1);
 			else
 				alu_d2<=r_gpr_q;
 			end if;
 
-			if d_ex_op(e32_exb_waitalu)='1' and alu_busy='0' and e_blocked='0' then
+			if d_alu_func=e32_alu_li then
+				alu_req<='1';
+			end if;
+			if (d_ex_op(e32_exb_postinc)='1' or d_ex_op(e32_exb_waitalu)='1') and alu_busy='0' and e_blocked='0' then
 				alu_req<='1';
 				alu_busy<='1';
 			end if;
@@ -348,139 +347,166 @@ begin
 				alu_busy<='0';
 			end if;
 			
-			-- If we have a hazard or we're blocked by conditional execution
-			-- then we insert a bubble,
-			-- otherwise advance the PC, forward context from D to E.
-
-			if e_blocked='1' or (d_ex_op(e32_exb_waitalu)='1' and alu_ack='0') then
-				e_ex_op<=e32_ex_bubble;
-			else
---				if d_ex_op(e32_exb_waitalu)='0' or alu_ack='1' then
-					f_pc<=f_nextpc;
---				end if;
-				e_reg<=f_op(2 downto 0);
-				e_ex_op<=d_ex_op;
-			end if;
+		end if;
 			
-			-- Mem stage
+		-- If we have a hazard or we're blocked by conditional execution
+		-- then we insert a bubble,
+		-- otherwise advance the PC, forward context from D to E.
 
-			-- Forward context from E to M
-			if m_ex_op(e32_exb_waitalu)='0' or alu_busy='0' then
-				m_reg<=e_reg;
-				m_ex_op<=e_ex_op;
-			end if;
-
-			-- FIXME - how to handle predec / postinc addresses?
-
-			-- Record flags from ALU
-			if m_ex_op(e32_exb_flags)='1' then
-				flag_sgn<='0'; -- Any ALU op that sets flags will clear the sign modifier.
-				flag_c<=alu_carry;
-				if alu_q1=X"00000000" then
-					flag_z<='1';
-				else
-					flag_z<='0';
-				end if;
-			end if;
-			
-			ls_halfword<=m_ex_op(e32_exb_halfword);
-			ls_byte<=m_ex_op(e32_exb_halfword);
-			if m_ex_op(e32_exb_load)='1' then -- and  (m_ex_op(e32_exb_waitalu)='0' or alu_busy='1') then
-				ls_addr<=alu_q1;
-				ls_req_r<='1';
-			end if;			
-
-			if m_ex_op(e32_exb_store)='1' then
-				ls_addr<=alu_q1;
-				ls_d<=alu_q2;
-				ls_wr<='1';
-				ls_req_r<='1';
-			end if;			
+		-- We have a nasty hack here for postincrement.  Should find a better solution for this
+		-- long-term.  In post-increment mode the ALU outputs the pre- and post-incremented
+		-- address in q1 in successive cycles.  We need to use the first one to trigger the
+		-- load/store operation and the second one to update the address register.
 		
-			-- FIXME - Need to make sure ALU results are correctly stored
-			-- for all ldinc / stdec variants
-			if m_ex_op(e32_exb_q1totmp)='1' then
-				r_tmp<=alu_q1;
-			elsif m_ex_op(e32_exb_q2totmp)='1' then
-				r_tmp<=alu_q2;
-			end if;
-
-			if m_ex_op(e32_exb_q1toreg)='1' then
-				case m_reg(2 downto 0) is
-					when "000" =>
-						r_gpr0<=alu_q1;
-					when "001" =>
-						r_gpr1<=alu_q1;
-					when "010" =>
-						r_gpr2<=alu_q1;
-					when "011" =>
-						r_gpr3<=alu_q1;
-					when "100" =>
-						r_gpr4<=alu_q1;
-					when "101" =>
-						r_gpr5<=alu_q1;
-					when "110" =>
-						r_gpr6<=alu_q1;
-					when "111" =>
-						e_setpc<='1';
-						f_pc<=alu_q1(e32_pc_maxbit downto 0);
-						flag_z<=alu_q1(e32_fb_zero);
-						flag_c<=alu_q1(e32_fb_carry);
-						flag_cond<=alu_q1(e32_fb_cond);
-						flag_sgn<=alu_q1(e32_fb_sgn);
-					when others =>
-						null;
-				end case;
-			end if;
-
-			-- Writeback stage
-
-			if ls_req_r='0' or ls_ack='1' then
-				if m_ex_op(e32_exb_load)='1' or m_ex_op(e32_exb_store)='1' then
-					w_reg<=m_reg;
-					w_ex_op<=m_ex_op;
-				else
-					w_ex_op<=e32_ex_bubble;
-				end if;
-			end if;
-
-			if w_ex_op(e32_exb_store)='1' and ls_ack='1' then
-				ls_req_r<='0';
-			end if;			
-
-			-- FIXME - stall pipeline based on write to PC or write to reg
-			-- FIXME - if we're going to support ldtmpinc we need to have
-			-- a way of signalling load target.  All other loads go to tmp.
-			if w_ex_op(e32_exb_load)='1' and ls_ack='1' then
-				ls_req_r<='0';
-				r_tmp<=ls_q;
-			end if;
-
-			
-			-- Conditional execution:
-
-			if flag_cond='1' then	-- advance PC but replace instructions with bubbles
+		if e_blocked='1' or (d_ex_op(e32_exb_waitalu)='1' and alu_ack='0') then
+			if e_ex_op(e32_exb_postinc)='1' and alu_req='1' then -- This detects the second cycle of a load/store with postincrement.
+				e_ex_op<=d_ex_op;
+			else
 				e_ex_op<=e32_ex_bubble;
-				m_ex_op<=e32_ex_bubble;
-				if d_ex_op(e32_exb_cond)='1' or
-								(d_ex_op(e32_exb_q1toreg)='1' and f_op(2 downto 0)="111") then -- Writing to PC?
-					e_ex_op<=e32_ex_cond;
-				end if;
 			end if;
+		else
+			if d_ex_op(e32_exb_postinc)='0' or alu_req='1' then
+				f_pc<=f_nextpc;
+			end if;
+			e_reg<=f_op(2 downto 0);
+			e_ex_op<=d_ex_op;
+		end if;
+		
+		-- Mem stage
+
+		-- Forward context from E to M
+		if m_ex_op(e32_exb_waitalu)='0' or alu_busy='0' then
+			m_reg<=e_reg;
+			m_ex_op<=e_ex_op;
+		end if;
+		if e_ex_op(e32_exb_postinc)='1' then
+			m_ex_op(e32_exb_load)<=e_ex_op(e32_exb_load);
+		end if;
 
 
-			if e_ex_op(e32_exb_cond)='1' then
-				if (e_reg(1)&e_reg and cond_minterms) = "0000" then
-					flag_cond<='1';
-				else
-					flag_cond<='0';
-				end if;			
+		-- Record flags from ALU
+		if m_ex_op(e32_exb_flags)='1' then
+			flag_sgn<='0'; -- Any ALU op that sets flags will clear the sign modifier.
+			flag_c<=alu_carry;
+			if alu_q1=X"00000000" then
+				flag_z<='1';
+			else
+				flag_z<='0';
 			end if;
+		end if;
+		
+		
+		-- Load / store operations.
+		
+		ls_halfword<=m_ex_op(e32_exb_halfword);
+		ls_byte<=m_ex_op(e32_exb_halfword);
+		
+		-- If we have a postinc operation we need to avoid triggering the load/store a
+		-- second time, so we filter on ls_req='0'
+		
+		if m_ex_op(e32_exb_load)='1' and ls_req_r='0' then -- and  (m_ex_op(e32_exb_waitalu)='0' or alu_busy='1') then
+			ls_addr<=alu_q1;
+			ls_d<=alu_q2;
+			ls_req_r<='1';
+		end if;			
 
-			if e_ex_op(e32_exb_sgn)='1' then
-				flag_sgn<='1';
+		if m_ex_op(e32_exb_store)='1' and ls_req_r='0' then
+			ls_addr<=alu_q1;
+			ls_d<=alu_q2;
+			ls_wr<='1';
+			ls_req_r<='1';
+		end if;			
+
+		
+		-- Either output of the ALU can go to tmp.
+
+		if m_ex_op(e32_exb_q1totmp)='1' then
+			r_tmp<=alu_q1;
+		elsif m_ex_op(e32_exb_q2totmp)='1' then
+			r_tmp<=alu_q2;
+		end if;
+
+		
+		-- Only the first output of the ALU can be written to a GPR
+		-- but we need to ensure that it happens on the second cycle of
+		-- a postincrement operation.
+
+		if m_ex_op(e32_exb_q1toreg)='1' and (m_ex_op(e32_exb_postinc)='0' or alu_busy='0') then
+			case m_reg(2 downto 0) is
+				when "000" =>
+					r_gpr0<=alu_q1;
+				when "001" =>
+					r_gpr1<=alu_q1;
+				when "010" =>
+					r_gpr2<=alu_q1;
+				when "011" =>
+					r_gpr3<=alu_q1;
+				when "100" =>
+					r_gpr4<=alu_q1;
+				when "101" =>
+					r_gpr5<=alu_q1;
+				when "110" =>
+					r_gpr6<=alu_q1;
+				when "111" =>
+					e_setpc<='1';
+					f_pc<=alu_q1(e32_pc_maxbit downto 0);
+					flag_z<=alu_q1(e32_fb_zero);
+					flag_c<=alu_q1(e32_fb_carry);
+					flag_cond<=alu_q1(e32_fb_cond);
+					flag_sgn<=alu_q1(e32_fb_sgn);
+				when others =>
+					null;
+			end case;
+		end if;
+
+
+		-- Forward operation to the load/store receive stage.
+
+		if ls_req_r='0' or ls_ack='1' then
+			if m_ex_op(e32_exb_load)='1' or m_ex_op(e32_exb_store)='1' then
+				w_reg<=m_reg;
+				w_ex_op<=m_ex_op;
+			else
+				w_ex_op<=e32_ex_bubble;
 			end if;
-			
+		end if;
+
+		if w_ex_op(e32_exb_store)='1' and ls_ack='1' then
+			ls_req_r<='0';
+		end if;			
+
+		if w_ex_op(e32_exb_load)='1' and ls_ack='1' then
+			ls_req_r<='0';
+			r_tmp<=ls_q;
+		end if;
+
+		
+		-- Conditional execution:
+		-- If the cond flag is set, we replace anything in the E and M stages with bubbles.
+		-- If we encounter a new cond instruction in the stream we forward it to the E stage.
+		-- If we encounter an instruction writing to PC then we replace it with cond,
+		-- which, since the operand will be "111", equates to cond EX, i.e. full execution.
+
+		if flag_cond='1' then	-- advance PC but replace instructions with bubbles
+			e_ex_op<=e32_ex_bubble;
+			m_ex_op<=e32_ex_bubble;
+			if d_ex_op(e32_exb_cond)='1' or
+					(d_ex_op(e32_exb_q1toreg)='1' and f_op(2 downto 0)="111") then -- Writing to PC?
+				e_ex_op<=e32_ex_cond;
+			end if;
+		end if;
+
+
+		if e_ex_op(e32_exb_cond)='1' then
+			if (e_reg(1)&e_reg and cond_minterms) = "0000" then
+				flag_cond<='1';
+			else
+				flag_cond<='0';
+			end if;			
+		end if;
+
+		if e_ex_op(e32_exb_sgn)='1' then
+			flag_sgn<='1';
 		end if;
 		
 	end if;

@@ -90,7 +90,7 @@ constant e32_reg_dontcare : std_logic_vector(e32_reg_maxbit downto 0) := (others
 
 -- Execute stage operations:
 constant e32_exb_cond : integer := 0;
-constant e32_exb_li : integer := 1;
+constant e32_exb_postinc : integer := 1;
 constant e32_exb_load : integer := 2;
 constant e32_exb_store : integer := 3;
 constant e32_exb_q1toreg : integer := 4;
@@ -106,7 +106,7 @@ constant e32_ex_maxbit : integer := 11;
 
 constant e32_ex_bubble : std_logic_vector(e32_ex_maxbit downto 0) := "000000000000";
 constant e32_ex_cond : std_logic_vector(e32_ex_maxbit downto 0) := "000000000001";
-constant e32_ex_li : std_logic_vector(e32_ex_maxbit downto 0) := "000000000010";
+constant e32_ex_postinc : std_logic_vector(e32_ex_maxbit downto 0) := "000000000010";
 constant e32_ex_load : std_logic_vector(e32_ex_maxbit downto 0) := "000000000100";
 constant e32_ex_store : std_logic_vector(e32_ex_maxbit downto 0) := "000000001000";
 constant e32_ex_q1toreg : std_logic_vector(e32_ex_maxbit downto 0) := "000000010000";

@@ -177,15 +177,15 @@ with op select ex_op <=
 
 	e32_ex_load when e32_op_ld,
 	(e32_ex_q1toreg or e32_ex_flags) when e32_op_sub,
-	(e32_ex_store or e32_ex_q1toreg or e32_ex_byte) when e32_op_stbinc,
+	(e32_ex_postinc or e32_ex_store or e32_ex_q1toreg or e32_ex_byte) when e32_op_stbinc,
 	(e32_ex_store or e32_ex_q1toreg) when e32_op_stdec,
 
-	(e32_ex_load or e32_ex_q1toreg or e32_ex_waitalu) when e32_op_ldinc,
+	(e32_ex_postinc or e32_ex_load or e32_ex_q1toreg) when e32_op_ldinc,
 	e32_ex_load when e32_op_ldidx,
-	(e32_ex_load or e32_ex_q1toreg or e32_ex_byte or e32_ex_waitalu) when e32_op_ldbinc,
+	(e32_ex_postinc or e32_ex_load or e32_ex_q1toreg or e32_ex_byte) when e32_op_ldbinc,
 
 	(e32_ex_store or e32_ex_q1totmp) when e32_op_stmpdec,
-	(e32_ex_li or e32_ex_q2totmp) when e32_op_li,
+	e32_ex_q2totmp when e32_op_li,
 	(e32_ex_q1toreg or e32_ex_flags) when e32_op_and,
 --	(e32_ex_q1toreg or e32_ex_flags) when e32_op_or,
 	orop when e32_op_or,

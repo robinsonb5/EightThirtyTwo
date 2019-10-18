@@ -153,7 +153,7 @@ begin
 				q2 <= std_logic_vector(mulresult(63 downto 32));
 
 			when e32_alu_li =>
-				immediatestreak<='1';
+				immediatestreak<=req;
 				if immediatestreak='0' then
 					q2(31 downto 6)<=(others=>imm(5));
 				else
