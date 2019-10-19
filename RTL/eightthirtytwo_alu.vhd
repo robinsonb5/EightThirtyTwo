@@ -30,7 +30,6 @@ architecture rtl of eightthirtytwo_alu is
 signal sgn_mod : std_logic;
 signal d2_2 : std_logic_vector(31 downto 0);
 signal busyflag : std_logic;
-signal alu_ack : std_logic;
 signal addresult : unsigned(33 downto 0);
 signal mulresult : unsigned(63 downto 0);
 signal immresult : std_logic_vector(31 downto 0);
@@ -74,7 +73,7 @@ with op select d2_2 <=
 
 sublsb<='1' when op=e32_alu_sub else '0';
 
-ack <= shiftack or busyflag; -- alu_ack;
+ack <= shiftack or busyflag;
 
 addresult <= unsigned('0'&d1&sublsb) + unsigned('0'&d2_2&sublsb);
 
@@ -84,12 +83,6 @@ begin
 		busyflag<='0';
 		carry<='0';
 	elsif rising_edge(clk) then
-
-		if busyflag='1' then
-			alu_ack<='1';
-		else
-			alu_ack<='0';
-		end if;
 
 		immediatestreak<='0';
 	

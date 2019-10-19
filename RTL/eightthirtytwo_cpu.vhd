@@ -77,7 +77,6 @@ signal d_alu_func : std_logic_vector(e32_alu_maxbit downto 0);
 signal d_alu_reg1 : std_logic_vector(e32_reg_maxbit downto 0);
 signal d_alu_reg2 : std_logic_vector(e32_reg_maxbit downto 0);
 signal d_ex_op : std_logic_vector(e32_ex_maxbit downto 0);
-signal d_run : std_logic;
 
 -- Execute stage signals:
 
@@ -108,7 +107,6 @@ signal m_ex_op : std_logic_vector(e32_ex_maxbit downto 0);
 
 -- Writeback stage signals
 
-signal w_reg : std_logic_vector(2 downto 0);
 signal w_ex_op : std_logic_vector(e32_ex_maxbit downto 0);
 
 -- hazard / stall signals
@@ -266,7 +264,6 @@ hazard_reg<='1' when
 hazard_pc<='1' when
 	(e_ex_op(e32_exb_q1toreg)='1' and e_reg="111")
 		or (m_ex_op(e32_exb_q1toreg)='1' and m_reg="111")
---		or (w_ex_op(e32_exb_q1toreg)='1' and w_reg="111") -- w stage never touches regs
 	else '0';
 
 -- FIXME - this won't work if we implement ltmpinc since we'll then be writing to regfile in W.
@@ -321,7 +318,6 @@ begin
 		e_ex_op<=e32_ex_bubble;
 		e_continue<='0';
 	elsif rising_edge(clk) then
-		d_run<='1';
 		e_setpc<='0';
 		alu_req<='0';
 
@@ -476,7 +472,6 @@ begin
 
 		if ls_req_r='0' or ls_ack='1' then
 			if m_ex_op(e32_exb_load)='1' or m_ex_op(e32_exb_store)='1' then
-				w_reg<=m_reg;
 				w_ex_op<=m_ex_op;
 			else
 				w_ex_op<=e32_ex_bubble;
