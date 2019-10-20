@@ -10,14 +10,14 @@ long, with only three bits devoted to the operand.  This allows one of
 eight general purpose registers to be selected, while a ninth "tmp" register
 provides an implicit second operand.
 
-##Registers
+## Registers
 * r0 - r6 - General Purpose Registers.  R6 is suggested as a stack pointer
 but nothing in the ISA enforces this.
 * r7 - Program Counter.  Only bits 0 - 27 of this are used as an address;
 bits 28-31 are used interally as flags to simplify context switching.
 * tmp - Implicit second operand
 
-##Conditional execution
+## Conditional execution
 There are no conditional branch instructions; instead we have a "cond"
 instruction which predicates the following instructions upon a condition
 being met.  Valid conditions are:
@@ -30,7 +30,7 @@ being met.  Valid conditions are:
 * SGT - execute only if the last result was strictly greater than zero.
 * GE - execute only if the last result was greater than or equal to zero.
 
-##Flags
+## Flags
 * Zero - set if the result of the last ALU operation or memory load was zero.
 * Carry - set if the last ALU operation overflowed.  In order to accommodate
 both signed and unsigned comparisons the meaning of the carry bit can be
@@ -41,7 +41,7 @@ instruction or by passing an instruction that would have changed program flow
 by writing to r7.
 * Sign - set by the "sgn" instruction, and cleared by the next ALU instruction.
 
-##Program counter and flow control
+## Program counter and flow control
 There are no branch, jump or return instructions; instead r7 is designated as
 the Program Counter.  Reads from r7 return the current PC 1, i.e. the next
 instruction to be executed; the instruction "exg r7" will jump to a 
@@ -50,16 +50,16 @@ tmp.  The add instruction is special-cased for r7 - it normally leaves tmp
 untouched, but for r7 it places its previous value in tmp - again providing
 a return address for a PC-relative branch.
 
-##Instruction set
+## Instruction set
 The ISA has 27 instructions, most of which take one nominated operand and
 one implicit operand:
 
-###Move instructions
+### Move instructions
 * mr <rn>  -  Move the contents of the temp register to <rn>
 * mt <rn>  -  Move the contents of <rn> to the temp register
 * exg <rn>  -  Move the contents of <rn> to the temp register
 
-###Misc instructions
+### Misc instructions
 * li <imm>  -  Load a 6-bit immediate value to the temp register,
 sign-extended to 32 bits.  If the previous instruction was also "li" then
 tmp is shifted six bits left and the new immediate value is or-ed into the
@@ -73,7 +73,7 @@ have written to r7.
 * sgn  -  Sets the sgn flag, which modifies the "cmp", "shr" and "mul"
 instructions.  Any subsequent ALU instruction will clear it again.
 
-###Load instructions
+### Load instructions
 All load instructions will set or clear the zero flag based on the loaded
 value.
 * ld <rn>  -  Loads from the address in <rn> and writes the result to tmp.
@@ -85,7 +85,7 @@ writes the result to tmp, increments <rn> by 1.
 * ldidx <rn>  -   Loads from the sum of <rn> and tmp, writes the result to
 tmp.
 
-###Store instructions
+### Store instructions
 * st <rn>  -  Stores the contents of tmp to the address in <rn>.
 * sth  <rn>  -  Stores the lower 16-bits of tmp to the address in <rn>.
 * stdec <rn>  -  Stores the contents of tmp to the address in <rn>, decrements
@@ -95,7 +95,7 @@ increments <rn>
 * stmpdec <rn>  -  Stores the contents of <rn> to the address in tmp,
 decrements tmp.
 
-###Arithmetic, Bitwise and Shift instructions
+### Arithmetic, Bitwise and Shift instructions
 All ALU instructions set or clear the Zero flag based on the result.
 Add, addt, sub, cmp and mul will also set or clear the Carry flag.
 
