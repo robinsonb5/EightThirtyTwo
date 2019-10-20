@@ -251,7 +251,11 @@ begin
 
 			when LS_STORE =>
 				ram_addr_r<=ls_addr(31 downto 2);
-				ram_bytesel<=ls_mask;
+--				ram_bytesel<=ls_mask;
+				ram_bytesel(3)<=ls_mask(0);
+				ram_bytesel(2)<=ls_mask(1);
+				ram_bytesel(1)<=ls_mask(2);
+				ram_bytesel(0)<=ls_mask(3);
 				ram_req_r<='1';
 				ram_wr<='1';
 				if ram_ack='1' then
@@ -262,7 +266,11 @@ begin
 						ls_state<=LS_WAIT;
 					else
 						ram_addr_r<=std_logic_vector(ls_addrplus4(31 downto 2));
-						ram_bytesel<=ls_mask2;
+						ram_bytesel(3)<=ls_mask2(0);
+						ram_bytesel(2)<=ls_mask2(1);
+						ram_bytesel(1)<=ls_mask2(2);
+						ram_bytesel(0)<=ls_mask2(3);
+--						ram_bytesel<=ls_mask2;
 						ram_req_r<='1';
 						ram_wr<='1';
 						ls_state<=LS_STORE2;
