@@ -64,7 +64,7 @@ with op select alu_func <=
 	e32_alu_nop when e32_op_ld,
 	e32_alu_sub when e32_op_sub,
 	e32_alu_sub when e32_op_cmp,
-	e32_alu_incw when e32_op_stbinc,
+	e32_alu_incb when e32_op_stbinc,
 
 	e32_alu_incw when e32_op_ldinc,
 	e32_alu_add when e32_op_ldidx,
