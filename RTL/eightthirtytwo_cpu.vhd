@@ -487,7 +487,11 @@ begin
 			ls_req_r<='0';
 			ls_wr<='0';
 			r_tmp<=ls_q;
-			-- FIXME - set z flag here
+			if ls_q=X"00000000" then	-- Set Z flag
+				flag_z<='1';
+			else
+				flag_z<='0';
+			end if;
 		end if;
 
 		

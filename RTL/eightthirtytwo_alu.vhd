@@ -31,7 +31,7 @@ signal sgn_mod : std_logic;
 signal d2_2 : std_logic_vector(31 downto 0);
 signal busyflag : std_logic;
 signal addresult : unsigned(33 downto 0);
-signal mulresult : unsigned(63 downto 0);
+signal mulresult : signed(65 downto 0);
 signal immresult : std_logic_vector(31 downto 0);
 
 signal shiftresult : std_logic_vector(31 downto 0);
@@ -86,7 +86,7 @@ begin
 
 		immediatestreak<='0';
 	
-		mulresult <= unsigned(d1) * unsigned(d2);
+		mulresult <= signed((d1(31) and sgn)&d1) * signed((d2(31) and sgn)&d2);
 		q1 <= d1;
 		q2 <= d2;
 
@@ -142,7 +142,7 @@ begin
 
 			when e32_alu_mul =>
 				busyflag<=req;
-				carry<=mulresult(63) xor sgn_mod;
+				carry<=mulresult(64); -- FIXME - check carry semantics for MUL
 				q1 <= std_logic_vector(mulresult(31 downto 0));
 				q2 <= std_logic_vector(mulresult(63 downto 32));
 

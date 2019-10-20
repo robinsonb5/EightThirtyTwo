@@ -45,7 +45,7 @@ is
 
 begin
 
-	rom : entity work.HelloWorld_rom
+	rom : entity work.alutest_rom
 	port map(
 		clk => clk,
 		from_soc => romout,
