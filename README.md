@@ -60,13 +60,13 @@ one implicit operand:
 * exg rn  -  Move the contents of rn to the temp register
 
 ### Misc instructions
-* li <imm>  -  Load a 6-bit immediate value to the temp register,
+* li imm  -  Load a 6-bit immediate value to the temp register,
 sign-extended to 32 bits.  If the previous instruction was also "li" then
 tmp is shifted six bits left and the new immediate value is or-ed into the
 lower six bits.  32 bits immediates can thus be loaded by chaining up to six
 li instructions.  "ldinc r7" may be a better solution for larger immediates,
 however.
-* cond <predicate>  -  test the Z and C flags against <predicate>.  If the
+* cond predicate  -  test the Z and C flags against predicate.  If the
 test fails, subsequent instructions will be skipped until the CPU encounters
 either another "cond" instruction or an instruction that would
 have written to r7.
