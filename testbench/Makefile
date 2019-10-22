@@ -34,7 +34,6 @@ init: force
 	$(GHDL) -a $(GHDLFLAGS) ../RTL/eightthirtytwo_fetchloadstore.vhd
 	$(GHDL) -a $(GHDLFLAGS) ../RTL/eightthirtytwo_shifter.vhd
 	$(GHDL) -a $(GHDLFLAGS) ../RTL/eightthirtytwo_alu.vhd
-	$(GHDL) -a $(GHDLFLAGS) ../RTL/eightthirtytwo_regfile.vhd
 	$(GHDL) -a $(GHDLFLAGS) ../RTL/eightthirtytwo_cpu.vhd
 	$(GHDL) -a $(GHDLFLAGS) cpu_tb.vhd
 

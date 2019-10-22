@@ -167,7 +167,7 @@ with op select alu_reg2 <=
 
 with op select ex_op <=
 	e32_ex_cond when e32_op_cond,
-	e32_ex_q2totmp when e32_op_mt,
+	e32_ex_q1totmp when e32_op_mt,
 	e32_ex_q1toreg when e32_op_mr,
 
 	e32_ex_flags when e32_op_cmp,

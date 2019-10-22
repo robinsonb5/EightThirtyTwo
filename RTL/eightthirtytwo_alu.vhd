@@ -82,32 +82,39 @@ begin
 	if reset_n='0' then
 		busyflag<='0';
 		carry<='0';
+		immediatestreak<='0';
 	elsif rising_edge(clk) then
 
-		immediatestreak<='0';
+		if req='1' then
+			immediatestreak<='0';
+		end if;
 	
 		mulresult <= signed((d1(31) and sgn)&d1) * signed((d2(31) and sgn)&d2);
-		q1 <= d1;
-		q2 <= d2;
 
 		case op is
 			when e32_alu_and =>
 				q1<=d1 and d2;
+				q2 <= d2;
 			
 			when e32_alu_or =>
 				q1<=d1 or d2;
+				q2 <= d2;
 					
 			when e32_alu_xor =>
 				q1<=d1 xor d2;
+				q2 <= d2;
 					
 			when e32_alu_shl =>
 				q1<=shiftresult; -- fixme - unnecessary delay here
+				q2 <= d2;
 
 			when e32_alu_shr =>
 				q1<=shiftresult; -- fixme - unnecessary delay here
+				q2 <= d2;
 				
 			when e32_alu_ror =>
 				q1<=shiftresult; -- fixme - unnecessary delay here
+				q2 <= d2;
 
 			when e32_alu_incb =>
 				busyflag<=req;
@@ -116,6 +123,7 @@ begin
 				else
 					q1<=std_logic_vector(addresult(32 downto 1));
 				end if;
+				q2 <= d2;
 
 			when e32_alu_incw =>
 				busyflag<=req;
@@ -124,20 +132,25 @@ begin
 				else
 					q1<=std_logic_vector(addresult(32 downto 1));
 				end if;
+				q2 <= d2;
 				
 			when e32_alu_decw =>
 				q1<=std_logic_vector(addresult(32 downto 1));
+				q2 <= d2;
 			
 			when e32_alu_addt =>
 				q1 <=std_logic_vector(addresult(32 downto 1));
+				q2 <= d2;
 				carry<=addresult(32) xor sgn_mod;
 			
 			when e32_alu_add =>
 				q1 <=std_logic_vector(addresult(32 downto 1));
+				q2 <= d2;
 				carry<=addresult(32) xor sgn_mod;
 			
 			when e32_alu_sub =>
 				q1 <=std_logic_vector(addresult(32 downto 1));
+				q2 <= d2;
 				carry<=addresult(32) xor sgn_mod;
 
 			when e32_alu_mul =>
@@ -147,15 +160,19 @@ begin
 				q2 <= std_logic_vector(mulresult(63 downto 32));
 
 			when e32_alu_li =>
-				immediatestreak<=req;
-				if immediatestreak='0' then
-					q2(31 downto 6)<=(others=>imm(5));
-				else
-					q2(31 downto 6)<=q2(25 downto 0);
+				if req='1' then
+					immediatestreak<='1';
+					if immediatestreak='0' then
+						q2(31 downto 6)<=(others=>imm(5));
+					else
+						q2(31 downto 6)<=q2(25 downto 0);
+					end if;
+					q2(5 downto 0)<=imm(5 downto 0);
 				end if;
-				q2(5 downto 0)<=imm(5 downto 0);
 
 			when others =>
+				q1<=d1;
+				q2<=d2;
 
 		end case;
 		

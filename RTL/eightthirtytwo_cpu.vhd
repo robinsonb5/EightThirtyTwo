@@ -340,10 +340,11 @@ begin
 			else
 				alu_d2<=r_gpr_q;
 			end if;
-			
-			if d_alu_func=e32_alu_li then
-				alu_req<=(not flag_cond) and (not e_blocked);
-			end if;
+
+			-- FIXME - can we simplify the alu_req logic?
+--			if d_alu_func=e32_alu_li then
+				alu_req<=(not flag_cond) and (not e_blocked) and (not alu_busy);
+--			end if;
 
 			if (d_ex_op(e32_exb_postinc)='1' or d_ex_op(e32_exb_waitalu)='1') and alu_busy='0' and e_blocked='0' then
 				alu_req<=not flag_cond;
@@ -505,10 +506,12 @@ begin
 		if flag_cond='1' then	-- advance PC but replace instructions with bubbles
 			e_ex_op<=e32_ex_bubble;
 			m_ex_op<=e32_ex_bubble;
-			if d_ex_op(e32_exb_cond)='1' or
-					(d_ex_op(e32_exb_q1toreg)='1' and f_op(2 downto 0)="111") then -- Writing to PC?
+--			if d_ex_op(e32_exb_cond)='1' or
+			if e_blocked='0' and (d_ex_op(e32_exb_cond)='1' or
+					(d_ex_op(e32_exb_q1toreg)='1' and f_op(2 downto 0)="111")) then -- Writing to PC?
 				e_ex_op<=e32_ex_cond;
 				e_reg<=f_op(2 downto 0);
+				flag_cond<='0';
 			end if;
 		end if;
 
