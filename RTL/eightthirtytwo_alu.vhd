@@ -85,9 +85,7 @@ begin
 		immediatestreak<='0';
 	elsif rising_edge(clk) then
 
-		if req='1' then
-			immediatestreak<='0';
-		end if;
+		immediatestreak<='0';
 	
 		mulresult <= signed((d1(31) and sgn)&d1) * signed((d2(31) and sgn)&d2);
 
@@ -160,6 +158,9 @@ begin
 				q2 <= std_logic_vector(mulresult(63 downto 32));
 
 			when e32_alu_li =>
+				if immediatestreak='1' then	-- Keep the streak alive during bubbles
+					immediatestreak<='1';
+				end if;
 				if req='1' then
 					immediatestreak<='1';
 					if immediatestreak='0' then

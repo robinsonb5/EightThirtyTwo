@@ -3,9 +3,9 @@
 
 start:
 	// Setup the stack
-	li	IMW2(0x1000)
-	li	IMW1(0x1000)
-	li	IMW0(0x1000)
+	li	IMW2(0x800)
+	li	IMW1(0x800)
+	li	IMW0(0x800)
 	mr	r6
 
 	// Setup source and destination pointers
@@ -53,8 +53,9 @@ start:
 	li	IMW0(PCREL(.txwait))
 	add	r7
 
-	cond	NEX	// terminate simulation
-
+.end:
+	li	IMW0(PCREL(.end))
+	add	r7
 
 
 //	832 code: 72 bytes
@@ -129,7 +130,7 @@ lz4_depack:
 
 	mt	r2
 	cmp	r0
-	cond	SGT
+	cond	SLT
 	  li	IMW1(PCREL(.lenOffset-1))
 	  li	IMW0(PCREL(.lenOffset))
 	  add	r7

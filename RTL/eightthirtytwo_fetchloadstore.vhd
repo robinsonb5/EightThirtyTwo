@@ -175,6 +175,7 @@ begin
 		ls_state<=LS_WAIT;
 		load_store<='1';
 		ram_req_r<='0';
+		ram_wr<='0';
 	elsif rising_edge(clk) then
 
 		ls_addrplus4<=unsigned(ls_addr)+4;
@@ -183,7 +184,7 @@ begin
 		case ls_state is
 			when LS_WAIT =>
 
-				if fetch_ram_req='1' then
+				if fetch_ram_req='1' and pc_req='0' then
 					ram_addr_r<=std_logic_vector(fetch_addr(31 downto 2));
 					ram_req_r<='1';
 					ls_state<=LS_FETCH;

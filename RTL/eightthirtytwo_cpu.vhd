@@ -80,6 +80,7 @@ signal d_ex_op : std_logic_vector(e32_ex_maxbit downto 0);
 
 -- Execute stage signals:
 
+signal e_advance : std_logic;
 signal e_continue : std_logic; -- Used to stretch postinc operations over two cycles.
 signal e_pause_cond : std_logic; -- Used to stretch postinc operations over two cycles.
 signal e_reg : std_logic_vector(2 downto 0);
@@ -316,46 +317,13 @@ begin
 		flag_z<='0';
 		alu_busy<='0';
 		e_ex_op<=e32_ex_bubble;
+		m_ex_op<=e32_ex_bubble;
 		e_continue<='0';
+		e_advance<='1';
 	elsif rising_edge(clk) then
 		e_setpc<='0';
 		alu_req<='0';
 
-		if f_op_valid='1' then
-
-			-- Decode stage:
-
-			-- Set ALU registers
-			alu_imm<=f_op(5 downto 0);
-			
-			alu_op<=d_alu_func;
-			if d_alu_reg1(e32_regb_tmp)='1' then
-				alu_d1<=r_tmp;
-			else
-				alu_d1<=r_gpr_q;
-			end if;
-
-			if d_alu_reg2(e32_regb_tmp)='1' then
-				alu_d2<=r_tmp;
-			else
-				alu_d2<=r_gpr_q;
-			end if;
-
-			-- FIXME - can we simplify the alu_req logic?
---			if d_alu_func=e32_alu_li then
-				alu_req<=(not flag_cond) and (not e_blocked) and (not alu_busy);
---			end if;
-
-			if (d_ex_op(e32_exb_postinc)='1' or d_ex_op(e32_exb_waitalu)='1') and alu_busy='0' and e_blocked='0' then
-				alu_req<=not flag_cond;
-				alu_busy<=not flag_cond;
-			end if;
-			if alu_ack='1' then
-				alu_busy<='0';
-			end if;
-			
-		end if;
-			
 		-- If we have a hazard or we're blocked by conditional execution
 		-- then we insert a bubble,
 		-- otherwise advance the PC, forward context from D to E.
@@ -366,30 +334,49 @@ begin
 		-- load/store operation and the second one to update the address register.
 		
 		-- FIXME - the end of a cond block causes problems here.
-		if e_continue='0' and (e_blocked='1' or (d_ex_op(e32_exb_waitalu)='1' and alu_ack='0')) then
---			if e_continue='1' then -- This detects the second cycle of a load/store with postincrement.
---				e_ex_op<=d_ex_op;
---			else
-				e_ex_op<=e32_ex_bubble;
---			end if;
+		if alu_ack='1' then
+			e_continue<='0';
+		end if;
+
+		if e_continue='0' and (e_blocked='1') and e_ex_op(e32_exb_waitalu)='0' then
+			e_ex_op<=e32_ex_bubble;
 		else
-			if d_ex_op(e32_exb_postinc)='1' and e_continue='0' then
-				e_continue<='1';
-			else
-				e_continue<='0';
+--			if e_ex_op(e32_exb_postinc)='1' and e_continue='0' then
+--				e_continue<='1';
+			if e_continue='0' and (e_ex_op(e32_exb_waitalu)='0' or alu_ack='1') then
+				if d_ex_op(e32_exb_postinc)='1' then
+					e_continue<='1';
+				end if;
 				f_pc<=f_nextpc;
+				alu_imm<=f_op(5 downto 0);
+			
+				alu_op<=d_alu_func;
+				if d_alu_reg1(e32_regb_tmp)='1' then
+					alu_d1<=r_tmp;
+				else
+					alu_d1<=r_gpr_q;
+				end if;
+
+				if d_alu_reg2(e32_regb_tmp)='1' then
+					alu_d2<=r_tmp;
+				else
+					alu_d2<=r_gpr_q;
+				end if;
+
+				alu_req<=(not flag_cond);
+
+				e_reg<=f_op(2 downto 0);
+				e_ex_op<=d_ex_op;
 			end if;
-			e_reg<=f_op(2 downto 0);
-			e_ex_op<=d_ex_op;
 		end if;
 		
 		-- Mem stage
 
 		-- Forward context from E to M
-		if m_ex_op(e32_exb_waitalu)='0' or alu_busy='0' then
+--		if m_ex_op(e32_exb_waitalu)='0' or alu_ack='1' then
 			m_reg<=e_reg;
 			m_ex_op<=e_ex_op;
-		end if;
+--		end if;
 
 
 		-- Record flags from ALU
@@ -440,7 +427,7 @@ begin
 		-- but we need to ensure that it happens on the second cycle of
 		-- a postincrement operation.
 
-		if m_ex_op(e32_exb_q1toreg)='1' and e_continue='0' then
+		if m_ex_op(e32_exb_q1toreg)='1' and (m_ex_op(e32_exb_postinc)='0' or alu_ack='0') then
 			case m_reg(2 downto 0) is
 				when "000" =>
 					r_gpr0<=alu_q1;
