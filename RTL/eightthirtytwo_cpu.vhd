@@ -67,20 +67,24 @@ signal ls_ack : std_logic;
 signal f_pc : std_logic_vector(e32_pc_maxbit downto 0);
 signal f_nextpc : std_logic_vector(e32_pc_maxbit downto 0);
 signal f_op : std_logic_vector(7 downto 0);
-signal f_prevop : std_logic_vector(7 downto 0);
+signal f_alu_func : std_logic_vector(e32_alu_maxbit downto 0);
+signal f_alu_reg1 : std_logic_vector(e32_reg_maxbit downto 0);
+signal f_alu_reg2 : std_logic_vector(e32_reg_maxbit downto 0);
+signal f_ex_op : std_logic_vector(e32_ex_maxbit downto 0);
 signal f_op_valid : std_logic := '0' ;	-- Execute stage can use f_op
 
 
 -- Decode stage signals:
 
+signal d_imm : std_logic_vector(5 downto 0);
 signal d_alu_func : std_logic_vector(e32_alu_maxbit downto 0);
 signal d_alu_reg1 : std_logic_vector(e32_reg_maxbit downto 0);
 signal d_alu_reg2 : std_logic_vector(e32_reg_maxbit downto 0);
 signal d_ex_op : std_logic_vector(e32_ex_maxbit downto 0);
+signal d_op_valid : std_logic := '0' ;	-- Execute stage can use f_op
 
 -- Execute stage signals:
 
-signal e_advance : std_logic;
 signal e_continue : std_logic; -- Used to stretch postinc operations over two cycles.
 signal e_pause_cond : std_logic; -- Used to stretch postinc operations over two cycles.
 signal e_reg : std_logic_vector(2 downto 0);
@@ -98,7 +102,6 @@ signal alu_q2 : std_logic_vector(31 downto 0);
 signal alu_req : std_logic;
 signal alu_carry : std_logic;
 signal alu_ack : std_logic;
-signal alu_busy :std_logic;
 
 
 -- Memory stage signals
@@ -192,10 +195,10 @@ port map(
 	clk => clk,
 	reset_n => reset_n,
 	opcode => f_op,
-	alu_func => d_alu_func,
-	alu_reg1 => d_alu_reg1,
-	alu_reg2 => d_alu_reg2,
-	ex_op => d_ex_op
+	alu_func => f_alu_func,
+	alu_reg1 => f_alu_reg1,
+	alu_reg2 => f_alu_reg2,
+	ex_op => f_ex_op
 );
 
 
@@ -289,7 +292,7 @@ hazard_flags<='1' when
 -- While the ALU is busy the PC can't increment, however we do want mem ops to be
 -- triggered (once), then the op to handed over to M when the op finishes.
 
-e_blocked<=(not f_op_valid)
+e_blocked<=(not d_op_valid)
 				or hazard_tmp
 				or hazard_reg
 				or hazard_pc
@@ -304,7 +307,7 @@ cond_minterms(2)<= (not flag_z) and flag_c;
 cond_minterms(1)<= flag_z and (not flag_c);
 cond_minterms(0)<= (not flag_z) and (not flag_c);
 
-process(clk,reset_n,f_op_valid)
+process(clk,reset_n,d_op_valid)
 begin
 	if reset_n='0' then
 		f_pc<=(others=>'0');
@@ -315,14 +318,23 @@ begin
 		flag_sgn<='0';
 		flag_c<='0';
 		flag_z<='0';
-		alu_busy<='0';
 		e_ex_op<=e32_ex_bubble;
 		m_ex_op<=e32_ex_bubble;
 		e_continue<='0';
-		e_advance<='1';
+		d_op_valid<='0';
 	elsif rising_edge(clk) then
 		e_setpc<='0';
 		alu_req<='0';
+		
+		-- Fetch to Decode
+
+		d_imm <= f_op(5 downto 0);
+		d_alu_func<=f_alu_func;
+		d_alu_reg1<=f_alu_reg1;
+		d_alu_reg2<=f_alu_reg2;
+		d_ex_op<=f_ex_op;
+		d_op_valid<=f_op_valid and (not e_setpc);
+		
 
 		-- If we have a hazard or we're blocked by conditional execution
 		-- then we insert a bubble,
@@ -348,7 +360,7 @@ begin
 					e_continue<='1';
 				end if;
 				f_pc<=f_nextpc;
-				alu_imm<=f_op(5 downto 0);
+				alu_imm<=d_imm;
 			
 				alu_op<=d_alu_func;
 				if d_alu_reg1(e32_regb_tmp)='1' then
