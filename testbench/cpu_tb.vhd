@@ -26,6 +26,8 @@ is
 	signal ls_wr : std_logic;
 	signal ls_ack : std_logic;
 
+	signal uart_read : std_logic_vector(31 downto 0);
+	signal uart_count : unsigned(3 downto 0) :="0000" ;
 
 	signal ram_addr : std_logic_vector(31 downto 2);
 	signal from_ram : std_logic_vector(31 downto 0);
@@ -46,7 +48,7 @@ is
 
 begin
 
-	rom : entity work.alutest_rom
+	rom : entity work.helloworld_rom
 	port map(
 		clk => clk,
 		from_soc => romout,
@@ -58,7 +60,9 @@ begin
 	romout.MemAWriteEnable<=rom_wr;
 	romout.MemBWriteEnable<='0';
 	romout.MemAByteSel<=ram_bytesel;
-	from_ram<=romin.MemARead when ram_addr(31)='0' else X"00000300";
+
+	uart_read<= X"00000000" when uart_count/="0000" else X"00000300";
+	from_ram<=romin.MemARead when ram_addr(31)='0' else uart_read;
 
 	rom_wr<=(ram_wr and ram_req) when ram_addr(31)='0' else '0';
 
@@ -102,6 +106,10 @@ begin
 			ls_halfword<='0';
 			ls_wr<='0';
 			ls_req<='0';
+
+			if ram_req='1' and ramwait="0000" then
+				uart_count<=uart_count+1;
+			end if;
 
 			if ram_req='1' and ramwait="0000" then
 				if ram_wr='1' and ram_addr(31)='1' then

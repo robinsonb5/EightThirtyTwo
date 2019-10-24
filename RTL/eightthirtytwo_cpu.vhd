@@ -5,12 +5,6 @@ use ieee.numeric_std.all;
 library work;
 use work.eightthirtytwo_pkg.all;
 
--- To do:
--- Done - more testing needed: Flags - conditional execution
--- Sgn modifier
--- Hazards / stalls / bubbles
--- Load/store results
--- Predec / postinc
 
 entity eightthirtytwo_cpu is
 port(
@@ -77,16 +71,17 @@ signal f_op_valid : std_logic := '0' ;	-- Execute stage can use f_op
 -- Decode stage signals:
 
 signal d_imm : std_logic_vector(5 downto 0);
+signal d_reg : std_logic_vector(2 downto 0);
 signal d_alu_func : std_logic_vector(e32_alu_maxbit downto 0);
 signal d_alu_reg1 : std_logic_vector(e32_reg_maxbit downto 0);
 signal d_alu_reg2 : std_logic_vector(e32_reg_maxbit downto 0);
 signal d_ex_op : std_logic_vector(e32_ex_maxbit downto 0);
-signal d_op_valid : std_logic := '0' ;	-- Execute stage can use f_op
+signal d_op_valid : std_logic := '0' ;
 
 -- Execute stage signals:
 
 signal e_continue : std_logic; -- Used to stretch postinc operations over two cycles.
-signal e_pause_cond : std_logic; -- Used to stretch postinc operations over two cycles.
+signal e_pause_cond : std_logic;
 signal e_reg : std_logic_vector(2 downto 0);
 signal e_ex_op : std_logic_vector(e32_ex_maxbit downto 0);
 signal cond_minterms : std_logic_vector(3 downto 0);
@@ -127,13 +122,13 @@ begin
 -- Register file logic:
 
 f_nextpc<=std_logic_vector(unsigned(f_pc)+1);
-r_gpr_ra<=f_op(2 downto 0);
+r_gpr_ra<=d_reg;
 
 r_gpr7(e32_fb_zero)<=flag_z;
 r_gpr7(e32_fb_carry)<=flag_c;
 r_gpr7(e32_fb_cond)<=flag_cond;
 r_gpr7(e32_fb_sgn)<=flag_sgn;
-r_gpr7(e32_pc_maxbit downto 0)<=f_nextpc;
+r_gpr7(e32_pc_maxbit downto 0)<=f_pc;
 r_gpr7(27 downto e32_pc_maxbit+1)<=(others=>'X');
 
 with r_gpr_ra select r_gpr_q <=
@@ -145,7 +140,7 @@ with r_gpr_ra select r_gpr_q <=
 	r_gpr5 when "101",
 	r_gpr6 when "110",
 	r_gpr7 when "111",
-	(others=>'X') when others;	-- r7 is the program counter. FIXME - Needs to return f_pc+1
+	(others=>'X') when others;	-- r7 is the program counter.
 
 
 
@@ -292,7 +287,7 @@ hazard_flags<='1' when
 -- While the ALU is busy the PC can't increment, however we do want mem ops to be
 -- triggered (once), then the op to handed over to M when the op finishes.
 
-e_blocked<=(not d_op_valid)
+e_blocked<=(not f_op_valid)
 				or hazard_tmp
 				or hazard_reg
 				or hazard_pc
@@ -318,23 +313,15 @@ begin
 		flag_sgn<='0';
 		flag_c<='0';
 		flag_z<='0';
+		d_op_valid<='1';
+		d_ex_op<=e32_ex_bubble;
 		e_ex_op<=e32_ex_bubble;
 		m_ex_op<=e32_ex_bubble;
 		e_continue<='0';
-		d_op_valid<='0';
+		d_op_valid<='1';
 	elsif rising_edge(clk) then
 		e_setpc<='0';
-		alu_req<='0';
-		
-		-- Fetch to Decode
-
-		d_imm <= f_op(5 downto 0);
-		d_alu_func<=f_alu_func;
-		d_alu_reg1<=f_alu_reg1;
-		d_alu_reg2<=f_alu_reg2;
-		d_ex_op<=f_ex_op;
-		d_op_valid<=f_op_valid and (not e_setpc);
-		
+		alu_req<='0';		
 
 		-- If we have a hazard or we're blocked by conditional execution
 		-- then we insert a bubble,
@@ -348,6 +335,10 @@ begin
 		-- FIXME - the end of a cond block causes problems here.
 		if alu_ack='1' then
 			e_continue<='0';
+		end if;
+		
+		if e_setpc='1' then
+			d_ex_op<=e32_ex_bubble;
 		end if;
 
 		if e_continue='0' and (e_blocked='1') and e_ex_op(e32_exb_waitalu)='0' then
@@ -377,8 +368,23 @@ begin
 
 				alu_req<=(not flag_cond);
 
-				e_reg<=f_op(2 downto 0);
+				e_reg<=d_reg(2 downto 0);
 				e_ex_op<=d_ex_op;
+
+				-- Fetch to Decode
+
+				d_imm <= f_op(5 downto 0);
+				d_reg <= f_op(2 downto 0);
+				d_alu_func<=f_alu_func;
+				d_alu_reg1<=f_alu_reg1;
+				d_alu_reg2<=f_alu_reg2;
+
+				if f_op_valid='1' and e_setpc='0' then
+					d_ex_op<=f_ex_op;
+				else
+					d_ex_op<=e32_ex_bubble;
+				end if;
+	
 			end if;
 		end if;
 		
@@ -507,9 +513,9 @@ begin
 			m_ex_op<=e32_ex_bubble;
 --			if d_ex_op(e32_exb_cond)='1' or
 			if e_blocked='0' and (d_ex_op(e32_exb_cond)='1' or
-					(d_ex_op(e32_exb_q1toreg)='1' and f_op(2 downto 0)="111")) then -- Writing to PC?
+					(d_ex_op(e32_exb_q1toreg)='1' and d_reg="111")) then -- Writing to PC?
 				e_ex_op<=e32_ex_cond;
-				e_reg<=f_op(2 downto 0);
+				e_reg<=d_reg;
 				flag_cond<='0';
 			end if;
 		end if;
