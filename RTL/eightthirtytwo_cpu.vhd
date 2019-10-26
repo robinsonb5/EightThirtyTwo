@@ -375,19 +375,25 @@ begin
 
 				d_imm <= f_op(5 downto 0);
 				d_reg <= f_op(2 downto 0);
-				d_alu_func<=f_alu_func;
 				d_alu_reg1<=f_alu_reg1;
 				d_alu_reg2<=f_alu_reg2;
 
-				if f_op_valid='1' and e_setpc='0' then
+--				if f_op_valid='1' and e_setpc='0' then
 					d_ex_op<=f_ex_op;
-				else
-					d_ex_op<=e32_ex_bubble;
-				end if;
+					d_alu_func<=f_alu_func;
+--				else
+--					d_ex_op<=e32_ex_bubble;
+--					d_alu_func<=e32_alu_nop;
+--				end if;
 	
 			end if;
 		end if;
-		
+
+		if e_setpc='1' then -- Flush the pipeline //FIXME - should we flush E too?
+			d_ex_op<=e32_ex_bubble;
+			d_alu_func<=e32_alu_nop;
+		end if;
+
 		-- Mem stage
 
 		-- Forward context from E to M

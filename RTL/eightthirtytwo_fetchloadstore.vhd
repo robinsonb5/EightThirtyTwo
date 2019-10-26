@@ -145,7 +145,8 @@ begin
 			fetch_ram_req<='1';
 			fetch_addr<=pc(31 downto 2);
 			opcodebuffer_valid<="00"; -- Invalidate both halves of the buffer.
-			if ls_state=LS_FETCH and ram_ack='0' then -- Is a fetch pending?
+--			if ls_state=LS_FETCH and ram_ack='0' then -- Is a fetch pending?
+			if fetch_ram_req='1' then -- and ram_ack='0' then
 				fetch_abort<='1';
 			end if;
 		end if;
