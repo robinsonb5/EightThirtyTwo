@@ -1,0 +1,11 @@
+* Look at potential little endian mode
+
+* Add another overloaded instruction for a halfword modifier
+
+* Implement interrupts
+
+* Look at fusing mr with li, and potentially addt.
+
+* Results forwarding?
+
+* GHDL - can we integrate a proper UART emulation and print results to the Shell window?

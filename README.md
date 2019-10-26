@@ -43,7 +43,7 @@ by writing to r7.
 
 ## Program counter and flow control
 There are no branch, jump or return instructions; instead r7 is designated as
-the Program Counter.  Reads from r7 return the current PC 1, i.e. the next
+the Program Counter.  Reads from r7 return the current PC + 1, i.e. the next
 instruction to be executed; the instruction "exg r7" will jump to a 
 subroutine address in tmp, at the same time moving the return address into
 tmp.  The add instruction is special-cased for r7 - it normally leaves tmp
@@ -57,7 +57,7 @@ one implicit operand:
 ### Move instructions
 * mr rn  -  Move the contents of the temp register to rn
 * mt rn  -  Move the contents of rn to the temp register
-* exg rn  -  Move the contents of rn to the temp register
+* exg rn  -  Swap the contents of rn and the temp register
 
 ### Misc instructions
 * li imm  -  Load a 6-bit immediate value to the temp register,
