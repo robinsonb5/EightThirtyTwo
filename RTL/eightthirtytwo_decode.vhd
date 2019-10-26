@@ -8,12 +8,12 @@ use work.eightthirtytwo_pkg.all;
 entity eightthirtytwo_decode is
 port(
 	clk : in std_logic;
-	reset_n : in std_logic;
 	opcode : in std_logic_vector(7 downto 0);
 	alu_func : out std_logic_vector(e32_alu_maxbit downto 0);
 	alu_reg1 : out std_logic_vector(e32_reg_maxbit downto 0);
 	alu_reg2 : out std_logic_vector(e32_reg_maxbit downto 0);
-	ex_op : out std_logic_vector(e32_ex_maxbit downto 0)
+	ex_op : out std_logic_vector(e32_ex_maxbit downto 0);
+	interruptable : out std_logic
 );
 end entity;
 
@@ -36,6 +36,8 @@ begin
 -- li only uses 2 bits for decoding; the other two bits are are of the immediate value
 
 op<="11000000" when opcode(7 downto 6)="11" else opcode(7 downto 3)&"000";
+
+interruptable<='1' when op=e32_op_mt or op=e32_op_li else '0';
 
 -- Add is overloaded when r=7; old value goes to temp.
 addop<=e32_ex_q1toreg or e32_ex_q2totmp when opcode(2 downto 0)="111"
@@ -82,7 +84,7 @@ with op select alu_func <=
 	e32_alu_ror when e32_op_ror,
 
 	e32_alu_mul when e32_op_mul,
-	e32_alu_exg when e32_op_exg,
+	e32_alu_exg when e32_op_exg,	-- The ALU doesn't have to do anything for exg - equivalent to nop.
 	e32_alu_nop when e32_op_mt,
 	e32_alu_add when e32_op_add,
 

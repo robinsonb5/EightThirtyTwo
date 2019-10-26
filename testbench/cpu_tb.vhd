@@ -40,6 +40,9 @@ is
 	signal rom_wr :std_logic;
 	signal ramwait : unsigned(3 downto 0) := "0000";
 
+	signal interrupt : std_logic;
+	signal intcounter : unsigned(5 downto 0) := "000000";
+
 	type tbstates is (RESET,INIT,MAIN,LOAD);
 	signal tbstate : tbstates:=RESET;
 
@@ -60,6 +63,7 @@ begin
 	romout.MemAWriteEnable<=rom_wr;
 	romout.MemAByteSel<=ram_bytesel;
 
+
 	uart_read<= X"00000000" when uart_count/="0000" else X"00000300";
 	from_ram<=romin.MemARead when ram_addr(31)='0' else uart_read;
 
@@ -71,6 +75,8 @@ begin
 		clk => clk,
 		reset_n => reset_n,
 
+		interrupt => interrupt,
+
 		-- cpu fetch interface
 
 		addr => ram_addr,
@@ -81,6 +87,8 @@ begin
 		req => ram_req,
 		ack => ram_ack
 	);
+
+interrupt<='1' when intcounter(5 downto 3)="111" else '0';
 
   -- Clock process definition
   clk_process: process
@@ -95,6 +103,8 @@ begin
 	begin
 
 		if rising_edge(clk) then
+
+			intcounter<=intcounter+1;
 
 			pc_req<='0';
 			reset_n<='1';

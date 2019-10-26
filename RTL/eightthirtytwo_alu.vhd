@@ -135,7 +135,7 @@ begin
 			when e32_alu_decw =>
 				q1<=std_logic_vector(addresult(32 downto 1));
 				q2 <= d2;
-			
+
 			when e32_alu_addt =>
 				q1 <=std_logic_vector(addresult(32 downto 1));
 				q2 <= d2;

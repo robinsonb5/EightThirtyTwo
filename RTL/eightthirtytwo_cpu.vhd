@@ -10,6 +10,7 @@ entity eightthirtytwo_cpu is
 port(
 	clk : in std_logic;
 	reset_n : in std_logic;
+	interrupt : in std_logic := '0';
 	addr : out std_logic_vector(31 downto 2);
 	d : in std_logic_vector(31 downto 0);
 	q : out std_logic_vector(31 downto 0);
@@ -42,6 +43,7 @@ signal flag_z : std_logic;
 signal flag_c : std_logic;
 signal flag_cond : std_logic;
 signal flag_sgn : std_logic;
+signal flag_interrupting : std_logic;
 
 -- Load / store signals
 
@@ -61,22 +63,21 @@ signal ls_ack : std_logic;
 signal f_pc : std_logic_vector(e32_pc_maxbit downto 0);
 signal f_nextpc : std_logic_vector(e32_pc_maxbit downto 0);
 signal f_op : std_logic_vector(7 downto 0);
-signal f_alu_func : std_logic_vector(e32_alu_maxbit downto 0);
+signal f_alu_op : std_logic_vector(e32_alu_maxbit downto 0);
 signal f_alu_reg1 : std_logic_vector(e32_reg_maxbit downto 0);
 signal f_alu_reg2 : std_logic_vector(e32_reg_maxbit downto 0);
 signal f_ex_op : std_logic_vector(e32_ex_maxbit downto 0);
 signal f_op_valid : std_logic := '0' ;	-- Execute stage can use f_op
+signal f_interruptable : std_logic;
 
 
 -- Decode stage signals:
-
 signal d_imm : std_logic_vector(5 downto 0);
 signal d_reg : std_logic_vector(2 downto 0);
-signal d_alu_func : std_logic_vector(e32_alu_maxbit downto 0);
+signal d_alu_op : std_logic_vector(e32_alu_maxbit downto 0);
 signal d_alu_reg1 : std_logic_vector(e32_reg_maxbit downto 0);
 signal d_alu_reg2 : std_logic_vector(e32_reg_maxbit downto 0);
 signal d_ex_op : std_logic_vector(e32_ex_maxbit downto 0);
-signal d_op_valid : std_logic := '0' ;
 
 -- Execute stage signals:
 
@@ -188,12 +189,12 @@ port map
 decoder: entity work.eightthirtytwo_decode
 port map(
 	clk => clk,
-	reset_n => reset_n,
 	opcode => f_op,
-	alu_func => f_alu_func,
+	alu_func => f_alu_op,
 	alu_reg1 => f_alu_reg1,
 	alu_reg2 => f_alu_reg2,
-	ex_op => f_ex_op
+	ex_op => f_ex_op,
+	interruptable => f_interruptable
 );
 
 
@@ -251,6 +252,7 @@ hazard_tmp<='1' when
 -- (FIXME Can potentially make this finer-grained and match the actual register, but
 -- then need to consider clashes between M and W for writing to the regfile.
 -- Second write port?  If we don't implement ltmpinc then all loads write to tmp anyway.)
+
 hazard_reg<='1' when
 	(e_ex_op(e32_exb_q1toreg)='1'
 		or m_ex_op(e32_exb_q1toreg)='1'
@@ -259,7 +261,6 @@ hazard_reg<='1' when
 		and ((d_alu_reg1(e32_regb_gpr)='1' or d_alu_reg2(e32_regb_gpr)='1'))
 	else '0';
 
--- FIXME - need an e32_exb_q1topc bit
 hazard_pc<='1' when
 	(e_ex_op(e32_exb_q1toreg)='1' and e_reg="111")
 		or (m_ex_op(e32_exb_q1toreg)='1' and m_reg="111")
@@ -295,14 +296,17 @@ e_blocked<=(not f_op_valid)
 				or hazard_flags
 				or e_pause_cond;
 
+				
 -- Condition minterms:
+
+-- FIXME - need to make cond NEX pause the CPU.
 
 cond_minterms(3)<= flag_z and flag_c;
 cond_minterms(2)<= (not flag_z) and flag_c;
 cond_minterms(1)<= flag_z and (not flag_c);
 cond_minterms(0)<= (not flag_z) and (not flag_c);
 
-process(clk,reset_n,d_op_valid)
+process(clk,reset_n,f_op_valid)
 begin
 	if reset_n='0' then
 		f_pc<=(others=>'0');
@@ -313,12 +317,11 @@ begin
 		flag_sgn<='0';
 		flag_c<='0';
 		flag_z<='0';
-		d_op_valid<='1';
 		d_ex_op<=e32_ex_bubble;
 		e_ex_op<=e32_ex_bubble;
 		m_ex_op<=e32_ex_bubble;
 		e_continue<='0';
-		d_op_valid<='1';
+		flag_interrupting<='0';
 	elsif rising_edge(clk) then
 		e_setpc<='0';
 		alu_req<='0';		
@@ -353,7 +356,7 @@ begin
 				f_pc<=f_nextpc;
 				alu_imm<=d_imm;
 			
-				alu_op<=d_alu_func;
+				alu_op<=d_alu_op;
 				if d_alu_reg1(e32_regb_tmp)='1' then
 					alu_d1<=r_tmp;
 				else
@@ -380,18 +383,33 @@ begin
 
 --				if f_op_valid='1' and e_setpc='0' then
 					d_ex_op<=f_ex_op;
-					d_alu_func<=f_alu_func;
+					d_alu_op<=f_alu_op;
 --				else
 --					d_ex_op<=e32_ex_bubble;
---					d_alu_func<=e32_alu_nop;
+--					d_alu_op<=e32_alu_nop;
 --				end if;
+
+				-- Interrupt logic:
+				if f_interruptable='1' and interrupt='1' and 
+								flag_interrupting='0' then
+					flag_interrupting<='1';
+					d_reg<="111"; -- PC
+					d_alu_reg1<=e32_reg_gpr;
+					d_alu_reg2<=e32_reg_gpr;
+					d_alu_op<=e32_alu_sub;	-- Sub PC from itself; 0 -> PC, old PC -> tmp
+					d_ex_op<=e32_ex_q1toreg or e32_ex_q2totmp or e32_ex_flags; -- and zero flag set
+				end if;
 	
 			end if;
 		end if;
 
+		if interrupt='0' then
+			flag_interrupting<='0';
+		end if;
+
 		if e_setpc='1' then -- Flush the pipeline //FIXME - should we flush E too?
 			d_ex_op<=e32_ex_bubble;
-			d_alu_func<=e32_alu_nop;
+			d_alu_op<=e32_alu_nop;
 		end if;
 
 		-- Mem stage
@@ -401,18 +419,6 @@ begin
 			m_reg<=e_reg;
 			m_ex_op<=e_ex_op;
 --		end if;
-
-
-		-- Record flags from ALU
-		if m_ex_op(e32_exb_flags)='1' then
-			flag_sgn<='0'; -- Any ALU op that sets flags will clear the sign modifier.
-			flag_c<=alu_carry;
-			if alu_q1=X"00000000" then
-				flag_z<='1';
-			else
-				flag_z<='0';
-			end if;
-		end if;
 		
 		
 		-- Load / store operations.
@@ -479,6 +485,18 @@ begin
 			end case;
 		end if;
 
+		-- Record flags from ALU
+		-- By doing this after saving registers we automatically get the zero flag
+		-- set upon entering the interrupt routine.
+		if m_ex_op(e32_exb_flags)='1' then
+			flag_sgn<='0'; -- Any ALU op that sets flags will clear the sign modifier.
+			flag_c<=alu_carry;
+			if alu_q1=X"00000000" then
+				flag_z<='1';
+			else
+				flag_z<='0';
+			end if;
+		end if;
 
 		-- Forward operation to the load/store receive stage.
 
