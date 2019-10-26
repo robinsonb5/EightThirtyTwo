@@ -26,15 +26,10 @@ end entity;
 architecture rtl of dualportram is
 
 	alias be1 is from_soc.memAByteSel;
-	alias be2 is from_soc.memBByteSel;
 	alias we1 is from_soc.memAWriteEnable;
-	alias we2 is from_soc.memBWriteEnable;
 	alias data_in1 is from_soc.memAWrite;
-	alias data_in2 is from_soc.memBWrite;
 	signal addr1 : integer range 0 to 2**maxAddrBitBRAM-1;
-	signal addr2 : integer range 0 to 2**maxAddrBitBRAM-1;
 	alias data_out1 is to_soc.memARead;
-	alias data_out2 is to_soc.memBRead;
 
 	--  build up 2D array to hold the memory
 	type word_t is array (0 to BYTES-1) of std_logic_vector(BYTE_WIDTH-1 downto 0);

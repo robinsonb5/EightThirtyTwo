@@ -48,7 +48,7 @@ is
 
 begin
 
-	rom : entity work.alutest_rom
+	rom : entity work.lz4_depack_rom
 	port map(
 		clk => clk,
 		from_soc => romout,
@@ -58,7 +58,6 @@ begin
 	romout.MemAAddr<=ram_addr(15 downto 2);
 	romout.MemAWrite<=to_ram;
 	romout.MemAWriteEnable<=rom_wr;
-	romout.MemBWriteEnable<='0';
 	romout.MemAByteSel<=ram_bytesel;
 
 	uart_read<= X"00000000" when uart_count/="0000" else X"00000300";
