@@ -249,15 +249,10 @@ hazard_tmp<='1' when
 -- If the instruction being decoded requires a register as source we block
 -- the transfer from D to E and the advance of PC until any previous
 -- instruction writing to the regfile has cleared the pipeline.
--- (FIXME Can potentially make this finer-grained and match the actual register, but
--- then need to consider clashes between M and W for writing to the regfile.
--- Second write port?  If we don't implement ltmpinc then all loads write to tmp anyway.)
+-- (FIXME Can potentially make this finer-grained and match the actual register.)
 
 hazard_reg<='1' when
-	(e_ex_op(e32_exb_q1toreg)='1'
-		or m_ex_op(e32_exb_q1toreg)='1'
---		or w_ex_op(e32_exb_q1toreg)='1'
-			)
+	(e_ex_op(e32_exb_q1toreg)='1'	or m_ex_op(e32_exb_q1toreg)='1')
 		and ((d_alu_reg1(e32_regb_gpr)='1' or d_alu_reg2(e32_regb_gpr)='1'))
 	else '0';
 
@@ -273,8 +268,9 @@ hazard_load<='1' when
 	else '0';
 
 
--- We have a flags hazard when the E stage is executing either the sgn or cond instructions
--- and anything still in the pipeline is writing to the flags.
+-- We have a flags hazard with the sgn or cond instructions
+-- if anything still in the pipeline is writing to the flags.
+-- FIXME - might be able to remove sgn from this.
 hazard_flags<='1' when
 	(d_ex_op(e32_exb_cond)='1' or d_ex_op(e32_exb_sgn)='1')
 		and (e_ex_op(e32_exb_flags)='1' or m_ex_op(e32_exb_flags)='1' or w_ex_op(e32_exb_load)='1')
@@ -369,7 +365,7 @@ begin
 					alu_d2<=r_gpr_q;
 				end if;
 
-				alu_req<=(not flag_cond);
+				alu_req<=flag_interrupting or (not flag_cond);
 
 				e_reg<=d_reg(2 downto 0);
 				e_ex_op<=d_ex_op;
@@ -390,7 +386,8 @@ begin
 --				end if;
 
 				-- Interrupt logic:
-				if f_interruptable='1' and interrupt='1' and 
+				if f_interruptable='1' and interrupt='1'
+							and d_ex_op(e32_exb_cond)='0' and d_alu_op/=e32_alu_li and 
 								flag_interrupting='0' then
 					flag_interrupting<='1';
 					d_reg<="111"; -- PC
@@ -532,7 +529,7 @@ begin
 		-- which, since the operand will be "111", equates to cond EX, i.e. full execution.
 
 		e_pause_cond<='0';
-		if flag_cond='1' then	-- advance PC but replace instructions with bubbles
+		if flag_cond='1' and flag_interrupting='0' then	-- advance PC but replace instructions with bubbles
 			e_ex_op<=e32_ex_bubble;
 			m_ex_op<=e32_ex_bubble;
 --			if d_ex_op(e32_exb_cond)='1' or

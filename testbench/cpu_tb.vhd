@@ -51,7 +51,7 @@ is
 
 begin
 
-	rom : entity work.lz4_depack_rom
+	rom : entity work.alutest_rom
 	port map(
 		clk => clk,
 		from_soc => romout,
@@ -125,7 +125,7 @@ interrupt<='1' when intcounter(5 downto 3)="111" else '0';
 					report "Writing character " & integer'image(to_integer(unsigned(to_ram)));
 				end if;
 --				ram_ack<='1';
-				ramwait<="0111";
+				ramwait<="0001";
 			end if;
 
 			if ramwait="0000" then
