@@ -30,7 +30,6 @@ architecture rtl of eightthirtytwo_shifter is
 begin
 
 	q<=result;
-	signbit<=sgn and d(31);
 
 	process(clk,req,reset_n)
 	begin
@@ -42,6 +41,7 @@ begin
 
 			ack<='0';
 			if req='1' then
+				signbit<=sgn and d(31);
 				count<=unsigned(shift);
 				result<=d;
 				busy<='1';

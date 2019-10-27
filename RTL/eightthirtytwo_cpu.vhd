@@ -7,6 +7,9 @@ use work.eightthirtytwo_pkg.all;
 
 
 entity eightthirtytwo_cpu is
+generic(
+	interrupts : boolean := true
+	);
 port(
 	clk : in std_logic;
 	reset_n : in std_logic;
@@ -377,26 +380,23 @@ begin
 				d_alu_reg1<=f_alu_reg1;
 				d_alu_reg2<=f_alu_reg2;
 
---				if f_op_valid='1' and e_setpc='0' then
-					d_ex_op<=f_ex_op;
-					d_alu_op<=f_alu_op;
---				else
---					d_ex_op<=e32_ex_bubble;
---					d_alu_op<=e32_alu_nop;
---				end if;
+				d_ex_op<=f_ex_op;
+				d_alu_op<=f_alu_op;
 
-				-- Interrupt logic:
-				if f_interruptable='1' and interrupt='1'
-							and d_ex_op(e32_exb_cond)='0' and d_alu_op/=e32_alu_li and 
-								flag_interrupting='0' then
-					flag_interrupting<='1';
-					d_reg<="111"; -- PC
-					d_alu_reg1<=e32_reg_gpr;
-					d_alu_reg2<=e32_reg_gpr;
-					d_alu_op<=e32_alu_sub;	-- Sub PC from itself; 0 -> PC, old PC -> tmp
-					d_ex_op<=e32_ex_q1toreg or e32_ex_q2totmp or e32_ex_flags; -- and zero flag set
+				-- Interrupt logic: FIXME - this slows down the ALU - can we move it to F?
+				if interrupts=true then
+					if f_interruptable='1' and interrupt='1'
+								and d_ex_op(e32_exb_cond)='0' and d_alu_op/=e32_alu_li and 
+									flag_interrupting='0' then
+						flag_interrupting<='1';
+						d_reg<="111"; -- PC
+						d_alu_reg1<=e32_reg_gpr;
+						d_alu_reg2<=e32_reg_gpr;
+						d_alu_op<=e32_alu_xor;	-- Xor PC with itself; 0 -> PC, old PC -> tmp
+						d_ex_op<=e32_ex_q1toreg or e32_ex_q2totmp or e32_ex_flags; -- and zero flag set
+					end if;
 				end if;
-	
+
 			end if;
 		end if;
 
