@@ -128,10 +128,10 @@ begin
 f_nextpc<=std_logic_vector(unsigned(f_pc)+1);
 r_gpr_ra<=d_reg;
 
-r_gpr7(e32_fb_zero)<=flag_z;
-r_gpr7(e32_fb_carry)<=flag_c;
-r_gpr7(e32_fb_cond)<=flag_cond;
-r_gpr7(e32_fb_sgn)<=flag_sgn;
+r_gpr7(e32_fb_zero)<=flag_z when flag_interrupting='1' else '0';
+r_gpr7(e32_fb_carry)<=flag_c when flag_interrupting='1' else '0';
+r_gpr7(e32_fb_cond)<=flag_cond when flag_interrupting='1' else '0';
+r_gpr7(e32_fb_sgn)<=flag_sgn when flag_interrupting='1' else '0';
 r_gpr7(e32_pc_maxbit downto 0)<=f_pc;
 r_gpr7(27 downto e32_pc_maxbit+1)<=(others=>'X');
 
