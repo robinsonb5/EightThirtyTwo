@@ -39,8 +39,12 @@ signal r_gpr4 : std_logic_vector(31 downto 0);
 signal r_gpr5 : std_logic_vector(31 downto 0);
 signal r_gpr6 : std_logic_vector(31 downto 0);
 signal r_gpr7 : std_logic_vector(31 downto 0);
+signal r_gpr7_flags : std_logic_vector(31 downto e32_pc_maxbit+1);
+signal r_gpr7_readflags : std_logic;
 
-signal r_tmp : std_logic_vector(31 downto 0); -- Working around a GHDL problem...
+signal r_tmp : std_logic_vector(31 downto 0);
+
+
 
 signal flag_z : std_logic;
 signal flag_c : std_logic;
@@ -128,11 +132,12 @@ begin
 f_nextpc<=std_logic_vector(unsigned(f_pc)+1);
 r_gpr_ra<=d_reg;
 
-r_gpr7(e32_fb_zero)<=flag_z when flag_interrupting='1' else '0';
-r_gpr7(e32_fb_carry)<=flag_c when flag_interrupting='1' else '0';
-r_gpr7(e32_fb_cond)<=flag_cond when flag_interrupting='1' else '0';
-r_gpr7(e32_fb_sgn)<=flag_sgn when flag_interrupting='1' else '0';
+r_gpr7_flags(e32_fb_zero)<=flag_z;
+r_gpr7_flags(e32_fb_carry)<=flag_c;
+r_gpr7_flags(e32_fb_cond)<=flag_cond;
+r_gpr7_flags(e32_fb_sgn)<=flag_sgn;
 r_gpr7(e32_pc_maxbit downto 0)<=f_pc;
+r_gpr7(31 downto e32_pc_maxbit+1)<=r_gpr7_flags when r_gpr7_readflags='1' else (others => '0');
 r_gpr7(27 downto e32_pc_maxbit+1)<=(others=>'X');
 
 with r_gpr_ra select r_gpr_q <=
@@ -266,7 +271,8 @@ hazard_pc<='1' when
 
 -- FIXME - this won't work if we implement ltmpinc since we'll then be writing to regfile in W.
 hazard_load<='1' when
-	(e_ex_op(e32_exb_load)='1' or m_ex_op(e32_exb_load)='1' or w_ex_op(e32_exb_load)='1')
+	(e_ex_op(e32_exb_load)='1' or m_ex_op(e32_exb_load)='1' or w_ex_op(e32_exb_load)='1'
+	or e_ex_op(e32_exb_store)='1' or m_ex_op(e32_exb_store)='1' or w_ex_op(e32_exb_store)='1')
 --		and (d_alu_reg1(e32_regb_tmp)='1' or d_alu_reg2(e32_regb_tmp)='1')
 	else '0';
 
@@ -321,6 +327,7 @@ begin
 		m_ex_op<=e32_ex_bubble;
 		e_continue<='0';
 		flag_interrupting<='0';
+		r_gpr7_readflags<='0';
 	elsif rising_edge(clk) then
 		e_setpc<='0';
 		alu_req<='0';		
@@ -368,7 +375,7 @@ begin
 					alu_d2<=r_gpr_q;
 				end if;
 
-				alu_req<=flag_interrupting or (not flag_cond);
+				alu_req<=r_gpr7_readflags or (not flag_cond);
 
 				e_reg<=d_reg(2 downto 0);
 				e_ex_op<=d_ex_op;
@@ -389,6 +396,7 @@ begin
 								and d_ex_op(e32_exb_cond)='0' and d_alu_op/=e32_alu_li and 
 									flag_interrupting='0' then
 						flag_interrupting<='1';
+						r_gpr7_readflags<='1';
 						d_reg<="111"; -- PC
 						d_alu_reg1<=e32_reg_gpr;
 						d_alu_reg2<=e32_reg_gpr;
@@ -407,6 +415,7 @@ begin
 		if e_setpc='1' then -- Flush the pipeline //FIXME - should we flush E too?
 			d_ex_op<=e32_ex_bubble;
 			d_alu_op<=e32_alu_nop;
+			r_gpr7_readflags<='0';
 		end if;
 
 		-- Mem stage
@@ -529,7 +538,7 @@ begin
 		-- which, since the operand will be "111", equates to cond EX, i.e. full execution.
 
 		e_pause_cond<='0';
-		if flag_cond='1' and flag_interrupting='0' then	-- advance PC but replace instructions with bubbles
+		if flag_cond='1' and r_gpr7_readflags='0' then	-- advance PC but replace instructions with bubbles
 			e_ex_op<=e32_ex_bubble;
 			m_ex_op<=e32_ex_bubble;
 --			if d_ex_op(e32_exb_cond)='1' or
@@ -540,7 +549,6 @@ begin
 				flag_cond<='0';
 			end if;
 		end if;
-
 
 		if e_ex_op(e32_exb_cond)='1' then
 			if (e_reg(1)&e_reg and cond_minterms) = "0000" then
