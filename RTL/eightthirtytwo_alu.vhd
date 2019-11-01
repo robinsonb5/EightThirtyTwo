@@ -35,6 +35,7 @@ signal mulresult : signed(65 downto 0);
 signal immresult : std_logic_vector(31 downto 0);
 
 signal shiftresult : std_logic_vector(31 downto 0);
+signal shiftcarry : std_logic;
 signal shiftack : std_logic;
 signal shiftrl : std_logic;
 signal shiftrot : std_logic;
@@ -104,12 +105,14 @@ begin
 					
 			when e32_alu_shl =>
 				q1<=shiftresult; -- fixme - unnecessary delay here
+				carry<=shiftcarry;
 				q2 <= d2;
 
 			when e32_alu_shr =>
 				q1<=shiftresult; -- fixme - unnecessary delay here
+				carry<=shiftcarry;
 				q2 <= d2;
-				
+
 			when e32_alu_ror =>
 				q1<=shiftresult; -- fixme - unnecessary delay here
 				q2 <= d2;
@@ -187,6 +190,7 @@ port map(
 	reset_n => reset_n,
 	d => d1,
 	q => shiftresult,
+	carry => shiftcarry,
 	shift => d2(4 downto 0),
 --	immediate : in std_logic_vector(5 downto 0);
 	right_left => shiftrl,

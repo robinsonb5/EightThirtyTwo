@@ -12,6 +12,7 @@ port(
 	reset_n : in std_logic;
 	d : in std_logic_vector(31 downto 0);
 	q : out std_logic_vector(31 downto 0);
+	carry : out std_logic;
 	shift : in std_logic_vector(4 downto 0);
 --	immediate : in std_logic_vector(5 downto 0);
 	right_left : in std_logic; -- 1 for right, 0 for left
@@ -50,12 +51,15 @@ begin
 					if rotate='1' then
 						result(31)<=result(0);
 						result(30 downto 0)<=result(31 downto 1);
+						carry<='X';
 					elsif right_left='1' then -- shift right, both logical and arithmetic
 						result(31)<=signbit;
 						result(30 downto 0)<=result(31 downto 1);
+						carry<=result(0);
 					else -- shift left - always shift in zeros
 						result(31 downto 1)<=result(30 downto 0);
 						result(0)<='0';
+						carry<=result(31);
 					end if;
 					
 					if count="00001" then
