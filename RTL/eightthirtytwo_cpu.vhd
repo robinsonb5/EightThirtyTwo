@@ -393,7 +393,8 @@ begin
 				-- Interrupt logic: FIXME - this slows down the ALU - can we move it to F?
 				if interrupts=true then
 					if f_interruptable='1' and interrupt='1'
-								and d_ex_op(e32_exb_cond)='0' and d_alu_op/=e32_alu_li and 
+								and (d_ex_op(e32_exb_q1toreg)='0' or d_reg/="111") -- Can't be about to write to r7
+								and d_ex_op(e32_exb_cond)='0' and d_alu_op/=e32_alu_li and -- Can't be cond or a immediately previous li
 									flag_interrupting='0' then
 						flag_interrupting<='1';
 						r_gpr7_readflags<='1';

@@ -51,7 +51,7 @@ is
 
 begin
 
-	rom : entity work.alutest_rom
+	rom : entity work.division_rom
 	port map(
 		clk => clk,
 		from_soc => romout,
@@ -75,7 +75,7 @@ begin
 		clk => clk,
 		reset_n => reset_n,
 
-		interrupt => interrupt,
+		interrupt => '0', -- interrupt,
 
 		-- cpu fetch interface
 
