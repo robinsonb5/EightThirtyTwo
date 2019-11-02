@@ -377,6 +377,10 @@ begin
 
 				alu_req<=r_gpr7_readflags or (not flag_cond);
 
+				if d_ex_op(e32_exb_sgn)='1' then
+					flag_sgn<='1';
+				end if;
+
 				e_reg<=d_reg(2 downto 0);
 				e_ex_op<=d_ex_op;
 
@@ -558,10 +562,6 @@ begin
 				e_pause_cond<='1';
 				flag_cond<='0';
 			end if;			
-		end if;
-
-		if e_ex_op(e32_exb_sgn)='1' then
-			flag_sgn<='1';
 		end if;
 		
 	end if;

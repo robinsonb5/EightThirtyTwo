@@ -565,7 +565,6 @@ class EightThirtyTwoSim
 				mnem << ("(");
 				if(opcode==opc_cond)
 				{
-					// FIXME - match against zero and carry, set cond flag accordingly.
 					t=((zero&carry)<<3)|((!zero&carry)<<2)|((zero&!carry)<<1)|(!zero&!carry);
 					operand|=(operand&2)<<2;
 					cond=(operand&t)>0;
@@ -608,7 +607,7 @@ class EightThirtyTwoSim
 	protected:
 	unsigned int regfile[8];
 	int cond;
-	int temp;
+	unsigned int temp;
 	int zero;
 	int carry;
 	int initpc;

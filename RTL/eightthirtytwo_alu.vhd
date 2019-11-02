@@ -28,6 +28,8 @@ end entity;
 architecture rtl of eightthirtytwo_alu is
 
 signal sgn_mod : std_logic;
+signal d1_sgn : std_logic;
+signal d2_sgn : std_logic;
 signal d2_2 : std_logic_vector(31 downto 0);
 signal busyflag : std_logic;
 signal addresult : unsigned(33 downto 0);
@@ -48,7 +50,7 @@ signal immediatestreak : std_logic;
 begin
 
 
-sgn_mod<=sgn and (d1(31) xor d2(31));
+sgn_mod<=(not sgn) and (d1(31) xor d2(31));
 
 with op select shiftreq <=
 	req when e32_alu_shr,
@@ -76,7 +78,11 @@ sublsb<='1' when op=e32_alu_sub else '0';
 
 ack <= shiftack or busyflag;
 
-addresult <= unsigned('0'&d1&sublsb) + unsigned('0'&d2_2&sublsb);
+-- FIXME - signed/unsigned comparisons aren't working correctly
+d1_sgn<=d1(31);
+d2_sgn<=d2_2(31);
+
+addresult <= unsigned(d1_sgn&d1&sublsb) + unsigned(d2_sgn&d2_2&sublsb);
 
 process(clk,reset_n)
 begin
@@ -93,14 +99,17 @@ begin
 		case op is
 			when e32_alu_and =>
 				q1<=d1 and d2;
+				carry<='X';
 				q2 <= d2;
 			
 			when e32_alu_or =>
 				q1<=d1 or d2;
+				carry<='X';
 				q2 <= d2;
 					
 			when e32_alu_xor =>
 				q1<=d1 xor d2;
+				carry<='X';
 				q2 <= d2;
 					
 			when e32_alu_shl =>
@@ -115,6 +124,7 @@ begin
 
 			when e32_alu_ror =>
 				q1<=shiftresult; -- fixme - unnecessary delay here
+				carry<=shiftcarry;
 				q2 <= d2;
 
 			when e32_alu_incb =>
@@ -124,6 +134,7 @@ begin
 				else
 					q1<=std_logic_vector(addresult(32 downto 1));
 				end if;
+				carry<='X';
 				q2 <= d2;
 
 			when e32_alu_incw =>
@@ -133,26 +144,28 @@ begin
 				else
 					q1<=std_logic_vector(addresult(32 downto 1));
 				end if;
+				carry<='X';
 				q2 <= d2;
 				
 			when e32_alu_decw =>
 				q1<=std_logic_vector(addresult(32 downto 1));
+				carry<='X';
 				q2 <= d2;
 
 			when e32_alu_addt =>
 				q1 <=std_logic_vector(addresult(32 downto 1));
 				q2 <= d2;
-				carry<=addresult(32) xor sgn_mod;
+				carry<=addresult(33) xor sgn_mod;
 			
 			when e32_alu_add =>
 				q1 <=std_logic_vector(addresult(32 downto 1));
 				q2 <= d2;
-				carry<=addresult(32) xor sgn_mod;
+				carry<=addresult(33) xor sgn_mod;
 			
 			when e32_alu_sub =>
 				q1 <=std_logic_vector(addresult(32 downto 1));
 				q2 <= d2;
-				carry<=addresult(32) xor sgn_mod;
+				carry<=addresult(33) xor sgn_mod;
 
 			when e32_alu_mul =>
 				busyflag<=req;
@@ -175,6 +188,7 @@ begin
 				end if;
 
 			when others =>
+				carry<='X';
 				q1<=d1;
 				q2<=d2;
 
