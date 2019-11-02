@@ -243,15 +243,15 @@ ls_req<=ls_req_r and not ls_ack;
 -- If the instruction being decoded requires tmp as either source we
 -- block the transfer from D to E and the advance of PC
 -- until any previous instruction writing to tmp has cleared the pipeline.
--- (If we don't implement ltmpinc or ltmp then nothing beyond M will write to tmp.)
-
+-- (If we don't implement ltmpinc or ltmp then nothing beyond M will write the regfile.)
 
 hazard_tmp<='1' when
 	(e_ex_op(e32_exb_q1totmp)='1' or e_ex_op(e32_exb_q2totmp)='1'
 		or m_ex_op(e32_exb_q1totmp)='1' or m_ex_op(e32_exb_q2totmp)='1'
-		or w_ex_op(e32_exb_q1totmp)='1' or w_ex_op(e32_exb_q2totmp)='1')
+		or e_ex_op(e32_exb_load)='1' or m_ex_op(e32_exb_load) ='1' or w_ex_op(e32_exb_load)='1')
 		and (d_alu_reg1(e32_regb_tmp)='1' or d_alu_reg2(e32_regb_tmp)='1')
 	else '0';
+
 
 -- hazard_reg:
 -- If the instruction being decoded requires a register as source we block
@@ -260,7 +260,8 @@ hazard_tmp<='1' when
 -- (FIXME Can potentially make this finer-grained and match the actual register.)
 
 hazard_reg<='1' when
-	(e_ex_op(e32_exb_q1toreg)='1'	or m_ex_op(e32_exb_q1toreg)='1')
+	((e_ex_op(e32_exb_q1toreg)='1' and e_reg=d_reg)	or
+		(m_ex_op(e32_exb_q1toreg)='1' and m_reg=d_reg))
 		and ((d_alu_reg1(e32_regb_gpr)='1' or d_alu_reg2(e32_regb_gpr)='1'))
 	else '0';
 
@@ -269,11 +270,13 @@ hazard_pc<='1' when
 		or (m_ex_op(e32_exb_q1toreg)='1' and m_reg="111")
 	else '0';
 
--- FIXME - this won't work if we implement ltmpinc since we'll then be writing to regfile in W.
+-- Load hazard - if a load or store is in the pipeline we have to delay further loads/stores
+-- and also ops which write to tmp.  FIXME - the latter can run against a store.
 hazard_load<='1' when
+	(d_ex_op(e32_exb_load)='1' or d_ex_op(e32_exb_store)='1'
+			or d_ex_op(e32_exb_q1totmp)='1' or d_ex_op(e32_exb_q2totmp)='1') and 
 	(e_ex_op(e32_exb_load)='1' or m_ex_op(e32_exb_load)='1' or w_ex_op(e32_exb_load)='1'
-	or e_ex_op(e32_exb_store)='1' or m_ex_op(e32_exb_store)='1' or w_ex_op(e32_exb_store)='1')
---		and (d_alu_reg1(e32_regb_tmp)='1' or d_alu_reg2(e32_regb_tmp)='1')
+			or e_ex_op(e32_exb_store)='1' or m_ex_op(e32_exb_store)='1' or w_ex_op(e32_exb_store)='1')
 	else '0';
 
 
@@ -282,7 +285,8 @@ hazard_load<='1' when
 -- FIXME - might be able to remove sgn from this.
 hazard_flags<='1' when
 	(d_ex_op(e32_exb_cond)='1' or d_ex_op(e32_exb_sgn)='1')
-		and (e_ex_op(e32_exb_flags)='1' or m_ex_op(e32_exb_flags)='1' or w_ex_op(e32_exb_load)='1')
+		and (e_ex_op(e32_exb_flags)='1' or m_ex_op(e32_exb_flags)='1' or
+			e_ex_op(e32_exb_load)='1' or m_ex_op(e32_exb_load)='1' or w_ex_op(e32_exb_load)='1')
 	else '0';
 
 -- ALU busy logic:
@@ -443,7 +447,7 @@ begin
 			ls_halfword<=m_ex_op(e32_exb_halfword);
 			ls_byte<=m_ex_op(e32_exb_byte);
 			ls_req_r<='1';
-		end if;			
+		end if;
 
 		if m_ex_op(e32_exb_store)='1' and ls_req_r='0' then
 			ls_addr<=alu_q1;
@@ -452,9 +456,9 @@ begin
 			ls_byte<=m_ex_op(e32_exb_byte);
 			ls_wr<='1';
 			ls_req_r<='1';
-		end if;			
+		end if;
 
-		
+
 		-- Either output of the ALU can go to tmp.
 
 		if m_ex_op(e32_exb_q1totmp)='1' then
@@ -559,7 +563,7 @@ begin
 			if (e_reg(1)&e_reg and cond_minterms) = "0000" then
 				flag_cond<='1';
 			else
-				e_pause_cond<='1';
+--				e_pause_cond<='1';
 				flag_cond<='0';
 			end if;			
 		end if;
