@@ -123,7 +123,9 @@ signal hazard_pc : std_logic;
 signal hazard_reg : std_logic;
 signal hazard_load : std_logic;
 signal hazard_flags : std_logic;
-signal e_blocked : std_logic;
+
+signal hazard : std_logic;
+signal stall : std_logic;
 
 begin
 
@@ -294,15 +296,9 @@ hazard_flags<='1' when
 			e_ex_op(e32_exb_load)='1' or m_ex_op(e32_exb_load)='1' or w_ex_op(e32_exb_load)='1')
 	else '0';
 
--- ALU busy logic:
--- Some ALU operations are two-cycle, notably mul and post-increment operations.
--- (The latter so that the M logic can use the old value to trigger a memory
--- operation before writing the new value to the regfile.)
--- Shift operations can take many cycles.
--- While the ALU is busy the PC can't increment, however we do want mem ops to be
--- triggered (once), then the op to handed over to M when the op finishes.
+-- Hazard - causes bubbles to be inserted at E.
 
-e_blocked<=(not f_op_valid)
+hazard<=(not f_op_valid)
 				or hazard_tmp
 				or hazard_reg
 				or hazard_pc
@@ -310,6 +306,10 @@ e_blocked<=(not f_op_valid)
 				or hazard_flags
 				or e_pause_cond;
 
+-- Stall - causes the entire pipeline to pause, without inserting bubbles.
+
+stall<='1' when e_ex_op(e32_exb_waitalu)='1' and alu_ack='0'
+	else '0';
 				
 -- Condition minterms:
 
@@ -357,65 +357,68 @@ begin
 		if e_setpc='1' then
 			d_ex_op<=e32_ex_bubble;
 		end if;
-
-		if e_continue='0' and (e_blocked='1') and e_ex_op(e32_exb_waitalu)='0' then
-			e_ex_op<=e32_ex_bubble;
-		else
-			if e_continue='0' and (e_ex_op(e32_exb_waitalu)='0' or alu_ack='1') then
-				if d_ex_op(e32_exb_postinc)='1' then
-					e_continue<='1';
-				end if;
-				f_pc<=f_nextpc;
-				alu_imm<=d_imm;
-			
-				alu_op<=d_alu_op;
-				if d_alu_reg1(e32_regb_tmp)='1' then
-					alu_d1<=r_tmp;
-				else
-					alu_d1<=r_gpr_q;
-				end if;
-
-				if d_alu_reg2(e32_regb_tmp)='1' then
-					alu_d2<=r_tmp;
-				else
-					alu_d2<=r_gpr_q;
-				end if;
-
-				alu_req<=r_gpr7_readflags or (not flag_cond);
-
-				if d_ex_op(e32_exb_sgn)='1' then
-					flag_sgn<='1';
-				end if;
-
-				e_reg<=d_reg(2 downto 0);
-				e_ex_op<=d_ex_op;
-
-				-- Fetch to Decode
-
-				d_imm <= f_op(5 downto 0);
-				d_reg <= f_op(2 downto 0);
-				d_alu_reg1<=f_alu_reg1;
-				d_alu_reg2<=f_alu_reg2;
-
-				d_ex_op<=f_ex_op;
-				d_alu_op<=f_alu_op;
-
-				-- Interrupt logic: FIXME - this slows down the ALU - can we move it to F?
-				if interrupts=true then
-					if f_interruptable='1' and interrupt='1'
-								and (d_ex_op(e32_exb_q1toreg)='0' or d_reg/="111") -- Can't be about to write to r7
-								and d_ex_op(e32_exb_cond)='0' and d_alu_op/=e32_alu_li and -- Can't be cond or a immediately previous li
-									flag_interrupting='0' then
-						flag_interrupting<='1';
-						r_gpr7_readflags<='1';
-						d_reg<="111"; -- PC
-						d_alu_reg1<=e32_reg_gpr;
-						d_alu_reg2<=e32_reg_gpr;
-						d_alu_op<=e32_alu_xor;	-- Xor PC with itself; 0 -> PC, old PC -> tmp
-						d_ex_op<=e32_ex_q1toreg or e32_ex_q2totmp or e32_ex_flags; -- and zero flag set
+		
+		if stall='0' and e_continue='0' then
+		
+			if e_continue='0' and (hazard='1') then
+				e_ex_op<=e32_ex_bubble;
+			else
+	--			if e_continue='0' and (e_ex_op(e32_exb_waitalu)='0' or alu_ack='1') then
+					if d_ex_op(e32_exb_postinc)='1' then
+						e_continue<='1';
 					end if;
-				end if;
+					f_pc<=f_nextpc;
+					alu_imm<=d_imm;
+				
+					alu_op<=d_alu_op;
+					if d_alu_reg1(e32_regb_tmp)='1' then
+						alu_d1<=r_tmp;
+					else
+						alu_d1<=r_gpr_q;
+					end if;
 
+					if d_alu_reg2(e32_regb_tmp)='1' then
+						alu_d2<=r_tmp;
+					else
+						alu_d2<=r_gpr_q;
+					end if;
+
+					alu_req<=r_gpr7_readflags or (not flag_cond);
+
+					if d_ex_op(e32_exb_sgn)='1' then
+						flag_sgn<='1';
+					end if;
+
+					e_reg<=d_reg(2 downto 0);
+					e_ex_op<=d_ex_op;
+
+					-- Fetch to Decode
+
+					d_imm <= f_op(5 downto 0);
+					d_reg <= f_op(2 downto 0);
+					d_alu_reg1<=f_alu_reg1;
+					d_alu_reg2<=f_alu_reg2;
+
+					d_ex_op<=f_ex_op;
+					d_alu_op<=f_alu_op;
+
+					-- Interrupt logic: FIXME - this slows down the ALU - can we move it to F?
+					if interrupts=true then
+						if f_interruptable='1' and interrupt='1'
+									and (d_ex_op(e32_exb_q1toreg)='0' or d_reg/="111") -- Can't be about to write to r7
+									and d_ex_op(e32_exb_cond)='0' and d_alu_op/=e32_alu_li and -- Can't be cond or a immediately previous li
+										flag_interrupting='0' then
+							flag_interrupting<='1';
+							r_gpr7_readflags<='1';
+							d_reg<="111"; -- PC
+							d_alu_reg1<=e32_reg_gpr;
+							d_alu_reg2<=e32_reg_gpr;
+							d_alu_op<=e32_alu_xor;	-- Xor PC with itself; 0 -> PC, old PC -> tmp
+							d_ex_op<=e32_ex_q1toreg or e32_ex_q2totmp or e32_ex_flags; -- and zero flag set
+						end if;
+					end if;
+
+	--			end if;
 			end if;
 		end if;
 
@@ -551,7 +554,7 @@ begin
 		if flag_cond='1' and r_gpr7_readflags='0' then	-- advance PC but replace instructions with bubbles
 			e_ex_op<=e32_ex_bubble;
 			m_ex_op<=e32_ex_bubble;
-			if e_blocked='0' and (d_ex_op(e32_exb_cond)='1' or
+			if hazard='0' and (d_ex_op(e32_exb_cond)='1' or
 					(d_ex_op(e32_exb_q1toreg)='1' and d_reg="111")) then -- Writing to PC?
 				e_ex_op<=e32_ex_cond;
 				e_reg<=d_reg;
