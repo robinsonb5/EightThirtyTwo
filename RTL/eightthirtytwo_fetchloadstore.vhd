@@ -5,6 +5,10 @@ use ieee.numeric_std.all;
 -- FIXME - add sign extension and zeroing of upper bits for byte or halfword loads
 
 entity eightthirtytwo_fetchloadstore is
+generic
+(
+	storealign : in boolean := true
+);
 port
 (
 	clk : in std_logic;
@@ -261,7 +265,7 @@ begin
 				ram_req_r<='1';
 				ram_wr<='1';
 				if ram_ack='1' then
-					if ls_mask2="0000" then
+					if ls_mask2="0000" or storealign=false then
 						ram_req_r<='0';
 						ram_wr<='0';
 						ls_ack<='1';

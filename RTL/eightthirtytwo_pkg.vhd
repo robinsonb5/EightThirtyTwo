@@ -116,16 +116,16 @@ constant e32_ex_byte : std_logic_vector(e32_ex_maxbit downto 0) := "001000000000
 constant e32_ex_waitalu : std_logic_vector(e32_ex_maxbit downto 0) := "010000000000";
 constant e32_ex_sgn : std_logic_vector(e32_ex_maxbit downto 0) := "100000000000";
 
--- Flags are encoded into the upper four bits of the program counter.
--- 28 bits of program address space is plenty, and it obviates the need to
+-- Flags are encoded into the upper bits of the program counter.
+-- 30 bits of program address space is plenty, and it obviates the need to
 -- address flags for context switching.
 
-constant e32_pc_maxbit : integer := 27;
+constant e32_pc_maxbit : integer := 29;
 
 constant e32_fb_zero : integer := 31;
 constant e32_fb_carry : integer := 30;
-constant e32_fb_cond : integer := 29;
-constant e32_fb_sgn : integer := 28;
+--constant e32_fb_cond : integer := 29;  -- We don't allow interrupts during cond
+--constant e32_fb_sgn : integer := 28; -- sgn must immedately precede ALU op, so won't be interrupted.
 
 end package;
 

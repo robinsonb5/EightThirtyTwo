@@ -8,6 +8,7 @@ use work.eightthirtytwo_pkg.all;
 
 entity eightthirtytwo_cpu is
 generic(
+	storealign : boolean := true;
 	interrupts : boolean := true
 	);
 port(
@@ -134,11 +135,11 @@ r_gpr_ra<=d_reg;
 
 r_gpr7_flags(e32_fb_zero)<=flag_z;
 r_gpr7_flags(e32_fb_carry)<=flag_c;
-r_gpr7_flags(e32_fb_cond)<=flag_cond;
-r_gpr7_flags(e32_fb_sgn)<=flag_sgn;
+--r_gpr7_flags(e32_fb_cond)<=flag_cond;
+--r_gpr7_flags(e32_fb_sgn)<=flag_sgn;
 r_gpr7(e32_pc_maxbit downto 0)<=f_pc;
 r_gpr7(31 downto e32_pc_maxbit+1)<=r_gpr7_flags when r_gpr7_readflags='1' else (others => '0');
-r_gpr7(27 downto e32_pc_maxbit+1)<=(others=>'X');
+-- r_gpr7(29 downto e32_pc_maxbit+1)<=(others=>'X');
 
 with r_gpr_ra select r_gpr_q <=
 	r_gpr0 when "000",
@@ -156,6 +157,10 @@ with r_gpr_ra select r_gpr_q <=
 -- Fetch/Load/Store unit is responsible for interfacing with main memory.
 
 fetchloadstore : entity work.eightthirtytwo_fetchloadstore 
+generic map
+(
+	storealign=>storealign
+)
 port map
 (
 	clk => clk,
@@ -345,7 +350,6 @@ begin
 		-- address in q1 in successive cycles.  We need to use the first one to trigger the
 		-- load/store operation and the second one to update the address register.
 		
-		-- FIXME - the end of a cond block causes problems here.
 		if alu_ack='1' then
 			e_continue<='0';
 		end if;
@@ -357,8 +361,6 @@ begin
 		if e_continue='0' and (e_blocked='1') and e_ex_op(e32_exb_waitalu)='0' then
 			e_ex_op<=e32_ex_bubble;
 		else
---			if e_ex_op(e32_exb_postinc)='1' and e_continue='0' then
---				e_continue<='1';
 			if e_continue='0' and (e_ex_op(e32_exb_waitalu)='0' or alu_ack='1') then
 				if d_ex_op(e32_exb_postinc)='1' then
 					e_continue<='1';
@@ -430,12 +432,10 @@ begin
 		-- Mem stage
 
 		-- Forward context from E to M
---		if m_ex_op(e32_exb_waitalu)='0' or alu_ack='1' then
-			m_reg<=e_reg;
-			m_ex_op<=e_ex_op;
---		end if;
-		
-		
+		m_reg<=e_reg;
+		m_ex_op<=e_ex_op;
+
+
 		-- Load / store operations.
 			
 		-- If we have a postinc operation we need to avoid triggering the load/store a
@@ -493,8 +493,8 @@ begin
 					f_pc<=alu_q1(e32_pc_maxbit downto 0);
 					flag_z<=alu_q1(e32_fb_zero);
 					flag_c<=alu_q1(e32_fb_carry);
-					flag_cond<=alu_q1(e32_fb_cond);
-					flag_sgn<=alu_q1(e32_fb_sgn);
+--					flag_cond<=alu_q1(e32_fb_cond);
+--					flag_sgn<=alu_q1(e32_fb_sgn);
 				when others =>
 					null;
 			end case;
@@ -537,6 +537,7 @@ begin
 			else
 				flag_z<='0';
 			end if;
+			flag_c<=ls_q(31);	-- Sign of the result to C
 		end if;
 
 		
@@ -550,7 +551,6 @@ begin
 		if flag_cond='1' and r_gpr7_readflags='0' then	-- advance PC but replace instructions with bubbles
 			e_ex_op<=e32_ex_bubble;
 			m_ex_op<=e32_ex_bubble;
---			if d_ex_op(e32_exb_cond)='1' or
 			if e_blocked='0' and (d_ex_op(e32_exb_cond)='1' or
 					(d_ex_op(e32_exb_q1toreg)='1' and d_reg="111")) then -- Writing to PC?
 				e_ex_op<=e32_ex_cond;
@@ -563,7 +563,6 @@ begin
 			if (e_reg(1)&e_reg and cond_minterms) = "0000" then
 				flag_cond<='1';
 			else
---				e_pause_cond<='1';
 				flag_cond<='0';
 			end if;			
 		end if;

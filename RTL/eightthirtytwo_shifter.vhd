@@ -51,7 +51,7 @@ begin
 					if rotate='1' then
 						result(31)<=result(0);
 						result(30 downto 0)<=result(31 downto 1);
-						carry<='X';
+						carry<=result(0);
 					elsif right_left='1' then -- shift right, both logical and arithmetic
 						result(31)<=signbit;
 						result(30 downto 0)<=result(31 downto 1);
