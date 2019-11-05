@@ -168,7 +168,7 @@ end process;
 -- Memory interface
 
 -- We want to assert ram_req immediately if we can:
-ram_req<='0' when reset_n='0' else fetch_ram_req when ls_state=LS_WAIT
+ram_req<='0' when reset_n='0' else fetch_ram_req and not ram_ack when ls_state=LS_WAIT
 	else ram_req_r and not ram_ack;
 
 ram_addr<=fetch_addr(31 downto 2) when ls_state=LS_WAIT and fetch_ram_req='1'
@@ -190,25 +190,27 @@ begin
 		case ls_state is
 			when LS_WAIT =>
 
-				if fetch_ram_req='1' and pc_req='0' then
-					ram_addr_r<=std_logic_vector(fetch_addr(31 downto 2));
-					ram_req_r<='1';
-					ls_state<=LS_FETCH;
-				elsif ls_req='1' then
-					ram_addr_r<=ls_addr(31 downto 2);
-					ram_req_r<='1';
-					ram_bytesel(3)<=ls_mask(0);
-					ram_bytesel(2)<=ls_mask(1);
-					ram_bytesel(1)<=ls_mask(2);
-					ram_bytesel(0)<=ls_mask(3);
---					if ls_wr='1' then
-					ram_wr<=ls_wr;
-					load_store<=not ls_wr;
-					ls_state<=LS_LOAD;
---					else
---						load_store<='1';
---						ls_state<=LS_LOAD;
---					end if;	
+				if pc_req='0' then -- Prevent fetches and loads from getting tangled.
+					if fetch_ram_req='1' then
+						ram_addr_r<=std_logic_vector(fetch_addr(31 downto 2));
+						ram_req_r<='1';
+						ls_state<=LS_FETCH;
+					elsif ls_req='1' then
+						ram_addr_r<=ls_addr(31 downto 2);
+						ram_req_r<='1';
+						ram_bytesel(3)<=ls_mask(0);
+						ram_bytesel(2)<=ls_mask(1);
+						ram_bytesel(1)<=ls_mask(2);
+						ram_bytesel(0)<=ls_mask(3);
+	--					if ls_wr='1' then
+						ram_wr<=ls_wr;
+						load_store<=not ls_wr;
+						ls_state<=LS_LOAD;
+	--					else
+	--						load_store<='1';
+	--						ls_state<=LS_LOAD;
+	--					end if;	
+					end if;
 				end if;
 
 			when LS_FETCH =>

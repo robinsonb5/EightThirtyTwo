@@ -187,26 +187,27 @@ begin
 
 		case ls_state is
 			when LS_WAIT =>
-
-				if fetch_ram_req='1' and pc_req='0' then
-					ram_addr_r<=std_logic_vector(fetch_addr(31 downto 2));
-					ram_req_r<='1';
-					ls_state<=LS_FETCH;
-				elsif ls_req='1' then
-					ram_addr_r<=ls_addr(31 downto 2);
-					ram_req_r<='1';
-					ram_bytesel(3)<=ls_mask(0);
-					ram_bytesel(2)<=ls_mask(1);
-					ram_bytesel(1)<=ls_mask(2);
-					ram_bytesel(0)<=ls_mask(3);
---					if ls_wr='1' then
-					ram_wr<=ls_wr;
-					load_store<=not ls_wr;
-					ls_state<=LS_LOAD;
---					else
---						load_store<='1';
---						ls_state<=LS_LOAD;
---					end if;	
+				if pc_req='0' then
+					if fetch_ram_req='1' then
+						ram_addr_r<=std_logic_vector(fetch_addr(31 downto 2));
+						ram_req_r<='1';
+						ls_state<=LS_FETCH;
+					elsif ls_req='1' then
+						ram_addr_r<=ls_addr(31 downto 2);
+						ram_req_r<='1';
+						ram_bytesel(3)<=ls_mask(0);
+						ram_bytesel(2)<=ls_mask(1);
+						ram_bytesel(1)<=ls_mask(2);
+						ram_bytesel(0)<=ls_mask(3);
+	--					if ls_wr='1' then
+						ram_wr<=ls_wr;
+						load_store<=not ls_wr;
+						ls_state<=LS_LOAD;
+	--					else
+	--						load_store<='1';
+	--						ls_state<=LS_LOAD;
+	--					end if;	
+					end if;
 				end if;
 
 			when LS_FETCH =>
