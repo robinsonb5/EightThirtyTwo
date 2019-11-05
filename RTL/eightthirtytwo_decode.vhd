@@ -65,7 +65,7 @@ xoraluop<=e32_alu_nop when opcode(2 downto 0)="111"
 with op select alu_func <=
 	e32_alu_nop when e32_op_cond,
 	e32_alu_nop when e32_op_mr,
-	e32_alu_nop when e32_op_sth,
+	e32_alu_nop when e32_op_sth, -- sth is available for re-use
 	e32_alu_nop when e32_op_st,
 
 	e32_alu_nop when e32_op_ld,
@@ -105,7 +105,7 @@ with op select alu_reg1 <=
 	e32_reg_tmp when e32_op_stmpdec,
 	e32_reg_tmp when e32_op_exg,
 	e32_reg_tmp when e32_op_add, -- Swapped because we want the old value in q2
-	e32_reg_gpr when e32_op_sth,
+	e32_reg_gpr when e32_op_sth, -- sth is available for re-use
 	e32_reg_gpr when e32_op_st,
 
 	e32_reg_gpr when e32_op_ld,
@@ -138,7 +138,7 @@ with op select alu_reg2 <=
 	e32_reg_gpr when e32_op_exg,
 	e32_reg_gpr when e32_op_add, -- Swapped because we want the old value in q2
 	e32_reg_tmp when e32_op_mr,
-	e32_reg_tmp when e32_op_sth,
+	e32_reg_tmp when e32_op_sth, -- sth is available for re-use
 	e32_reg_tmp when e32_op_st,
 
 	e32_reg_dontcare when e32_op_ld,
@@ -179,7 +179,7 @@ with op select ex_op <=
 
 	e32_ex_flags when e32_op_cmp,
 
-	(e32_ex_store or e32_ex_halfword) when e32_op_sth,
+	(e32_ex_store or e32_ex_halfword) when e32_op_sth, -- sth is available for re-use
 	e32_ex_store when e32_op_st,
 
 	e32_ex_load when e32_op_ld,

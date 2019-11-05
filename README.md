@@ -72,6 +72,9 @@ either another "cond" instruction or an instruction that would
 have written to r7.
 * sgn  -  Sets the sgn flag, which modifies the "cmp", "shr" and "mul"
 instructions.  Any subsequent ALU instruction will clear it again.
+* hlf  -  modifies the next load/store instruction to operate on halfwords
+rather than full words.  Only modifies the storage size, doesn't modify
+increment or decrement amounts.
 
 ### Load instructions
 All load instructions will set or clear the zero flag based on the loaded
@@ -87,7 +90,6 @@ tmp.
 
 ### Store instructions
 * st rn  -  Stores the contents of tmp to the address in rn.
-* sth  rn  -  Stores the lower 16-bits of tmp to the address in rn.
 * stdec rn  -  Stores the contents of tmp to the address in rn, decrements
 rn.
 * stbinc rn  -  Stores the lowest byte of tmp to the address in rn,

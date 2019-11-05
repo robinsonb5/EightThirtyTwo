@@ -17,7 +17,7 @@
 #define shl .byte 0x30 +
 #define ror .byte 0x38 +
 
-#define sth .byte 0x40 +
+// #define sth .byte 0x40 + // STH is replaced by hlf; st - opcode available for re-use
 #define mr .byte 0x48 +
 #define stbinc .byte 0x50 +
 #define stmpdec .byte 0x58 +
@@ -28,7 +28,6 @@
 #define st .byte 0x78 +
 
 #define add .byte 0x80 +
-// Add's behaviour is different for r7 - perhaps use a different mnemonic?
 #define sub .byte 0x88 +
 #define mul .byte 0x90 +
 #define and .byte 0x98 +

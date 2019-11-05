@@ -13,7 +13,7 @@ constant e32_op_shr : std_logic_vector(7 downto 0) := X"28";
 constant e32_op_shl : std_logic_vector(7 downto 0) := X"30";
 constant e32_op_ror : std_logic_vector(7 downto 0) := X"38";
 
-constant e32_op_sth : std_logic_vector(7 downto 0) := X"40";
+constant e32_op_sth : std_logic_vector(7 downto 0) := X"40"; -- Available for re-use
 constant e32_op_mr : std_logic_vector(7 downto 0) := X"48";
 constant e32_op_stbinc : std_logic_vector(7 downto 0) := X"50";
 constant e32_op_stmpdec : std_logic_vector(7 downto 0) := X"58";
