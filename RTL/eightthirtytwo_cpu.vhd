@@ -52,6 +52,7 @@ signal flag_c : std_logic;
 signal flag_cond : std_logic;
 signal flag_sgn : std_logic;
 signal flag_interrupting : std_logic;
+signal flag_halfword : std_logic;
 
 -- Load / store signals
 
@@ -336,6 +337,7 @@ begin
 		m_ex_op<=e32_ex_bubble;
 		e_continue<='0';
 		flag_interrupting<='0';
+		flag_halfword<='0';
 		r_gpr7_readflags<='0';
 	elsif rising_edge(clk) then
 		e_setpc<='0';
@@ -447,18 +449,20 @@ begin
 		if m_ex_op(e32_exb_load)='1' and ls_req_r='0' then -- and  (m_ex_op(e32_exb_waitalu)='0' or alu_busy='1') then
 			ls_addr<=alu_q1;
 			ls_d<=alu_q2;
-			ls_halfword<=m_ex_op(e32_exb_halfword);
+			ls_halfword<=m_ex_op(e32_exb_halfword) or flag_halfword;
 			ls_byte<=m_ex_op(e32_exb_byte);
 			ls_req_r<='1';
+			flag_halfword<='0';
 		end if;
 
 		if m_ex_op(e32_exb_store)='1' and ls_req_r='0' then
 			ls_addr<=alu_q1;
 			ls_d<=alu_q2;
-			ls_halfword<=m_ex_op(e32_exb_halfword);
+			ls_halfword<=m_ex_op(e32_exb_halfword) or flag_halfword;
 			ls_byte<=m_ex_op(e32_exb_byte);
 			ls_wr<='1';
 			ls_req_r<='1';
+			flag_halfword<='0';
 		end if;
 
 
@@ -508,6 +512,9 @@ begin
 		-- set upon entering the interrupt routine.
 		if m_ex_op(e32_exb_flags)='1' then
 			flag_sgn<='0'; -- Any ALU op that sets flags will clear the sign modifier.
+			if m_ex_op(e32_exb_halfword)='1' then	-- Modify the next load/store to operate on a halfword.
+				flag_halfword<='1';
+			end if;
 			flag_c<=alu_carry;
 			if alu_q1=X"00000000" then
 				flag_z<='1';

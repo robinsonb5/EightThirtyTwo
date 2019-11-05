@@ -42,9 +42,9 @@
 
 // Overloaded opcodes.  Mostly ops that make no sense when applied to R7
 
-#define	sgn .byte 0xb7
-#define ldt .byte 0xbf
-
+#define ldt .byte 0xbf	// Overloads xor
+#define	sgn .byte 0xb7	// Overloads or
+#define hlf	.byte 0x9f  // Overloads and
 
 #define r0 0
 #define r1 1
@@ -55,12 +55,12 @@
 #define r6 6
 #define r7 7
 
-#define NEX 0
-#define SGT 1
-#define EQ 2
-#define GE 3
-#define SLT 4
-#define NEQ 5
-#define LE 6
-#define EX 7
+#define NEX 0	// Match none.
+#define SGT 1	// Zero clear, carry clear
+#define EQ 2	// Zero set, carry don't care
+#define GE 3	// Zero set or carry clear
+#define SLT 4	// Zero clear, carry set
+#define NEQ 5	// Zero clear, carry don't care
+#define LE 6	// Zero set or carry set
+#define EX 7	// Zero don't care, carry don't care
 
