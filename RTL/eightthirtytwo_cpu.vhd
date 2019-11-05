@@ -8,6 +8,7 @@ use work.eightthirtytwo_pkg.all;
 
 entity eightthirtytwo_cpu is
 generic(
+	littleendian : boolean := true;
 	storealign : boolean := true;
 	interrupts : boolean := true
 	);
@@ -159,45 +160,91 @@ with r_gpr_ra select r_gpr_q <=
 
 -- Fetch/Load/Store unit is responsible for interfacing with main memory.
 
-fetchloadstore : entity work.eightthirtytwo_fetchloadstore 
-generic map
-(
-	storealign=>storealign
-)
-port map
-(
-	clk => clk,
-	reset_n => reset_n,
+GENBE:
+if littleendian=false generate
+	fetchloadstore : entity work.eightthirtytwo_fetchloadstore 
+	generic map
+	(
+		storealign=>storealign
+	)
+	port map
+	(
+		clk => clk,
+		reset_n => reset_n,
 
-	-- cpu fetch interface
+		-- cpu fetch interface
 
-	pc(31 downto e32_pc_maxbit+1) => (others => '0'),
-	pc(e32_pc_maxbit downto 0) => f_pc,
-	pc_req => e_setpc,
-	opcode => f_op,
-	opcode_valid => f_op_valid,
+		pc(31 downto e32_pc_maxbit+1) => (others => '0'),
+		pc(e32_pc_maxbit downto 0) => f_pc,
+		pc_req => e_setpc,
+		opcode => f_op,
+		opcode_valid => f_op_valid,
 
-	-- cpu load/store interface
+		-- cpu load/store interface
 
-	ls_addr => ls_addr,
-	ls_d => ls_d,
-	ls_q => ls_q,
-	ls_wr => ls_wr,
-	ls_byte => ls_byte,
-	ls_halfword => ls_halfword,
-	ls_req => ls_req,
-	ls_ack => ls_ack,
+		ls_addr => ls_addr,
+		ls_d => ls_d,
+		ls_q => ls_q,
+		ls_wr => ls_wr,
+		ls_byte => ls_byte,
+		ls_halfword => ls_halfword,
+		ls_req => ls_req,
+		ls_ack => ls_ack,
 
-		-- external RAM interface:
+			-- external RAM interface:
 
-	ram_addr => addr,
-	ram_d => d,
-	ram_q => q,
-	ram_bytesel => bytesel,
-	ram_wr => wr,
-	ram_req => req,
-	ram_ack => ack
-);
+		ram_addr => addr,
+		ram_d => d,
+		ram_q => q,
+		ram_bytesel => bytesel,
+		ram_wr => wr,
+		ram_req => req,
+		ram_ack => ack
+	);
+end generate;
+
+GENLE:
+if littleendian=true generate
+	fetchloadstore : entity work.eightthirtytwo_fetchloadstore_le
+	generic map
+	(
+		storealign=>storealign
+	)
+	port map
+	(
+		clk => clk,
+		reset_n => reset_n,
+
+		-- cpu fetch interface
+
+		pc(31 downto e32_pc_maxbit+1) => (others => '0'),
+		pc(e32_pc_maxbit downto 0) => f_pc,
+		pc_req => e_setpc,
+		opcode => f_op,
+		opcode_valid => f_op_valid,
+
+		-- cpu load/store interface
+
+		ls_addr => ls_addr,
+		ls_d => ls_d,
+		ls_q => ls_q,
+		ls_wr => ls_wr,
+		ls_byte => ls_byte,
+		ls_halfword => ls_halfword,
+		ls_req => ls_req,
+		ls_ack => ls_ack,
+
+			-- external RAM interface:
+
+		ram_addr => addr,
+		ram_d => d,
+		ram_q => q,
+		ram_bytesel => bytesel,
+		ram_wr => wr,
+		ram_req => req,
+		ram_ack => ack
+	);
+end generate;
 
 
 -- Decoder

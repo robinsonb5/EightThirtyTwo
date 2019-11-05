@@ -80,8 +80,14 @@ begin
 		-- cpu fetch interface
 
 		addr => ram_addr,
-		d => from_ram,
-		q => to_ram,
+		d(31 downto 24) => from_ram(7 downto 0),
+		d(23 downto 16) => from_ram(15 downto 8),
+		d(15 downto 8) => from_ram(23 downto 16),
+		d(7 downto 0) => from_ram(31 downto 24),
+		q(31 downto 24) => to_ram(7 downto 0),
+		q(23 downto 16) => to_ram(15 downto 8),
+		q(15 downto 8) => to_ram(23 downto 16),
+		q(7 downto 0) => to_ram(31 downto 24),
 		bytesel => ram_bytesel,
 		wr => ram_wr,
 		req => ram_req,

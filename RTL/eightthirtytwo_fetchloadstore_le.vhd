@@ -2,9 +2,11 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
+-- Little-endian variant of the fetch/load/store unit
+
 -- FIXME - add sign extension and zeroing of upper bits for byte or halfword loads
 
-entity eightthirtytwo_fetchloadstore is
+entity eightthirtytwo_fetchloadstore_le is
 generic
 (
 	storealign : in boolean := true
@@ -44,7 +46,7 @@ port
 );
 end entity;
 
-architecture behavioural of eightthirtytwo_fetchloadstore is
+architecture behavioural of eightthirtytwo_fetchloadstore_le is
 
 -- Fetch signals
 
@@ -81,14 +83,14 @@ begin
 -- Fetch
 
 with pc(2 downto 0) select opcode <=
-	opcodebuffer(63 downto 56) when "000",
-	opcodebuffer(55 downto 48) when "001",
-	opcodebuffer(47 downto 40) when "010",
-	opcodebuffer(39 downto 32) when "011",
-	opcodebuffer(31 downto 24) when "100",
-	opcodebuffer(23 downto 16) when "101",
-	opcodebuffer(15 downto 8) when "110",
-	opcodebuffer(7 downto 0) when "111",
+	opcodebuffer(63 downto 56) when "011",
+	opcodebuffer(55 downto 48) when "010",
+	opcodebuffer(47 downto 40) when "001",
+	opcodebuffer(39 downto 32) when "000",
+	opcodebuffer(31 downto 24) when "111",
+	opcodebuffer(23 downto 16) when "110",
+	opcodebuffer(15 downto 8) when "101",
+	opcodebuffer(7 downto 0) when "100",
 	(others =>'X') when others;
 
 opcode_valid_i<=opcodebuffer_valid(1) when pc(2)='0' else opcodebuffer_valid(0);
@@ -326,7 +328,7 @@ end process;
 to_aligner <= ls_d when load_store='0' else ram_d;
 ram_q<=from_aligner;
 
-aligner : entity work.eightthirtytwo_aligner
+aligner : entity work.eightthirtytwo_aligner_le
 port map(
 	d => to_aligner,
 	q => from_aligner,
