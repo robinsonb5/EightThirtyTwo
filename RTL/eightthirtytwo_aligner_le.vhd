@@ -56,10 +56,10 @@ begin
 		"11" when "00110",
 		"00" when "00111",
 		-- halfword store:
-		"10" when "01000",
-		"11" when "01001",
-		"00" when "01010",
-		"01" when "01011",
+		"00" when "01000",
+		"01" when "01001",
+		"10" when "01010",
+		"11" when "01011",
 
 		"XX" when others;
 
@@ -94,10 +94,10 @@ begin
 		"0001" when "00110",
 		"0001" when "00111",
 		-- halfword store:
-		"0011" when "01000",
-		"0011" when "01001",
+		"1100" when "01000",
+		"0110" when "01001",
 		"0011" when "01010",
-		"0011" when "01011",
+		"0001" when "01011",
 
 		"XXXX" when others;
 

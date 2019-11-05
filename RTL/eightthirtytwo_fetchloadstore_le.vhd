@@ -179,7 +179,7 @@ process(clk, reset_n, ls_req, ls_wr,ram_ack,fetch_ram_req)
 begin
 	if reset_n='0' then
 		ls_state<=LS_WAIT;
-		load_store<='1';
+--		load_store<='1';
 		ram_req_r<='0';
 		ram_wr<='0';
 	elsif rising_edge(clk) then
@@ -204,7 +204,7 @@ begin
 						ram_bytesel(0)<=ls_mask(3);
 	--					if ls_wr='1' then
 						ram_wr<=ls_wr;
-						load_store<=not ls_wr;
+--						load_store<=not ls_wr;
 						ls_state<=LS_LOAD;
 	--					else
 	--						load_store<='1';
@@ -326,8 +326,8 @@ end process;
 
 
 -- aligner
-
-to_aligner <= ls_d when load_store='0' else ram_d;
+load_store<=not ls_wr;
+to_aligner <= ls_d when ls_wr='1' else ram_d;
 ram_q<=from_aligner;
 
 aligner : entity work.eightthirtytwo_aligner_le
