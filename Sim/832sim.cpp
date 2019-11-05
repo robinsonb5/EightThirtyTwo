@@ -552,6 +552,8 @@ class EightThirtyTwoSim
 							break;
 
 						case opc_ror: // ror
+							carry=regfile[operand]>>(temp-1);
+							carry&=1;
 							t=regfile[operand]<<(32-temp);
 							regfile[operand]=(regfile[operand]>>temp)|t;
                                                         mnem << ("ror ") << operand;

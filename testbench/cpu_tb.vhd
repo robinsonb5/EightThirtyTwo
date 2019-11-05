@@ -51,7 +51,7 @@ is
 
 begin
 
-	rom : entity work.alutest_rom
+	rom : entity work.division_rom
 	port map(
 		clk => clk,
 		from_soc => romout,
