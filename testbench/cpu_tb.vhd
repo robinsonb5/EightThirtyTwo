@@ -27,7 +27,7 @@ is
 	signal ls_ack : std_logic;
 
 	signal uart_read : std_logic_vector(31 downto 0);
-	signal uart_count : unsigned(3 downto 0) :="0000" ;
+	signal uart_count : unsigned(1 downto 0) :="00" ;
 
 	signal ram_addr : std_logic_vector(31 downto 2);
 	signal from_ram : std_logic_vector(31 downto 0);
@@ -80,14 +80,16 @@ begin
 		-- cpu fetch interface
 
 		addr => ram_addr,
-		d(31 downto 24) => from_ram(7 downto 0),
-		d(23 downto 16) => from_ram(15 downto 8),
-		d(15 downto 8) => from_ram(23 downto 16),
-		d(7 downto 0) => from_ram(31 downto 24),
-		q(31 downto 24) => to_ram(7 downto 0),
-		q(23 downto 16) => to_ram(15 downto 8),
-		q(15 downto 8) => to_ram(23 downto 16),
-		q(7 downto 0) => to_ram(31 downto 24),
+		d => from_ram,
+		q => to_ram,
+--		d(31 downto 24) => from_ram(7 downto 0),
+--		d(23 downto 16) => from_ram(15 downto 8),
+--		d(15 downto 8) => from_ram(23 downto 16),
+--		d(7 downto 0) => from_ram(31 downto 24),
+--		q(31 downto 24) => to_ram(7 downto 0),
+--		q(23 downto 16) => to_ram(15 downto 8),
+--		q(15 downto 8) => to_ram(23 downto 16),
+--		q(7 downto 0) => to_ram(31 downto 24),
 		bytesel => ram_bytesel,
 		wr => ram_wr,
 		req => ram_req,

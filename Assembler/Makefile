@@ -22,7 +22,7 @@ clean :
 
 %_ROM.vhd: %.bin $(ROMGEN)
 	sed 's/dualportram/$*_ROM/' >$*_ROM.vhd <$(ROMGENDIR)/rom_prologue.vhd
-	$(ROMGEN) $*.bin >>$*_ROM.vhd
+	$(ROMGEN) -b $*.bin >>$*_ROM.vhd
 	cat >>$*_ROM.vhd $(ROMGENDIR)/rom_epilogue.vhd
 
 $(ROMGEN): $(ROMGENDIR)/romgen.c
