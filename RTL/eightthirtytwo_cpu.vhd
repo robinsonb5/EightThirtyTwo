@@ -41,12 +41,16 @@ signal r_gpr4 : std_logic_vector(31 downto 0);
 signal r_gpr5 : std_logic_vector(31 downto 0);
 signal r_gpr6 : std_logic_vector(31 downto 0);
 signal r_gpr7 : std_logic_vector(31 downto 0);
+-- The upper two bits of r7 will read as flags when and only when servicing an
+-- interrupt, avoiding the need to save the flags separately; they're baked into
+-- the return address.
 signal r_gpr7_flags : std_logic_vector(31 downto e32_pc_maxbit+1);
 signal r_gpr7_readflags : std_logic;
 
 signal r_tmp : std_logic_vector(31 downto 0);
 
 
+-- Status flags.  Z and C are used for conditional execution.
 
 signal flag_z : std_logic;
 signal flag_c : std_logic;
@@ -54,6 +58,7 @@ signal flag_cond : std_logic;
 signal flag_sgn : std_logic;
 signal flag_interrupting : std_logic;
 signal flag_halfword : std_logic;
+
 
 -- Load / store signals
 
@@ -77,11 +82,12 @@ signal f_alu_op : std_logic_vector(e32_alu_maxbit downto 0);
 signal f_alu_reg1 : std_logic_vector(e32_reg_maxbit downto 0);
 signal f_alu_reg2 : std_logic_vector(e32_reg_maxbit downto 0);
 signal f_ex_op : std_logic_vector(e32_ex_maxbit downto 0);
-signal f_op_valid : std_logic := '0' ;	-- Execute stage can use f_op
+signal f_op_valid : std_logic := '0';
 signal f_interruptable : std_logic;
 
 
 -- Decode stage signals:
+
 signal d_imm : std_logic_vector(5 downto 0);
 signal d_reg : std_logic_vector(2 downto 0);
 signal d_alu_op : std_logic_vector(e32_alu_maxbit downto 0);
@@ -89,10 +95,10 @@ signal d_alu_reg1 : std_logic_vector(e32_reg_maxbit downto 0);
 signal d_alu_reg2 : std_logic_vector(e32_reg_maxbit downto 0);
 signal d_ex_op : std_logic_vector(e32_ex_maxbit downto 0);
 
+
 -- Execute stage signals:
 
 signal e_continue : std_logic; -- Used to stretch postinc operations over two cycles.
-signal e_pause_cond : std_logic;
 signal e_reg : std_logic_vector(2 downto 0);
 signal e_ex_op : std_logic_vector(e32_ex_maxbit downto 0);
 signal cond_minterms : std_logic_vector(3 downto 0);
@@ -115,11 +121,16 @@ signal alu_ack : std_logic;
 signal m_reg : std_logic_vector(2 downto 0);
 signal m_ex_op : std_logic_vector(e32_ex_maxbit downto 0);
 
+
 -- Writeback stage signals
+-- In fact writeback to registers is done at the M stage;
+-- W only has to write the result of load operations to the temp register.
 
 signal w_ex_op : std_logic_vector(e32_ex_maxbit downto 0);
 
+
 -- hazard / stall signals
+
 signal hazard_tmp : std_logic;
 signal hazard_pc : std_logic;
 signal hazard_reg : std_logic;
@@ -298,7 +309,7 @@ ls_req<=ls_req_r and not ls_ack;
 -- If the instruction being decoded requires tmp as either source we
 -- block the transfer from D to E and the advance of PC
 -- until any previous instruction writing to tmp has cleared the pipeline.
--- (If we don't implement ltmpinc or ltmp then nothing beyond M will write the regfile.)
+-- (If we don't implement ltmpinc or ltmp then nothing beyond M will write to the regfile.)
 
 hazard_tmp<='1' when
 	(e_ex_op(e32_exb_q1totmp)='1' or e_ex_op(e32_exb_q2totmp)='1'
@@ -312,7 +323,6 @@ hazard_tmp<='1' when
 -- If the instruction being decoded requires a register as source we block
 -- the transfer from D to E and the advance of PC until any previous
 -- instruction writing to the regfile has cleared the pipeline.
--- (FIXME Can potentially make this finer-grained and match the actual register.)
 
 hazard_reg<='1' when
 	((e_ex_op(e32_exb_q1toreg)='1' and e_reg=d_reg)	or
@@ -325,6 +335,7 @@ hazard_pc<='1' when
 		or (m_ex_op(e32_exb_q1toreg)='1' and m_reg="111")
 	else '0';
 
+	
 -- Load hazard - if a load or store is in the pipeline we have to delay further loads/stores
 -- and also ops which write to tmp.  FIXME - the latter can run against a store.
 hazard_load<='1' when
@@ -351,8 +362,7 @@ hazard<=(not f_op_valid)
 				or hazard_reg
 				or hazard_pc
 				or hazard_load
-				or hazard_flags
-				or e_pause_cond;
+				or hazard_flags;
 
 -- Stall - causes the entire pipeline to pause, without inserting bubbles.
 
@@ -361,7 +371,8 @@ stall<='1' when e_ex_op(e32_exb_waitalu)='1' and alu_ack='0'
 				
 -- Condition minterms:
 
--- FIXME - need to make cond NEX pause the CPU.
+-- FIXME - need to make cond NEX pause the CPU,
+-- or perhaps remap it somehow to "carry set, zero don't care"?
 
 cond_minterms(3)<= flag_z and flag_c;
 cond_minterms(2)<= (not flag_z) and flag_c;
@@ -398,6 +409,8 @@ begin
 		-- long-term.  In post-increment mode the ALU outputs the pre- and post-incremented
 		-- address in q1 in successive cycles.  We need to use the first one to trigger the
 		-- load/store operation and the second one to update the address register.
+		-- We use the "continue" signal to prevent a bubble overwriting the op before the
+		-- register update is complete.
 		
 		if alu_ack='1' then
 			e_continue<='0';
@@ -409,65 +422,62 @@ begin
 		
 		if stall='0' and e_continue='0' then
 		
-			if e_continue='0' and (hazard='1') then
+			if hazard='1' then
 				e_ex_op<=e32_ex_bubble;
 			else
-	--			if e_continue='0' and (e_ex_op(e32_exb_waitalu)='0' or alu_ack='1') then
-					if d_ex_op(e32_exb_postinc)='1' then
-						e_continue<='1';
+				if d_ex_op(e32_exb_postinc)='1' then
+					e_continue<='1';
+				end if;
+				f_pc<=f_nextpc;
+				alu_imm<=d_imm;
+			
+				alu_op<=d_alu_op;
+				if d_alu_reg1(e32_regb_tmp)='1' then
+					alu_d1<=r_tmp;
+				else
+					alu_d1<=r_gpr_q;
+				end if;
+
+				if d_alu_reg2(e32_regb_tmp)='1' then
+					alu_d2<=r_tmp;
+				else
+					alu_d2<=r_gpr_q;
+				end if;
+
+				alu_req<=r_gpr7_readflags or (not flag_cond);
+
+				if d_ex_op(e32_exb_sgn)='1' then
+					flag_sgn<='1';
+				end if;
+
+				e_reg<=d_reg(2 downto 0);
+				e_ex_op<=d_ex_op;
+
+				-- Fetch to Decode
+
+				d_imm <= f_op(5 downto 0);
+				d_reg <= f_op(2 downto 0);
+				d_alu_reg1<=f_alu_reg1;
+				d_alu_reg2<=f_alu_reg2;
+
+				d_ex_op<=f_ex_op;
+				d_alu_op<=f_alu_op;
+
+				-- Interrupt logic:
+				if interrupts=true then
+					if f_interruptable='1' and interrupt='1'
+								and (d_ex_op(e32_exb_q1toreg)='0' or d_reg/="111") -- Can't be about to write to r7
+								and d_ex_op(e32_exb_cond)='0' and d_alu_op/=e32_alu_li and -- Can't be cond or a immediately previous li
+									flag_interrupting='0' then
+						flag_interrupting<='1';
+						r_gpr7_readflags<='1';
+						d_reg<="111"; -- PC
+						d_alu_reg1<=e32_reg_gpr;
+						d_alu_reg2<=e32_reg_gpr;
+						d_alu_op<=e32_alu_xor;	-- Xor PC with itself; 0 -> PC, old PC -> tmp
+						d_ex_op<=e32_ex_q1toreg or e32_ex_q2totmp or e32_ex_flags; -- and zero flag set
 					end if;
-					f_pc<=f_nextpc;
-					alu_imm<=d_imm;
-				
-					alu_op<=d_alu_op;
-					if d_alu_reg1(e32_regb_tmp)='1' then
-						alu_d1<=r_tmp;
-					else
-						alu_d1<=r_gpr_q;
-					end if;
-
-					if d_alu_reg2(e32_regb_tmp)='1' then
-						alu_d2<=r_tmp;
-					else
-						alu_d2<=r_gpr_q;
-					end if;
-
-					alu_req<=r_gpr7_readflags or (not flag_cond);
-
-					if d_ex_op(e32_exb_sgn)='1' then
-						flag_sgn<='1';
-					end if;
-
-					e_reg<=d_reg(2 downto 0);
-					e_ex_op<=d_ex_op;
-
-					-- Fetch to Decode
-
-					d_imm <= f_op(5 downto 0);
-					d_reg <= f_op(2 downto 0);
-					d_alu_reg1<=f_alu_reg1;
-					d_alu_reg2<=f_alu_reg2;
-
-					d_ex_op<=f_ex_op;
-					d_alu_op<=f_alu_op;
-
-					-- Interrupt logic: FIXME - this slows down the ALU - can we move it to F?
-					if interrupts=true then
-						if f_interruptable='1' and interrupt='1'
-									and (d_ex_op(e32_exb_q1toreg)='0' or d_reg/="111") -- Can't be about to write to r7
-									and d_ex_op(e32_exb_cond)='0' and d_alu_op/=e32_alu_li and -- Can't be cond or a immediately previous li
-										flag_interrupting='0' then
-							flag_interrupting<='1';
-							r_gpr7_readflags<='1';
-							d_reg<="111"; -- PC
-							d_alu_reg1<=e32_reg_gpr;
-							d_alu_reg2<=e32_reg_gpr;
-							d_alu_op<=e32_alu_xor;	-- Xor PC with itself; 0 -> PC, old PC -> tmp
-							d_ex_op<=e32_ex_q1toreg or e32_ex_q2totmp or e32_ex_flags; -- and zero flag set
-						end if;
-					end if;
-
-	--			end if;
+				end if;
 			end if;
 		end if;
 
@@ -493,7 +503,7 @@ begin
 		-- If we have a postinc operation we need to avoid triggering the load/store a
 		-- second time, so we filter on ls_req='0'
 		
-		if m_ex_op(e32_exb_load)='1' and ls_req_r='0' then -- and  (m_ex_op(e32_exb_waitalu)='0' or alu_busy='1') then
+		if m_ex_op(e32_exb_load)='1' and ls_req_r='0' then
 			ls_addr<=alu_q1;
 			ls_d<=alu_q2;
 			ls_halfword<=m_ex_op(e32_exb_halfword) or flag_halfword;
@@ -547,8 +557,6 @@ begin
 					f_pc<=alu_q1(e32_pc_maxbit downto 0);
 					flag_z<=alu_q1(e32_fb_zero);
 					flag_c<=alu_q1(e32_fb_carry);
---					flag_cond<=alu_q1(e32_fb_cond);
---					flag_sgn<=alu_q1(e32_fb_sgn);
 				when others =>
 					null;
 			end case;
@@ -602,9 +610,8 @@ begin
 		-- If the cond flag is set, we replace anything in the E and M stages with bubbles.
 		-- If we encounter a new cond instruction in the stream we forward it to the E stage.
 		-- If we encounter an instruction writing to PC then we replace it with cond,
-		-- which, since the operand will be "111", equates to cond EX, i.e. full execution.
+		-- which, since the operand will be "111", equates to "cond EX", i.e. full execution.
 
-		e_pause_cond<='0';
 		if flag_cond='1' and r_gpr7_readflags='0' then	-- advance PC but replace instructions with bubbles
 			e_ex_op<=e32_ex_bubble;
 			m_ex_op<=e32_ex_bubble;
