@@ -14,9 +14,6 @@ int putchar(int c)
 	while(!((*uart)&(1<<REG_UART_TXREADY)))
 		;
 	*uart=c;
-//	while(!(HW_UART(REG_UART)&(1<<REG_UART_TXREADY)))
-//		;
-//	HW_UART(REG_UART)=c;
 	return(c);
 }
 

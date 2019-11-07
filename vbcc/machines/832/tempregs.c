@@ -354,11 +354,8 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
       if(p->v->storage_class==AUTO||p->v->storage_class==REGISTER)
       {
         emit(f," var, auto|reg\n");
-//        emit_prepobj(f,p,t,t1);
         emit_constanttotemp(f,real_offset(p));
-        emit(f,"\taddt\t%s\n\tldt\n\n",regnames[sp]);
-//	emit(f,"\tli\tIMW0(%ld)\n\taddt\t%s\n\texg\t%s\n\tmr\t%s\n\tld\t%s\n",
-//		real_offset(p),regnames[sp],regnames[sp],regnames[t1],regnames[t1]);
+        emit(f,"\tldidx\t%s\n",regnames[sp]);
       }
       else{
         if(!zmeqto(l2zm(0L),p->val.vmax)){

@@ -8,20 +8,20 @@ SECTIONS
 	. = 0x0;
 	_start = .;
 	.code : {
-	  *(.startup)
+	  *(.text.startup)
 	  *(.text)
 	  *(.rodata)
 	  *(.rodata.*)
 	  *(.data)
-	  *(.note.gnu.build-id)
 	} >mem
 	.extra : {
 		__bss_start__ = . ;
 	  *(.bss)
 	  	__bss_end__ = . ;
 	} >mem
-	.eh_frame : {
+	/DISCARD/ : {
 	  *(.eh_frame)
-	}
+	  *(.gnu.build-id)
+	} 
 }
 

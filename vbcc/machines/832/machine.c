@@ -535,14 +535,12 @@ static void function_bottom(FILE *f,struct Var *v,long offset)
       emit_constanttotemp(f,offset);
       emit(f,"\taddt\t%s\n",regnames[sp]);
     }
-    else
-      emit(f,"\texg\t%s\n",regnames[sp]);
     for(i=FIRST_GPR+1;i<=LAST_GPR-3;++i)
     {
       if(regused[i])
-        emit(f,"\tltmpinc\t%s\n",regnames[i]);
+        emit(f,"\tldinc\t%s\n\tmr\t%s\n",regnames[sp],regnames[i]);
     }
-    emit(f,"\tltmpinc\t%s\n\texg\t%s\n\tmr\t%s\n",regnames[sp],regnames[sp],regnames[pc]);
+    emit(f,"\tldinc\t%s\n\tmr\t%s\n",regnames[sp],regnames[pc]);
   }
 }
 
@@ -967,7 +965,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
       emit(f,"\tcond\t%s\n",ccs[c-BEQ]);
       emit(f,"\t\t\t\t\t//conditional branch ");
       emit_pcreltotemp(f,labprefix,t);
-      emit(f,"\tadd\tr7\n");
+      emit(f,"\t\tadd\tr7\n");
       continue;
     }
 
