@@ -354,7 +354,7 @@ static int q1reg,q2reg,zreg;
 
 static char *ccs[]={"EQ","NEQ","SLT","GE","LE","SGT","EX",""};
 static char *logicals[]={"or","xor","and"};
-static char *arithmetics[]={"shl","asr","add","sub","mul","divw","mod"};
+static char *arithmetics[]={"shl","sgn\n\tshr","add","sub","mul","//#FIXME call division routine","//#fixme call modulus routine"};
 
 /* Does some pre-processing like fetching operands from memory to
    registers etc. */
@@ -637,12 +637,8 @@ int init_cg(void)
   regsa[sp]=1;
   regsa[pc]=1;
   regscratch[t1]=0;
-//  regscratch[t2]=0;
   regscratch[sp]=0;
   regscratch[pc]=0;
-//regscratch[t2]=0;
-//  regscratch[f1]=regscratch[f2]=0;
-//  regscratch[sp]=0;
 
   target_macros=marray;
 
@@ -1155,6 +1151,8 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
     if(c==TEST){
       emit(f,"\t\t\t\t\t// (test)\n");
       emit_objtotemp(f,&p->q1,t); // Only need Z flag - moving to temp should be enough.
+	// FIXME - this works if we're loading the value - but if it's a register we
+	// need to compare - unless we redefine mt to set flags?
       continue;
     }
 
