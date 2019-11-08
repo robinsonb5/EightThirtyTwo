@@ -173,8 +173,8 @@ static long notpopped,pushed,dontpop,stackoffset,maxpushed;
 static long localsize,rsavesize,argsize;
 
 static void emit_obj(FILE *f,struct obj *p,int t);
-static void emit_prepobj(FILE *f,struct obj *p,int t,int reg);
-static void emit_prepobjtotemp(FILE *f,struct obj *p,int t,int reg);
+static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset);
+//static void emit_prepobjtotemp(FILE *f,struct obj *p,int t,int reg);
 //static void emit_destobj(FILE *f,struct obj *p,int t);
 static void emit_objtotemp(FILE *f,struct obj *p,int t);
 
@@ -274,7 +274,7 @@ static void load_address_to_temp(FILE *f,int r,struct obj *o,int type)
 static void load_address(FILE *f,int r,struct obj *o,int type)
 /*  Generates code to load the address of a variable into register r.   */
 {
-  emit_prepobj(f,o,type,r);
+  emit_prepobj(f,o,type,r,0);
   if(o->v->storage_class==REGISTER){
     emit(f,"#FIXME - register!\n");
   }
@@ -287,7 +287,7 @@ static int load_temp(FILE *f,int r,struct obj *o,int type)
   type&=NU;
   if(o->flags&VARADR){
     emit(f," FIXME - check varadr - should we be dereferencing this?\n");
-    emit_prepobj(f,o,type,t1);
+    emit_prepobj(f,o,type,t1,0);
     emit(f,"\tmt\t%s\n",regnames[t1]);
   }else{
     if((o->flags&(REG|DREFOBJ))==REG&&o->reg==r)
@@ -317,7 +317,7 @@ static void load_reg(FILE *f,int r,struct obj *o,int type)
 static void store_reg(FILE *f,int r,struct obj *o,int type)
 {
   type&=NQ;
-  emit_prepobjtotemp(f,o,type,t2); // FIXME - stmpdec predecrements, so need to add 4!
+  emit_prepobj(f,o,type,t2,4); // FIXME - stmpdec predecrements, so need to add 4!
   emit(f,"\tstmpdec\t%s\n",regnames[r]);
 }
 
@@ -325,7 +325,7 @@ static void store_reg(FILE *f,int r,struct obj *o,int type)
 static void store_temp(FILE *f,int r,struct obj *o,int type)
 {
   type&=NQ;
-  emit_prepobj(f,o,type,t2);
+  emit_prepobj(f,o,type,t2,0);
   emit(f,"\tst\t%s\n",regnames[r],regnames[t2]);
 }
 
@@ -446,7 +446,7 @@ static void function_top(FILE *f,struct Var *v,long offset)
   emit(f,"\t//registers used:\n");
   for(i=FIRST_GPR;i<=LAST_GPR;++i)
   {
-    emit(f,"\t\t//r%d: %s\n",i-FIRST_GPR,regused[i]?"yes":"no");
+    emit(f,"\t\t//%s: %s\n",regnames[i],regused[i]?"yes":"no");
     if(regused[i] && (i>FIRST_GPR) && (i<=LAST_GPR-3))
       ++regcount;
   }
@@ -533,7 +533,7 @@ static void function_bottom(FILE *f,struct Var *v,long offset)
     else if(offset)
     {
       emit_constanttotemp(f,offset);
-      emit(f,"\taddt\t%s\n",regnames[sp]);
+      emit(f,"\tadd\t%s\n",regnames[sp]);
     }
     for(i=FIRST_GPR+1;i<=LAST_GPR-3;++i)
     {
@@ -637,7 +637,7 @@ int init_cg(void)
 
   regsa[FIRST_GPR]=1;	// Allocate the return register
   regsa[t1]=1;
-//  regsa[t2]=1;
+  regsa[t2]=1;
   regsa[sp]=1;
   regsa[pc]=1;
   regsa[tmp]=1;
@@ -889,11 +889,13 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 
   for(m=p;m;m=m->next){
     c=m->code;t=m->typf&NU;
-    if(c==ALLOCREG) {regs[m->q1.reg]=1;continue;}
-    if(c==FREEREG) {regs[m->q1.reg]=0;continue;}
+    if(c==ALLOCREG) {regs[m->q1.reg]=1;emit(f,"//AllocReg %s\n",regnames[m->q1.reg]);continue;}
+    if(c==FREEREG) {regs[m->q1.reg]=0;emit(f,"//FreeReg %s\n",regnames[m->q1.reg]);continue;}
 
     /* convert MULT/DIV/MOD with powers of two */
-    if((t&NQ)<=LONG&&(m->q2.flags&(KONST|DREFOBJ))==KONST&&(t&NQ)<=LONG&&(c==MULT||((c==DIV||c==MOD)&&(t&UNSIGNED)))){
+	// Perversely, mul is faster than shifting on 832, so we only want to do this for div.
+	// FIXME - we can do this for signed values too.
+    if((t&NQ)<=LONG&&(m->q2.flags&(KONST|DREFOBJ))==KONST&&(t&NQ)<=LONG&&(((c==DIV||c==MOD)&&(t&UNSIGNED)))){
       eval_const(&m->q2.val,t);
       i=pof2(vmax);
       if(i){
@@ -907,7 +909,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
         c=m->code;
 	gval.vmax=vmax;
 	eval_const(&gval,MAXINT);
-	if(c==AND){
+	if(c==AND){	// FIXME - why?
 	  insert_const(&m->q2.val,t);
 	}else{
 	  insert_const(&m->q2.val,INT);
@@ -925,7 +927,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
       BSET(regs_modified,c);
     }
   }
-
+	emit(f,"// Modified register mask: %lx\n",regs_modified);
   localsize=(zm2l(offset)+3)/4*4;
 #if FIXED_SP
   /*FIXME: adjust localsize to get an aligned stack-frame */
@@ -978,14 +980,14 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 
     // Investigate - but not currently seeing it used.
     if(c==MOVETOREG){
-      emit(f,"\t\t\t\t\t//movetoreg\n");
+      emit(f,"\t\t\t\t\t//CHECKME movetoreg\n");
       load_reg(f,p->z.reg,&p->q1,regtype[p->z.reg]->flags);
       continue;
     }
 
     // Investigate - but not currently seeing it used.
     if(c==MOVEFROMREG){
-      emit(f,"\t\t\t\t\t//movefromreg\n");
+      emit(f,"\t\t\t\t\t//CHECKME movefromreg\n");
       store_reg(f,p->z.reg,&p->q1,regtype[p->z.reg]->flags);
       continue;
     }
@@ -1125,7 +1127,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 #endif
 	{
 		emit(f,"\t\t\t\t\t// (a/p assign)\n");
-		emit_prepobj(f,&p->z,t,t2);
+		emit_prepobj(f,&p->z,t,t2,0);
 		load_temp(f,zreg,&p->q1,t);
 		save_temp(f,p);
 	}
@@ -1156,8 +1158,10 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
     if(c==TEST){
       emit(f,"\t\t\t\t\t// (test)\n");
       emit_objtotemp(f,&p->q1,t); // Only need Z flag - moving to temp should be enough.
-	// FIXME - this works if we're loading the value - but if it's a register we
+	// This works if we're loading the value - but if it's a register we
 	// need to compare - unless we redefine mt to set flags?
+		if(p->q1.flags&REG)
+			emit(f,"\tand\t%s\n",regnames[p->q1.reg]);
       continue;
     }
 

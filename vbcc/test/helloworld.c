@@ -24,26 +24,20 @@ int puts(const char *msg)
 	int result=0;
 	int *s2=(int*)msg;
 
-	do
+	while(1)
 	{
 		int i;
 		int cs=*s2++;
 		for(i=0;i<4;++i)
 		{
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 			c=cs&0xff;
 			cs>>=8;
-#else
-			c=(cs>>24)&0xff;
-			cs<<=8;
-#endif
 			if(c==0)
 				return(result);
 			putchar(c);
 			++result;
 		}
 	}
-	while(c);
 	return(result);
 }
 

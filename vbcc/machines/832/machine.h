@@ -33,6 +33,7 @@
 /*  This struct can be used to implement machine-specific           */
 /*  addressing-modes.                                               */
 /*  Currently possible are (const,gpr) and (gpr,gpr)                */
+/*  FIXME - we can make use of ldidx here */
 struct AddressingMode{
     int never_used;
 };
@@ -95,7 +96,7 @@ struct reg_handle{
 #define HAVE_TARGET_PRAGMAS
 
 /*  We keep track of all registers modified by a function.          */
-#define HAVE_REGS_MODIFIED 0
+#define HAVE_REGS_MODIFIED 1
 
 /* We have a implement our own cost-functions to adapt 
    register-allocation */
