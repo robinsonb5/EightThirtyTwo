@@ -11,8 +11,8 @@ int main(int argc,char **argv)
 int putchar(int c)
 {
 	volatile int *uart=&HW_UART(REG_UART);
-	while(!((*uart)&(1<<REG_UART_TXREADY)))
-		;
+	do {} while(!((*uart)&(1<<REG_UART_TXREADY)));
+
 	*uart=c;
 	return(c);
 }

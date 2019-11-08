@@ -317,7 +317,7 @@ static void load_reg(FILE *f,int r,struct obj *o,int type)
 static void store_reg(FILE *f,int r,struct obj *o,int type)
 {
   type&=NQ;
-  emit_prepobj(f,o,type,t2,4); // FIXME - stmpdec predecrements, so need to add 4!
+  emit_prepobj(f,o,type,tmp,4); // FIXME - stmpdec predecrements, so need to add 4!
   emit(f,"\tstmpdec\t%s\n",regnames[r]);
 }
 
@@ -464,7 +464,7 @@ static void function_top(FILE *f,struct Var *v,long offset)
     emit(f,"\tstdec\t%s\n",regnames[sp]);
     for(i=FIRST_GPR+1;i<=LAST_GPR-3;++i)
     {
-      if(regused[i])
+      if(regused[i] && !regscratch[i])
       {
         emit(f,"\tmt\t%s\n\tstdec\t%s\n",regnames[i],regnames[sp]);
         rsavesize+=4;
@@ -476,7 +476,7 @@ static void function_top(FILE *f,struct Var *v,long offset)
     emit(f,"\texg\t%s\n\tstmpdec\t%s\n",regnames[sp],regnames[sp]);
     for(i=FIRST_GPR+1;i<=LAST_GPR-3;++i)
     {
-      if(regused[i])
+      if(regused[i] && !regscratch[i])
       {
         emit(f,"\tstmpdec\t%s\n",regnames[i]);
         rsavesize+=4;
@@ -509,8 +509,6 @@ static void function_bottom(FILE *f,struct Var *v,long offset)
       ++regcount;
   }
 
-  if(regcount<3)
-  {
     if(offset==4)
       emit(f,"\tldinc\t%s\t// quickest way to add 4 to sp\n",regnames[sp]);
     else if(offset)
@@ -521,27 +519,10 @@ static void function_bottom(FILE *f,struct Var *v,long offset)
 
     for(i=FIRST_GPR+1;i<=LAST_GPR-3;++i)
     {
-      if(regused[i])
+      if(regused[i] && !regscratch[i])
         emit(f,"\tldinc\t%s\n\tmr\t%s\n",regnames[sp],regnames[i]);
     }
     emit(f,"\tldinc\t%s\n\tmr\t%s\n\n",regnames[sp],regnames[pc]);
-  }
-  else
-  {
-    if(offset==4)
-      emit(f,"\tldinc\t%s\t// quickest way to add 4 to sp\n",regnames[sp]);
-    else if(offset)
-    {
-      emit_constanttotemp(f,offset);
-      emit(f,"\tadd\t%s\n",regnames[sp]);
-    }
-    for(i=FIRST_GPR+1;i<=LAST_GPR-3;++i)
-    {
-      if(regused[i])
-        emit(f,"\tldinc\t%s\n\tmr\t%s\n",regnames[sp],regnames[i]);
-    }
-    emit(f,"\tldinc\t%s\n\tmr\t%s\n",regnames[sp],regnames[pc]);
-  }
 }
 
 /****************************************/
@@ -641,7 +622,8 @@ int init_cg(void)
   regsa[sp]=1;
   regsa[pc]=1;
   regsa[tmp]=1;
-  regscratch[t1]=0;
+  regscratch[t1]=1;
+  regscratch[t2]=1;
   regscratch[sp]=0;
   regscratch[pc]=0;
 
@@ -1153,7 +1135,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
       continue;
     }
 
-    // Compare - replace with subt?  Probably not all that useful
+    // Compare - #
     // Revisit
     if(c==TEST){
       emit(f,"\t\t\t\t\t// (test)\n");
@@ -1165,10 +1147,11 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
       continue;
     }
 
-    // Compare - replace with subt?  Probably not all that useful
+    // Compare
     // Revisit
     if(c==COMPARE){
 	printf("compare\n");
+	// FIXME - is q1 is a register we can compare directly against it.
 	// FIXME - determine if q2 is a register, if not move to reg, move q1 to temp, compare.
       emit(f,"\t\t\t\t\t// (compare)");
       emit_objtotemp(f,&p->q1,t);
@@ -1185,7 +1168,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
         emit(f,"\t\t\t\t\t// (bitwise) ");
         emit(f,"loadreg\n");
 	emit_objtotemp(f,&p->q1,t);
-	emit(f,"\tmr\t%s\n",regnames[zreg]);
+	emit(f,"\tmr\t%s\n",regnames[zreg]);	// FIXME - what happens if zreg and q1/2 are the same?
 //	reg_stackrel[zreg]=0;
 //	emit_prepobj(f,&p->z,t,t2);
 	emit_objtotemp(f,&p->q2,t);

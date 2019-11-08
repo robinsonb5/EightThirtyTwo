@@ -45,7 +45,7 @@ clean :
 	cpp -P $< > $*.s
 
 %.S : %.c Makefile ../bin/vbcc832
-	../bin/vbcc832 -+ -O=15 -size -I$(832DIR) $*.c
+	../bin/vbcc832 -+ -O=1311 -size -I$(832DIR) $*.c
 	mv $*.asm $*.S
 
 $(ROMGEN): $(ROMGENDIR)/romgen.c
