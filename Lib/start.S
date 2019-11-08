@@ -4,6 +4,10 @@
 	.weak	.premain
 _premain:
 	// Setup the stack
+	li	IMW2(0x800)
+	li	IMW1(0x800)
+	li	IMW0(0x800)
+	mr	r6
 
 	// Clear BSS here
 	ldinc	r7

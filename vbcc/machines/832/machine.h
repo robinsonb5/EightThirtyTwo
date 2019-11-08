@@ -15,7 +15,7 @@
 */
 
 /* build-time configurable options: */
-#define NUM_GPRS 8
+#define NUM_GPRS 9
 #define NUM_FPRS 0
 #define NUM_CCRS 1
 #define FIXED_SP 0
@@ -55,11 +55,11 @@ struct AddressingMode{
 
 /*  If the bytes of an integer are ordered most significant byte    */
 /*  byte first and then decreasing set BIGENDIAN to 1.              */
-#define BIGENDIAN 1
+#define BIGENDIAN 0
 
 /*  If the bytes of an integer are ordered lest significant byte    */
 /*  byte first and then increasing set LITTLEENDIAN to 1.           */
-#define LITTLEENDIAN 0
+#define LITTLEENDIAN 1
 
 /*  Note that BIGENDIAN and LITTLEENDIAN are mutually exclusive.    */
 

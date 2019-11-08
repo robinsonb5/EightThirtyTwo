@@ -126,6 +126,7 @@ static char *marray[]={"__section(x)=__vattr(\"section(\"#x\")\")",
 /* special registers */
 static int pc;                     /*  Program counter                     */
 static int sp;                     /*  Stackpointer                        */
+static int tmp;
 static int t1,t2;                  /*  temporary gprs */
 static int f1,f2,f3;               /*  temporary fprs */
 
@@ -152,8 +153,6 @@ static char *codename="\t.text\n",
   *bssname="",
   *rodataname="\t.section\t.rodata\n";
 
-/* return-instruction */
-//static char *ret;
 
 /* label at the end of the function (if any) */
 static int exit_label;
@@ -318,7 +317,7 @@ static void load_reg(FILE *f,int r,struct obj *o,int type)
 static void store_reg(FILE *f,int r,struct obj *o,int type)
 {
   type&=NQ;
-  emit_prepobjtotemp(f,o,type,t2);
+  emit_prepobjtotemp(f,o,type,t2); // FIXME - stmpdec predecrements, so need to add 4!
   emit(f,"\tstmpdec\t%s\n",regnames[r]);
 }
 
@@ -354,6 +353,7 @@ static int q1reg,q2reg,zreg;
 
 static char *ccs[]={"EQ","NEQ","SLT","GE","LE","SGT","EX",""};
 static char *logicals[]={"or","xor","and"};
+// FIXME - separate lsr / asr
 static char *arithmetics[]={"shl","sgn\n\tshr","add","sub","mul","//#FIXME call division routine","//#fixme call modulus routine"};
 
 /* Does some pre-processing like fetching operands from memory to
@@ -565,13 +565,18 @@ int init_cg(void)
   }
 
   regnames[0]="noreg";
-  for(i=FIRST_GPR;i<=LAST_GPR;i++){
+  for(i=FIRST_GPR;i<=LAST_GPR-1;i++){
     regnames[i]=mymalloc(10);
     sprintf(regnames[i],"r%d",i-FIRST_GPR);
     regsize[i]=l2zm(4L);
     regtype[i]=&ltyp;
     regsa[i]=0;
   }
+  regnames[i]=mymalloc(10);
+  sprintf(regnames[i],"tmp");
+  regsize[i]=l2zm(4L);
+  regtype[i]=&ltyp;
+  regsa[i]=1;
   for(i=FIRST_FPR;i<=LAST_FPR;i++){
     regnames[i]=mymalloc(10);
     sprintf(regnames[i],"fpr%d",i-FIRST_FPR);
@@ -615,6 +620,7 @@ int init_cg(void)
   
   /*  Reserve a few registers for use by the code-generator.      */
   /*  This is not optimal but simple.                             */
+  tmp=FIRST_GPR+8;
   pc=FIRST_GPR+7;
   sp=FIRST_GPR+6;
   t1=FIRST_GPR+5; // build source address here
@@ -634,6 +640,7 @@ int init_cg(void)
 //  regsa[t2]=1;
   regsa[sp]=1;
   regsa[pc]=1;
+  regsa[tmp]=1;
   regscratch[t1]=0;
   regscratch[sp]=0;
   regscratch[pc]=0;
