@@ -213,10 +213,16 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 			emit(f," var FIXME - deref?");
 			if(p->v->storage_class==AUTO||p->v->storage_class==REGISTER){
 				emit(f," reg \n");
-				emit_constanttotemp(f,real_offset(p)+offset);
+				if(real_offset(p)+offset!=0)
+				{
+					emit_constanttotemp(f,real_offset(p)+offset);
 
-				// FIXME - if we're dereferencing for a read here, can use ldidx.
-				emit(f,"\taddt\t%s\n",regnames[sp]);
+					// FIXME - if we're dereferencing for a read here, can use ldidx.
+					emit(f,"\taddt\t%s\n",regnames[sp]);
+				}
+				else
+					emit(f,"\tmt\t%s\n",regnames[sp]);
+				emit(f,"\tldt\n");
 				if(reg!=tmp)
 					emit(f,"\tmr\t%s\n",regnames[reg]);
 			}
@@ -254,7 +260,7 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 				/* Set a register to point to a stack-base variable. */
 				emit(f," var, auto|reg\n");
 				if(p->v->storage_class==REGISTER) emit(f,"# (is actually REGISTER)\n");
-				if(real_offset(p)==0)	/* No offset? Just copy the stack pointer */
+				if(real_offset(p)+offset==0)	/* No offset? Just copy the stack pointer */
 				{
 					emit(f,"\tmt\t%s\n",regnames[sp]);
 					if(reg!=tmp)

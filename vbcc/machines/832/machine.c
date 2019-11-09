@@ -287,8 +287,8 @@ static int load_temp(FILE *f,int r,struct obj *o,int type)
   type&=NU;
   if(o->flags&VARADR){
     emit(f," FIXME - check varadr - should we be dereferencing this?\n");
-    emit_prepobj(f,o,type,t1,0);
-    emit(f,"\tmt\t%s\n",regnames[t1]);
+    emit_prepobj(f,o,type,tmp,0);
+    emit(f,"\tldt\t\n");
   }else{
     if((o->flags&(REG|DREFOBJ))==REG&&o->reg==r)
     {
@@ -604,8 +604,8 @@ int init_cg(void)
   tmp=FIRST_GPR+8;
   pc=FIRST_GPR+7;
   sp=FIRST_GPR+6;
-  t1=FIRST_GPR+5; // build source address here
-  t2=FIRST_GPR+4; // build dest address here - mark
+  t1=FIRST_GPR; // build source address here - r0, also return register.
+  t2=FIRST_GPR+5; // build dest address here - mark
 //  f1=FIRST_FPR;
 //  f2=FIRST_FPR+1;
 
@@ -1091,22 +1091,6 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
       // Need to special case writing register to memory using addt and stt
       if(c==ASSIGN){
 	// FIXME - have to deal with arrays and structs, not just elementary types
-#if 0
-	if((p->q1.flags&REG)&&(p->z.flags&VAR) && (p->z.v->storage_class==AUTO))
-	{
-		emit(f,"\t\t\t\t\t// (assign - reg to auto)\n");
-		emit_constanttotemp(f,real_offset(&p->z));
-		emit(f,"\taddt\tr6\n\tstt\t%s\n",regnames[p->q1.reg]);
-	}
-	else
-	if((p->q1.flags&REG)&&(p->z.flags&VAR) && (p->z.v->storage_class==REGISTER))
-	{
-		emit(f,"\t\t\t\t\t// (assign - reg to reg)\n");
-		emit_constanttotemp(f,real_offset(&p->z));
-		emit(f,"\tmt\t%s\n\tmr\t%s\n",regnames[p->q1.reg],regnames[p->z.reg]);
-	}
-	else
-#endif
 	{
 		emit(f,"\t\t\t\t\t// (a/p assign)\n");
 		emit_prepobj(f,&p->z,t,t2,0);
@@ -1167,10 +1151,11 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 	// FIXME - need to deal with loading both operands here.
         emit(f,"\t\t\t\t\t// (bitwise) ");
         emit(f,"loadreg\n");
-	emit_objtotemp(f,&p->q1,t);
-	emit(f,"\tmr\t%s\n",regnames[zreg]);	// FIXME - what happens if zreg and q1/2 are the same?
-//	reg_stackrel[zreg]=0;
-//	emit_prepobj(f,&p->z,t,t2);
+	if(!isreg(q1) || q1reg!=zreg)
+	{
+		emit_objtotemp(f,&p->q1,t);
+		emit(f,"\tmr\t%s\n",regnames[zreg]);	// FIXME - what happens if zreg and q1/2 are the same?
+	}
 	emit_objtotemp(f,&p->q2,t);
       if(c>=OR&&c<=AND)
 	emit(f,"\t%s\t%s\n",logicals[c-OR],regnames[zreg]);

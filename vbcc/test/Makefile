@@ -14,7 +14,7 @@ clean :
 	rm *.o
 	rm *.bin
 
-%.vcd : %_ROM.vhd  tb.vhd
+%.vcd : %_ROM.vhd  tb.vhd force
 	sed 's/_rom/$*_rom/;s/cpu_tb/$*_tb/' >$*_tb.vhd <tb.vhd
 	$(GHDL) -a $*_ROM.vhd
 	$(GHDL) -a $*_tb.vhd
@@ -62,4 +62,5 @@ init:
 	$(GHDL) -a $(GHDLFLAGS) ../../RTL/eightthirtytwo_alu.vhd
 	$(GHDL) -a $(GHDLFLAGS) ../../RTL/eightthirtytwo_cpu.vhd
 
+force:
 
