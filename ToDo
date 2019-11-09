@@ -1,11 +1,17 @@
-* Look at potential little endian mode
+DONE Look at potential little endian mode
 
-* Add another overloaded instruction for a halfword modifier
+DONE Add another overloaded instruction for a halfword modifier
 
-* Implement interrupts
+DONE Implement interrupts
 
 * Look at fusing mr with li, and potentially addt.
 
 * Results forwarding?
 
 * GHDL - can we integrate a proper UART emulation and print results to the Shell window?
+
+* Look at multithreading.  Would need a second register file, a second PC and a second fetch channel.
+  The second thread would launch with the C flag set, so startup code can tell whether it's dealing with
+  Thread 1, Thread 2 or an interrupt.
+
+* C backend - get signed-ness, composite types and halfword / byte operations working.

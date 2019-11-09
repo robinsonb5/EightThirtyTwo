@@ -78,112 +78,6 @@ static void emit_constanttotemp(FILE *f,zmax v)
 }
 
 
-/* prepares a register to point to an object, in preparation for a load, store or move */
-/* FIXME - this function and the few following it are a mess */
-#if 0
-static void emit_prepobjtotemp(FILE *f,struct obj *p,int t,int reg)
-{
-	emit(f,"\t\t\t\t\t// (prepobjtotemp %s)",regnames[reg]);
-	if(p->am){
-		emit(f,"# FIXME - extended addressing modes not supported\n");
-		return;
-	}
-	if((p->flags&(KONST|DREFOBJ))==(KONST|DREFOBJ)){
-		emit(f," const/deref\n");
-		emit_constanttotemp(f,val2zmax(f,p,p->dtyp));
-//		reg_stackrel[reg]=0;
-		return;
-	}
-
-	if(p->flags&DREFOBJ)
-	{
-		emit(f," deref ");
-		/* Dereferencing a pointer */
-		if(p->flags&REG){
-			emit(f," reg - no need to prep\n");
-//			emit(f,"\n\tld\t%s\n",regnames[p->reg]);
-		}
-		else if(p->flags&VAR) {	// FIXME - figure out what dereferencing means in these contexts
-			emit(f," var FIXME - deref?");
-			if(p->v->storage_class==AUTO||p->v->storage_class==REGISTER){
-				emit(f," reg \n");
-	emit_constanttotemp(f,real_offset(p));
-
-				emit(f,"\taddt\t%s\n\tmr\t%s\n",
-		regnames[sp],regnames[reg]);
-//				reg_stackrel[reg]=0; // Not sure this is correct enough to risk it here.
-			}
-
-			else{
-				if(!zmeqto(l2zm(0L),p->val.vmax)){
-					emit(f," offset ");
-					emit_constanttotemp(f,val2zmax(f,p,LONG));
-					emit(f,"\tmr\t%s\n",regnames[reg]);
-					emit_pcreltotemp(f,labprefix,zm2l(p->v->offset));
-					emit(f,"\tadd\t%s\n",regnames[reg]);
-				}
-				if(p->v->storage_class==STATIC){
-//					emit_pcreltotemp(f,labprefix,zm2l(p->v->offset));
-					emit(f,"\tldinc\tr7\n\t.int\t%s%d\n",labprefix,zm2l(p->v->offset));
-					emit(f,"\tmr\t%s\n",regnames[reg]);
-				}else{
-					emit_externtotemp(f,p->v->identifier);
-					emit(f,"\tmr\t%s\n",regnames[reg]);
-				}
-//				reg_stackrel[reg]=0;
-			}
-		}
-	}
-	else
-	{
-		if(p->flags&REG){
-			emit(f,"\t mt%s\n",regnames[p->reg]);
-
-		}else if(p->flags&VAR) {
-			if(p->v->storage_class==AUTO||p->v->storage_class==REGISTER)
-			{
-				/* Set a register to point to a stack-base variable. */
-				emit(f," var, auto|reg\n");
-	if(p->v->storage_class==REGISTER) emit(f,"# (is actually REGISTER)\n");
-				if(real_offset(p)==0)	/* No offset? Just copy the stack pointer */
-				{
-					emit(f,"\tmt\t%s\n",regnames[sp]);
-//					reg_stackrel[reg]=1;
-//					reg_stackoffset[reg]=0;
-				}
-				else
-				{
-					emit_constanttotemp(f,real_offset(p));
-					emit(f,"\taddt\t%s\n",regnames[sp]);
-				}
-			}
-			else{
-				if(!zmeqto(l2zm(0L),p->val.vmax)){
-					emit(f," offset ");
-					emit_constanttotemp(f,val2zmax(f,p,LONG));
-//					emit(f,"\tmr\t%s\n",regnames[reg]);
-					emit_pcreltotemp(f,labprefix,zm2l(p->v->offset));
-					emit(f,"\taddt\t%s\n",regnames[reg]);
-				}
-				if(p->v->storage_class==STATIC){
-//					emit_pcreltotemp(f,labprefix,zm2l(p->v->offset)); //FIXME - is PCREL appropriate here?
-					emit(f,"\tldinc\tr7\n\t.int\t%s%d\n",labprefix,zm2l(p->v->offset));
-//					emit(f,"\tmr\t%s\n",regnames[reg]);
-//					emit(f,"\tmr\t%s\n",regnames[reg]);
-				}else{
-					emit_externtotemp(f,p->v->identifier);
-//					emit(f,"\tmr\t%s\n",regnames[reg]);
-				}
-//				reg_stackrel[reg]=0;
-			}
-		}
-	}
-//	if(p->flags&KONST){
-//		emit_constanttotemp(f,val2zmax(f,p,t));
-//	}
-}
-#endif
-
 static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 {
 	emit(f,"\t\t\t\t\t// (prepobj %s)",regnames[reg]);
@@ -323,8 +217,8 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 			emit(f,"\tld\t%s\n",regnames[p->reg]);
 		}
 		else {
-			emit_prepobj(f,p,t,t1,0);
-			emit(f,"\tld\t%s\n",regnames[t1]);
+			emit_prepobj(f,p,t,tmp,0);
+			emit(f,"\tldt\n");
 		}
 	}
 	else
@@ -336,8 +230,13 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 			if(p->v->storage_class==AUTO||p->v->storage_class==REGISTER)
 			{
 				emit(f," var, auto|reg\n");
-				emit_constanttotemp(f,real_offset(p));
-				emit(f,"\tldidx\t%s\n",regnames[sp]);
+				if(real_offset(p))
+				{
+					emit_constanttotemp(f,real_offset(p));
+					emit(f,"\tldidx\t%s\n",regnames[sp]);
+				}
+				else
+					emit(f,"\tld\t%s\n",regnames[sp]);
 			}
 			else{
 				if(!zmeqto(l2zm(0L),p->val.vmax)){

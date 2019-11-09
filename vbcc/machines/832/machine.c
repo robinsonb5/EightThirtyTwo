@@ -390,9 +390,7 @@ void save_temp(FILE *f,struct IC *p)
   emit(f,"\t\t\t\t\t// (save temp) ");
   if(isreg(z)){
     emit(f,"isreg\n");
-//    if(p->z.reg!=zreg)
-      emit(f,"\tmr\t%s\n",regnames[p->z.reg]);
-//      reg_stackrel[p->z.reg]=0;
+    emit(f,"\tmr\t%s\n",regnames[p->z.reg]);
   }else if ((p->z.flags&DREFOBJ) && (p->z.flags&REG)){
     emit(f,"store reg\n");
     emit(f,"\tst\t%s\n",regnames[p->z.reg]);
@@ -605,7 +603,7 @@ int init_cg(void)
   pc=FIRST_GPR+7;
   sp=FIRST_GPR+6;
   t1=FIRST_GPR; // build source address here - r0, also return register.
-  t2=FIRST_GPR+5; // build dest address here - mark
+  t2=FIRST_GPR+1; // build dest address here - mark
 //  f1=FIRST_FPR;
 //  f2=FIRST_FPR+1;
 
@@ -624,6 +622,7 @@ int init_cg(void)
   regsa[tmp]=1;
   regscratch[t1]=1;
   regscratch[t2]=1;
+//  regscratch[t2+1]=1;
   regscratch[sp]=0;
   regscratch[pc]=0;
 
@@ -871,8 +870,8 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 
   for(m=p;m;m=m->next){
     c=m->code;t=m->typf&NU;
-    if(c==ALLOCREG) {regs[m->q1.reg]=1;emit(f,"//AllocReg %s\n",regnames[m->q1.reg]);continue;}
-    if(c==FREEREG) {regs[m->q1.reg]=0;emit(f,"//FreeReg %s\n",regnames[m->q1.reg]);continue;}
+    if(c==ALLOCREG) {regs[m->q1.reg]=1;continue;}
+    if(c==FREEREG) {regs[m->q1.reg]=0;continue;}
 
     /* convert MULT/DIV/MOD with powers of two */
 	// Perversely, mul is faster than shifting on 832, so we only want to do this for div.
@@ -909,7 +908,6 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
       BSET(regs_modified,c);
     }
   }
-	emit(f,"// Modified register mask: %lx\n",regs_modified);
   localsize=(zm2l(offset)+3)/4*4;
 #if FIXED_SP
   /*FIXME: adjust localsize to get an aligned stack-frame */
