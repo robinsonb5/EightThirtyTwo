@@ -13,6 +13,9 @@ _premain:
 	ldinc	r7
 	.int	_main
 	exg	r7
+.endloop:
+	li	IMW0(PCREL(.endloop))
+	add	r7
 
 	.section	.text.interrupt
 	.weak	.interrupt
@@ -47,7 +50,7 @@ _start:
 	ldinc	r7
 	.int	_premain
 	exg	r7
-.end
-	li	IMW0(PCREL(.end))
-	mr	r7
+.endloop2:
+	li	IMW0(PCREL(.endloop2))
+	add	r7
 
