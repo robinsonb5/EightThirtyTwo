@@ -10,7 +10,8 @@ entity eightthirtytwo_cpu is
 generic(
 	littleendian : boolean := true;
 	storealign : boolean := true;
-	interrupts : boolean := true
+	interrupts : boolean := true;
+	dualthread : boolean := true
 	);
 port(
 	clk : in std_logic;
@@ -61,6 +62,7 @@ type e32_regfile is record
 end record;
 
 signal regfile : e32_regfile;
+signal regfile2 : e32_regfile;
 
 -- Status flags.  Z and C are used for conditional execution.
 
@@ -81,6 +83,7 @@ signal ls_ack : std_logic;
 type e32_thread is record
 	pc : std_logic_vector(e32_pc_maxbit downto 0);
 	nextpc : std_logic_vector(e32_pc_maxbit downto 0);
+	setpc : std_logic;
 	op : std_logic_vector(7 downto 0);
 	op_valid : std_logic;
 	-- Fetch stage signals, decoded combinationally.
@@ -96,11 +99,13 @@ type e32_thread is record
 	d_alu_reg2 : std_logic_vector(e32_reg_maxbit downto 0);
 	d_ex_op : e32_ex;
 	-- Other signals
+	cond_minterms : std_logic_vector(3 downto 0);
 	interruptable : std_logic;
 	hazard : std_logic;
 end record;
 
 signal thread : e32_thread;
+signal thread2 : e32_thread;
 
 -- Decode stage signals:
 
@@ -111,9 +116,7 @@ signal thread : e32_thread;
 signal e_continue : std_logic; -- Used to stretch postinc operations over two cycles.
 signal e_reg : e32_reg;
 signal e_ex_op : e32_ex;
-signal cond_minterms : std_logic_vector(3 downto 0);
-
-signal e_setpc : std_logic;
+signal e_thread : std_logic;
 
 signal alu_imm : std_logic_vector(5 downto 0);
 signal alu_d1 : std_logic_vector(31 downto 0);
@@ -130,6 +133,7 @@ signal alu_ack : std_logic;
 
 signal m_reg : e32_reg;
 signal m_ex_op : e32_ex;
+signal m_thread : std_logic;
 
 
 -- Writeback stage signals
@@ -137,7 +141,7 @@ signal m_ex_op : e32_ex;
 -- W only has to write the result of load operations to the temp register.
 
 signal w_ex_op : e32_ex;
-
+signal w_thread : std_logic;
 
 -- hazard / stall signals
 
@@ -150,14 +154,10 @@ begin
 
 thread.nextpc<=std_logic_vector(unsigned(thread.pc)+1);
 regfile.gpr_a<=thread.d_reg;
-
 regfile.gpr7_flags(e32_fb_zero)<=regfile.flag_z;
 regfile.gpr7_flags(e32_fb_carry)<=regfile.flag_c;
---regfile.gpr7_flags(e32_fb_cond)<=regfile.flag_cond;
---regfile.gpr7_flags(e32_fb_sgn)<=regfile.flag_sgn;
 regfile.gpr7(e32_pc_maxbit downto 0)<=thread.pc;
 regfile.gpr7(31 downto e32_pc_maxbit+1)<=regfile.gpr7_flags when regfile.gpr7_readflags='1' else (others => '0');
--- regfile.gpr7(29 downto e32_pc_maxbit+1)<=(others=>'X');
 
 with regfile.gpr_a select regfile.gpr_q <=
 	regfile.gpr0 when "000",
@@ -171,94 +171,72 @@ with regfile.gpr_a select regfile.gpr_q <=
 	(others=>'X') when others;	-- r7 is the program counter.
 
 
+thread2.nextpc<=std_logic_vector(unsigned(thread2.pc)+1);
+regfile2.gpr_a<=thread2.d_reg;
+regfile2.gpr7_flags(e32_fb_zero)<=regfile2.flag_z;
+regfile2.gpr7_flags(e32_fb_carry)<=regfile2.flag_c;
+regfile2.gpr7(e32_pc_maxbit downto 0)<=thread2.pc;
+regfile2.gpr7(31 downto e32_pc_maxbit+1)<=regfile2.gpr7_flags when regfile2.gpr7_readflags='1' else (others => '0');
+
+with regfile2.gpr_a select regfile2.gpr_q <=
+	regfile2.gpr0 when "000",
+	regfile2.gpr1 when "001",
+	regfile2.gpr2 when "010",
+	regfile2.gpr3 when "011",
+	regfile2.gpr4 when "100",
+	regfile2.gpr5 when "101",
+	regfile2.gpr6 when "110",
+	regfile2.gpr7 when "111",
+	(others=>'X') when others;	-- r7 is the program counter.
+
 
 -- Fetch/Load/Store unit is responsible for interfacing with main memory.
 
-GENBE:
-if littleendian=false generate
-	fetchloadstore : entity work.eightthirtytwo_fetchloadstore 
-	generic map
-	(
-		storealign=>storealign
-	)
-	port map
-	(
-		clk => clk,
-		reset_n => reset_n,
+fetchloadstore : entity work.eightthirtytwo_fetchloadstore
+generic map
+(
+	storealign=>storealign
+)
+port map
+(
+	clk => clk,
+	reset_n => reset_n,
 
-		-- cpu fetch interface
+	-- cpu fetch interface
 
-		pc(31 downto e32_pc_maxbit+1) => (others => '0'),
-		pc(e32_pc_maxbit downto 0) => thread.pc,
-		pc_req => e_setpc,
-		opcode => thread.op,
-		opcode_valid => thread.op_valid,
+	pc(31 downto e32_pc_maxbit+1) => (others => '0'),
+	pc(e32_pc_maxbit downto 0) => thread.pc,
+	pc_req => thread.setpc,
+	opcode => thread.op,
+	opcode_valid => thread.op_valid,
 
-		-- cpu load/store interface
+	pc2(31 downto e32_pc_maxbit+1) => (others => '0'),
+	pc2(e32_pc_maxbit downto 0) => thread2.pc,
+	pc2_req => thread2.setpc,
+	opcode2 => thread2.op,
+	opcode2_valid => thread2.op_valid,
 
-		ls_addr => ls_addr,
-		ls_d => ls_d,
-		ls_q => ls_q,
-		ls_wr => ls_wr,
-		ls_byte => ls_byte,
-		ls_halfword => ls_halfword,
-		ls_req => ls_req,
-		ls_ack => ls_ack,
+	-- cpu load/store interface
 
-			-- external RAM interface:
+	ls_addr => ls_addr,
+	ls_d => ls_d,
+	ls_q => ls_q,
+	ls_wr => ls_wr,
+	ls_byte => ls_byte,
+	ls_halfword => ls_halfword,
+	ls_req => ls_req,
+	ls_ack => ls_ack,
 
-		ram_addr => addr,
-		ram_d => d,
-		ram_q => q,
-		ram_bytesel => bytesel,
-		ram_wr => wr,
-		ram_req => req,
-		ram_ack => ack
-	);
-end generate;
+		-- external RAM interface:
 
-GENLE:
-if littleendian=true generate
-	fetchloadstore : entity work.eightthirtytwo_fetchloadstore_le
-	generic map
-	(
-		storealign=>storealign
-	)
-	port map
-	(
-		clk => clk,
-		reset_n => reset_n,
-
-		-- cpu fetch interface
-
-		pc(31 downto e32_pc_maxbit+1) => (others => '0'),
-		pc(e32_pc_maxbit downto 0) => thread.pc,
-		pc_req => e_setpc,
-		opcode => thread.op,
-		opcode_valid => thread.op_valid,
-
-		-- cpu load/store interface
-
-		ls_addr => ls_addr,
-		ls_d => ls_d,
-		ls_q => ls_q,
-		ls_wr => ls_wr,
-		ls_byte => ls_byte,
-		ls_halfword => ls_halfword,
-		ls_req => ls_req,
-		ls_ack => ls_ack,
-
-			-- external RAM interface:
-
-		ram_addr => addr,
-		ram_d => d,
-		ram_q => q,
-		ram_bytesel => bytesel,
-		ram_wr => wr,
-		ram_req => req,
-		ram_ack => ack
-	);
-end generate;
+	ram_addr => addr,
+	ram_d => d,
+	ram_q => q,
+	ram_bytesel => bytesel,
+	ram_wr => wr,
+	ram_req => req,
+	ram_ack => ack
+);
 
 
 -- Decoder
@@ -325,6 +303,21 @@ port map(
 	hazard => thread.hazard
 );
 
+hazard2 : entity work.eightthirtytwo_hazard
+port map(
+	valid => thread2.op_valid,
+	d_ex_op=>thread2.d_ex_op,
+	d_reg=>thread2.d_reg,
+	d_alu_reg1=>thread2.d_alu_reg1,
+	d_alu_reg2=>thread2.d_alu_reg2,
+	e_ex_op=>e_ex_op,
+	e_reg=>e_reg,
+	m_ex_op=>m_ex_op,
+	m_reg=>m_reg,
+	w_ex_op=>w_ex_op,
+	hazard => thread2.hazard
+);
+
 -- Stall - causes the entire pipeline to pause, without inserting bubbles.
 
 stall<='1' when e_ex_op(e32_exb_waitalu)='1' and alu_ack='0'
@@ -335,31 +328,54 @@ stall<='1' when e_ex_op(e32_exb_waitalu)='1' and alu_ack='0'
 -- FIXME - need to make cond NEX pause the CPU,
 -- or perhaps remap it somehow to "carry set, zero don't care"?
 
-cond_minterms(3)<= regfile.flag_z and regfile.flag_c;
-cond_minterms(2)<= (not regfile.flag_z) and regfile.flag_c;
-cond_minterms(1)<= regfile.flag_z and (not regfile.flag_c);
-cond_minterms(0)<= (not regfile.flag_z) and (not regfile.flag_c);
+thread.cond_minterms(3)<= regfile.flag_z and regfile.flag_c;
+thread.cond_minterms(2)<= (not regfile.flag_z) and regfile.flag_c;
+thread.cond_minterms(1)<= regfile.flag_z and (not regfile.flag_c);
+thread.cond_minterms(0)<= (not regfile.flag_z) and (not regfile.flag_c);
+
+thread2.cond_minterms(3)<= regfile.flag_z and regfile.flag_c;
+thread2.cond_minterms(2)<= (not regfile.flag_z) and regfile.flag_c;
+thread2.cond_minterms(1)<= regfile.flag_z and (not regfile.flag_c);
+thread2.cond_minterms(0)<= (not regfile.flag_z) and (not regfile.flag_c);
 
 process(clk,reset_n,thread.op_valid)
 begin
 	if reset_n='0' then
-		thread.pc<=(others=>'0');
-		e_setpc<='1';
-		ls_req_r<='0';
-		ls_wr<='0';
+		-- Thread 1:
 		regfile.flag_cond<='0';
 		regfile.flag_sgn<='0';
 		regfile.flag_c<='0';
 		regfile.flag_z<='0';
-		thread.d_ex_op<=e32_ex_bubble;
-		e_ex_op<=e32_ex_bubble;
-		m_ex_op<=e32_ex_bubble;
-		e_continue<='0';
 		regfile.flag_interrupting<='0';
 		regfile.flag_halfword<='0';
 		regfile.gpr7_readflags<='0';
+		thread.pc<=(others=>'0');
+		thread.setpc<='1';
+		thread.d_ex_op<=e32_ex_bubble;
+		
+		-- Thread 2
+		regfile2.flag_cond<='0';
+		regfile2.flag_sgn<='0';
+		regfile2.flag_c<='1';	-- Thread 2 starts with carry flag set.
+		regfile2.flag_z<='0';
+		regfile2.flag_interrupting<='0';
+		regfile2.flag_halfword<='0';
+		regfile2.gpr7_readflags<='0';
+		thread2.pc<=(others=>'0');
+		thread2.setpc<='1';
+		thread2.d_ex_op<=e32_ex_bubble;
+
+		-- Shared
+		ls_req_r<='0';
+		ls_wr<='0';
+		e_ex_op<=e32_ex_bubble;
+		m_ex_op<=e32_ex_bubble;
+		e_continue<='0';
+
 	elsif rising_edge(clk) then
-		e_setpc<='0';
+
+		thread.setpc<='0';
+		thread2.setpc<='0';
 		alu_req<='0';		
 
 		-- If we have a hazard or we're blocked by conditional execution
@@ -377,7 +393,7 @@ begin
 			e_continue<='0';
 		end if;
 		
-		if e_setpc='1' then
+		if thread.setpc='1' then
 			thread.d_ex_op<=e32_ex_bubble;
 		end if;
 		
@@ -446,7 +462,7 @@ begin
 			regfile.flag_interrupting<='0';
 		end if;
 
-		if e_setpc='1' then -- Flush the pipeline //FIXME - should we flush E too?
+		if thread.setpc='1' then -- Flush the pipeline //FIXME - should we flush E too?
 			thread.d_ex_op<=e32_ex_bubble;
 			thread.d_alu_op<=e32_alu_nop;
 			regfile.gpr7_readflags<='0';
@@ -514,7 +530,7 @@ begin
 				when "110" =>
 					regfile.gpr6<=alu_q1;
 				when "111" =>
-					e_setpc<='1';
+					thread.setpc<='1';
 					thread.pc<=alu_q1(e32_pc_maxbit downto 0);
 					regfile.flag_z<=alu_q1(e32_fb_zero);
 					regfile.flag_c<=alu_q1(e32_fb_carry);
@@ -585,7 +601,7 @@ begin
 		end if;
 
 		if e_ex_op(e32_exb_cond)='1' then
-			if (e_reg(1)&e_reg and cond_minterms) = "0000" then
+			if (e_reg(1)&e_reg and thread.cond_minterms) = "0000" then
 				regfile.flag_cond<='1';
 			else
 				regfile.flag_cond<='0';
