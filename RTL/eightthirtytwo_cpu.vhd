@@ -361,7 +361,13 @@ begin
 	elsif rising_edge(clk) then
 		e_setpc<='0';
 		alu_req<='0';		
+		
+		-- Forward context from E to M
+		-- We do this here because the conditional logic might clear the M stage.
+		m_reg<=e_reg;
+		m_ex_op<=e_ex_op;
 
+		
 		-- If we have a hazard or we're blocked by conditional execution
 		-- then we insert a bubble,
 		-- otherwise advance the PC, forward context from D to E.
@@ -424,6 +430,23 @@ begin
 				thread.d_ex_op<=thread.ex_op;
 				thread.d_alu_op<=thread.alu_op;
 
+				-- Conditional execution:
+				-- If the cond flag is set, we replace anything in the E and M stages with bubbles.
+				-- If we encounter a new cond instruction in the stream we forward it to the E stage.
+				-- If we encounter an instruction writing to PC then we replace it with cond,
+				-- which, since the operand will be "111", equates to "cond EX", i.e. full execution.
+
+				if regfile.flag_cond='1' and regfile.gpr7_readflags='0' then	-- advance PC but replace instructions with bubbles
+					e_ex_op<=e32_ex_bubble;
+					m_ex_op<=e32_ex_bubble;
+					if thread.hazard='0' and (thread.d_ex_op(e32_exb_cond)='1' or
+							(thread.d_ex_op(e32_exb_q1toreg)='1' and thread.d_reg="111")) then -- Writing to PC?
+						e_ex_op<=e32_ex_cond;
+						e_reg<=thread.d_reg;
+						regfile.flag_cond<='0';
+					end if;
+				end if;
+
 				-- Interrupt logic:
 				if interrupts=true then
 					if thread.interruptable='1' and interrupt='1'
@@ -453,11 +476,6 @@ begin
 		end if;
 
 		-- Mem stage
-
-		-- Forward context from E to M
-		m_reg<=e_reg;
-		m_ex_op<=e_ex_op;
-
 
 		-- Load / store operations.
 			
@@ -564,24 +582,6 @@ begin
 				regfile.flag_z<='0';
 			end if;
 			regfile.flag_c<=ls_q(31);	-- Sign of the result to C
-		end if;
-
-		
-		-- Conditional execution:
-		-- If the cond flag is set, we replace anything in the E and M stages with bubbles.
-		-- If we encounter a new cond instruction in the stream we forward it to the E stage.
-		-- If we encounter an instruction writing to PC then we replace it with cond,
-		-- which, since the operand will be "111", equates to "cond EX", i.e. full execution.
-
-		if regfile.flag_cond='1' and regfile.gpr7_readflags='0' then	-- advance PC but replace instructions with bubbles
-			e_ex_op<=e32_ex_bubble;
-			m_ex_op<=e32_ex_bubble;
-			if thread.hazard='0' and (thread.d_ex_op(e32_exb_cond)='1' or
-					(thread.d_ex_op(e32_exb_q1toreg)='1' and thread.d_reg="111")) then -- Writing to PC?
-				e_ex_op<=e32_ex_cond;
-				e_reg<=thread.d_reg;
-				regfile.flag_cond<='0';
-			end if;
 		end if;
 
 		if e_ex_op(e32_exb_cond)='1' then
