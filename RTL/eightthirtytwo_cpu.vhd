@@ -362,11 +362,6 @@ begin
 		e_setpc<='0';
 		alu_req<='0';		
 		
-		-- Forward context from E to M
-		-- We do this here because the conditional logic might clear the M stage.
-		m_reg<=e_reg;
-		m_ex_op<=e_ex_op;
-
 		
 		-- If we have a hazard or we're blocked by conditional execution
 		-- then we insert a bubble,
@@ -438,7 +433,7 @@ begin
 
 				if regfile.flag_cond='1' and regfile.gpr7_readflags='0' then	-- advance PC but replace instructions with bubbles
 					e_ex_op<=e32_ex_bubble;
-					m_ex_op<=e32_ex_bubble;
+--					m_ex_op<=e32_ex_bubble;
 					if thread.hazard='0' and (thread.d_ex_op(e32_exb_cond)='1' or
 							(thread.d_ex_op(e32_exb_q1toreg)='1' and thread.d_reg="111")) then -- Writing to PC?
 						e_ex_op<=e32_ex_cond;
@@ -476,6 +471,14 @@ begin
 		end if;
 
 		-- Mem stage
+
+		-- Forward context from E to M
+		m_reg<=e_reg;
+		if	regfile.flag_cond='1' and regfile.gpr7_readflags='0' then
+			m_ex_op<=e32_ex_bubble;
+		else
+			m_ex_op<=e_ex_op;
+		end if;
 
 		-- Load / store operations.
 			
