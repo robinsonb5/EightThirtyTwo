@@ -195,7 +195,9 @@ with regfile2.gpr_a select regfile2.gpr_q <=
 fetchloadstore : entity work.eightthirtytwo_fetchloadstore
 generic map
 (
-	storealign=>storealign
+	storealign=>storealign,
+	littleendian=>littleendian,
+	dualthread=>dualthread
 )
 port map
 (
@@ -239,7 +241,7 @@ port map
 );
 
 
--- Decoder
+-- Decoders
 
 decoder: entity work.eightthirtytwo_decode
 port map(
@@ -249,6 +251,17 @@ port map(
 	alu_reg2 => thread.alu_reg2,
 	ex_op => thread.ex_op,
 	interruptable => thread.interruptable
+);
+
+
+decoder2: entity work.eightthirtytwo_decode
+port map(
+	opcode => thread2.op,
+	alu_func => thread2.alu_op,
+	alu_reg1 => thread2.alu_reg1,
+	alu_reg2 => thread2.alu_reg2,
+	ex_op => thread2.ex_op,
+	interruptable => thread2.interruptable
 );
 
 
@@ -398,10 +411,10 @@ begin
 		end if;
 		
 		if stall='0' and e_continue='0' then
-		
-			if thread.hazard='1' then
-				e_ex_op<=e32_ex_bubble;
-			else
+
+			-- Can we dispatch an instruction from thread 1?
+
+			if thread.hazard='0' then
 				if thread.d_ex_op(e32_exb_postinc)='1' then
 					e_continue<='1';
 				end if;
@@ -429,6 +442,7 @@ begin
 
 				e_reg<=thread.d_reg(2 downto 0);
 				e_ex_op<=thread.d_ex_op;
+				e_thread<='0';
 
 				-- Fetch to Decode
 
@@ -455,11 +469,75 @@ begin
 						thread.d_ex_op<=e32_ex_q1toreg or e32_ex_q2totmp or e32_ex_flags; -- and zero flag set
 					end if;
 				end if;
+				
+			-- If thread 1 is blocked, can we dispatch an instruction from thread 2?
+			elsif thread2.hazard='0' and dualthread=true then
+			
+				if thread2.d_ex_op(e32_exb_postinc)='1' then
+					e_continue<='1';
+				end if;
+				thread2.pc<=thread2.nextpc;
+				alu_imm<=thread2.d_imm;
+			
+				alu_op<=thread2.d_alu_op;
+				if thread2.d_alu_reg1(e32_regb_tmp)='1' then
+					alu_d1<=regfile2.tmp;
+				else
+					alu_d1<=regfile2.gpr_q;
+				end if;
+
+				if thread2.d_alu_reg2(e32_regb_tmp)='1' then
+					alu_d2<=regfile2.tmp;
+				else
+					alu_d2<=regfile2.gpr_q;
+				end if;
+
+				alu_req<=regfile2.gpr7_readflags or (not regfile2.flag_cond);
+
+				if thread2.d_ex_op(e32_exb_sgn)='1' then
+					regfile2.flag_sgn<='1';
+				end if;
+
+				e_reg<=thread2.d_reg(2 downto 0);
+				e_ex_op<=thread2.d_ex_op;
+				e_thread<='1';
+
+				-- Fetch to Decode
+
+				thread2.d_imm <= thread.op(5 downto 0);
+				thread2.d_reg <= thread.op(2 downto 0);
+				thread2.d_alu_reg1<=thread.alu_reg1;
+				thread2.d_alu_reg2<=thread.alu_reg2;
+
+				thread2.d_ex_op<=thread.ex_op;
+				thread2.d_alu_op<=thread.alu_op;
+
+				-- Interrupt logic: FIXME - what do we do about interrupts for the second thread?
+
+--				if interrupts=true then
+--					if thread2.interruptable='1' and interrupt='1'
+--								and (thread2.d_ex_op(e32_exb_q1toreg)='0' or thread2.d_reg/="111") -- Can't be about to write to r7
+--								and thread2.d_ex_op(e32_exb_cond)='0' and thread2.d_alu_op/=e32_alu_li and -- Can't be cond or a immediately previous li
+--									regfile2.flag_interrupting='0' then
+--						regfile2.flag_interrupting<='1';
+--						regfile2.gpr7_readflags<='1';
+--						thread2.d_reg<="111"; -- PC
+--						thread2.d_alu_reg1<=e32_reg_gpr;
+--						thread2.d_alu_reg2<=e32_reg_gpr;
+--						thread2.d_alu_op<=e32_alu_xor;	-- Xor PC with itself; 0 -> PC, old PC -> tmp
+--						thread2.d_ex_op<=e32_ex_q1toreg or e32_ex_q2totmp or e32_ex_flags; -- and zero flag set
+--					end if;
+--				end if;
+				
+				-- Neither thread can continue - insert a bubble.
+			else
+				e_ex_op<=e32_ex_bubble;
 			end if;
 		end if;
 
 		if interrupt='0' then
 			regfile.flag_interrupting<='0';
+			regfile2.flag_interrupting<='0';
 		end if;
 
 		if thread.setpc='1' then -- Flush the pipeline //FIXME - should we flush E too?
@@ -468,12 +546,18 @@ begin
 			regfile.gpr7_readflags<='0';
 		end if;
 
+		if thread2.setpc='1' then -- Flush the pipeline //FIXME - should we flush E too?
+			thread2.d_ex_op<=e32_ex_bubble;
+			thread2.d_alu_op<=e32_alu_nop;
+			regfile2.gpr7_readflags<='0';
+		end if;
+
 		-- Mem stage
 
 		-- Forward context from E to M
 		m_reg<=e_reg;
 		m_ex_op<=e_ex_op;
-
+		m_thread<=e_thread;
 
 		-- Load / store operations.
 			
@@ -483,29 +567,48 @@ begin
 		if m_ex_op(e32_exb_load)='1' and ls_req_r='0' then
 			ls_addr<=alu_q1;
 			ls_d<=alu_q2;
-			ls_halfword<=m_ex_op(e32_exb_halfword) or regfile.flag_halfword;
+			if m_thread='1' and dualthread=true then
+				ls_halfword<=m_ex_op(e32_exb_halfword) or regfile2.flag_halfword;
+				regfile2.flag_halfword<='0';
+			else
+				ls_halfword<=m_ex_op(e32_exb_halfword) or regfile.flag_halfword;
+				regfile.flag_halfword<='0';
+			end if;			
 			ls_byte<=m_ex_op(e32_exb_byte);
 			ls_req_r<='1';
-			regfile.flag_halfword<='0';
 		end if;
 
 		if m_ex_op(e32_exb_store)='1' and ls_req_r='0' then
 			ls_addr<=alu_q1;
 			ls_d<=alu_q2;
-			ls_halfword<=m_ex_op(e32_exb_halfword) or regfile.flag_halfword;
+			if m_thread='1' and dualthread=true then
+				ls_halfword<=m_ex_op(e32_exb_halfword) or regfile2.flag_halfword;
+				regfile2.flag_halfword<='0';
+			else
+				ls_halfword<=m_ex_op(e32_exb_halfword) or regfile.flag_halfword;
+				regfile.flag_halfword<='0';
+			end if;			
 			ls_byte<=m_ex_op(e32_exb_byte);
 			ls_wr<='1';
 			ls_req_r<='1';
-			regfile.flag_halfword<='0';
 		end if;
 
+	
 
 		-- Either output of the ALU can go to tmp.
 
 		if m_ex_op(e32_exb_q1totmp)='1' then
-			regfile.tmp<=alu_q1;
+			if m_thread='1' and dualthread=true then
+				regfile2.tmp<=alu_q1;
+			else
+				regfile.tmp<=alu_q1;
+			end if;
 		elsif m_ex_op(e32_exb_q2totmp)='1' then
-			regfile.tmp<=alu_q2;
+			if m_thread='1' and dualthread=true then
+				regfile2.tmp<=alu_q2;
+			else
+				regfile.tmp<=alu_q2;
+			end if;
 		end if;
 
 		
@@ -514,44 +617,83 @@ begin
 		-- a postincrement operation.
 
 		if m_ex_op(e32_exb_q1toreg)='1' and (m_ex_op(e32_exb_postinc)='0' or alu_ack='0') then
-			case m_reg(2 downto 0) is
-				when "000" =>
-					regfile.gpr0<=alu_q1;
-				when "001" =>
-					regfile.gpr1<=alu_q1;
-				when "010" =>
-					regfile.gpr2<=alu_q1;
-				when "011" =>
-					regfile.gpr3<=alu_q1;
-				when "100" =>
-					regfile.gpr4<=alu_q1;
-				when "101" =>
-					regfile.gpr5<=alu_q1;
-				when "110" =>
-					regfile.gpr6<=alu_q1;
-				when "111" =>
-					thread.setpc<='1';
-					thread.pc<=alu_q1(e32_pc_maxbit downto 0);
-					regfile.flag_z<=alu_q1(e32_fb_zero);
-					regfile.flag_c<=alu_q1(e32_fb_carry);
-				when others =>
-					null;
-			end case;
+			if m_thread='1' and dualthread=true then
+				case m_reg(2 downto 0) is
+					when "000" =>
+						regfile2.gpr0<=alu_q1;
+					when "001" =>
+						regfile2.gpr1<=alu_q1;
+					when "010" =>
+						regfile2.gpr2<=alu_q1;
+					when "011" =>
+						regfile2.gpr3<=alu_q1;
+					when "100" =>
+						regfile2.gpr4<=alu_q1;
+					when "101" =>
+						regfile2.gpr5<=alu_q1;
+					when "110" =>
+						regfile2.gpr6<=alu_q1;
+					when "111" =>
+						thread2.setpc<='1';
+						thread2.pc<=alu_q1(e32_pc_maxbit downto 0);
+						regfile2.flag_z<=alu_q1(e32_fb_zero);
+						regfile2.flag_c<=alu_q1(e32_fb_carry);
+					when others =>
+						null;
+				end case;
+			else
+				case m_reg(2 downto 0) is
+					when "000" =>
+						regfile.gpr0<=alu_q1;
+					when "001" =>
+						regfile.gpr1<=alu_q1;
+					when "010" =>
+						regfile.gpr2<=alu_q1;
+					when "011" =>
+						regfile.gpr3<=alu_q1;
+					when "100" =>
+						regfile.gpr4<=alu_q1;
+					when "101" =>
+						regfile.gpr5<=alu_q1;
+					when "110" =>
+						regfile.gpr6<=alu_q1;
+					when "111" =>
+						thread.setpc<='1';
+						thread.pc<=alu_q1(e32_pc_maxbit downto 0);
+						regfile.flag_z<=alu_q1(e32_fb_zero);
+						regfile.flag_c<=alu_q1(e32_fb_carry);
+					when others =>
+						null;
+				end case;
+			end if;
 		end if;
 
 		-- Record flags from ALU
 		-- By doing this after saving registers we automatically get the zero flag
 		-- set upon entering the interrupt routine.
 		if m_ex_op(e32_exb_flags)='1' then
-			regfile.flag_sgn<='0'; -- Any ALU op that sets flags will clear the sign modifier.
-			if m_ex_op(e32_exb_halfword)='1' then	-- Modify the next load/store to operate on a halfword.
-				regfile.flag_halfword<='1';
-			end if;
-			regfile.flag_c<=alu_carry;
-			if alu_q1=X"00000000" then
-				regfile.flag_z<='1';
+			if m_thread='1' and dualthread=true then
+				regfile.flag_sgn<='0'; -- Any ALU op that sets flags will clear the sign modifier.
+				if m_ex_op(e32_exb_halfword)='1' then	-- Modify the next load/store to operate on a halfword.
+					regfile.flag_halfword<='1';
+				end if;
+				regfile.flag_c<=alu_carry;
+				if alu_q1=X"00000000" then
+					regfile.flag_z<='1';
+				else
+					regfile.flag_z<='0';
+				end if;
 			else
-				regfile.flag_z<='0';
+				regfile2.flag_sgn<='0'; -- Any ALU op that sets flags will clear the sign modifier.
+				if m_ex_op(e32_exb_halfword)='1' then	-- Modify the next load/store to operate on a halfword.
+					regfile2.flag_halfword<='1';
+				end if;
+				regfile2.flag_c<=alu_carry;
+				if alu_q1=X"00000000" then
+					regfile2.flag_z<='1';
+				else
+					regfile2.flag_z<='0';
+				end if;			
 			end if;
 		end if;
 
@@ -560,6 +702,7 @@ begin
 		if ls_req_r='0' or ls_ack='1' then
 			if m_ex_op(e32_exb_load)='1' or m_ex_op(e32_exb_store)='1' then
 				w_ex_op<=m_ex_op;
+				w_thread<=m_thread;
 			else
 				w_ex_op<=e32_ex_bubble;
 			end if;
@@ -573,13 +716,23 @@ begin
 		if w_ex_op(e32_exb_load)='1' and ls_ack='1' then
 			ls_req_r<='0';
 			ls_wr<='0';
-			regfile.tmp<=ls_q;
-			if ls_q=X"00000000" then	-- Set Z flag
-				regfile.flag_z<='1';
+			if w_thread='1' and dualthread=true then
+				regfile2.tmp<=ls_q;
+				if ls_q=X"00000000" then	-- Set Z flag
+					regfile2.flag_z<='1';
+				else
+					regfile2.flag_z<='0';
+				end if;
+				regfile2.flag_c<=ls_q(31);	-- Sign of the result to C			
 			else
-				regfile.flag_z<='0';
+				regfile.tmp<=ls_q;
+				if ls_q=X"00000000" then	-- Set Z flag
+					regfile.flag_z<='1';
+				else
+					regfile.flag_z<='0';
+				end if;
+				regfile.flag_c<=ls_q(31);	-- Sign of the result to C
 			end if;
-			regfile.flag_c<=ls_q(31);	-- Sign of the result to C
 		end if;
 
 		
@@ -600,12 +753,31 @@ begin
 			end if;
 		end if;
 
+		if regfile2.flag_cond='1' and regfile2.gpr7_readflags='0' then	-- advance PC but replace instructions with bubbles
+			e_ex_op<=e32_ex_bubble;
+			m_ex_op<=e32_ex_bubble;
+			if thread2.hazard='0' and (thread2.d_ex_op(e32_exb_cond)='1' or
+					(thread2.d_ex_op(e32_exb_q1toreg)='1' and thread2.d_reg="111")) then -- Writing to PC?
+				e_ex_op<=e32_ex_cond;
+				e_reg<=thread2.d_reg;
+				regfile2.flag_cond<='0';
+			end if;
+		end if;
+
 		if e_ex_op(e32_exb_cond)='1' then
-			if (e_reg(1)&e_reg and thread.cond_minterms) = "0000" then
-				regfile.flag_cond<='1';
+			if e_thread='1' and dualthread=true then
+				if (e_reg(1)&e_reg and thread2.cond_minterms) = "0000" then
+					regfile2.flag_cond<='1';
+				else
+					regfile2.flag_cond<='0';
+				end if;				
 			else
-				regfile.flag_cond<='0';
-			end if;			
+				if (e_reg(1)&e_reg and thread.cond_minterms) = "0000" then
+					regfile.flag_cond<='1';
+				else
+					regfile.flag_cond<='0';
+				end if;			
+			end if;
 		end if;
 		
 	end if;
