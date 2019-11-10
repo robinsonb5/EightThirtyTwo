@@ -15,10 +15,10 @@ clean :
 	rm *.bin
 
 %.ghw : %_ROM.vhd  tb.vhd force
-	sed 's/_rom/$*_rom/' >$*_tb.vhd <tb.vhd
+	sed 's/_rom/$*_rom/;s/cpu_tb/$*_tb/' >$*_tb.vhd <tb.vhd
 	$(GHDL) -a $*_ROM.vhd
 	$(GHDL) -a $*_tb.vhd
-	$(GHDL) -c -r tb --ieee-asserts=disable-at-0 --stop-time=50000ns --read-wave-opt=waveopt --wave=$*.ghw
+	$(GHDL) -c -r $*_tb --ieee-asserts=disable-at-0 --stop-time=50000ns --read-wave-opt=waveopt --wave=$*.ghw
 
 
 %_ROM.vhd: %.bin $(ROMGEN)

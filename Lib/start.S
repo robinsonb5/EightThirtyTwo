@@ -17,6 +17,23 @@ _premain:
 	li	IMW0(PCREL(.endloop))
 	add	r7
 
+	.section	.text.premain2
+	.weak	.premain2
+_premain2:
+	// Setup the stack
+	li	IMW2(0x400)
+	li	IMW1(0x400)
+	li	IMW0(0x400)
+	mr	r6
+
+	// Clear BSS here
+	ldinc	r7
+	.int	_thread2main
+	exg	r7
+.endloop2:
+	li	IMW0(PCREL(.endloop2))
+	add	r7
+
 	.section	.text.interrupt
 	.weak	.interrupt
 _interrupt:
@@ -38,19 +55,22 @@ _interrupt:
 	.section .text.startup
 
 _start:
-	cond	NEQ
+	cond	NEQ	// Thread 1
+		li	IMW0(PCREL(.start1))
+		add	r7
+	cond	SLT	// Thread 2
 		li	IMW0(PCREL(.start2))
 		add	r7
 	ldinc	r7
-	.int	_interrupt
+	.int	_interrupt	// Interrupt
 	exg	r7
 
-.start2:
+.start1:
 	// Set up the stack here
 	ldinc	r7
 	.int	_premain
-	exg	r7
-.endloop2:
-	li	IMW0(PCREL(.endloop2))
-	add	r7
+.start2:
+	// Set up the stack here
+	ldinc	r7
+	.int	_premain2
 

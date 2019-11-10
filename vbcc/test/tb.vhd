@@ -5,10 +5,10 @@ use ieee.numeric_std.all;
 library work;
 use work.rom_pkg.all;
 
-entity tb is
-end tb;
+entity cpu_tb is
+end cpu_tb;
 
-architecture behaviour of tb
+architecture behaviour of cpu_tb
 is
 	constant clk_period : time := 10 ns;
 	signal clk : std_logic;

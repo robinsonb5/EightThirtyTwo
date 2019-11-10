@@ -391,6 +391,14 @@ begin
 		thread2.setpc<='0';
 		alu_req<='0';		
 
+		-- Forward context from E to M
+		-- We do it here because the conditional execution logic
+		-- might clear it again.
+		m_reg<=e_reg;
+		m_ex_op<=e_ex_op;
+		m_thread<=e_thread;
+
+
 		-- If we have a hazard or we're blocked by conditional execution
 		-- then we insert a bubble,
 		-- otherwise advance the PC, forward context from D to E.
@@ -454,7 +462,24 @@ begin
 				thread.d_ex_op<=thread.ex_op;
 				thread.d_alu_op<=thread.alu_op;
 
-				-- Interrupt logic:
+				-- Conditional execution:
+				-- If the cond flag is set, we replace anything in the E and M stages with bubbles.
+				-- If we encounter a new cond instruction in the stream we forward it to the E stage.
+				-- If we encounter an instruction writing to PC then we replace it with cond,
+				-- which, since the operand will be "111", equates to "cond EX", i.e. full execution.
+
+				if regfile.flag_cond='1' and regfile.gpr7_readflags='0' then	-- advance PC but replace instructions with bubbles
+					e_ex_op<=e32_ex_bubble;
+					m_ex_op<=e32_ex_bubble;
+					if thread.hazard='0' and (thread.d_ex_op(e32_exb_cond)='1' or
+							(thread.d_ex_op(e32_exb_q1toreg)='1' and thread.d_reg="111")) then -- Writing to PC?
+						e_ex_op<=e32_ex_cond;
+						e_reg<=thread.d_reg;
+						regfile.flag_cond<='0';
+					end if;
+				end if;
+
+		-- Interrupt logic:
 				if interrupts=true then
 					if thread.interruptable='1' and interrupt='1'
 								and (thread.d_ex_op(e32_exb_q1toreg)='0' or thread.d_reg/="111") -- Can't be about to write to r7
@@ -512,6 +537,17 @@ begin
 				thread2.d_ex_op<=thread.ex_op;
 				thread2.d_alu_op<=thread.alu_op;
 
+				if regfile2.flag_cond='1' and regfile2.gpr7_readflags='0' then	-- advance PC but replace instructions with bubbles
+					e_ex_op<=e32_ex_bubble;
+					m_ex_op<=e32_ex_bubble;
+					if thread2.hazard='0' and (thread2.d_ex_op(e32_exb_cond)='1' or
+							(thread2.d_ex_op(e32_exb_q1toreg)='1' and thread2.d_reg="111")) then -- Writing to PC?
+						e_ex_op<=e32_ex_cond;
+						e_reg<=thread2.d_reg;
+						regfile2.flag_cond<='0';
+					end if;
+				end if;
+
 				-- Interrupt logic: FIXME - what do we do about interrupts for the second thread?
 
 --				if interrupts=true then
@@ -553,11 +589,6 @@ begin
 		end if;
 
 		-- Mem stage
-
-		-- Forward context from E to M
-		m_reg<=e_reg;
-		m_ex_op<=e_ex_op;
-		m_thread<=e_thread;
 
 		-- Load / store operations.
 			
@@ -735,34 +766,6 @@ begin
 			end if;
 		end if;
 
-		
-		-- Conditional execution:
-		-- If the cond flag is set, we replace anything in the E and M stages with bubbles.
-		-- If we encounter a new cond instruction in the stream we forward it to the E stage.
-		-- If we encounter an instruction writing to PC then we replace it with cond,
-		-- which, since the operand will be "111", equates to "cond EX", i.e. full execution.
-
-		if regfile.flag_cond='1' and regfile.gpr7_readflags='0' then	-- advance PC but replace instructions with bubbles
-			e_ex_op<=e32_ex_bubble;
-			m_ex_op<=e32_ex_bubble;
-			if thread.hazard='0' and (thread.d_ex_op(e32_exb_cond)='1' or
-					(thread.d_ex_op(e32_exb_q1toreg)='1' and thread.d_reg="111")) then -- Writing to PC?
-				e_ex_op<=e32_ex_cond;
-				e_reg<=thread.d_reg;
-				regfile.flag_cond<='0';
-			end if;
-		end if;
-
-		if regfile2.flag_cond='1' and regfile2.gpr7_readflags='0' then	-- advance PC but replace instructions with bubbles
-			e_ex_op<=e32_ex_bubble;
-			m_ex_op<=e32_ex_bubble;
-			if thread2.hazard='0' and (thread2.d_ex_op(e32_exb_cond)='1' or
-					(thread2.d_ex_op(e32_exb_q1toreg)='1' and thread2.d_reg="111")) then -- Writing to PC?
-				e_ex_op<=e32_ex_cond;
-				e_reg<=thread2.d_reg;
-				regfile2.flag_cond<='0';
-			end if;
-		end if;
 
 		if e_ex_op(e32_exb_cond)='1' then
 			if e_thread='1' and dualthread=true then
