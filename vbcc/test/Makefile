@@ -8,17 +8,17 @@ all: compiler helloworld.bin
 compiler:
 	make -C .. TARGET=832
 
-run: helloworld.vcd
+run: helloworld.ghw
 
 clean :
 	rm *.o
 	rm *.bin
 
-%.vcd : %_ROM.vhd  tb.vhd force
-	sed 's/_rom/$*_rom/;s/cpu_tb/$*_tb/' >$*_tb.vhd <tb.vhd
+%.ghw : %_ROM.vhd  tb.vhd force
+	sed 's/_rom/$*_rom/' >$*_tb.vhd <tb.vhd
 	$(GHDL) -a $*_ROM.vhd
 	$(GHDL) -a $*_tb.vhd
-	$(GHDL) -c -r $*_tb --ieee-asserts=disable-at-0 --stop-time=100000ns --vcd=$*.vcd
+	$(GHDL) -c -r tb --ieee-asserts=disable-at-0 --stop-time=50000ns --read-wave-opt=waveopt --wave=$*.ghw
 
 
 %_ROM.vhd: %.bin $(ROMGEN)

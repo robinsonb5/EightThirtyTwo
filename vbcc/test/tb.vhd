@@ -5,26 +5,15 @@ use ieee.numeric_std.all;
 library work;
 use work.rom_pkg.all;
 
-entity cpu_tb is
-end cpu_tb;
+entity tb is
+end tb;
 
-architecture behaviour of cpu_tb
+architecture behaviour of tb
 is
 	constant clk_period : time := 10 ns;
 	signal clk : std_logic;
 
 	signal reset_n : std_logic;
-	signal pc :std_logic_vector(31 downto 0);
-	signal pc_q :std_logic_vector(31 downto 0);
-	signal pc_req : std_logic;
-	signal pc_next : std_logic;
-
-	signal ls_addr : std_logic_vector(31 downto 0);
-	signal ls_byte : std_logic;
-	signal ls_halfword : std_logic;
-	signal ls_req : std_logic;
-	signal ls_wr : std_logic;
-	signal ls_ack : std_logic;
 
 	signal uart_read : std_logic_vector(31 downto 0);
 	signal uart_count : unsigned(1 downto 0) :="00" ;
@@ -43,7 +32,7 @@ is
 	signal interrupt : std_logic;
 	signal intcounter : unsigned(5 downto 0) := "000000";
 
-	type tbstates is (RESET,INIT,MAIN,LOAD);
+	type tbstates is (RESET,INIT,MAIN);
 	signal tbstate : tbstates:=RESET;
 
 	signal romin : fromROM;
@@ -99,22 +88,16 @@ interrupt<='1' when intcounter(5 downto 3)="111" else '0';
     wait for clk_period/2;
   end process;
 
-	process(clk,ls_ack)
+	process(clk)
 	begin
 
 		if rising_edge(clk) then
 
 			intcounter<=intcounter+1;
 
-			pc_req<='0';
 			reset_n<='1';
-			pc_next<='0';
 			ram_ack<='0';
 
-			ls_byte<='0';
-			ls_halfword<='0';
-			ls_wr<='0';
-			ls_req<='0';
 
 			if ram_req='1' and ramwait="0000" then
 				if ram_addr(31)='1' then
@@ -140,25 +123,9 @@ interrupt<='1' when intcounter(5 downto 3)="111" else '0';
 					reset_n<='0';
 					tbstate<=INIT;
 				when INIT =>
-					pc<=(others => '0');
-					pc_req<='1';
 					tbstate<=MAIN;
 				when MAIN =>
-					if pc_q=X"00000010" then
-						tbstate<=LOAD;
-					else
-						pc_next<='1';
-						tbstate<=MAIN;
-					end if;
-
-				when LOAD =>
-					ls_addr<=X"00000013";
-					ls_byte<='1';
-					ls_wr<='0';
-					ls_req<='1' and not ls_ack;
-					if ls_ack='1' then
-						tbstate<=MAIN;
-					end if;
+					tbstate<=MAIN;
 
 			end case;
 
