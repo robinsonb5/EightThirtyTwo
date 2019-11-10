@@ -7,7 +7,6 @@ use work.eightthirtytwo_pkg.all;
 
 entity eightthirtytwo_decode is
 port(
-	clk : in std_logic;
 	opcode : in std_logic_vector(7 downto 0);
 	alu_func : out std_logic_vector(e32_alu_maxbit downto 0);
 	alu_reg1 : out std_logic_vector(e32_reg_maxbit downto 0);

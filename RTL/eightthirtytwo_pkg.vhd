@@ -76,17 +76,22 @@ constant e32_alu_ror : std_logic_vector(3 downto 0) := "1111";
 
 constant e32_alu_maxbit : integer := 3;
 
+
 -- Register sources
-
 constant e32_reg_maxbit : integer := 1;
-constant e32_reg_gpr : std_logic_vector(e32_reg_maxbit downto 0) := "01";
+subtype e32_regtype is std_logic_vector(e32_reg_maxbit downto 0);
+constant e32_reg_gpr : e32_regtype := "01";
 constant e32_regb_gpr : integer := 0;
-constant e32_reg_tmp : std_logic_vector(e32_reg_maxbit downto 0) := "10";
+constant e32_reg_tmp : e32_regtype := "10";
 constant e32_regb_tmp : integer := 1;
-constant e32_reg_dontcare : std_logic_vector(e32_reg_maxbit downto 0) := (others=>'X');
+constant e32_reg_dontcare : e32_regtype := (others=>'X');
 
 
--- Execute stage operations:
+-- Register number (for GPRs)
+subtype e32_reg is std_logic_vector(2 downto 0);
+
+
+-- Execution operations:
 constant e32_exb_cond : integer := 0;
 constant e32_exb_postinc : integer := 1;
 constant e32_exb_load : integer := 2;
@@ -101,6 +106,7 @@ constant e32_exb_waitalu : integer := 10;
 constant e32_exb_sgn : integer := 11;
 
 constant e32_ex_maxbit : integer := 11;
+subtype e32_ex is std_logic_vector(e32_ex_maxbit downto 0);
 
 constant e32_ex_bubble : std_logic_vector(e32_ex_maxbit downto 0) := "000000000000";
 constant e32_ex_cond : std_logic_vector(e32_ex_maxbit downto 0) := "000000000001";
