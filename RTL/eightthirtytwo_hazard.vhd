@@ -8,15 +8,19 @@ use work.eightthirtytwo_pkg.all;
 entity eightthirtytwo_hazard is
 port(
 	valid : std_logic;
+	thread : std_logic;
 	d_ex_op : e32_ex;
 	d_reg : e32_reg;
 	d_alu_reg1 : e32_regtype;
 	d_alu_reg2 : e32_regtype;
 	e_ex_op : e32_ex;
 	e_reg : e32_reg;
+	e_thread : std_logic;
 	m_ex_op : e32_ex;
 	m_reg : e32_reg;
+	m_thread : std_logic;
 	w_ex_op : e32_ex;
+	w_thread : std_logic;
 	hazard : out std_logic
 );
 end entity;
@@ -38,9 +42,11 @@ begin
 -- (If we don't implement ltmpinc or ltmp then nothing beyond M will write to the regfile.)
 
 hazard_tmp<='1' when
-	(e_ex_op(e32_exb_q1totmp)='1' or e_ex_op(e32_exb_q2totmp)='1'
-		or m_ex_op(e32_exb_q1totmp)='1' or m_ex_op(e32_exb_q2totmp)='1'
-		or e_ex_op(e32_exb_load)='1' or m_ex_op(e32_exb_load) ='1' or w_ex_op(e32_exb_load)='1')
+	(((e_ex_op(e32_exb_q1totmp)='1' or e_ex_op(e32_exb_q2totmp)='1') and e_thread=thread)
+		or ((m_ex_op(e32_exb_q1totmp)='1' or m_ex_op(e32_exb_q2totmp)='1') and m_thread=thread)
+			or (e_ex_op(e32_exb_load)='1' and e_thread=thread)
+			or (m_ex_op(e32_exb_load)='1' and m_thread=thread)
+			or (w_ex_op(e32_exb_load)='1' and w_thread=thread))
 		and (d_alu_reg1(e32_regb_tmp)='1' or d_alu_reg2(e32_regb_tmp)='1')
 	else '0';
 
@@ -51,14 +57,14 @@ hazard_tmp<='1' when
 -- instruction writing to the regfile has cleared the pipeline.
 
 hazard_reg<='1' when
-	((e_ex_op(e32_exb_q1toreg)='1' and e_reg=d_reg)	or
-		(m_ex_op(e32_exb_q1toreg)='1' and m_reg=d_reg))
+	((e_ex_op(e32_exb_q1toreg)='1' and e_reg=d_reg and e_thread=thread)	or
+		(m_ex_op(e32_exb_q1toreg)='1' and m_reg=d_reg and m_thread=thread))
 		and ((d_alu_reg1(e32_regb_gpr)='1' or d_alu_reg2(e32_regb_gpr)='1'))
 	else '0';
 
 hazard_pc<='1' when
-	(e_ex_op(e32_exb_q1toreg)='1' and e_reg="111")
-		or (m_ex_op(e32_exb_q1toreg)='1' and m_reg="111")
+	(e_ex_op(e32_exb_q1toreg)='1' and e_reg="111" and e_thread=thread)
+		or (m_ex_op(e32_exb_q1toreg)='1' and m_reg="111" and m_thread=thread)
 	else '0';
 
 	
@@ -77,8 +83,12 @@ hazard_load<='1' when
 -- FIXME - might be able to remove sgn from this.
 hazard_flags<='1' when
 	(d_ex_op(e32_exb_cond)='1' or d_ex_op(e32_exb_sgn)='1')
-		and (e_ex_op(e32_exb_flags)='1' or m_ex_op(e32_exb_flags)='1' or
-			e_ex_op(e32_exb_load)='1' or m_ex_op(e32_exb_load)='1' or w_ex_op(e32_exb_load)='1')
+		and (((e_ex_op(e32_exb_flags)='1' or e_ex_op(e32_exb_load)='1')
+				and e_thread=thread)
+			or ((m_ex_op(e32_exb_flags)='1' or m_ex_op(e32_exb_load)='1')
+				and m_thread=thread)
+			or (w_ex_op(e32_exb_load)='1' and w_thread=thread)
+		)
 	else '0';
 
 hazard<=(not valid)

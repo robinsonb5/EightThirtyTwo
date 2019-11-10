@@ -5,13 +5,17 @@ use ieee.numeric_std.all;
 library work;
 use work.eightthirtytwo_pkg.all;
 
+-- FIXME - need to deal with the problem of immediate streaks for multithreading.
+-- immediatestreak signal needs to be thread-specific. Can't switch threads during
+-- a streak.
+
 
 entity eightthirtytwo_cpu is
 generic(
 	littleendian : boolean := true;
 	storealign : boolean := true;
 	interrupts : boolean := true;
-	dualthread : boolean := true
+	dualthread : boolean := false
 	);
 port(
 	clk : in std_logic;
@@ -304,36 +308,45 @@ ls_req<=ls_req_r and not ls_ack;
 hazard1 : entity work.eightthirtytwo_hazard
 port map(
 	valid => thread.op_valid,
+	thread => '0',
 	d_ex_op=>thread.d_ex_op,
 	d_reg=>thread.d_reg,
 	d_alu_reg1=>thread.d_alu_reg1,
 	d_alu_reg2=>thread.d_alu_reg2,
 	e_ex_op=>e_ex_op,
 	e_reg=>e_reg,
+	e_thread => e_thread,
 	m_ex_op=>m_ex_op,
 	m_reg=>m_reg,
+	m_thread => m_thread,
 	w_ex_op=>w_ex_op,
+	w_thread => w_thread,
 	hazard => thread.hazard
 );
 
 hazard2 : entity work.eightthirtytwo_hazard
 port map(
 	valid => thread2.op_valid,
+	thread => '1',
 	d_ex_op=>thread2.d_ex_op,
 	d_reg=>thread2.d_reg,
 	d_alu_reg1=>thread2.d_alu_reg1,
 	d_alu_reg2=>thread2.d_alu_reg2,
 	e_ex_op=>e_ex_op,
 	e_reg=>e_reg,
+	e_thread => e_thread,
 	m_ex_op=>m_ex_op,
 	m_reg=>m_reg,
+	m_thread => m_thread,
 	w_ex_op=>w_ex_op,
+	w_thread => w_thread,
 	hazard => thread2.hazard
 );
 
 -- Stall - causes the entire pipeline to pause, without inserting bubbles.
 
-stall<='1' when e_ex_op(e32_exb_waitalu)='1' and alu_ack='0'
+stall<='1' when (e_ex_op(e32_exb_waitalu)='1' and alu_ack='0')
+	or thread.op_valid='0' or (thread2.op_valid='0' and dualthread=true)
 	else '0';
 				
 -- Condition minterms:
@@ -346,10 +359,10 @@ thread.cond_minterms(2)<= (not regfile.flag_z) and regfile.flag_c;
 thread.cond_minterms(1)<= regfile.flag_z and (not regfile.flag_c);
 thread.cond_minterms(0)<= (not regfile.flag_z) and (not regfile.flag_c);
 
-thread2.cond_minterms(3)<= regfile.flag_z and regfile.flag_c;
-thread2.cond_minterms(2)<= (not regfile.flag_z) and regfile.flag_c;
-thread2.cond_minterms(1)<= regfile.flag_z and (not regfile.flag_c);
-thread2.cond_minterms(0)<= (not regfile.flag_z) and (not regfile.flag_c);
+thread2.cond_minterms(3)<= regfile2.flag_z and regfile2.flag_c;
+thread2.cond_minterms(2)<= (not regfile2.flag_z) and regfile2.flag_c;
+thread2.cond_minterms(1)<= regfile2.flag_z and (not regfile2.flag_c);
+thread2.cond_minterms(0)<= (not regfile2.flag_z) and (not regfile2.flag_c);
 
 process(clk,reset_n,thread.op_valid)
 begin
@@ -390,13 +403,6 @@ begin
 		thread.setpc<='0';
 		thread2.setpc<='0';
 		alu_req<='0';		
-
-		-- Forward context from E to M
-		-- We do it here because the conditional execution logic
-		-- might clear it again.
-		m_reg<=e_reg;
-		m_ex_op<=e_ex_op;
-		m_thread<=e_thread;
 
 
 		-- If we have a hazard or we're blocked by conditional execution
@@ -470,7 +476,6 @@ begin
 
 				if regfile.flag_cond='1' and regfile.gpr7_readflags='0' then	-- advance PC but replace instructions with bubbles
 					e_ex_op<=e32_ex_bubble;
-					m_ex_op<=e32_ex_bubble;
 					if thread.hazard='0' and (thread.d_ex_op(e32_exb_cond)='1' or
 							(thread.d_ex_op(e32_exb_q1toreg)='1' and thread.d_reg="111")) then -- Writing to PC?
 						e_ex_op<=e32_ex_cond;
@@ -539,7 +544,6 @@ begin
 
 				if regfile2.flag_cond='1' and regfile2.gpr7_readflags='0' then	-- advance PC but replace instructions with bubbles
 					e_ex_op<=e32_ex_bubble;
-					m_ex_op<=e32_ex_bubble;
 					if thread2.hazard='0' and (thread2.d_ex_op(e32_exb_cond)='1' or
 							(thread2.d_ex_op(e32_exb_q1toreg)='1' and thread2.d_reg="111")) then -- Writing to PC?
 						e_ex_op<=e32_ex_cond;
@@ -589,6 +593,16 @@ begin
 		end if;
 
 		-- Mem stage
+
+		-- Forward context from E to M
+		m_reg<=e_reg;
+		if (e_thread='1' and regfile2.flag_cond='1' and regfile2.gpr7_readflags='0')
+			or (e_thread='0' and regfile.flag_cond='1' and regfile.gpr7_readflags='0') then
+			m_ex_op<=e32_ex_bubble;
+		else
+			m_ex_op<=e_ex_op;
+		end if;
+		m_thread<=e_thread;
 
 		-- Load / store operations.
 			

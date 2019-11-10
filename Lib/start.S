@@ -55,7 +55,7 @@ _interrupt:
 	.section .text.startup
 
 _start:
-	cond	NEQ	// Thread 1
+	cond	SGT	// Thread 1
 		li	IMW0(PCREL(.start1))
 		add	r7
 	cond	SLT	// Thread 2
@@ -69,8 +69,10 @@ _start:
 	// Set up the stack here
 	ldinc	r7
 	.int	_premain
+	mr	r7
 .start2:
 	// Set up the stack here
 	ldinc	r7
 	.int	_premain2
+	mr	r7
 
