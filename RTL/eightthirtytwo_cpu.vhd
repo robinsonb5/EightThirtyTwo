@@ -15,7 +15,7 @@ generic(
 	littleendian : boolean := true;
 	storealign : boolean := true;
 	interrupts : boolean := true;
-	dualthread : boolean := true
+	dualthread : boolean := false
 	);
 port(
 	clk : in std_logic;
@@ -433,8 +433,9 @@ begin
 
 			-- Can we dispatch an instruction from thread 1?
 
-			if thread.hazard='0' and 
-					(e_thread='0' or (thread2.hazard='1' and alu_op/=e32_alu_li)) then
+			if thread.hazard='0' and
+					(dualthread=false or
+						(e_thread='0' or (thread2.hazard='1' and alu_op/=e32_alu_li))) then
 				if thread.d_ex_op(e32_exb_postinc)='1' then
 					e_continue<='1';
 				end if;
@@ -508,7 +509,7 @@ begin
 				
 			-- If thread 1 is blocked, can we dispatch an instruction from thread 2?
 --			elsif thread2.hazard='0' and dualthread=true then
-			elsif thread2.hazard='0' and 
+			elsif dualthread=true and thread2.hazard='0' and 
 					(e_thread='1' or (thread.hazard='1' and alu_op/=e32_alu_li)) then
 			
 				if thread2.d_ex_op(e32_exb_postinc)='1' then
