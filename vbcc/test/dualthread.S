@@ -8,9 +8,11 @@ _main:
 	li	IMW1(0xFFFFFFC0)
 	li	IMW0(0xFFFFFFC0)
 	mr	r1
-	li	0x48
+	li	IMW1(0x48)
+	li	IMW0(0x48)
 	st	r1
-	ldinc	r7
+	ldinc	r6
+	mr	r7
 
 _thread2main:
 	stdec	r6
@@ -19,9 +21,11 @@ _thread2main:
 	li	IMW1(0xFFFFFFC0)
 	li	IMW0(0xFFFFFFC0)
 	mr	r2
-	li	0x60
+	li	IMW1(0x60)
+	li	IMW0(0x60)
 	st	r2
-	ldinc	r7
+	ldinc	r6
+	mr	r7
 
 
 	

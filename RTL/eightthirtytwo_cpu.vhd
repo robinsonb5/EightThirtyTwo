@@ -718,17 +718,6 @@ begin
 		-- set upon entering the interrupt routine.
 		if m_ex_op(e32_exb_flags)='1' then
 			if m_thread='1' and dualthread=true then
-				regfile.flag_sgn<='0'; -- Any ALU op that sets flags will clear the sign modifier.
-				if m_ex_op(e32_exb_halfword)='1' then	-- Modify the next load/store to operate on a halfword.
-					regfile.flag_halfword<='1';
-				end if;
-				regfile.flag_c<=alu_carry;
-				if alu_q1=X"00000000" then
-					regfile.flag_z<='1';
-				else
-					regfile.flag_z<='0';
-				end if;
-			else
 				regfile2.flag_sgn<='0'; -- Any ALU op that sets flags will clear the sign modifier.
 				if m_ex_op(e32_exb_halfword)='1' then	-- Modify the next load/store to operate on a halfword.
 					regfile2.flag_halfword<='1';
@@ -739,6 +728,17 @@ begin
 				else
 					regfile2.flag_z<='0';
 				end if;			
+			else
+				regfile.flag_sgn<='0'; -- Any ALU op that sets flags will clear the sign modifier.
+				if m_ex_op(e32_exb_halfword)='1' then	-- Modify the next load/store to operate on a halfword.
+					regfile.flag_halfword<='1';
+				end if;
+				regfile.flag_c<=alu_carry;
+				if alu_q1=X"00000000" then
+					regfile.flag_z<='1';
+				else
+					regfile.flag_z<='0';
+				end if;
 			end if;
 		end if;
 
