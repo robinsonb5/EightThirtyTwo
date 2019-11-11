@@ -6,8 +6,8 @@ library work;
 use work.eightthirtytwo_pkg.all;
 
 -- FIXME - need to deal with the problem of immediate streaks for multithreading.
--- immediatestreak signal needs to be thread-specific. Can't switch threads during
--- a streak.
+-- Can't switch threads during an immediate streak unless we make the streak signal
+-- and the temporary register used to build immediates (currently ALU q2) thread specific.
 
 
 entity eightthirtytwo_cpu is
@@ -88,13 +88,13 @@ type e32_thread is record
 	pc : std_logic_vector(e32_pc_maxbit downto 0);
 	nextpc : std_logic_vector(e32_pc_maxbit downto 0);
 	setpc : std_logic;
-	op : std_logic_vector(7 downto 0);
-	op_valid : std_logic;
+	f_op : std_logic_vector(7 downto 0);
+	f_op_valid : std_logic;
 	-- Fetch stage signals, decoded combinationally.
-	alu_op : std_logic_vector(e32_alu_maxbit downto 0);
-	alu_reg1 : std_logic_vector(e32_reg_maxbit downto 0);
-	alu_reg2 : std_logic_vector(e32_reg_maxbit downto 0);
-	ex_op : std_logic_vector(e32_ex_maxbit downto 0);
+	f_alu_op : std_logic_vector(e32_alu_maxbit downto 0);
+	f_alu_reg1 : std_logic_vector(e32_reg_maxbit downto 0);
+	f_alu_reg2 : std_logic_vector(e32_reg_maxbit downto 0);
+	f_ex_op : std_logic_vector(e32_ex_maxbit downto 0);
 	-- Decode stage signals, used for hazard calcs.
 	d_imm : std_logic_vector(5 downto 0);
 	d_reg : e32_reg;
@@ -213,14 +213,14 @@ port map
 	pc(31 downto e32_pc_maxbit+1) => (others => '0'),
 	pc(e32_pc_maxbit downto 0) => thread.pc,
 	pc_req => thread.setpc,
-	opcode => thread.op,
-	opcode_valid => thread.op_valid,
+	opcode => thread.f_op,
+	opcode_valid => thread.f_op_valid,
 
 	pc2(31 downto e32_pc_maxbit+1) => (others => '0'),
 	pc2(e32_pc_maxbit downto 0) => thread2.pc,
 	pc2_req => thread2.setpc,
-	opcode2 => thread2.op,
-	opcode2_valid => thread2.op_valid,
+	opcode2 => thread2.f_op,
+	opcode2_valid => thread2.f_op_valid,
 
 	-- cpu load/store interface
 
@@ -249,22 +249,22 @@ port map
 
 decoder: entity work.eightthirtytwo_decode
 port map(
-	opcode => thread.op,
-	alu_func => thread.alu_op,
-	alu_reg1 => thread.alu_reg1,
-	alu_reg2 => thread.alu_reg2,
-	ex_op => thread.ex_op,
+	opcode => thread.f_op,
+	alu_func => thread.f_alu_op,
+	alu_reg1 => thread.f_alu_reg1,
+	alu_reg2 => thread.f_alu_reg2,
+	ex_op => thread.f_ex_op,
 	interruptable => thread.interruptable
 );
 
 
 decoder2: entity work.eightthirtytwo_decode
 port map(
-	opcode => thread2.op,
-	alu_func => thread2.alu_op,
-	alu_reg1 => thread2.alu_reg1,
-	alu_reg2 => thread2.alu_reg2,
-	ex_op => thread2.ex_op,
+	opcode => thread2.f_op,
+	alu_func => thread2.f_alu_op,
+	alu_reg1 => thread2.f_alu_reg1,
+	alu_reg2 => thread2.f_alu_reg2,
+	ex_op => thread2.f_ex_op,
 	interruptable => thread2.interruptable
 );
 
@@ -298,7 +298,7 @@ ls_req<=ls_req_r and not ls_ack;
 -- Hazard / stall logic.
 -- We don't yet attempt any results forwarding or instruction fusing.
 
--- thread.op_valid:
+-- thread.f_op_valid:
 -- If the opcode supplied for the current PC is invalid, we must block D and the transfer
 -- to E - but E, M and W must operate as usual, filling up with bubbles.
 
@@ -307,7 +307,7 @@ ls_req<=ls_req_r and not ls_ack;
 
 hazard1 : entity work.eightthirtytwo_hazard
 port map(
-	valid => thread.op_valid,
+	valid => thread.f_op_valid,
 	thread => '0',
 	d_ex_op=>thread.d_ex_op,
 	d_reg=>thread.d_reg,
@@ -326,7 +326,7 @@ port map(
 
 hazard2 : entity work.eightthirtytwo_hazard
 port map(
-	valid => thread2.op_valid,
+	valid => thread2.f_op_valid,
 	thread => '1',
 	d_ex_op=>thread2.d_ex_op,
 	d_reg=>thread2.d_reg,
@@ -346,13 +346,14 @@ port map(
 -- Stall - causes the entire pipeline to pause, without inserting bubbles.
 
 stall<='1' when (e_ex_op(e32_exb_waitalu)='1' and alu_ack='0')
-	or thread.op_valid='0' or (thread2.op_valid='0' and dualthread=true)
 	else '0';
 				
 -- Condition minterms:
 
 -- FIXME - need to make cond NEX pause the CPU,
 -- or perhaps remap it somehow to "carry set, zero don't care"?
+-- Definitely want to pause the CPU - and unpause again on interrupt;
+-- Allows the interrupt line to be a signal even when full interrupts are disabled.
 
 thread.cond_minterms(3)<= regfile.flag_z and regfile.flag_c;
 thread.cond_minterms(2)<= (not regfile.flag_z) and regfile.flag_c;
@@ -364,7 +365,7 @@ thread2.cond_minterms(2)<= (not regfile2.flag_z) and regfile2.flag_c;
 thread2.cond_minterms(1)<= regfile2.flag_z and (not regfile2.flag_c);
 thread2.cond_minterms(0)<= (not regfile2.flag_z) and (not regfile2.flag_c);
 
-process(clk,reset_n,thread.op_valid)
+process(clk,reset_n,thread.f_op_valid)
 begin
 	if reset_n='0' then
 		-- Thread 1:
@@ -423,12 +424,17 @@ begin
 		if thread.setpc='1' then
 			thread.d_ex_op<=e32_ex_bubble;
 		end if;
+
+		if thread2.setpc='1' then
+			thread2.d_ex_op<=e32_ex_bubble;
+		end if;
 		
 		if stall='0' and e_continue='0' then
 
 			-- Can we dispatch an instruction from thread 1?
 
-			if thread.hazard='0' then
+			if thread.hazard='0' and 
+					(e_thread='0' or (thread2.hazard='1' and alu_op/=e32_alu_li)) then
 				if thread.d_ex_op(e32_exb_postinc)='1' then
 					e_continue<='1';
 				end if;
@@ -460,13 +466,13 @@ begin
 
 				-- Fetch to Decode
 
-				thread.d_imm <= thread.op(5 downto 0);
-				thread.d_reg <= thread.op(2 downto 0);
-				thread.d_alu_reg1<=thread.alu_reg1;
-				thread.d_alu_reg2<=thread.alu_reg2;
+				thread.d_imm <= thread.f_op(5 downto 0);
+				thread.d_reg <= thread.f_op(2 downto 0);
+				thread.d_alu_reg1<=thread.f_alu_reg1;
+				thread.d_alu_reg2<=thread.f_alu_reg2;
 
-				thread.d_ex_op<=thread.ex_op;
-				thread.d_alu_op<=thread.alu_op;
+				thread.d_ex_op<=thread.f_ex_op;
+				thread.d_alu_op<=thread.f_alu_op;
 
 				-- Conditional execution:
 				-- If the cond flag is set, we replace anything in the E and M stages with bubbles.
@@ -501,7 +507,9 @@ begin
 				end if;
 				
 			-- If thread 1 is blocked, can we dispatch an instruction from thread 2?
-			elsif thread2.hazard='0' and dualthread=true then
+--			elsif thread2.hazard='0' and dualthread=true then
+			elsif thread2.hazard='0' and 
+					(e_thread='1' or (thread.hazard='1' and alu_op/=e32_alu_li)) then
 			
 				if thread2.d_ex_op(e32_exb_postinc)='1' then
 					e_continue<='1';
@@ -534,13 +542,13 @@ begin
 
 				-- Fetch to Decode
 
-				thread2.d_imm <= thread2.op(5 downto 0);
-				thread2.d_reg <= thread2.op(2 downto 0);
-				thread2.d_alu_reg1<=thread2.alu_reg1;
-				thread2.d_alu_reg2<=thread2.alu_reg2;
+				thread2.d_imm <= thread2.f_op(5 downto 0);
+				thread2.d_reg <= thread2.f_op(2 downto 0);
+				thread2.d_alu_reg1<=thread2.f_alu_reg1;
+				thread2.d_alu_reg2<=thread2.f_alu_reg2;
 
-				thread2.d_ex_op<=thread2.ex_op;
-				thread2.d_alu_op<=thread2.alu_op;
+				thread2.d_ex_op<=thread2.f_ex_op;
+				thread2.d_alu_op<=thread2.f_alu_op;
 
 				if regfile2.flag_cond='1' and regfile2.gpr7_readflags='0' then	-- advance PC but replace instructions with bubbles
 					e_ex_op<=e32_ex_bubble;

@@ -221,7 +221,7 @@ begin
 
 		if pc2_req='1' then	-- PC has changed - could happen while fetching...
 			fetch2_ram_req<='1';
-			fetch2_addr<=pc(31 downto 2);
+			fetch2_addr<=pc2(31 downto 2);
 			opcodebuffer2_valid<="00"; -- Invalidate both halves of the buffer.
 			if fetch2_ram_req='1' then -- and ram_ack='0' then
 				fetch2_abort<='1';
