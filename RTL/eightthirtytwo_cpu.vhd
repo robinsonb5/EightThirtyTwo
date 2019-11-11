@@ -15,7 +15,7 @@ generic(
 	littleendian : boolean := true;
 	storealign : boolean := true;
 	interrupts : boolean := true;
-	dualthread : boolean := false
+	dualthread : boolean := true
 	);
 port(
 	clk : in std_logic;
@@ -534,13 +534,13 @@ begin
 
 				-- Fetch to Decode
 
-				thread2.d_imm <= thread.op(5 downto 0);
-				thread2.d_reg <= thread.op(2 downto 0);
-				thread2.d_alu_reg1<=thread.alu_reg1;
-				thread2.d_alu_reg2<=thread.alu_reg2;
+				thread2.d_imm <= thread2.op(5 downto 0);
+				thread2.d_reg <= thread2.op(2 downto 0);
+				thread2.d_alu_reg1<=thread2.alu_reg1;
+				thread2.d_alu_reg2<=thread2.alu_reg2;
 
-				thread2.d_ex_op<=thread.ex_op;
-				thread2.d_alu_op<=thread.alu_op;
+				thread2.d_ex_op<=thread2.ex_op;
+				thread2.d_alu_op<=thread2.alu_op;
 
 				if regfile2.flag_cond='1' and regfile2.gpr7_readflags='0' then	-- advance PC but replace instructions with bubbles
 					e_ex_op<=e32_ex_bubble;
