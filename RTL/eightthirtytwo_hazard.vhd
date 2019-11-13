@@ -7,20 +7,27 @@ use work.eightthirtytwo_pkg.all;
 
 entity eightthirtytwo_hazard is
 port(
-	valid : std_logic;
-	thread : std_logic;
-	d_ex_op : e32_ex;
-	d_reg : e32_reg;
-	d_alu_reg1 : e32_regtype;
-	d_alu_reg2 : e32_regtype;
-	e_ex_op : e32_ex;
-	e_reg : e32_reg;
-	e_thread : std_logic;
-	m_ex_op : e32_ex;
-	m_reg : e32_reg;
-	m_thread : std_logic;
-	w_ex_op : e32_ex;
-	w_thread : std_logic;
+	valid : in std_logic;
+	thread : in std_logic;
+	pause : in std_logic;
+	d_ex_op : in e32_ex;
+	d_reg : in e32_reg;
+	d_alu_reg1 : in e32_regtype;
+	d_alu_reg2 : in e32_regtype;
+	e_write_tmp : in std_logic;
+	e_write_flags : in std_logic;
+	e_ex_op : in e32_ex;
+	e_reg : in e32_reg;
+	e_thread : in std_logic;
+	m_write_tmp : in std_logic;
+	m_write_flags : in std_logic;
+	m_ex_op : in e32_ex;
+	m_reg : in e32_reg;
+	m_thread : in std_logic;
+	w_write_tmp : in std_logic;
+	w_write_flags : in std_logic;
+	w_ex_op : in e32_ex;
+	w_thread : in std_logic;
 	hazard : out std_logic
 );
 end entity;
@@ -42,14 +49,17 @@ begin
 -- (If we don't implement ltmpinc or ltmp then nothing beyond M will write to the regfile.)
 
 hazard_tmp<='1' when
-	(((e_ex_op(e32_exb_q1totmp)='1' or e_ex_op(e32_exb_q2totmp)='1') and e_thread=thread)
-		or ((m_ex_op(e32_exb_q1totmp)='1' or m_ex_op(e32_exb_q2totmp)='1') and m_thread=thread)
-			or (e_ex_op(e32_exb_load)='1' and e_thread=thread)
-			or (m_ex_op(e32_exb_load)='1' and m_thread=thread)
-			or (w_ex_op(e32_exb_load)='1' and w_thread=thread))
+	(e_write_tmp='1' or m_write_tmp='1' or w_write_tmp='1')
 		and (d_alu_reg1(e32_regb_tmp)='1' or d_alu_reg2(e32_regb_tmp)='1')
 	else '0';
 
+--	(((e_ex_op(e32_exb_q1totmp)='1' or e_ex_op(e32_exb_q2totmp)='1') and e_thread=thread)
+--		or ((m_ex_op(e32_exb_q1totmp)='1' or m_ex_op(e32_exb_q2totmp)='1') and m_thread=thread)
+--			or (e_ex_op(e32_exb_load)='1' and e_thread=thread)
+--			or (m_ex_op(e32_exb_load)='1' and m_thread=thread)
+--			or (w_ex_op(e32_exb_load)='1' and w_thread=thread))
+--		and (d_alu_reg1(e32_regb_tmp)='1' or d_alu_reg2(e32_regb_tmp)='1')
+--	else '0';
 
 -- hazard_reg:
 -- If the instruction being decoded requires a register as source we block
@@ -80,18 +90,24 @@ hazard_load<='1' when
 
 -- We have a flags hazard with the sgn or cond instructions
 -- if anything still in the pipeline is writing to the flags.
--- FIXME - might be able to remove sgn from this.
+-- FIXME - might be able to remove sgn from this by allowing the
+-- pipeline to consume the sgn flag earlier.
 hazard_flags<='1' when
 	(d_ex_op(e32_exb_cond)='1' or d_ex_op(e32_exb_sgn)='1')
-		and (((e_ex_op(e32_exb_flags)='1' or e_ex_op(e32_exb_load)='1')
-				and e_thread=thread)
-			or ((m_ex_op(e32_exb_flags)='1' or m_ex_op(e32_exb_load)='1')
-				and m_thread=thread)
-			or (w_ex_op(e32_exb_load)='1' and w_thread=thread)
-		)
+		and (e_write_flags='1' or m_write_flags='1' or w_write_flags='1')
 	else '0';
 
+--	(d_ex_op(e32_exb_cond)='1' or d_ex_op(e32_exb_sgn)='1')
+--		and (((e_ex_op(e32_exb_flags)='1' or e_ex_op(e32_exb_load)='1')
+--				and e_thread=thread)
+--			or ((m_ex_op(e32_exb_flags)='1' or m_ex_op(e32_exb_load)='1')
+--				and m_thread=thread)
+--			or (w_ex_op(e32_exb_load)='1' and w_thread=thread)
+--		)
+--	else '0';
+
 hazard<=(not valid)
+	or pause
 	or hazard_tmp
 	or hazard_reg
 	or hazard_pc

@@ -15,7 +15,7 @@ generic(
 	littleendian : boolean := true;
 	storealign : boolean := true;
 	interrupts : boolean := true;
-	dualthread : boolean := false
+	dualthread : boolean := true
 	);
 port(
 	clk : in std_logic;
@@ -102,7 +102,15 @@ type e32_thread is record
 	d_alu_reg1 : std_logic_vector(e32_reg_maxbit downto 0);
 	d_alu_reg2 : std_logic_vector(e32_reg_maxbit downto 0);
 	d_ex_op : e32_ex;
+	-- Hazard tracking signals - experimental
+	e_write_tmp : std_logic;
+	m_write_tmp : std_logic;
+	w_write_tmp : std_logic;
+	e_write_flags : std_logic;
+	m_write_flags : std_logic;
+	w_write_flags : std_logic;
 	-- Other signals
+	pause	: std_logic;
 	cond_minterms : std_logic_vector(3 downto 0);
 	interruptable : std_logic;
 	hazard : std_logic;
@@ -308,6 +316,7 @@ ls_req<=ls_req_r and not ls_ack;
 hazard1 : entity work.eightthirtytwo_hazard
 port map(
 	valid => thread.f_op_valid,
+	pause => thread.pause,
 	thread => '0',
 	d_ex_op=>thread.d_ex_op,
 	d_reg=>thread.d_reg,
@@ -321,12 +330,19 @@ port map(
 	m_thread => m_thread,
 	w_ex_op=>w_ex_op,
 	w_thread => w_thread,
+	e_write_tmp => thread.e_write_tmp,
+	m_write_tmp => thread.m_write_tmp,
+	w_write_tmp => thread.w_write_tmp,
+	e_write_flags => thread.e_write_flags,
+	m_write_flags => thread.m_write_flags,
+	w_write_flags => thread.w_write_flags,
 	hazard => thread.hazard
 );
 
 hazard2 : entity work.eightthirtytwo_hazard
 port map(
 	valid => thread2.f_op_valid,
+	pause => thread2.pause,
 	thread => '1',
 	d_ex_op=>thread2.d_ex_op,
 	d_reg=>thread2.d_reg,
@@ -340,6 +356,12 @@ port map(
 	m_thread => m_thread,
 	w_ex_op=>w_ex_op,
 	w_thread => w_thread,
+	e_write_tmp => thread2.e_write_tmp,
+	m_write_tmp => thread2.m_write_tmp,
+	w_write_tmp => thread2.w_write_tmp,
+	e_write_flags => thread2.e_write_flags,
+	m_write_flags => thread2.m_write_flags,
+	w_write_flags => thread2.w_write_flags,
 	hazard => thread2.hazard
 );
 
@@ -378,7 +400,14 @@ begin
 		regfile.gpr7_readflags<='0';
 		thread.pc<=(others=>'0');
 		thread.setpc<='1';
+		thread.pause<='0';
 		thread.d_ex_op<=e32_ex_bubble;
+		thread.e_write_tmp<='0';
+		thread.m_write_tmp<='0';
+		thread.w_write_tmp<='0';
+		thread.e_write_flags<='0';
+		thread.m_write_flags<='0';
+		thread.w_write_flags<='0';
 		
 		-- Thread 2
 		regfile2.flag_cond<='0';
@@ -390,7 +419,14 @@ begin
 		regfile2.gpr7_readflags<='0';
 		thread2.pc<=(others=>'0');
 		thread2.setpc<='1';
+		thread2.pause<='0';
 		thread2.d_ex_op<=e32_ex_bubble;
+		thread2.e_write_tmp<='0';
+		thread2.m_write_tmp<='0';
+		thread2.w_write_tmp<='0';
+		thread2.e_write_flags<='0';
+		thread2.m_write_flags<='0';
+		thread2.w_write_flags<='0';
 
 		-- Shared
 		ls_req_r<='0';
@@ -463,6 +499,13 @@ begin
 
 				e_reg<=thread.d_reg(2 downto 0);
 				e_ex_op<=thread.d_ex_op;
+
+				thread.e_write_tmp<=thread.d_ex_op(e32_exb_q1totmp)
+						or thread.d_ex_op(e32_exb_q2totmp) or thread.d_ex_op(e32_exb_load);
+				thread2.e_write_tmp<='0';
+				
+				thread.e_write_flags<=thread.d_ex_op(e32_exb_flags) or thread.d_ex_op(e32_exb_load);
+				thread2.e_write_flags<='0';
 				e_thread<='0';
 
 				-- Fetch to Decode
@@ -483,6 +526,7 @@ begin
 
 				if regfile.flag_cond='1' and regfile.gpr7_readflags='0' then	-- advance PC but replace instructions with bubbles
 					e_ex_op<=e32_ex_bubble;
+					thread.e_write_tmp<='0';
 					if thread.hazard='0' and (thread.d_ex_op(e32_exb_cond)='1' or
 							(thread.d_ex_op(e32_exb_q1toreg)='1' and thread.d_reg="111")) then -- Writing to PC?
 						e_ex_op<=e32_ex_cond;
@@ -539,6 +583,14 @@ begin
 
 				e_reg<=thread2.d_reg(2 downto 0);
 				e_ex_op<=thread2.d_ex_op;
+
+				thread2.e_write_tmp<=thread2.d_ex_op(e32_exb_q1totmp)
+						or thread2.d_ex_op(e32_exb_q2totmp) or thread2.d_ex_op(e32_exb_load);
+				thread.e_write_tmp<='0';
+
+				thread2.e_write_flags<=thread.d_ex_op(e32_exb_flags) or thread.d_ex_op(e32_exb_load);
+				thread.e_write_flags<='0';
+
 				e_thread<='1';
 
 				-- Fetch to Decode
@@ -553,6 +605,8 @@ begin
 
 				if regfile2.flag_cond='1' and regfile2.gpr7_readflags='0' then	-- advance PC but replace instructions with bubbles
 					e_ex_op<=e32_ex_bubble;
+					thread.e_write_tmp<='0';
+					thread.e_write_flags<='0';
 					if thread2.hazard='0' and (thread2.d_ex_op(e32_exb_cond)='1' or
 							(thread2.d_ex_op(e32_exb_q1toreg)='1' and thread2.d_reg="111")) then -- Writing to PC?
 						e_ex_op<=e32_ex_cond;
@@ -581,7 +635,16 @@ begin
 				-- Neither thread can continue - insert a bubble.
 			else
 				e_ex_op<=e32_ex_bubble;
+				thread.e_write_tmp<='0';
+				thread2.e_write_tmp<='0';
+				thread.e_write_flags<='0';
+				thread2.e_write_flags<='0';
 			end if;
+		end if;
+
+		if interrupt='1' then
+			thread.pause<='0';
+			thread2.pause<='0';
 		end if;
 
 		if interrupt='0' then
@@ -608,8 +671,16 @@ begin
 		if (e_thread='1' and regfile2.flag_cond='1' and regfile2.gpr7_readflags='0')
 			or (e_thread='0' and regfile.flag_cond='1' and regfile.gpr7_readflags='0') then
 			m_ex_op<=e32_ex_bubble;
+			thread.m_write_tmp<='0';
+			thread2.m_write_tmp<='0';
+			thread.m_write_flags<='0';
+			thread2.m_write_flags<='0';
 		else
 			m_ex_op<=e_ex_op;
+			thread.m_write_tmp<=thread.e_write_tmp;
+			thread2.m_write_tmp<=thread2.e_write_tmp;
+			thread.m_write_flags<=thread.e_write_flags;
+			thread2.m_write_flags<=thread2.e_write_flags;
 		end if;
 		m_thread<=e_thread;
 
@@ -757,8 +828,16 @@ begin
 			if m_ex_op(e32_exb_load)='1' or m_ex_op(e32_exb_store)='1' then
 				w_ex_op<=m_ex_op;
 				w_thread<=m_thread;
+				thread.w_write_tmp<=thread.m_write_tmp;
+				thread2.w_write_tmp<=thread2.m_write_tmp;
+				thread.w_write_flags<=thread.m_write_flags;
+				thread2.w_write_flags<=thread2.m_write_flags;
 			else
 				w_ex_op<=e32_ex_bubble;
+				thread.w_write_tmp<='0';
+				thread2.w_write_tmp<='0';
+				thread.w_write_flags<='0';
+				thread2.w_write_flags<='0';
 			end if;
 		end if;
 
@@ -792,13 +871,17 @@ begin
 
 		if e_ex_op(e32_exb_cond)='1' then
 			if e_thread='1' and dualthread=true then
-				if (e_reg(1)&e_reg and thread2.cond_minterms) = "0000" then
+				if e_reg="000" then
+					thread2.pause<='1';
+				elsif (e_reg(1)&e_reg and thread2.cond_minterms) = "0000" then
 					regfile2.flag_cond<='1';
 				else
 					regfile2.flag_cond<='0';
 				end if;				
 			else
-				if (e_reg(1)&e_reg and thread.cond_minterms) = "0000" then
+				if e_reg="000" then
+					thread.pause<='1';
+				elsif (e_reg(1)&e_reg and thread.cond_minterms) = "0000" then
 					regfile.flag_cond<='1';
 				else
 					regfile.flag_cond<='0';
