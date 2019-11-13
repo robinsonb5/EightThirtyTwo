@@ -25,8 +25,8 @@ port
 
 	-- fetch interface for second thread
 
-	pc2 : in std_logic_vector(31 downto 0);
-	pc2_req : in std_logic;
+	pc2 : in std_logic_vector(31 downto 0) := (others=>'0');
+	pc2_req : in std_logic := '0';
 	opcode2 : out std_logic_vector(7 downto 0);
 	opcode2_valid : out std_logic;
 
@@ -165,7 +165,8 @@ end process;
 
 
 -- Fetch 2
-
+genthread2:
+if dualthread=true generate
 opcode2_valid_i<=opcodebuffer2_valid(1) when pc2(2)='0' else opcodebuffer2_valid(0);
 opcode2_valid<=opcode2_valid_i and not pc2_req;
 
@@ -231,10 +232,13 @@ begin
 	end if;
 end process;
 
+end generate;
 
--- Load store
-
-
+gennothread2:
+if dualthread=false generate
+	fetch2_ram_req<='0';
+	opcodebuffer2_valid<="00";
+end generate;
 
 -- Memory interface
 
@@ -267,7 +271,7 @@ begin
 						ram_addr_r<=std_logic_vector(fetch_addr(31 downto 2));
 						ram_req_r<='1';
 						ls_state<=LS_FETCH;
-					elsif fetch2_ram_req='1' then
+					elsif fetch2_ram_req='1' and dualthread=true then
 						ram_addr_r<=std_logic_vector(fetch2_addr(31 downto 2));
 						ram_req_r<='1';
 						ls_state<=LS_FETCH2;

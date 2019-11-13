@@ -183,7 +183,7 @@ with regfile.gpr_a select regfile.gpr_q <=
 	(others=>'X') when others;	-- r7 is the program counter.
 
 
-thread2.nextpc<=std_logic_vector(unsigned(thread2.pc)+1);
+thread2.nextpc<=std_logic_vector(unsigned(thread2.pc)+1) when dualthread=true else (others=>'0');
 regfile2.gpr_a<=thread2.d_reg;
 regfile2.gpr7_flags(e32_fb_zero)<=regfile2.flag_z;
 regfile2.gpr7_flags(e32_fb_carry)<=regfile2.flag_c;
@@ -203,13 +203,14 @@ with regfile2.gpr_a select regfile2.gpr_q <=
 
 
 -- Fetch/Load/Store unit is responsible for interfacing with main memory.
-
+genflsdual:
+if dualthread=true generate
 fetchloadstore : entity work.eightthirtytwo_fetchloadstore
 generic map
 (
 	storealign=>storealign,
 	littleendian=>littleendian,
-	dualthread=>dualthread
+	dualthread=>true
 )
 port map
 (
@@ -251,7 +252,53 @@ port map
 	ram_req => req,
 	ram_ack => ack
 );
+end generate;
 
+genlsfnodual:
+if dualthread=false generate
+fetchloadstore : entity work.eightthirtytwo_fetchloadstore
+generic map
+(
+	storealign=>storealign,
+	littleendian=>littleendian,
+	dualthread=>false
+)
+port map
+(
+	clk => clk,
+	reset_n => reset_n,
+
+	-- cpu fetch interface
+
+	pc(31 downto e32_pc_maxbit+1) => (others => '0'),
+	pc(e32_pc_maxbit downto 0) => thread.pc,
+	pc_req => thread.setpc,
+	opcode => thread.f_op,
+	opcode_valid => thread.f_op_valid,
+
+	-- cpu load/store interface
+
+	ls_addr => ls_addr,
+	ls_d => ls_d,
+	ls_q => ls_q,
+	ls_wr => ls_wr,
+	ls_byte => ls_byte,
+	ls_halfword => ls_halfword,
+	ls_req => ls_req,
+	ls_ack => ls_ack,
+
+		-- external RAM interface:
+
+	ram_addr => addr,
+	ram_d => d,
+	ram_q => q,
+	ram_bytesel => bytesel,
+	ram_wr => wr,
+	ram_req => req,
+	ram_ack => ack
+);
+
+end generate;
 
 -- Decoders
 
@@ -265,7 +312,8 @@ port map(
 	interruptable => thread.interruptable
 );
 
-
+thread2dec:
+if dualthread=true generate
 decoder2: entity work.eightthirtytwo_decode
 port map(
 	opcode => thread2.f_op,
@@ -275,7 +323,7 @@ port map(
 	ex_op => thread2.f_ex_op,
 	interruptable => thread2.interruptable
 );
-
+end generate;
 
 -- Execute
 
@@ -339,6 +387,8 @@ port map(
 	hazard => thread.hazard
 );
 
+genhazard2:
+if dualthread=true generate
 hazard2 : entity work.eightthirtytwo_hazard
 port map(
 	valid => thread2.f_op_valid,
@@ -364,6 +414,11 @@ port map(
 	w_write_flags => thread2.w_write_flags,
 	hazard => thread2.hazard
 );
+end generate;
+genhazardno2:
+if dualthread=false generate
+	thread2.hazard<='0';
+end generate;
 
 -- Stall - causes the entire pipeline to pause, without inserting bubbles.
 
@@ -410,23 +465,27 @@ begin
 		thread.w_write_flags<='0';
 		
 		-- Thread 2
-		regfile2.flag_cond<='0';
-		regfile2.flag_sgn<='0';
-		regfile2.flag_c<='1';	-- Thread 2 starts with carry flag set.
-		regfile2.flag_z<='0';
-		regfile2.flag_interrupting<='0';
-		regfile2.flag_halfword<='0';
-		regfile2.gpr7_readflags<='0';
-		thread2.pc<=(others=>'0');
-		thread2.setpc<='1';
-		thread2.pause<='0';
-		thread2.d_ex_op<=e32_ex_bubble;
-		thread2.e_write_tmp<='0';
-		thread2.m_write_tmp<='0';
-		thread2.w_write_tmp<='0';
-		thread2.e_write_flags<='0';
-		thread2.m_write_flags<='0';
-		thread2.w_write_flags<='0';
+		if dualthread=true then
+			regfile2.flag_cond<='0';
+			regfile2.flag_sgn<='0';
+			regfile2.flag_c<='1';	-- Thread 2 starts with carry flag set.
+			regfile2.flag_z<='0';
+			regfile2.flag_interrupting<='0';
+			regfile2.flag_halfword<='0';
+			regfile2.gpr7_readflags<='0';
+			thread2.pc<=(others=>'0');
+			thread2.setpc<='1';
+			thread2.pause<='0';
+			thread2.d_ex_op<=e32_ex_bubble;
+			thread2.e_write_tmp<='0';
+			thread2.m_write_tmp<='0';
+			thread2.w_write_tmp<='0';
+			thread2.e_write_flags<='0';
+			thread2.m_write_flags<='0';
+			thread2.w_write_flags<='0';
+		else
+			thread2.setpc<='0';		
+		end if;
 
 		-- Shared
 		ls_req_r<='0';
@@ -437,8 +496,6 @@ begin
 
 	elsif rising_edge(clk) then
 
-		thread.setpc<='0';
-		thread2.setpc<='0';
 		alu_req<='0';		
 
 
@@ -457,12 +514,16 @@ begin
 			e_continue<='0';
 		end if;
 		
+		thread.setpc<='0';
 		if thread.setpc='1' then
 			thread.d_ex_op<=e32_ex_bubble;
 		end if;
 
-		if thread2.setpc='1' then
-			thread2.d_ex_op<=e32_ex_bubble;
+		if dualthread=true then
+			thread2.setpc<='0';
+			if thread2.setpc='1' then
+				thread2.d_ex_op<=e32_ex_bubble;
+			end if;
 		end if;
 		
 		if stall='0' and e_continue='0' then
