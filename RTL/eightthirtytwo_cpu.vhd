@@ -5,17 +5,13 @@ use ieee.numeric_std.all;
 library work;
 use work.eightthirtytwo_pkg.all;
 
--- FIXME - need to deal with the problem of immediate streaks for multithreading.
--- Can't switch threads during an immediate streak unless we make the streak signal
--- and the temporary register used to build immediates (currently ALU q2) thread specific.
-
 
 entity eightthirtytwo_cpu is
 generic(
 	littleendian : boolean := true;
 	storealign : boolean := true;
 	interrupts : boolean := true;
-	dualthread : boolean := true
+	dualthread : boolean := false
 	);
 port(
 	clk : in std_logic;
@@ -102,12 +98,16 @@ type e32_thread is record
 	d_alu_reg1 : std_logic_vector(e32_reg_maxbit downto 0);
 	d_alu_reg2 : std_logic_vector(e32_reg_maxbit downto 0);
 	d_ex_op : e32_ex;
+	d_read_tmp : std_logic;
+	d_read_reg : std_logic;
 	-- Hazard tracking signals - experimental
 	e_write_tmp : std_logic;
 	m_write_tmp : std_logic;
 	w_write_tmp : std_logic;
 	e_write_gpr : std_logic;
 	m_write_gpr : std_logic;
+	e_write_pc : std_logic;
+	m_write_pc : std_logic;
 	e_write_flags : std_logic;
 	m_write_flags : std_logic;
 	w_write_flags : std_logic;
@@ -131,6 +131,7 @@ signal e_continue : std_logic; -- Used to stretch postinc operations over two cy
 signal e_reg : e32_reg;
 signal e_ex_op : e32_ex;
 signal e_thread : std_logic;
+signal e_loadstore : std_logic;
 
 signal alu_imm : std_logic_vector(5 downto 0);
 signal alu_d1 : std_logic_vector(31 downto 0);
@@ -148,7 +149,7 @@ signal alu_ack : std_logic;
 signal m_reg : e32_reg;
 signal m_ex_op : e32_ex;
 signal m_thread : std_logic;
-
+signal m_loadstore : std_logic;
 
 -- Writeback stage signals
 -- In fact writeback to registers is done at the M stage;
@@ -156,6 +157,7 @@ signal m_thread : std_logic;
 
 signal w_ex_op : e32_ex;
 signal w_thread : std_logic;
+signal w_loadstore : std_logic;
 
 -- hazard / stall signals
 
@@ -212,7 +214,7 @@ generic map
 (
 	storealign=>storealign,
 	littleendian=>littleendian,
-	dualthread=>true
+	dualthread=>dualthread
 )
 port map
 (
@@ -368,26 +370,33 @@ port map(
 	valid => thread.f_op_valid,
 	pause => thread.pause,
 --	thread => '0',
+	d_read_tmp=>thread.d_read_tmp,
+	d_read_reg=>thread.d_read_reg,
 	d_ex_op=>thread.d_ex_op,
 	d_reg=>thread.d_reg,
-	d_alu_reg1=>thread.d_alu_reg1,
-	d_alu_reg2=>thread.d_alu_reg2,
-	e_ex_op=>e_ex_op,
+--	d_alu_reg1=>thread.d_alu_reg1,
+--	d_alu_reg2=>thread.d_alu_reg2,
+--	e_ex_op=>e_ex_op,
 	e_reg=>e_reg,
-	e_thread => e_thread,
-	m_ex_op=>m_ex_op,
+--	e_thread => e_thread,
+--	m_ex_op=>m_ex_op,
 	m_reg=>m_reg,
-	m_thread => m_thread,
-	w_ex_op=>w_ex_op,
-	w_thread => w_thread,
+--	m_thread => m_thread,
+--	w_ex_op=>w_ex_op,
+--	w_thread => w_thread,
 	e_write_tmp => thread.e_write_tmp,
 	m_write_tmp => thread.m_write_tmp,
 	w_write_tmp => thread.w_write_tmp,
 	e_write_gpr => thread.e_write_gpr,
 	m_write_gpr => thread.m_write_gpr,
+	e_write_pc => thread.e_write_pc,
+	m_write_pc => thread.m_write_pc,
 	e_write_flags => thread.e_write_flags,
 	m_write_flags => thread.m_write_flags,
 	w_write_flags => thread.w_write_flags,
+	e_loadstore => e_loadstore,
+	m_loadstore => m_loadstore,
+	w_loadstore => w_loadstore,
 	hazard => thread.hazard
 );
 
@@ -398,26 +407,33 @@ port map(
 	valid => thread2.f_op_valid,
 	pause => thread2.pause,
 --	thread => '1',
+	d_read_tmp=>thread2.d_read_tmp,
+	d_read_reg=>thread2.d_read_reg,
 	d_ex_op=>thread2.d_ex_op,
 	d_reg=>thread2.d_reg,
-	d_alu_reg1=>thread2.d_alu_reg1,
-	d_alu_reg2=>thread2.d_alu_reg2,
-	e_ex_op=>e_ex_op,
+--	d_alu_reg1=>thread2.d_alu_reg1,
+--	d_alu_reg2=>thread2.d_alu_reg2,
+--	e_ex_op=>e_ex_op,
 	e_reg=>e_reg,
-	e_thread => e_thread,
-	m_ex_op=>m_ex_op,
+--	e_thread => e_thread,
+--	m_ex_op=>m_ex_op,
 	m_reg=>m_reg,
-	m_thread => m_thread,
-	w_ex_op=>w_ex_op,
-	w_thread => w_thread,
+--	m_thread => m_thread,
+--	w_ex_op=>w_ex_op,
+--	w_thread => w_thread,
 	e_write_tmp => thread2.e_write_tmp,
 	m_write_tmp => thread2.m_write_tmp,
 	w_write_tmp => thread2.w_write_tmp,
 	e_write_gpr => thread2.e_write_gpr,
 	m_write_gpr => thread2.m_write_gpr,
+	e_write_pc => thread2.e_write_pc,
+	m_write_pc => thread2.m_write_pc,
 	e_write_flags => thread2.e_write_flags,
 	m_write_flags => thread2.m_write_flags,
 	w_write_flags => thread2.w_write_flags,
+	e_loadstore => e_loadstore,
+	m_loadstore => m_loadstore,
+	w_loadstore => w_loadstore,
 	hazard => thread2.hazard
 );
 end generate;
@@ -468,6 +484,8 @@ begin
 		thread.w_write_tmp<='0';
 		thread.e_write_gpr<='0';
 		thread.m_write_gpr<='0';
+		thread.e_write_pc<='0';
+		thread.m_write_pc<='0';
 		thread.e_write_flags<='0';
 		thread.m_write_flags<='0';
 		thread.w_write_flags<='0';
@@ -490,6 +508,8 @@ begin
 			thread2.w_write_tmp<='0';
 			thread2.e_write_gpr<='0';
 			thread2.m_write_gpr<='0';
+			thread2.e_write_pc<='0';
+			thread2.m_write_pc<='0';
 			thread2.e_write_flags<='0';
 			thread2.m_write_flags<='0';
 			thread2.w_write_flags<='0';
@@ -503,6 +523,9 @@ begin
 		e_ex_op<=e32_ex_bubble;
 		m_ex_op<=e32_ex_bubble;
 		e_continue<='0';
+		e_loadstore<='0';
+		m_loadstore<='0';
+		w_loadstore<='0';
 
 	elsif rising_edge(clk) then
 
@@ -571,12 +594,18 @@ begin
 				e_reg<=thread.d_reg(2 downto 0);
 				e_ex_op<=thread.d_ex_op;
 
+				e_loadstore<=thread.d_ex_op(e32_exb_load) or thread.d_ex_op(e32_exb_store);
+				
 				thread.e_write_tmp<=thread.d_ex_op(e32_exb_q1totmp)
 						or thread.d_ex_op(e32_exb_q2totmp) or thread.d_ex_op(e32_exb_load);
 				thread2.e_write_tmp<='0';
 
 				thread.e_write_gpr<=thread.d_ex_op(e32_exb_q1toreg);
 				thread2.e_write_gpr<='0';
+				if thread.d_reg="111" and thread.d_ex_op(e32_exb_q1toreg)='1' then
+					thread.e_write_pc<='1';
+				end if;
+				thread2.e_write_pc<='0';
 				
 				thread.e_write_flags<=thread.d_ex_op(e32_exb_flags) or thread.d_ex_op(e32_exb_load);
 				thread2.e_write_flags<='0';
@@ -588,6 +617,17 @@ begin
 				thread.d_reg <= thread.f_op(2 downto 0);
 				thread.d_alu_reg1<=thread.f_alu_reg1;
 				thread.d_alu_reg2<=thread.f_alu_reg2;
+				
+				if thread.f_alu_reg1=e32_reg_tmp or thread.f_alu_reg2=e32_reg_tmp then
+					thread.d_read_tmp<='1';
+				else
+					thread.d_read_tmp<='0';
+				end if;
+				if thread.f_alu_reg1=e32_reg_gpr or thread.f_alu_reg2=e32_reg_gpr then
+					thread.d_read_reg<='1';
+				else
+					thread.d_read_reg<='0';
+				end if;
 
 				thread.d_ex_op<=thread.f_ex_op;
 				thread.d_alu_op<=thread.f_alu_op;
@@ -602,7 +642,9 @@ begin
 					e_ex_op<=e32_ex_bubble;
 					thread.e_write_tmp<='0';
 					thread.e_write_gpr<='0';
+					thread.e_write_pc<='0';
 					thread.e_write_flags<='0';
+					e_loadstore<='0';
 					if thread.hazard='0' and (thread.d_ex_op(e32_exb_cond)='1' or
 							(thread.d_ex_op(e32_exb_q1toreg)='1' and thread.d_reg="111")) then -- Writing to PC?
 						e_ex_op<=e32_ex_cond;
@@ -667,8 +709,15 @@ begin
 				thread2.e_write_gpr<=thread2.d_ex_op(e32_exb_q1toreg);
 				thread.e_write_gpr<='0';
 
-				thread2.e_write_flags<=thread.d_ex_op(e32_exb_flags) or thread.d_ex_op(e32_exb_load);
+				if thread2.d_reg="111" and thread2.d_ex_op(e32_exb_q1toreg)='1' then
+					thread2.e_write_pc<='1';
+				end if;
+				thread.e_write_pc<='0';
+
+				thread2.e_write_flags<=thread2.d_ex_op(e32_exb_flags) or thread2.d_ex_op(e32_exb_load);
 				thread.e_write_flags<='0';
+
+				e_loadstore<=thread2.d_ex_op(e32_exb_load) or thread2.d_ex_op(e32_exb_store);
 
 				e_thread<='1';
 
@@ -679,6 +728,17 @@ begin
 				thread2.d_alu_reg1<=thread2.f_alu_reg1;
 				thread2.d_alu_reg2<=thread2.f_alu_reg2;
 
+				if thread2.f_alu_reg1=e32_reg_tmp or thread2.f_alu_reg2=e32_reg_tmp then
+					thread2.d_read_tmp<='1';
+				else
+					thread2.d_read_tmp<='0';
+				end if;
+				if thread2.f_alu_reg1=e32_reg_gpr or thread2.f_alu_reg2=e32_reg_gpr then
+					thread2.d_read_reg<='1';
+				else
+					thread2.d_read_reg<='0';
+				end if;
+
 				thread2.d_ex_op<=thread2.f_ex_op;
 				thread2.d_alu_op<=thread2.f_alu_op;
 
@@ -686,7 +746,9 @@ begin
 					e_ex_op<=e32_ex_bubble;
 					thread2.e_write_tmp<='0';
 					thread2.e_write_gpr<='0';
+					thread2.e_write_pc<='0';
 					thread2.e_write_flags<='0';
+					e_loadstore<='0';
 					if thread2.hazard='0' and (thread2.d_ex_op(e32_exb_cond)='1' or
 							(thread2.d_ex_op(e32_exb_q1toreg)='1' and thread2.d_reg="111")) then -- Writing to PC?
 						e_ex_op<=e32_ex_cond;
@@ -719,8 +781,11 @@ begin
 				thread2.e_write_tmp<='0';
 				thread.e_write_gpr<='0';
 				thread2.e_write_gpr<='0';
+				thread.e_write_pc<='0';
+				thread2.e_write_pc<='0';		
 				thread.e_write_flags<='0';
 				thread2.e_write_flags<='0';
+				e_loadstore<='0';
 			end if;
 		end if;
 
@@ -757,6 +822,8 @@ begin
 			thread2.m_write_tmp<='0';
 			thread.m_write_gpr<='0';
 			thread2.m_write_gpr<='0';
+			thread.m_write_pc<='0';
+			thread2.m_write_pc<='0';
 			thread.m_write_flags<='0';
 			thread2.m_write_flags<='0';
 		else
@@ -765,9 +832,12 @@ begin
 			thread2.m_write_tmp<=thread2.e_write_tmp;
 			thread.m_write_gpr<=thread.e_write_gpr;
 			thread2.m_write_gpr<=thread2.e_write_gpr;
+			thread.m_write_pc<=thread.e_write_pc;
+			thread2.m_write_pc<=thread2.e_write_pc;
 			thread.m_write_flags<=thread.e_write_flags;
 			thread2.m_write_flags<=thread2.e_write_flags;
 		end if;
+		m_loadstore<=e_loadstore;
 		m_thread<=e_thread;
 
 		-- Load / store operations.
@@ -912,6 +982,7 @@ begin
 
 		if ls_req_r='0' or ls_ack='1' then
 			if m_ex_op(e32_exb_load)='1' or m_ex_op(e32_exb_store)='1' then
+				w_loadstore<=m_loadstore;
 				w_ex_op<=m_ex_op;
 				w_thread<=m_thread;
 				thread.w_write_tmp<=thread.m_write_tmp;
@@ -920,6 +991,7 @@ begin
 				thread2.w_write_flags<=thread2.m_write_flags;
 			else
 				w_ex_op<=e32_ex_bubble;
+				w_loadstore<='0';
 				thread.w_write_tmp<='0';
 				thread2.w_write_tmp<='0';
 				thread.w_write_flags<='0';
@@ -930,7 +1002,7 @@ begin
 		if w_ex_op(e32_exb_store)='1' and ls_ack='1' then
 			ls_req_r<='0';
 			ls_wr<='0';
-		end if;			
+		end if;
 
 		if w_ex_op(e32_exb_load)='1' and ls_ack='1' then
 			ls_req_r<='0';
