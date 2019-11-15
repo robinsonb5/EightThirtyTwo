@@ -73,9 +73,9 @@ The ISA has 27 instructions, most of which take one nominated operand and
 one implicit operand:
 
 ### Move instructions
-* mr r<n>  -  Move the contents of the temp register to r<n>
-* mt r<n>  -  Move the contents of r<n> to the temp register
-* exg r<n>  -  Swap the contents of r<n> and the temp register
+* mr r&lt;n&gt;  -  Move the contents of the temp register to r&lt;n&gt;
+* mt r&lt;n&gt;  -  Move the contents of r&lt;n&gt; to the temp register
+* exg r&lt;n&gt;  -  Swap the contents of r&lt;n&gt; and the temp register
 
 ### Misc instructions
 * li imm  -  Load a 6-bit immediate value to the temp register,
@@ -97,43 +97,43 @@ increment or decrement amounts.
 ### Load instructions
 All load instructions will set or clear the zero flag based on the loaded
 value.
-* ld r<n>  -  Loads from the address in r<n> and writes the result to tmp.
+* ld r&lt;n&gt;  -  Loads from the address in r&lt;n&gt; and writes the result to tmp.
 * ldt  -  Loads from the address in tmp, and writes the result to tmp.
-* ldinc r<n>  -  Loads from the address in r<n>, writes the result tmp,
-increments r<n> by 4.
-* ldbinc r<n>  -  Loads a single byte from the address in r<n>,
-writes the result to tmp, increments r<n> by 1.
-* ldidx r<n>  -   Loads from the sum of r<n> and tmp, writes the result to
+* ldinc r&lt;n&gt;  -  Loads from the address in r&lt;n&gt;, writes the result tmp,
+increments r&lt;n&gt; by 4.
+* ldbinc r&lt;n&gt;  -  Loads a single byte from the address in r&lt;n&gt;,
+writes the result to tmp, increments r&lt;n&gt; by 1.
+* ldidx r&lt;n&gt;  -   Loads from the sum of r&lt;n&gt; and tmp, writes the result to
 tmp.
 
 ### Store instructions
-* st r<n>  -  Stores the contents of tmp to the address in r<n>.
-* stdec r<n>  -  Stores the contents of tmp to the address in r<n>, decrements
-r<n>.
-* stbinc r<n>  -  Stores the lowest byte of tmp to the address in r<n>,
-increments r<n>
-* stmpdec r<n>  -  Stores the contents of r<n> to the address in tmp,
+* st r&lt;n&gt;  -  Stores the contents of tmp to the address in r&lt;n&gt;.
+* stdec r&lt;n&gt;  -  Stores the contents of tmp to the address in r&lt;n&gt;, decrements
+r&lt;n&gt;.
+* stbinc r&lt;n&gt;  -  Stores the lowest byte of tmp to the address in r&lt;n&gt;,
+increments r&lt;n&gt;
+* stmpdec r&lt;n&gt;  -  Stores the contents of r&lt;n&gt; to the address in tmp,
 decrements tmp.
 
 ### Arithmetic, Bitwise and Shift instructions
 All ALU instructions set or clear the Zero flag based on the result.
 Add, addt, sub, cmp and mul will also set or clear the Carry flag.
 
-* add r<n>  -  Add tmp to r<n>, write the result to r<n>.  If r<n> is r7 then
+* add r&lt;n&gt;  -  Add tmp to r&lt;n&gt;, write the result to r&lt;n&gt;.  If r&lt;n&gt; is r7 then
 the old value will be written to tmp, allowing it to serve as a link register.
-* addt r<n>  -  Add tmp to r<n>, write result to tmp.
-* sub r<n>  -  Subtract tmp from r<n>
-* cmp r<n>  -  Subtract tmp from r<n>, discard result but set flags.
-* mul r<n>  -  32x32 to 64 bit multiply.  The upper 32 bits go to tmp, the
-lower 32 bits go to r<n>.  The multiplication will be signed if the sgn flag
+* addt r&lt;n&gt;  -  Add tmp to r&lt;n&gt;, write result to tmp.
+* sub r&lt;n&gt;  -  Subtract tmp from r&lt;n&gt;
+* cmp r&lt;n&gt;  -  Subtract tmp from r&lt;n&gt;, discard result but set flags.
+* mul r&lt;n&gt;  -  32x32 to 64 bit multiply.  The upper 32 bits go to tmp, the
+lower 32 bits go to r&lt;n&gt;.  The multiplication will be signed if the sgn flag
 is set, unsigned otherwise.
-* and r<n>  -  Bitwise and r<n> with tmp, result to r<n>
-* or r<n>  -  Bitwise or r<n> with tmp, result to r<n>
-* xor r<n>  -  Bitwise xor r<n> with tmp, result to r<n>
-* shl r<n>  -  Shift r<n> left by tmp bits.
-* shr r<n>  -  Shift r<n> right by tmp bits.  If the sgn flag is clear then
-zeroes will be shifted in - otherwise the leftmost bit of r<n> will be copied.
-* ror r<n>  -  Rotate r<n> right by tmp bits.
+* and r&lt;n&gt;  -  Bitwise and r&lt;n&gt; with tmp, result to r&lt;n&gt;
+* or r&lt;n&gt;  -  Bitwise or r&lt;n&gt; with tmp, result to r&lt;n&gt;
+* xor r&lt;n&gt;  -  Bitwise xor r&lt;n&gt; with tmp, result to r&lt;n&gt;
+* shl r&lt;n&gt;  -  Shift r&lt;n&gt; left by tmp bits.
+* shr r&lt;n&gt;  -  Shift r&lt;n&gt; right by tmp bits.  If the sgn flag is clear then
+zeroes will be shifted in - otherwise the leftmost bit of r&lt;n&gt; will be copied.
+* ror r&lt;n&gt;  -  Rotate r&lt;n&gt; right by tmp bits.
 
 Note: The shift and rotate instructions are slow - if you're shifting by a
 fixed amount the mul instruction will be faster.
