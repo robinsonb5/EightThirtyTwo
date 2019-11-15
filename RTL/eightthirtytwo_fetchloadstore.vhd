@@ -266,7 +266,7 @@ begin
 
 		case ls_state is
 			when LS_WAIT =>
-				if pc_req='0' then
+--				if pc_req='0' then
 					if fetch_ram_req='1' then
 						ram_addr_r<=std_logic_vector(fetch_addr(31 downto 2));
 						ram_req_r<='1';
@@ -285,7 +285,7 @@ begin
 						ram_wr<=ls_wr;
 						ls_state<=LS_LOAD;
 					end if;
-				end if;
+--				end if;
 
 			when LS_FETCH =>
 				if ram_ack='1' then

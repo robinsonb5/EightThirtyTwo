@@ -8,18 +8,20 @@ use work.eightthirtytwo_pkg.all;
 entity eightthirtytwo_hazard is
 port(
 	valid : in std_logic;
-	thread : in std_logic;
+--	thread : in std_logic;
 	pause : in std_logic;
 	d_ex_op : in e32_ex;
 	d_reg : in e32_reg;
 	d_alu_reg1 : in e32_regtype;
 	d_alu_reg2 : in e32_regtype;
 	e_write_tmp : in std_logic;
+	e_write_gpr : in std_logic;
 	e_write_flags : in std_logic;
 	e_ex_op : in e32_ex;
 	e_reg : in e32_reg;
 	e_thread : in std_logic;
 	m_write_tmp : in std_logic;
+	m_write_gpr : in std_logic;
 	m_write_flags : in std_logic;
 	m_ex_op : in e32_ex;
 	m_reg : in e32_reg;
@@ -67,15 +69,23 @@ hazard_tmp<='1' when
 -- instruction writing to the regfile has cleared the pipeline.
 
 hazard_reg<='1' when
-	((e_ex_op(e32_exb_q1toreg)='1' and e_reg=d_reg and e_thread=thread)	or
-		(m_ex_op(e32_exb_q1toreg)='1' and m_reg=d_reg and m_thread=thread))
+	((e_write_gpr='1' and e_reg=d_reg) or (m_write_gpr='1' and m_reg=d_reg))
 		and ((d_alu_reg1(e32_regb_gpr)='1' or d_alu_reg2(e32_regb_gpr)='1'))
 	else '0';
 
+--		((e_ex_op(e32_exb_q1toreg)='1' and e_reg=d_reg and e_thread=thread)	or
+--		(m_ex_op(e32_exb_q1toreg)='1' and m_reg=d_reg and m_thread=thread))
+--		and ((d_alu_reg1(e32_regb_gpr)='1' or d_alu_reg2(e32_regb_gpr)='1'))
+--	else '0';
+
 hazard_pc<='1' when
-	(e_ex_op(e32_exb_q1toreg)='1' and e_reg="111" and e_thread=thread)
-		or (m_ex_op(e32_exb_q1toreg)='1' and m_reg="111" and m_thread=thread)
+	(e_write_gpr='1' and e_reg="111")
+		or (m_write_gpr='1' and m_reg="111")
 	else '0';
+
+--	(e_ex_op(e32_exb_q1toreg)='1' and e_reg="111" and e_thread=thread)
+--		or (m_ex_op(e32_exb_q1toreg)='1' and m_reg="111" and m_thread=thread)
+--	else '0';
 
 	
 -- Load hazard - if a load or store is in the pipeline we have to delay further loads/stores

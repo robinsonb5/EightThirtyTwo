@@ -75,7 +75,7 @@ begin
 		clk => clk,
 		reset_n => reset_n,
 
-		interrupt => '0', -- interrupt,
+		interrupt => interrupt,
 
 		-- cpu fetch interface
 

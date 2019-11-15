@@ -106,6 +106,8 @@ type e32_thread is record
 	e_write_tmp : std_logic;
 	m_write_tmp : std_logic;
 	w_write_tmp : std_logic;
+	e_write_gpr : std_logic;
+	m_write_gpr : std_logic;
 	e_write_flags : std_logic;
 	m_write_flags : std_logic;
 	w_write_flags : std_logic;
@@ -365,7 +367,7 @@ hazard1 : entity work.eightthirtytwo_hazard
 port map(
 	valid => thread.f_op_valid,
 	pause => thread.pause,
-	thread => '0',
+--	thread => '0',
 	d_ex_op=>thread.d_ex_op,
 	d_reg=>thread.d_reg,
 	d_alu_reg1=>thread.d_alu_reg1,
@@ -381,6 +383,8 @@ port map(
 	e_write_tmp => thread.e_write_tmp,
 	m_write_tmp => thread.m_write_tmp,
 	w_write_tmp => thread.w_write_tmp,
+	e_write_gpr => thread.e_write_gpr,
+	m_write_gpr => thread.m_write_gpr,
 	e_write_flags => thread.e_write_flags,
 	m_write_flags => thread.m_write_flags,
 	w_write_flags => thread.w_write_flags,
@@ -393,7 +397,7 @@ hazard2 : entity work.eightthirtytwo_hazard
 port map(
 	valid => thread2.f_op_valid,
 	pause => thread2.pause,
-	thread => '1',
+--	thread => '1',
 	d_ex_op=>thread2.d_ex_op,
 	d_reg=>thread2.d_reg,
 	d_alu_reg1=>thread2.d_alu_reg1,
@@ -409,6 +413,8 @@ port map(
 	e_write_tmp => thread2.e_write_tmp,
 	m_write_tmp => thread2.m_write_tmp,
 	w_write_tmp => thread2.w_write_tmp,
+	e_write_gpr => thread2.e_write_gpr,
+	m_write_gpr => thread2.m_write_gpr,
 	e_write_flags => thread2.e_write_flags,
 	m_write_flags => thread2.m_write_flags,
 	w_write_flags => thread2.w_write_flags,
@@ -460,6 +466,8 @@ begin
 		thread.e_write_tmp<='0';
 		thread.m_write_tmp<='0';
 		thread.w_write_tmp<='0';
+		thread.e_write_gpr<='0';
+		thread.m_write_gpr<='0';
 		thread.e_write_flags<='0';
 		thread.m_write_flags<='0';
 		thread.w_write_flags<='0';
@@ -480,6 +488,8 @@ begin
 			thread2.e_write_tmp<='0';
 			thread2.m_write_tmp<='0';
 			thread2.w_write_tmp<='0';
+			thread2.e_write_gpr<='0';
+			thread2.m_write_gpr<='0';
 			thread2.e_write_flags<='0';
 			thread2.m_write_flags<='0';
 			thread2.w_write_flags<='0';
@@ -532,7 +542,7 @@ begin
 
 			if thread.hazard='0' and
 					(dualthread=false or
-						(e_thread='0' or (thread2.hazard='1' and alu_op/=e32_alu_li))) then
+						(e_thread='0' or thread2.pause='1' or (thread2.hazard='1' and alu_op/=e32_alu_li))) then
 				if thread.d_ex_op(e32_exb_postinc)='1' then
 					e_continue<='1';
 				end if;
@@ -564,6 +574,9 @@ begin
 				thread.e_write_tmp<=thread.d_ex_op(e32_exb_q1totmp)
 						or thread.d_ex_op(e32_exb_q2totmp) or thread.d_ex_op(e32_exb_load);
 				thread2.e_write_tmp<='0';
+
+				thread.e_write_gpr<=thread.d_ex_op(e32_exb_q1toreg);
+				thread2.e_write_gpr<='0';
 				
 				thread.e_write_flags<=thread.d_ex_op(e32_exb_flags) or thread.d_ex_op(e32_exb_load);
 				thread2.e_write_flags<='0';
@@ -588,6 +601,8 @@ begin
 				if regfile.flag_cond='1' and regfile.gpr7_readflags='0' then	-- advance PC but replace instructions with bubbles
 					e_ex_op<=e32_ex_bubble;
 					thread.e_write_tmp<='0';
+					thread.e_write_gpr<='0';
+					thread.e_write_flags<='0';
 					if thread.hazard='0' and (thread.d_ex_op(e32_exb_cond)='1' or
 							(thread.d_ex_op(e32_exb_q1toreg)='1' and thread.d_reg="111")) then -- Writing to PC?
 						e_ex_op<=e32_ex_cond;
@@ -600,7 +615,7 @@ begin
 				if interrupts=true then
 					if thread.interruptable='1' and interrupt='1'
 								and (thread.d_ex_op(e32_exb_q1toreg)='0' or thread.d_reg/="111") -- Can't be about to write to r7
-								and thread.d_ex_op(e32_exb_cond)='0' and thread.d_alu_op/=e32_alu_li and -- Can't be cond or a immediately previous li
+								and thread.d_ex_op(e32_exb_cond)='0' and alu_op/=e32_alu_li and -- Can't be cond or an immediately previous li
 									regfile.flag_interrupting='0' then
 						regfile.flag_interrupting<='1';
 						regfile.gpr7_readflags<='1';
@@ -614,8 +629,8 @@ begin
 				
 			-- If thread 1 is blocked, can we dispatch an instruction from thread 2?
 --			elsif thread2.hazard='0' and dualthread=true then
-			elsif dualthread=true and thread2.hazard='0' and 
-					(e_thread='1' or (thread.hazard='1' and alu_op/=e32_alu_li)) then
+			elsif dualthread=true and thread2.hazard='0' and
+					(e_thread='1' or thread.pause='1' or (thread.hazard='1' and alu_op/=e32_alu_li)) then
 			
 				if thread2.d_ex_op(e32_exb_postinc)='1' then
 					e_continue<='1';
@@ -649,6 +664,9 @@ begin
 						or thread2.d_ex_op(e32_exb_q2totmp) or thread2.d_ex_op(e32_exb_load);
 				thread.e_write_tmp<='0';
 
+				thread2.e_write_gpr<=thread2.d_ex_op(e32_exb_q1toreg);
+				thread.e_write_gpr<='0';
+
 				thread2.e_write_flags<=thread.d_ex_op(e32_exb_flags) or thread.d_ex_op(e32_exb_load);
 				thread.e_write_flags<='0';
 
@@ -666,8 +684,9 @@ begin
 
 				if regfile2.flag_cond='1' and regfile2.gpr7_readflags='0' then	-- advance PC but replace instructions with bubbles
 					e_ex_op<=e32_ex_bubble;
-					thread.e_write_tmp<='0';
-					thread.e_write_flags<='0';
+					thread2.e_write_tmp<='0';
+					thread2.e_write_gpr<='0';
+					thread2.e_write_flags<='0';
 					if thread2.hazard='0' and (thread2.d_ex_op(e32_exb_cond)='1' or
 							(thread2.d_ex_op(e32_exb_q1toreg)='1' and thread2.d_reg="111")) then -- Writing to PC?
 						e_ex_op<=e32_ex_cond;
@@ -698,6 +717,8 @@ begin
 				e_ex_op<=e32_ex_bubble;
 				thread.e_write_tmp<='0';
 				thread2.e_write_tmp<='0';
+				thread.e_write_gpr<='0';
+				thread2.e_write_gpr<='0';
 				thread.e_write_flags<='0';
 				thread2.e_write_flags<='0';
 			end if;
@@ -734,12 +755,16 @@ begin
 			m_ex_op<=e32_ex_bubble;
 			thread.m_write_tmp<='0';
 			thread2.m_write_tmp<='0';
+			thread.m_write_gpr<='0';
+			thread2.m_write_gpr<='0';
 			thread.m_write_flags<='0';
 			thread2.m_write_flags<='0';
 		else
 			m_ex_op<=e_ex_op;
 			thread.m_write_tmp<=thread.e_write_tmp;
 			thread2.m_write_tmp<=thread2.e_write_tmp;
+			thread.m_write_gpr<=thread.e_write_gpr;
+			thread2.m_write_gpr<=thread2.e_write_gpr;
 			thread.m_write_flags<=thread.e_write_flags;
 			thread2.m_write_flags<=thread2.e_write_flags;
 		end if;
