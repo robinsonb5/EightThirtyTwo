@@ -11,7 +11,8 @@ generic(
 	littleendian : boolean := true;
 	storealign : boolean := true;
 	interrupts : boolean := true;
-	dualthread : boolean := false
+	multiplier : boolean := true;
+	dualthread : boolean := true
 	);
 port(
 	clk : in std_logic;
@@ -332,6 +333,9 @@ end generate;
 -- Execute
 
 alu : entity work.eightthirtytwo_alu
+generic map(
+	multiplier => multiplier
+)
 port map(
 	clk => clk,
 	reset_n => reset_n,

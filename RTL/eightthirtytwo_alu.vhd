@@ -7,6 +7,9 @@ use work.eightthirtytwo_pkg.all;
 
 
 entity eightthirtytwo_alu is
+generic(
+	multiplier : boolean := true
+);
 port(
 	clk : in std_logic;
 	reset_n : in std_logic;
@@ -93,8 +96,10 @@ begin
 	elsif rising_edge(clk) then
 
 		immediatestreak<='0';
-	
-		mulresult <= signed((d1(31) and sgn)&d1) * signed((d2(31) and sgn)&d2);
+
+		if multiplier=true then
+			mulresult <= signed((d1(31) and sgn)&d1) * signed((d2(31) and sgn)&d2);
+		end if;
 
 		case op is
 			when e32_alu_and =>
