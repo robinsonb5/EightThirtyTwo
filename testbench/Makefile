@@ -4,7 +4,7 @@
 # ghdl --gen-makefile cpu_tb
 
 GHDL=ghdl
-GHDLFLAGS=
+GHDLFLAGS=-gdualthread=false
 GHDLRUNFLAGS=
 
 # Default target : elaborate
@@ -16,7 +16,7 @@ elab : force
 
 # Run target
 run : force
-	$(GHDL) -c $(GHDLFLAGS) -r cpu_tb $(GHDLRUNFLAGS) --ieee-asserts=disable-at-0 --stop-time=5000ns --read-wave-opt=waveopt --wave=cpu_tb.ghw
+	$(GHDL) -c $(GHDLFLAGS) -r cpu_tb $(GHDLRUNFLAGS) --ieee-asserts=disable-at-0 --stop-time=5000ns --wave=cpu_tb.ghw
 
 
 # Targets to analyze libraries
@@ -25,15 +25,17 @@ init: force
 	# /usr/local/lib/ghdl/ieee/v93/../../src/ieee/std_logic_1164_body.v93
 	# /usr/local/lib/ghdl/ieee/v93/../../src/ieee/numeric_std.v93
 	# /usr/local/lib/ghdl/ieee/v93/../../src/ieee/numeric_std-body.v93
-	$(GHDL) -a $(GHDLFLAGS) ../romgen/rom_pkg.vhd
-	$(GHDL) -a $(GHDLFLAGS) ../Assembler/HelloWorld_ROM.vhd
-	$(GHDL) -a $(GHDLFLAGS) ../Assembler/alutest_ROM.vhd
+	$(GHDL) -a $(GHDLFLAGS) rom_pkg.vhd
+	$(GHDL) -a $(GHDLFLAGS) alutest_ROM.vhd
+	$(GHDL) -a $(GHDLFLAGS) HelloWorld_ROM.vhd
 	$(GHDL) -a $(GHDLFLAGS) ../RTL/eightthirtytwo_pkg.vhd
 	$(GHDL) -a $(GHDLFLAGS) ../RTL/eightthirtytwo_decode.vhd
 	$(GHDL) -a $(GHDLFLAGS) ../RTL/eightthirtytwo_aligner.vhd
+	$(GHDL) -a $(GHDLFLAGS) ../RTL/eightthirtytwo_aligner_le.vhd
 	$(GHDL) -a $(GHDLFLAGS) ../RTL/eightthirtytwo_fetchloadstore.vhd
 	$(GHDL) -a $(GHDLFLAGS) ../RTL/eightthirtytwo_shifter.vhd
 	$(GHDL) -a $(GHDLFLAGS) ../RTL/eightthirtytwo_alu.vhd
+	$(GHDL) -a $(GHDLFLAGS) ../RTL/eightthirtytwo_hazard.vhd
 	$(GHDL) -a $(GHDLFLAGS) ../RTL/eightthirtytwo_cpu.vhd
 	$(GHDL) -a $(GHDLFLAGS) cpu_tb.vhd
 

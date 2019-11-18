@@ -185,7 +185,7 @@ with regfile.gpr_a select regfile.gpr_q <=
 	regfile.gpr5 when "101",
 	regfile.gpr6 when "110",
 	regfile.gpr7 when "111",
-	(others=>'X') when others;	-- r7 is the program counter.
+	(others=>'-') when others;	-- r7 is the program counter.
 
 
 thread2.nextpc<=std_logic_vector(unsigned(thread2.pc)+1) when dualthread=true else (others=>'0');
@@ -204,7 +204,7 @@ with regfile2.gpr_a select regfile2.gpr_q <=
 	regfile2.gpr5 when "101",
 	regfile2.gpr6 when "110",
 	regfile2.gpr7 when "111",
-	(others=>'X') when others;	-- r7 is the program counter.
+	(others=>'-') when others;	-- r7 is the program counter.
 
 
 -- Fetch/Load/Store unit is responsible for interfacing with main memory.

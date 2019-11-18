@@ -91,7 +91,7 @@ with pc(2 downto 0) select opcode <=
 	opcodebuffer(23 downto 16) when "110",
 	opcodebuffer(15 downto 8) when "101",
 	opcodebuffer(7 downto 0) when "100",
-	(others =>'X') when others;
+	(others =>'-') when others;
 
 opcode_valid_i<=opcodebuffer_valid(1) when pc(2)='0' else opcodebuffer_valid(0);
 opcode_valid<=opcode_valid_i and not pc_req;

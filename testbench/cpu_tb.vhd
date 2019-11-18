@@ -58,11 +58,15 @@ begin
 		to_soc => romin
 	);
 
-	romout.MemAAddr<=ram_addr(15 downto 2);
+	romout.MemAAddr<=ram_addr(8 downto 2);
 	romout.MemAWrite<=to_ram;
 	romout.MemAWriteEnable<=rom_wr;
 	romout.MemAByteSel<=ram_bytesel;
 
+	romout.MemBAddr<=(others=>'X');
+	romout.MemBWrite<=(others=>'0');
+	romout.MemBWriteEnable<='0';
+	romout.MemBByteSel<="0000";
 
 	uart_read<= X"00000000" when uart_count/="0000" else X"00000300";
 	from_ram<=romin.MemARead when ram_addr(31)='0' else uart_read;
@@ -70,6 +74,10 @@ begin
 	rom_wr<=(ram_wr and ram_req) when ram_addr(31)='0' else '0';
 
 	cpu : entity work.eightthirtytwo_cpu
+	generic map
+	(
+		dualthread => false
+	)
 	port map
 	(
 		clk => clk,
@@ -82,21 +90,14 @@ begin
 		addr => ram_addr,
 		d => from_ram,
 		q => to_ram,
---		d(31 downto 24) => from_ram(7 downto 0),
---		d(23 downto 16) => from_ram(15 downto 8),
---		d(15 downto 8) => from_ram(23 downto 16),
---		d(7 downto 0) => from_ram(31 downto 24),
---		q(31 downto 24) => to_ram(7 downto 0),
---		q(23 downto 16) => to_ram(15 downto 8),
---		q(15 downto 8) => to_ram(23 downto 16),
---		q(7 downto 0) => to_ram(31 downto 24),
 		bytesel => ram_bytesel,
 		wr => ram_wr,
 		req => ram_req,
 		ack => ram_ack
 	);
 
-interrupt<='1' when intcounter(5 downto 3)="111" else '0';
+--interrupt<='1' when intcounter(5 downto 3)="111" else '0';
+interrupt<='0';
 
   -- Clock process definition
   clk_process: process
@@ -130,7 +131,7 @@ interrupt<='1' when intcounter(5 downto 3)="111" else '0';
 
 			if ram_req='1' and ramwait="0000" then
 				if ram_wr='1' and ram_addr(31)='1' then
-					report "Writing character " & integer'image(to_integer(unsigned(to_ram)));
+					report "Writing character " & integer'image(to_integer(unsigned(to_ram(7 downto 0))));
 				end if;
 --				ram_ack<='1';
 				ramwait<="0001";

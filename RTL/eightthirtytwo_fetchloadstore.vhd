@@ -397,7 +397,7 @@ with pc2(2 downto 0) select opcode2 <=
 	opcodebuffer2(23 downto 16) when "110",
 	opcodebuffer2(15 downto 8) when "101",
 	opcodebuffer2(7 downto 0) when "100",
-	(others =>'X') when others;
+	(others =>'-') when others;
 end generate;
 
 -- Fetch - little endian mode.
@@ -410,7 +410,7 @@ with pc(2 downto 0) select opcode <=
 	opcodebuffer(23 downto 16) when "110",
 	opcodebuffer(15 downto 8) when "101",
 	opcodebuffer(7 downto 0) when "100",
-	(others =>'X') when others;
+	(others =>'-') when others;
 
 aligner : entity work.eightthirtytwo_aligner_le
 port map(
@@ -440,7 +440,7 @@ with pc2(2 downto 0) select opcode2 <=
 	opcodebuffer2(23 downto 16) when "101",
 	opcodebuffer2(15 downto 8) when "110",
 	opcodebuffer2(7 downto 0) when "111",
-	(others =>'X') when others;
+	(others =>'-') when others;
 end generate;
 
 with pc(2 downto 0) select opcode <=
@@ -452,7 +452,7 @@ with pc(2 downto 0) select opcode <=
 	opcodebuffer(23 downto 16) when "101",
 	opcodebuffer(15 downto 8) when "110",
 	opcodebuffer(7 downto 0) when "111",
-	(others =>'X') when others;
+	(others =>'-') when others;
 
 aligner : entity work.eightthirtytwo_aligner
 port map(

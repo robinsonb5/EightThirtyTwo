@@ -42,11 +42,15 @@ static void emit_pcreltotemp(FILE *f,char *lab,int suffix)
 }
 
 
-static void emit_externtotemp(FILE *f,char *lab)
+static void emit_externtotemp(FILE *f,char *lab,int offset)
 {
 	emit(f,"\tldinc\t%s\n",regnames[pc]); // Assuming 16 bits will be enough for offset.
-	emit(f,"\t.int\t_%s\n",lab);
+	if(offset)
+		emit(f,"\t.int\t_%s + %d\n",lab,offset);
+	else
+		emit(f,"\t.int\t_%s\n",lab);
 }
+
 
 
 static void emit_statictotemp(FILE *f,char *lab,int suffix)
@@ -124,6 +128,7 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 			else{
 				if(!zmeqto(l2zm(0L),p->val.vmax)){
 					emit(f," offset ");
+					emit(f," FIXME - deref?");
 					emit_constanttotemp(f,val2zmax(f,p,LONG));
 					emit(f,"\tmr\t%s\n",regnames[reg]);
 					emit_pcreltotemp(f,labprefix,zm2l(p->v->offset));
@@ -131,11 +136,13 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 				}
 				if(p->v->storage_class==STATIC){
 					emit(f," static\n");
+					emit(f," FIXME - deref?");
 					emit(f,"\tldinc\tr7\n\t.int\t%s%d\n",labprefix,zm2l(p->v->offset));
 					if(reg!=tmp)
 						emit(f,"\tmr\t%s\n",regnames[reg]);
 				}else{
-					emit_externtotemp(f,p->v->identifier);
+					emit(f," FIXME - deref?");
+					emit_externtotemp(f,p->v->identifier,p->val.vmax);
 					if(reg!=tmp)
 						emit(f,"\tmr\t%s\n",regnames[reg]);
 				}
@@ -169,23 +176,29 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 				}
 			}
 			else{
-				if(!zmeqto(l2zm(0L),p->val.vmax)){
-					emit(f," offset ");
-					emit_constanttotemp(f,val2zmax(f,p,LONG));
-					emit(f,"\tmr\t%s\n",regnames[reg]);
-					emit_pcreltotemp(f,labprefix,zm2l(p->v->offset));
-					emit(f,"\tadd\t%s\n",regnames[reg]);
+				if(isextern(p->v->storage_class)){
+					emit(f," extern (offset %d)\n",p->val.vmax);
+					emit_externtotemp(f,p->v->identifier,p->val.vmax);
+					if(reg!=tmp)
+						emit(f,"\tmr\t%s\n",regnames[reg]);
 				}
-				if(p->v->storage_class==STATIC){
+				else if(isstatic(p->v->storage_class)){
 					emit(f," static\n");
 					emit(f,"\tldinc\tr7\n\t.int\t%s%d\n",labprefix,zm2l(p->v->offset));
 					if(reg!=tmp)
 						emit(f,"\tmr\t%s\n",regnames[reg]);
 				}else{
-					emit_externtotemp(f,p->v->identifier);
-					if(reg!=tmp)
-						emit(f,"\tmr\t%s\n",regnames[reg]);
+					emit(f," FIXME - unknown storage class!\n");
 				}
+#if 0
+				if(!zmeqto(l2zm(0L),p->val.vmax)){
+					emit(f," offset (p->val.vmax==0) - storage class: %x ",p->v->storage_class);
+					emit_constanttotemp(f,val2zmax(f,p,LONG));
+					emit(f,"\tmr\t%s\n",regnames[reg]);
+					emit_pcreltotemp(f,labprefix,zm2l(p->v->offset));
+					emit(f,"\tadd\t%s\n",regnames[reg]);
+				}
+#endif
 			}
 		}
 	}
@@ -252,8 +265,9 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 					emit(f,"# static\n");
 					emit_statictotemp(f,labprefix,zm2l(p->v->offset));
 				}else{
-					emit(f,"storage class %d\n",p->v->storage_class);
-					emit_externtotemp(f,p->v->identifier);
+					// FIXME - have to deal with offsets here.
+					emit(f,"// storage class %d\n",p->v->storage_class);
+					emit_externtotemp(f,p->v->identifier,p->val.vmax);
 				}
 			}
 		}

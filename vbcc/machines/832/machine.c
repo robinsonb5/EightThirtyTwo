@@ -286,9 +286,10 @@ static int load_temp(FILE *f,int r,struct obj *o,int type)
   emit(f,"\t\t\t\t\t// (load_temp)");
   type&=NU;
   if(o->flags&VARADR){
-    emit(f," FIXME - check varadr - should we be dereferencing this?\n");
+    emit(f," FIXME - check varadr (%x) - should we be dereferencing this?\n",o->flags);
     emit_prepobj(f,o,type,tmp,0);
-    emit(f,"\tldt\t\n");
+	if(o->flags&DREFOBJ)
+	    emit(f,"\tldt\t\n");
   }else{
     if((o->flags&(REG|DREFOBJ))==REG&&o->reg==r)
     {
@@ -1048,7 +1049,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
           emit_pcreltotemp(f,labprefix,zm2l(p->q1.v->offset));
           emit(f,"\tadd\t%s\n",regnames[pc]);
         }else{
-          emit_externtotemp(f,p->q1.v->identifier);
+          emit_externtotemp(f,p->q1.v->identifier,p->q1.val.vmax);
           emit(f,"\texg\t%s\n",regnames[pc]);
         }
         emit_constanttotemp(f,pushedargsize(p));

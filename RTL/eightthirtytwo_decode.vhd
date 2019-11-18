@@ -205,6 +205,6 @@ with op select ex_op <=
 	addop when e32_op_add, -- Overloaded so we can modify its behaviour with r7
 
 	(e32_ex_q1totmp or e32_ex_flags) when e32_op_addt,
-	(others => 'X') when others;
+	(others => '-') when others;
 
 end architecture;

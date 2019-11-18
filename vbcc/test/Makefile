@@ -2,7 +2,8 @@
 ROMGENDIR = ../../romgen
 ROMGEN = $(ROMGENDIR)/romgen
 GHDL = ghdl
-
+CC=../bin/vbcc832
+CFLAGS = -+ -O=1311 -size
 all: compiler helloworld.bin
 
 compiler:
@@ -38,6 +39,11 @@ clean :
 %.o : %.S Makefile ldscript.ld $(832DIR)/start.S
 	gcc -I. -I$(832DIR) -c $*.S -o $*.o
 
+%.o : %.c Makefile ldscript.ld $(832DIR)/start.S $(CC)
+	../bin/vbcc832 -+ -O=1311 -size -I$(832DIR) $*.c
+	mv $*.asm $*.S
+	gcc -I. -I$(832DIR) -c $*.S -o $*.o
+
 %.o : $(832DIR)/%.S Makefile ldscript.ld $(832DIR)/assembler.pp $(832DIR)/start.S
 	gcc -c $(832DIR)/$*.S -I$(832DIR) -o $*.o
 
@@ -54,14 +60,15 @@ $(ROMGEN): $(ROMGENDIR)/romgen.c
 init:
 	$(GHDL) -a $(GHDLFLAGS) ../../RTL/eightthirtytwo_pkg.vhd
 	$(GHDL) -a $(GHDLFLAGS) ../../RTL/eightthirtytwo_aligner.vhd
-	$(GHDL) -a $(GHDLFLAGS) ../../RTL/eightthirtytwo_fetchloadstore.vhd
 	$(GHDL) -a $(GHDLFLAGS) ../../RTL/eightthirtytwo_aligner_le.vhd
-	$(GHDL) -a $(GHDLFLAGS) ../../RTL/eightthirtytwo_fetchloadstore_le.vhd
+	$(GHDL) -a $(GHDLFLAGS) ../../RTL/eightthirtytwo_fetchloadstore.vhd
 	$(GHDL) -a $(GHDLFLAGS) ../../RTL/eightthirtytwo_decode.vhd
 	$(GHDL) -a $(GHDLFLAGS) ../../RTL/eightthirtytwo_shifter.vhd
 	$(GHDL) -a $(GHDLFLAGS) ../../RTL/eightthirtytwo_alu.vhd
 	$(GHDL) -a $(GHDLFLAGS) ../../RTL/eightthirtytwo_hazard.vhd
 	$(GHDL) -a $(GHDLFLAGS) ../../RTL/eightthirtytwo_cpu.vhd
+	$(GHDL) -a $(GHDLFLAGS) ../../romgen/rom_pkg.vhd
+	$(GHDL) -a $(GHDLFLAGS) helloworld_ROM.vhd
 
 force:
 

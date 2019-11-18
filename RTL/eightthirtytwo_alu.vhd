@@ -104,17 +104,17 @@ begin
 		case op is
 			when e32_alu_and =>
 				q1<=d1 and d2;
---				carry<='X';
+--				carry<='-';
 				q2 <= d2;
 			
 			when e32_alu_or =>
 				q1<=d1 or d2;
---				carry<='X';
+--				carry<='-';
 				q2 <= d2;
 					
 			when e32_alu_xor =>
 				q1<=d1 xor d2;
---				carry<='X';
+--				carry<='-';
 				q2 <= d2;
 					
 			when e32_alu_shl =>
@@ -139,7 +139,7 @@ begin
 				else
 					q1<=std_logic_vector(addresult(32 downto 1));
 				end if;
---				carry<='X';
+--				carry<='-';
 				q2 <= d2;
 
 			when e32_alu_incw =>
@@ -149,12 +149,12 @@ begin
 				else
 					q1<=std_logic_vector(addresult(32 downto 1));
 				end if;
---				carry<='X';
+--				carry<='-';
 				q2 <= d2;
 				
 			when e32_alu_decw =>
 				q1<=std_logic_vector(addresult(32 downto 1));
---				carry<='X';
+--				carry<='-';
 				q2 <= d2;
 
 			when e32_alu_addt =>
@@ -193,7 +193,7 @@ begin
 				end if;
 
 			when others =>
---				carry<='X';
+--				carry<='-';
 				q1<=d1;
 				q2<=d2;
 
