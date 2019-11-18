@@ -240,20 +240,20 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 			emit(f," reg %s\n",regnames[p->reg]);
 			emit(f,"\tmt\t%s\n",regnames[p->reg]);
 		}else if(p->flags&VAR) {
-			if(p->v->storage_class==AUTO||p->v->storage_class==REGISTER)
-			{
+			if(isauto(p->v->storage_class)) {
 				emit(f," var, auto|reg\n");
-				if(real_offset(p))
-				{
+				if(real_offset(p)) {
 					emit_constanttotemp(f,real_offset(p));
 					emit(f,"\tldidx\t%s\n",regnames[sp]);
 				}
 				else
 					emit(f,"\tld\t%s\n",regnames[sp]);
 			}
-			else{
+			else if(isextern(p->v->storage_class)) {
+				emit(f," extern\n");
+				emit_externtotemp(f,p->v->identifier,p->val.vmax);
+#if 0
 				if(!zmeqto(l2zm(0L),p->val.vmax)){
-					emit(f," offset ");
 					emit_constanttotemp(f,val2zmax(f,p,LONG));
 					emit(f,"\tmr\t%s\n",regnames[t1]);
 		// FIXME - not pc-relative!
@@ -261,14 +261,18 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 					emit(f,"\taddt\t%s\n",regnames[t1]);
 		// FIXME - probably need to load here.
 				}
-				if(p->v->storage_class==STATIC){
-					emit(f,"# static\n");
-					emit_statictotemp(f,labprefix,zm2l(p->v->offset));
-				}else{
-					// FIXME - have to deal with offsets here.
-					emit(f,"// storage class %d\n",p->v->storage_class);
-					emit_externtotemp(f,p->v->identifier,p->val.vmax);
-				}
+#endif
+			}
+			else if(isstatic(p->v->storage_class))
+			{
+				emit(f,"# static\n");
+				emit_statictotemp(f,labprefix,zm2l(p->v->offset));
+			}
+			else
+			{
+				// OK what are we dealing with here?
+				emit(f,"// storage class %d\n",p->v->storage_class);
+				emit_externtotemp(f,p->v->identifier,p->val.vmax);
 			}
 		}
 		else if(p->flags&KONST){
