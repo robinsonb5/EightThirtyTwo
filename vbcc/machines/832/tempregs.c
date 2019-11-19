@@ -179,12 +179,16 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 				if(isextern(p->v->storage_class)){
 					emit(f," extern (offset %d)\n",p->val.vmax);
 					emit_externtotemp(f,p->v->identifier,p->val.vmax);
+//					if(!(p->flags&VARADR))
+//						emit(f,"\tldt\t//Not varadr\n");
 					if(reg!=tmp)
 						emit(f,"\tmr\t%s\n",regnames[reg]);
 				}
 				else if(isstatic(p->v->storage_class)){
 					emit(f," static\n");
 					emit(f,"\tldinc\tr7\n\t.int\t%s%d\n",labprefix,zm2l(p->v->offset));
+//					if(!(p->flags&VARADR))
+//						emit(f,"\tldt\t//Not varadr\n");
 					if(reg!=tmp)
 						emit(f,"\tmr\t%s\n",regnames[reg]);
 				}else{
@@ -252,6 +256,7 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 			else if(isextern(p->v->storage_class)) {
 				emit(f," extern\n");
 				emit_externtotemp(f,p->v->identifier,p->val.vmax);
+				emit(f,"\tldt\n");
 #if 0
 				if(!zmeqto(l2zm(0L),p->val.vmax)){
 					emit_constanttotemp(f,val2zmax(f,p,LONG));

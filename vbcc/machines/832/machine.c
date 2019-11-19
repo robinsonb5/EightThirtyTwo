@@ -289,7 +289,7 @@ static int load_temp(FILE *f,int r,struct obj *o,int type)
     emit(f," FIXME - check varadr (%x) - should we be dereferencing this?\n",o->flags);
     emit_prepobj(f,o,type,tmp,0);
 	if(o->flags&DREFOBJ)
-	    emit(f,"\tldt\t\n");
+	    emit(f,"\tldt\t// Derefobj\n");
   }else{
     if((o->flags&(REG|DREFOBJ))==REG&&o->reg==r)
     {
@@ -1133,14 +1133,24 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
     // Compare
     // Revisit
     if(c==COMPARE){
-	printf("compare\n");
+		printf("compare\n");
 	// FIXME - is q1 is a register we can compare directly against it.
 	// FIXME - determine if q2 is a register, if not move to reg, move q1 to temp, compare.
       emit(f,"\t\t\t\t\t// (compare)");
+		if(q1typ(p)&UNSIGNED)
+			emit(f," (q1 unsigned)");
+		else
+			emit(f," (q1 signed)");
+		if(q2typ(p)&UNSIGNED)
+			emit(f," (q2 unsigned)");
+		else
+			emit(f," (q2 signed)");
       emit_objtotemp(f,&p->q1,t);
       emit(f,"\tmr\t%s\n",regnames[t2]);
 //      reg_stackrel[t2]=0;
       emit_objtotemp(f,&p->q2,t);
+	  if(!(q1typ(p)&UNSIGNED))
+		emit(f,"\tsgn\n"); // Signed comparison
       emit(f,"\tcmp\t%s\n",regnames[t2]);
       continue;
     }
