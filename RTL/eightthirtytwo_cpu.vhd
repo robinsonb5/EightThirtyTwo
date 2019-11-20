@@ -12,7 +12,8 @@ generic(
 	storealign : boolean := true;
 	interrupts : boolean := true;
 	multiplier : boolean := true;
-	dualthread : boolean := true
+	dualthread : boolean := true;
+	prefetch : boolean := true
 	);
 port(
 	clk : in std_logic;
@@ -213,9 +214,10 @@ if dualthread=true generate
 fetchloadstore : entity work.eightthirtytwo_fetchloadstore
 generic map
 (
-	storealign=>storealign,
-	littleendian=>littleendian,
-	dualthread=>dualthread
+	storealign => storealign,
+	littleendian => littleendian,
+	dualthread => dualthread,
+	prefetch => prefetch
 )
 port map
 (
@@ -373,21 +375,12 @@ hazard1 : entity work.eightthirtytwo_hazard
 port map(
 	valid => thread.f_op_valid,
 	pause => thread.pause,
---	thread => '0',
 	d_read_tmp=>thread.d_read_tmp,
 	d_read_reg=>thread.d_read_reg,
 	d_ex_op=>thread.d_ex_op,
 	d_reg=>thread.d_reg,
---	d_alu_reg1=>thread.d_alu_reg1,
---	d_alu_reg2=>thread.d_alu_reg2,
---	e_ex_op=>e_ex_op,
 	e_reg=>e_reg,
---	e_thread => e_thread,
---	m_ex_op=>m_ex_op,
 	m_reg=>m_reg,
---	m_thread => m_thread,
---	w_ex_op=>w_ex_op,
---	w_thread => w_thread,
 	e_write_tmp => thread.e_write_tmp,
 	m_write_tmp => thread.m_write_tmp,
 	w_write_tmp => thread.w_write_tmp,
@@ -410,21 +403,12 @@ hazard2 : entity work.eightthirtytwo_hazard
 port map(
 	valid => thread2.f_op_valid,
 	pause => thread2.pause,
---	thread => '1',
 	d_read_tmp=>thread2.d_read_tmp,
 	d_read_reg=>thread2.d_read_reg,
 	d_ex_op=>thread2.d_ex_op,
 	d_reg=>thread2.d_reg,
---	d_alu_reg1=>thread2.d_alu_reg1,
---	d_alu_reg2=>thread2.d_alu_reg2,
---	e_ex_op=>e_ex_op,
 	e_reg=>e_reg,
---	e_thread => e_thread,
---	m_ex_op=>m_ex_op,
 	m_reg=>m_reg,
---	m_thread => m_thread,
---	w_ex_op=>w_ex_op,
---	w_thread => w_thread,
 	e_write_tmp => thread2.e_write_tmp,
 	m_write_tmp => thread2.m_write_tmp,
 	w_write_tmp => thread2.w_write_tmp,
@@ -453,10 +437,8 @@ stall<='1' when (e_ex_op(e32_exb_waitalu)='1' and alu_ack='0')
 				
 -- Condition minterms:
 
--- FIXME - need to make cond NEX pause the CPU,
--- or perhaps remap it somehow to "carry set, zero don't care"?
--- Definitely want to pause the CPU - and unpause again on interrupt;
--- Allows the interrupt line to be a signal even when full interrupts are disabled.
+-- (Cond NEX pauses the CPU - unpauses again on interrupt;
+-- Allows the interrupt line to be a signal even when full interrupts are disabled.)
 
 thread.cond_minterms(3)<= regfile.flag_z and regfile.flag_c;
 thread.cond_minterms(2)<= (not regfile.flag_z) and regfile.flag_c;
@@ -533,7 +515,7 @@ begin
 
 	elsif rising_edge(clk) then
 
-		alu_req<='0';		
+		alu_req<='0';
 
 
 		-- If we have a hazard or we're blocked by conditional execution

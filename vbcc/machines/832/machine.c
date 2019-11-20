@@ -668,13 +668,19 @@ int cost_savings(struct IC *p,int r,struct obj *o)
 {
   int c=p->code;
   if(o->flags&VKONST){
-    if(o==&p->q1&&p->code==ASSIGN&&(p->z.flags&DREFOBJ))
-      return 1;
+//    if(o==&p->q1&&p->code==ASSIGN&&(p->z.flags&DREFOBJ))
+	if(isextern(o->flags)||isstatic(o->flags))
+      return 2;
     else
-      return 1;
+	{
+		struct obj *o2=&o->v->cobj;
+		int c=count_constantchunks(o2->val.vmax);
+		printf("Cost saving from storing %d in register: %d\n",o2->val.vmax,c);
+      return c-1;
+	}
   }
   if(o->flags&DREFOBJ)
-    return 1;
+    return 2;
   if(c==SETRETURN&&r==p->z.reg&&!(o->flags&DREFOBJ)) return 1;
   if(c==GETRETURN&&r==p->q1.reg&&!(o->flags&DREFOBJ)) return 1;
   return 1;

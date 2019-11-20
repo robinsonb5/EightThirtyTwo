@@ -75,13 +75,13 @@ hazard_pc<='1' when
 -- and immediately overwrites tmp.  If we place the W logic before the M logic then
 -- the expected behaviour will prevail even in this case.
 
-hazard_load<='1' when d_ex_op(e32_exb_load)='1' and
+hazard_load<='1' when (d_ex_op(e32_exb_store)='1' or d_ex_op(e32_exb_load)='1') and
 		(e_loadstore='1' or m_loadstore='1' or w_loadstore='1')
 	else '0';
 
-hazard_store<='1' when d_ex_op(e32_exb_store)='1' and 
-		(e_loadstore='1' or m_loadstore='1' or w_loadstore='1')
-	else '0';
+--hazard_store<='1' when d_ex_op(e32_exb_store)='1' and 
+--		(e_loadstore='1' or m_loadstore='1' or w_loadstore='1')
+--	else '0';
 
 
 -- We have a flags hazard with the sgn or cond instructions
@@ -99,7 +99,7 @@ hazard<=(not valid)
 	or hazard_reg
 	or hazard_pc
 	or hazard_load
-	or hazard_store
+--	or hazard_store
 	or hazard_flags;
 
 end architecture;

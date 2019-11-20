@@ -9,7 +9,8 @@ generic
 (
 	storealign : in boolean := true;
 	littleendian : in boolean := true;
-	dualthread : in boolean := true
+	dualthread : in boolean := true;
+	prefetch : in boolean := false
 );
 port
 (
@@ -65,6 +66,7 @@ signal fetch_ram_req : std_logic;
 signal fetch_addr : std_logic_vector(31 downto 2);
 signal fetch_abort : std_logic;
 signal fetch_prevpc : std_logic_vector(1 downto 0);
+signal fetch_word : std_logic_vector(2 downto 0);
 
 signal opcodebuffer2 : std_logic_vector(63 downto 0);
 signal opcodebuffer2_valid : std_logic_vector(1 downto 0);
@@ -74,6 +76,7 @@ signal fetch2_ram_req : std_logic;
 signal fetch2_addr : std_logic_vector(31 downto 2);
 signal fetch2_abort : std_logic;
 signal fetch2_prevpc : std_logic_vector(1 downto 0);
+signal fetch2_word : std_logic_vector(2 downto 0);
 
 -- Load store signals
 
@@ -118,7 +121,7 @@ begin
 			else
 				opcodebuffer_valid(0)<='0';
 			end if;
-			fetch_ram_req<='0';
+			fetch_ram_req<='1';
 		end if;
 
 		-- If an operation is in progress when we set the PC, we must wait for it to complete.
@@ -127,7 +130,9 @@ begin
 			fetch_ram_req<='1';
 		end if;
 
-		if fetch_abort='0' and ram_ack='1' and ls_state=LS_FETCH then
+		-- Do we have prefetch?
+		
+		if fetch_abort='0' and ram_ack='1' and ls_state=LS_FETCH and prefetch=true then
 			fetch_addr<=std_logic_vector(unsigned(fetch_addr)+1);
 			if opcodebuffer_valid="00" then
 				fetch_ram_req<='1';
@@ -147,13 +152,27 @@ begin
 			end if;
 		end if;
 
-		if fetch_abort='0' and fetch_ram_req='0' and opcodebuffer_valid/="11" then
-			fetch_ram_req<='1';
+		-- If no prefetch we use simpler logic...
+		
+		if fetch_abort='0' and ram_ack='1' and ls_state=LS_FETCH and prefetch=false then
+			fetch_ram_req<='0';
+			opcodebuffer(31 downto 0)<=ram_d;
+			if pc(2)='0' then
+				opcodebuffer_valid(1)<='1';
+			else
+				opcodebuffer_valid(0)<='1';
+			end if;
 		end if;
+
+--		if fetch_abort='0' and fetch_ram_req='0' and opcodebuffer_valid/="11" then
+--			fetch_ram_req<='1';
+--		end if;
 
 		if pc_req='1' then	-- PC has changed - could happen while fetching...
 			fetch_ram_req<='1';
-			fetch_addr<=pc(31 downto 2);
+			if prefetch=true then
+				fetch_addr<=pc(31 downto 2);
+			end if;
 			opcodebuffer_valid<="00"; -- Invalidate both halves of the buffer.
 			if fetch_ram_req='1' then -- and ram_ack='0' then
 				fetch_abort<='1';
@@ -187,7 +206,7 @@ begin
 			else
 				opcodebuffer2_valid(0)<='0';
 			end if;
-			fetch2_ram_req<='0';
+			fetch2_ram_req<='1';
 		end if;
 
 		-- If an operation is in progress when we set the PC, we must wait for it to complete.
@@ -196,7 +215,9 @@ begin
 			fetch2_ram_req<='1';
 		end if;
 
-		if fetch2_abort='0' and ram_ack='1' and ls_state=LS_FETCH2 then
+		-- Do we have prefetch?
+		
+		if fetch2_abort='0' and ram_ack='1' and ls_state=LS_FETCH2 and prefetch=true then
 			fetch2_addr<=std_logic_vector(unsigned(fetch2_addr)+1);
 			if opcodebuffer2_valid="00" then
 				fetch2_ram_req<='1';
@@ -216,9 +237,21 @@ begin
 			end if;
 		end if;
 
-		if fetch2_abort='0' and fetch2_ram_req='0' and opcodebuffer2_valid/="11" then
-			fetch2_ram_req<='1';
+		-- If no prefetch we use simpler logic...
+		
+		if fetch2_abort='0' and ram_ack='1' and ls_state=LS_FETCH2 and prefetch=false then
+			fetch2_ram_req<='0';
+			opcodebuffer2(31 downto 0)<=ram_d;
+			if pc2(2)='0' then
+				opcodebuffer2_valid(1)<='1';
+			else
+				opcodebuffer2_valid(0)<='1';
+			end if;
 		end if;
+
+--		if fetch2_abort='0' and fetch2_ram_req='0' and opcodebuffer2_valid/="11" then
+--			fetch2_ram_req<='1';
+--		end if;
 
 		if pc2_req='1' then	-- PC has changed - could happen while fetching...
 			fetch2_ram_req<='1';
@@ -242,14 +275,16 @@ end generate;
 
 -- Memory interface
 
--- We want to assert ram_req immediately if we can:
+-- With prefetch enabled we want to assert ram_req immediately if we can:
 -- Careful - priorities here must match priorities in state machine!
-ram_req<='0' when reset_n='0' else (fetch_ram_req or fetch2_ram_req) and not ram_ack
-	when ls_state=LS_WAIT
+ram_req<='0' when reset_n='0'
+	else (fetch_ram_req or fetch2_ram_req) and not ram_ack when ls_state=LS_WAIT and prefetch=true
 	else ram_req_r and not ram_ack;
 
-ram_addr<=fetch_addr(31 downto 2) when ls_state=LS_WAIT and fetch_ram_req='1'
-	else fetch2_addr(31 downto 2) when ls_state=LS_WAIT and fetch2_ram_req='1'
+ram_addr<=fetch_addr(31 downto 2) when ls_state=LS_WAIT and fetch_ram_req='1' and prefetch=true
+--	else pc(31 downto 2) when ls_state=LS_WAIT and fetch_ram_req='1' and prefetch=false
+	else fetch2_addr(31 downto 2) when ls_state=LS_WAIT and fetch2_ram_req='1' and prefetch=true
+--	else pc2(31 downto 2) when ls_state=LS_WAIT and fetch2_ram_req='1' and prefetch=false
 	else ram_addr_r;
 
 	
@@ -266,13 +301,20 @@ begin
 
 		case ls_state is
 			when LS_WAIT =>
---				if pc_req='0' then
-					if fetch_ram_req='1' then
+					if fetch_ram_req='1' and prefetch=true then
 						ram_addr_r<=std_logic_vector(fetch_addr(31 downto 2));
 						ram_req_r<='1';
 						ls_state<=LS_FETCH;
-					elsif fetch2_ram_req='1' and dualthread=true then
+					elsif fetch_ram_req='1' and prefetch=false then
+						ram_addr_r<=pc(31 downto 2);
+						ram_req_r<='1';
+						ls_state<=LS_FETCH;
+					elsif fetch2_ram_req='1' and dualthread=true and prefetch=true then
 						ram_addr_r<=std_logic_vector(fetch2_addr(31 downto 2));
+						ram_req_r<='1';
+						ls_state<=LS_FETCH2;
+					elsif fetch2_ram_req='1' and dualthread=true and prefetch=false then
+						ram_addr_r<=pc2(31 downto 2);
 						ram_req_r<='1';
 						ls_state<=LS_FETCH2;
 					elsif ls_req='1' then
@@ -285,7 +327,6 @@ begin
 						ram_wr<=ls_wr;
 						ls_state<=LS_LOAD;
 					end if;
---				end if;
 
 			when LS_FETCH =>
 				if ram_ack='1' then
@@ -376,6 +417,13 @@ begin
 end process;
 
 
+-- Prefetch enable/disable
+
+fetch_word(2)<='0' when pc(2)='0' and prefetch=true else '1';
+fetch_word(1 downto 0) <= pc(1 downto 0);
+fetch2_word(2)<='0' when pc2(2)='0' and prefetch=true and dualthread=true else '1';
+fetch2_word(1 downto 0) <= pc2(1 downto 0) when dualthread=true else (others=>'-');
+
 
 -- aligner
 
@@ -388,7 +436,7 @@ if littleendian=true generate
 
 dual_le:
 if dualthread=true generate
-with pc2(2 downto 0) select opcode2 <=
+with fetch2_word select opcode2 <=
 	opcodebuffer2(63 downto 56) when "011",
 	opcodebuffer2(55 downto 48) when "010",
 	opcodebuffer2(47 downto 40) when "001",
@@ -401,7 +449,7 @@ with pc2(2 downto 0) select opcode2 <=
 end generate;
 
 -- Fetch - little endian mode.
-with pc(2 downto 0) select opcode <=
+with fetch_word select opcode <=
 	opcodebuffer(63 downto 56) when "011",
 	opcodebuffer(55 downto 48) when "010",
 	opcodebuffer(47 downto 40) when "001",
@@ -429,9 +477,11 @@ align_be:
 if littleendian=false generate
 
 -- Fetch - big endian mode
+
 dual_be:
 if dualthread=true generate
-with pc2(2 downto 0) select opcode2 <=
+
+with fetch2_word select opcode2 <=
 	opcodebuffer2(63 downto 56) when "000",
 	opcodebuffer2(55 downto 48) when "001",
 	opcodebuffer2(47 downto 40) when "010",
@@ -443,7 +493,7 @@ with pc2(2 downto 0) select opcode2 <=
 	(others =>'-') when others;
 end generate;
 
-with pc(2 downto 0) select opcode <=
+with fetch_word select opcode <=
 	opcodebuffer(63 downto 56) when "000",
 	opcodebuffer(55 downto 48) when "001",
 	opcodebuffer(47 downto 40) when "010",

@@ -61,10 +61,9 @@ static void emit_statictotemp(FILE *f,char *lab,int suffix)
 }
 
 
-static void emit_constanttotemp(FILE *f,zmax v)
+static int count_constantchunks(zmax v)
 {
 	int chunk=1;
-	// FIXME - simple single-byte cases:
 	int v2=(int)v;
 	while(((v2&0xffffffe0)!=0) && ((v2&0xffffffe0)!=0xffffffe0)) // Are we looking at a sign-extended 8-bit value yet?
 	{
@@ -72,6 +71,13 @@ static void emit_constanttotemp(FILE *f,zmax v)
 		 v2>>=6;
 		 ++chunk;
 	}
+	return(chunk);
+}
+
+
+static void emit_constanttotemp(FILE *f,zmax v)
+{
+	int chunk=count_constantchunks(v);
 
 	emit(f,"\t\t\t\t// constant: %x in %d chunks\n",v,chunk);
 
