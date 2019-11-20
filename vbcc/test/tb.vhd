@@ -2,13 +2,16 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
+library std;
+use std.textio.all;
+
 library work;
 use work.rom_pkg.all;
 
-entity tb is
-end tb;
+entity cpu_tb is
+end cpu_tb;
 
-architecture behaviour of tb
+architecture behaviour of cpu_tb
 is
 	constant clk_period : time := 10 ns;
 	signal clk : std_logic;
@@ -89,6 +92,7 @@ interrupt<='1' when intcounter(5 downto 3)="111" else '0';
   end process;
 
 	process(clk)
+		variable textline : line;
 	begin
 
 		if rising_edge(clk) then
@@ -102,7 +106,11 @@ interrupt<='1' when intcounter(5 downto 3)="111" else '0';
 			if ram_req='1' and ramwait="0000" then
 				if ram_addr(31)='1' then
 					if ram_wr='1' then
-						report "Writing character " & integer'image(to_integer(unsigned(to_ram)));
+					report "out: " & integer'image(to_integer(unsigned(to_ram)));
+						write(textline,character'val(to_integer(unsigned(to_ram(7 downto 0)))));
+						if to_ram(7 downto 0)=X"0a" then
+							writeline(output,textline);
+						end if;
 						uart_count<="10";
 					elsif uart_count/="00" then
 						uart_count<=uart_count-1;

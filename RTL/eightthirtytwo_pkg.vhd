@@ -84,7 +84,7 @@ constant e32_reg_gpr : e32_regtype := "01";
 constant e32_regb_gpr : integer := 0;
 constant e32_reg_tmp : e32_regtype := "10";
 constant e32_regb_tmp : integer := 1;
-constant e32_reg_dontcare : e32_regtype := (others=>'X');
+constant e32_reg_dontcare : e32_regtype := (others=>'-');
 
 
 -- Register number (for GPRs)

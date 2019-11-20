@@ -2,6 +2,10 @@
 
 #include "uart.h"
 
+//int thread2main(int argc,char **argv)
+//{
+//}
+
 int main(int argc,char **argv)
 {
 	puts("Hello world!\n");

@@ -102,8 +102,8 @@ struct reg_handle{
    register-allocation */
 #define HAVE_TARGET_RALLOC 1
 #define cost_move_reg(x,y) 1
-#define cost_load_reg(x,y) 1
-#define cost_save_reg(x,y) 1
+#define cost_load_reg(x,y) 5
+#define cost_save_reg(x,y) 5
 #define cost_pushpop_reg(x) 1
 
 /* size of buffer for asm-output, this can be used to do

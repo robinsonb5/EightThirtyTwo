@@ -59,7 +59,7 @@ begin
 		"00" when "01010",
 		"11" when "01011",
 
-		"XX" when others;
+		"--" when others;
 
 		
 	-- First word's mask
@@ -97,7 +97,7 @@ begin
 		"0011" when "01010",
 		"0001" when "01011",
 
-		"XXXX" when others;
+		"----" when others;
 
 
 	-- Second word's mask
@@ -135,7 +135,7 @@ begin
 		"0000" when "01010",
 		"1000" when "01011",
 
-		"XXXX" when others;
+		"----" when others;
 
 	-- Now do the actual shifting...
 	
@@ -144,7 +144,7 @@ begin
 		d(23 downto 16) when "01",
 		d(15 downto 8) when "10",
 		d(7 downto 0) when "11",
-		(others=>'X') when others;
+		(others=>'-') when others;
 		
 
 	with shift select q(23 downto 16) <= 
@@ -152,20 +152,20 @@ begin
 		d(15 downto 8) when "01",
 		d(7 downto 0) when "10",
 		d(31 downto 24) when "11",
-		(others => 'X') when others;
+		(others => '-') when others;
 
 	with shift select q(15 downto 8) <= 
 		d(15 downto 8) when "00",
 		d(7 downto 0) when "01",
 		d(31 downto 24) when "10",
 		d(23 downto 16) when "11",
-		(others => 'X') when others;
+		(others => '-') when others;
 
 	with shift select q(7 downto 0) <= 
 		d(7 downto 0) when "00",
 		d(31 downto 24) when "01",
 		d(23 downto 16) when "10",
 		d(15 downto 8) when "11",
-		(others => 'X') when others;
+		(others => '-') when others;
 		
 end architecture;
