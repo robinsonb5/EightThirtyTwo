@@ -302,8 +302,7 @@ static int load_temp(FILE *f,int r,struct obj *o,int type)
   return(1);
 }
 
-/* Generates code to load a memory object into register r. tmp is a
-   general purpose register which may be used. tmp can be r. */
+/* Generates code to load a memory object into register r. */
 
 static void load_reg(FILE *f,int r,struct obj *o,int type)
 {
@@ -997,13 +996,27 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
     // 
     if(c==CONVERT){
       emit(f,"\t\t\t\t\t//FIXME convert\n");
-	printf("convert\n");
+	printf("convert : %s ",regnames[zreg]);
       if(ISFLOAT(q1typ(p))||ISFLOAT(ztyp(p))) ierror(0);
       if(sizetab[q1typ(p)&NQ]<sizetab[ztyp(p)&NQ]){
-	if(q1typ(p)&UNSIGNED)
-	  emit(f,"\tzext.%s\t%s\n",dt(q1typ(p)),regnames[zreg]);
-	else
-	  emit(f,"\tsext.%s\t%s\n",dt(q1typ(p)),regnames[zreg]);
+		int shamt=0;
+		load_reg(f,zreg,&p->q1,t);
+		switch(q1typ(p)&NU)	// Exclude unsigned values, since we don't need to convert them.
+		{
+			case CHAR:
+				shamt=24;
+				break;
+			case SHORT:
+				shamt=16;
+				break;
+		}
+		if(shamt)
+		{
+			emit(f,"\tli\t%d\n",shamt);
+			emit(f,"\tshl\t%s\n",regnames[zreg]);
+			emit(f,"\tsgn\n");
+			emit(f,"\tshr\t%s\n",regnames[zreg]);
+		}
       }
       save_result(f,p);
       continue;
@@ -1083,7 +1096,6 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
       // Basically OK - not used very much.  Perhaps don't use a fixed stackframe?
       if(c==PUSH){
         emit(f,"\t\t\t\t\t// (a/p push)\n");
-	printf("push\n");
 
 /* FIXME - need to take dt into account */
 	emit(f,"\t\t\t\t\t// a: pushed %ld, regnames[sp] %s\n",pushed,regnames[sp]);
@@ -1155,7 +1167,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
       emit(f,"\tmr\t%s\n",regnames[t2]);
 //      reg_stackrel[t2]=0;
       emit_objtotemp(f,&p->q2,t);
-	  if(!(q1typ(p)&UNSIGNED))
+	  if((!(q1typ(p)&UNSIGNED))&&(!(q2typ(p)&UNSIGNED)))	// If we have a mismatch of signedness we treat as unsigned.
 		emit(f,"\tsgn\n"); // Signed comparison
       emit(f,"\tcmp\t%s\n",regnames[t2]);
       continue;
