@@ -159,7 +159,7 @@ with op select alu_reg2 <=
 	e32_reg_tmp when e32_op_ror,
 
 	e32_reg_tmp when e32_op_mul,
-	e32_reg_tmp when e32_op_mt,
+	e32_reg_gpr when e32_op_mt,
 
 	e32_reg_tmp when e32_op_addt,
 	e32_reg_dontcare when e32_op_li,
@@ -173,7 +173,7 @@ with op select alu_reg2 <=
 
 with op select ex_op <=
 	e32_ex_cond when e32_op_cond,
-	e32_ex_q1totmp when e32_op_mt,
+	e32_ex_q2totmp when e32_op_mt,
 	e32_ex_q1toreg when e32_op_mr,
 
 	e32_ex_flags when e32_op_cmp,

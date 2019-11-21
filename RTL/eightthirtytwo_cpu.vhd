@@ -12,8 +12,8 @@ generic(
 	storealign : boolean := true;
 	interrupts : boolean := true;
 	multiplier : boolean := true;
-	dualthread : boolean := true;
-	prefetch : boolean := true
+	prefetch : boolean := true;
+	dualthread : boolean := true
 	);
 port(
 	clk : in std_logic;
@@ -543,6 +543,30 @@ begin
 				thread2.d_ex_op<=e32_ex_bubble;
 			end if;
 		end if;
+
+		
+		if w_ex_op(e32_exb_load)='1' and ls_ack='1' then
+			ls_req_r<='0';
+			ls_wr<='0';
+			if w_thread='1' and dualthread=true then
+				regfile2.tmp<=ls_q;
+				if ls_q=X"00000000" then	-- Set Z flag
+					regfile2.flag_z<='1';
+				else
+					regfile2.flag_z<='0';
+				end if;
+				regfile2.flag_c<=ls_q(31);	-- Sign of the result to C			
+			else
+				regfile.tmp<=ls_q;
+				if ls_q=X"00000000" then	-- Set Z flag
+					regfile.flag_z<='1';
+				else
+					regfile.flag_z<='0';
+				end if;
+				regfile.flag_c<=ls_q(31);	-- Sign of the result to C
+			end if;
+		end if;
+
 		
 		if stall='0' and e_continue='0' then
 
@@ -988,28 +1012,6 @@ begin
 		if w_ex_op(e32_exb_store)='1' and ls_ack='1' then
 			ls_req_r<='0';
 			ls_wr<='0';
-		end if;
-
-		if w_ex_op(e32_exb_load)='1' and ls_ack='1' then
-			ls_req_r<='0';
-			ls_wr<='0';
-			if w_thread='1' and dualthread=true then
-				regfile2.tmp<=ls_q;
-				if ls_q=X"00000000" then	-- Set Z flag
-					regfile2.flag_z<='1';
-				else
-					regfile2.flag_z<='0';
-				end if;
-				regfile2.flag_c<=ls_q(31);	-- Sign of the result to C			
-			else
-				regfile.tmp<=ls_q;
-				if ls_q=X"00000000" then	-- Set Z flag
-					regfile.flag_z<='1';
-				else
-					regfile.flag_z<='0';
-				end if;
-				regfile.flag_c<=ls_q(31);	-- Sign of the result to C
-			end if;
 		end if;
 
 		if e_ex_op(e32_exb_cond)='1' then

@@ -38,7 +38,7 @@ signal hazard_tmp : std_logic;
 signal hazard_pc : std_logic;
 signal hazard_reg : std_logic;
 signal hazard_load : std_logic;
-signal hazard_store : std_logic;
+signal hazard_loadwrtmp : std_logic;
 signal hazard_flags : std_logic;
 
 begin
@@ -51,6 +51,20 @@ begin
 
 hazard_tmp<='1' when
 	d_read_tmp='1' and (e_write_tmp='1' or m_write_tmp='1' or w_write_tmp='1')
+	else '0';
+
+-- Load operations write to tmp at some inderminate point in the future.
+-- Other operations which write to tmp can't be allowed to run until this is complete)
+-- We only filter on q2 since only li and mt can cause issues here - everything else
+-- reads tmp before writing to it, so will already be blocked.  I didn't expect
+-- to have to worry about this since it can only happen if the result of a load is
+-- discarded - but I've already bumped into it when using a load to clear an interrupt
+-- status register, so it is necessary after all.
+
+-- (FIXME - heavy-handed to filter against store too - make this finer-grained.)
+
+hazard_loadwrtmp<='1' when
+	d_ex_op(e32_exb_q2totmp)='1' and (e_loadstore='1' or m_loadstore='1' or w_loadstore='1')
 	else '0';
 
 -- hazard_reg:
@@ -99,7 +113,7 @@ hazard<=(not valid)
 	or hazard_reg
 	or hazard_pc
 	or hazard_load
---	or hazard_store
+	or hazard_loadwrtmp
 	or hazard_flags;
 
 end architecture;

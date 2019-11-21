@@ -41,7 +41,7 @@ is
 	signal ramwait : unsigned(3 downto 0) := "0000";
 
 	signal interrupt : std_logic;
-	signal intcounter : unsigned(5 downto 0) := "000000";
+	signal intcounter : unsigned(9 downto 0) := "0000000000";
 
 	type tbstates is (RESET,INIT,MAIN,LOAD);
 	signal tbstate : tbstates:=RESET;
@@ -51,7 +51,7 @@ is
 
 begin
 
-	rom : entity work.alutest_rom
+	rom : entity work.Interrupts_rom
 	port map(
 		clk => clk,
 		from_soc => romout,
@@ -96,8 +96,8 @@ begin
 		ack => ram_ack
 	);
 
---interrupt<='1' when intcounter(5 downto 3)="111" else '0';
-interrupt<='0';
+interrupt<='1' when intcounter(9 downto 3)="0000111" else '0';
+--interrupt<='0';
 
   -- Clock process definition
   clk_process: process

@@ -16,7 +16,7 @@ elab : force
 
 # Run target
 run : force
-	$(GHDL) -c $(GHDLFLAGS) -r cpu_tb $(GHDLRUNFLAGS) --ieee-asserts=disable-at-0 --stop-time=5000ns --wave=cpu_tb.ghw
+	$(GHDL) -c $(GHDLFLAGS) -r cpu_tb $(GHDLRUNFLAGS) --ieee-asserts=disable-at-0 --stop-time=200000ns --wave=cpu_tb.ghw
 
 
 # Targets to analyze libraries
