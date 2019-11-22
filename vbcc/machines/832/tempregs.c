@@ -237,7 +237,24 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 		emit(f," deref \n");
 		/* Dereferencing a pointer */
 		if(p->flags&REG){
-			emit(f,"\tld\t%s\n",regnames[p->reg]);
+			switch(t&NQ)
+			{
+				case CHAR:
+					emit(f,"\tldbinc\t%s\n",regnames[p->reg]);
+					break;
+				case SHORT:
+					emit(f,"\thlf\n");
+					emit(f,"\tld\t%s\n",regnames[p->reg]);
+					break;
+				case INT:
+				case LONG:
+				case POINTER:
+					emit(f,"\tld\t%s\n",regnames[p->reg]);
+					break;
+				default:
+					emit(f,"//FIXME - unhandled type %d\n",t);
+					break;
+			}
 		}
 		else {
 			emit_prepobj(f,p,t,tmp,0);

@@ -4,6 +4,7 @@ ROMGEN = $(ROMGENDIR)/romgen
 GHDL = ghdl
 CC=../bin/vbcc832
 CFLAGS = -+ -O=1311 -size
+COPT = -O=1311
 all: compiler helloworld.bin
 
 compiler:
@@ -39,19 +40,16 @@ clean :
 %.o : %.S Makefile ldscript.ld $(832DIR)/start.S
 	gcc -I. -I$(832DIR) -c $*.S -o $*.o
 
-%.o : %.c Makefile ldscript.ld $(832DIR)/start.S $(CC)
-	../bin/vbcc832 -+ -O=1311 -size -I$(832DIR) $*.c
+%.o : %.c Makefile ldscript.ld $(832DIR)/start.S $(CC) force
+	../bin/vbcc832 -+ $(COPT) -size -I$(832DIR) $*.c
 	mv $*.asm $*.S
 	gcc -I. -I$(832DIR) -c $*.S -o $*.o
 
 %.o : $(832DIR)/%.S Makefile ldscript.ld $(832DIR)/assembler.pp $(832DIR)/start.S
 	gcc -c $(832DIR)/$*.S -I$(832DIR) -o $*.o
 
-%.s : %.832 Makefile
-	cpp -P $< > $*.s
-
-%.S : %.c Makefile ../bin/vbcc832
-	../bin/vbcc832 -+ -O=1311 -size -I$(832DIR) $*.c
+%.S : %.c Makefile ../bin/vbcc832 force
+	../bin/vbcc832 -+ $(COPT) -size -I$(832DIR) $*.c
 	mv $*.asm $*.S
 
 $(ROMGEN): $(ROMGENDIR)/romgen.c

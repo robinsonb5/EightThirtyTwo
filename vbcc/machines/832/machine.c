@@ -418,10 +418,42 @@ void save_temp(FILE *f,struct IC *p)
     emit(f,"\tmr\t%s\n",regnames[p->z.reg]);
   }else if ((p->z.flags&DREFOBJ) && (p->z.flags&REG)){
     emit(f,"store reg\n");
-    emit(f,"\tst\t%s\n",regnames[p->z.reg]);
+	switch(ztyp(p)&NQ)
+	{
+		case CHAR:
+		    emit(f,"\tstbinc\t%s\n",regnames[p->z.reg]);
+			break;
+		case SHORT:
+		    emit(f,"\thlf\n\tst\t%s\n",regnames[p->z.reg]);
+			break;
+		case INT:
+		case LONG:
+		case POINTER:
+		    emit(f,"\tst\t%s\n",regnames[p->z.reg]);
+			break;
+		default:
+			emit(f,"// FIXME - type %d not yet handled\n",ztyp(p));
+			break;
+	}
   } else {
     emit(f,"store prepped reg\n");
-    emit(f,"\tst\t%s\n",regnames[t2]);
+	switch(ztyp(p)&NQ)
+	{
+		case CHAR:
+		    emit(f,"\tstbinc\t%s\n",regnames[t2]);
+			break;
+		case SHORT:
+		    emit(f,"\thlf\n\tst\t%s\n",regnames[t2]);
+			break;
+		case INT:
+		case LONG:
+		case POINTER:
+		    emit(f,"\tst\t%s\n",regnames[t2]);
+			break;
+		default:
+			emit(f,"// FIXME - type %d not yet handled\n",ztyp(p));
+			break;
+	}
   }
   emit(f,"\t\t\t\t//save_temp done\n");
 }
