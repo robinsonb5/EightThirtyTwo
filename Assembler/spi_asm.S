@@ -55,8 +55,6 @@ is_sdhc:
 
 SPI_Send:	// command in r0, lba in r1, expected response in r2, HW_SPI_DATA must be in r5
 	stdec	r6
-//	mt	r2
-//	stdec	r6
 
 	mt	r0
 	st	r5	// SPI(cmd&255); // Assume only low 8 bits are active.
@@ -67,12 +65,10 @@ SPI_Send:	// command in r0, lba in r1, expected response in r2, HW_SPI_DATA must
 	addt	r7
 
 	ldt
-//	mr	r2	// Use ldtmp if we implement it
-//	ld	r2
-	cond	EQ	// Might have to test this to set z flag
-	li	9
-	shl	r1	// Multiply LBA by 512 if we have a standard SD card.
-	cond	NEQ	// 13 bytes
+	cond	EQ
+		li	9
+		shl	r1	// Multiply LBA by 512 if we have a standard SD card.
+		cond	EX	// 13 bytes
 	
 
 	li	IMW0(24)
@@ -109,19 +105,17 @@ SPI_Send:	// command in r0, lba in r1, expected response in r2, HW_SPI_DATA must
 	exg	r0
 	cmp	r0
 	cond	NEQ
-	li	IMW0(PCREL(.done))
-	mr	r7	// 49 bytes
+		li	IMW0(PCREL(.done))
+		mr	r7	// 49 bytes
 
 	exg	r0
 	li	1
 	sub	r1
 	cond	NEQ
-	li	IMW0(PCREL(.loop))
-	mr	r7
+		li	IMW0(PCREL(.loop))
+		mr	r7
 
 .done:
-//	ldinc	r6
-//	mr	r2
 	ldinc	r6
 	mr	r7	// 59 bytes  -  GCC compiled ZPU equivalent 128 bytes
 
@@ -299,7 +293,7 @@ SD_Init:  // ZPU GCC equivalent: 219 bytes
 	li	IMW1(SPIBASE+HW_SPI_CS)
 	li	IMW0(SPIBASE+HW_SPI_CS)
 	mr	r4
-	ltmpinc	r5
+	ltmpinc	r5	// Quickest way to increment r5
 	mr	r5	// SPI_DATA -> r5
 	li	0
 	st	r4	// SPI_CS(0)

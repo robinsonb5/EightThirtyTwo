@@ -276,20 +276,45 @@ static void load_address(FILE *f,int r,struct obj *o,int type)
 {
   emit_prepobj(f,o,type,r,0);
   if(o->v->storage_class==REGISTER){
-    emit(f,"#FIXME - register!\n");
+    emit(f,"#FIXME - can't get the address of a register!\n");
   }
 }
 
 /* Generates code to load a memory object into temp.  Returns 1 if code was emitted, 0 if there's no need. */
 static int load_temp(FILE *f,int r,struct obj *o,int type)
 {
-  emit(f,"\t\t\t\t\t// (load_temp)");
-  type&=NU;
+  type&=NQ;
+  emit(f,"\t\t\t\t\t// (load_temp - type %d)",type);
   if(o->flags&VARADR){
-    emit(f," FIXME - check varadr (%x) - should we be dereferencing this?\n",o->flags);
-    emit_prepobj(f,o,type,tmp,0);
-	if(o->flags&DREFOBJ)
-	    emit(f,"\tldt\t// Derefobj\n");
+	// FIXME - this block net yet tested
+	emit(f,"FIXME - not tested\n");
+	switch(type)
+	{
+		case CHAR:
+			if(o->flags&DREFOBJ)
+			{
+			    emit_prepobj(f,o,type,r,0);
+				emit(f,"\tldbinc\t%s\n",regnames[r]);
+			}
+			else
+			    emit_prepobj(f,o,type,tmp,0);
+			break;
+		case SHORT:
+		    emit_prepobj(f,o,type,tmp,0);
+			if(o->flags&DREFOBJ)
+				emit(f,"\thfl\n\tldt\n");
+			break;
+		case INT:
+		case LONG:
+		case POINTER:
+		    emit_prepobj(f,o,type,tmp,0);
+			if(o->flags&DREFOBJ)
+				emit(f,"\tldt\n");
+			break;
+		default:
+		    emit(f,"#FIXME - load_temp doesn't yet handle type %d\n",type);
+			break;
+	}
   }else{
     if((o->flags&(REG|DREFOBJ))==REG&&o->reg==r)
     {
@@ -1000,7 +1025,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
       if(ISFLOAT(q1typ(p))||ISFLOAT(ztyp(p))) ierror(0);
       if(sizetab[q1typ(p)&NQ]<sizetab[ztyp(p)&NQ]){
 		int shamt=0;
-		load_reg(f,zreg,&p->q1,t);
+		load_reg(f,zreg,&p->q1,q1typ(p));
 		switch(q1typ(p)&NU)	// Exclude unsigned values, since we don't need to convert them.
 		{
 			case CHAR:

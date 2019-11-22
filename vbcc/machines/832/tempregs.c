@@ -262,7 +262,25 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 			else if(isextern(p->v->storage_class)) {
 				emit(f," extern\n");
 				emit_externtotemp(f,p->v->identifier,p->val.vmax);
-				emit(f,"\tldt\n");
+				switch(t&NQ)
+				{
+					case CHAR:
+						emit(f,"\tmr\t%s\n",regnames[1]); // FIXME - need to specify an actual scratch register
+						emit(f,"\tldbinc\t%s\n",regnames[1]);
+						break;
+					case SHORT:
+						emit(f,"\thlf\n");
+						emit(f,"\tldt\n");
+						break;
+					case INT:
+					case LONG:
+					case POINTER:
+						emit(f,"\tldt\n");
+						break;
+					default:
+						emit(f,"// FIXME - type %d not handled\n",t);
+						break;
+				}
 #if 0
 				if(!zmeqto(l2zm(0L),p->val.vmax)){
 					emit_constanttotemp(f,val2zmax(f,p,LONG));
