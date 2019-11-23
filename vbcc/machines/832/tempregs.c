@@ -67,7 +67,7 @@ static int count_constantchunks(zmax v)
 	int v2=(int)v;
 	while(((v2&0xffffffe0)!=0) && ((v2&0xffffffe0)!=0xffffffe0)) // Are we looking at a sign-extended 8-bit value yet?
 	{
-		 printf("%08x\n",v2);
+//		 printf("%08x\n",v2);
 		 v2>>=6;
 		 ++chunk;
 	}
@@ -91,10 +91,6 @@ static void emit_constanttotemp(FILE *f,zmax v)
 static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 {
 	emit(f,"\t\t\t\t\t// (prepobj %s)",regnames[reg]);
-	if(p->am){
-		emit(f,"# FIXME - extended addressing modes not supported\n");
-		return;
-	}
 	if((p->flags&(KONST|DREFOBJ))==(KONST|DREFOBJ)){
 		emit(f," const/deref\n");
 		emit_constanttotemp(f,val2zmax(f,p,p->dtyp));
@@ -221,10 +217,6 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 static void emit_objtotemp(FILE *f,struct obj *p,int t)
 {
 	emit(f,"\t\t\t\t\t// (objtotemp)");
-	if(p->am){
-		emit(f,"# FIXME - extended addressing modes not supported\n");
-		return;
-	}
 	if((p->flags&(KONST|DREFOBJ))==(KONST|DREFOBJ)){
 		emit(f," const/deref # FIXME deal with different data sizes when dereferencing\n");
 		emit_prepobj(f,p,t,t1,0);
@@ -240,7 +232,15 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 			switch(t&NQ)
 			{
 				case CHAR:
-					emit(f,"\tldbinc\t%s\n",regnames[p->reg]);
+					if(p->am && p->am->type==AM_POSTINC)
+					{
+						emit(f,"\tldbinc\t%s\n",regnames[p->reg]);
+					}
+					else
+					{
+						// FIXME - determine whether we need to fix up the pointer.
+						emit(f,"\tldbinc\t%s\n//FIXME - need to fix up the pointer",regnames[p->reg]);
+					}
 					break;
 				case SHORT:
 					emit(f,"\thlf\n");
@@ -249,7 +249,10 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 				case INT:
 				case LONG:
 				case POINTER:
-					emit(f,"\tld\t%s\n",regnames[p->reg]);
+					if(p->am && p->am->type==AM_POSTINC)
+						emit(f,"\tldinc\t%s\n",regnames[p->reg]);
+					else
+						emit(f,"\tld\t%s\n",regnames[p->reg]);
 					break;
 				default:
 					emit(f,"//FIXME - unhandled type %d\n",t);
@@ -282,8 +285,8 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 				switch(t&NQ)
 				{
 					case CHAR:
-						emit(f,"\tmr\t%s\n",regnames[1]); // FIXME - need to specify an actual scratch register
-						emit(f,"\tldbinc\t%s\n",regnames[1]);
+						emit(f,"\tmr\t%s\n",regnames[t1]);
+						emit(f,"\tldbinc\t%s\n",regnames[t1]);	// Disposable, no need to worry about postinc / predec
 						break;
 					case SHORT:
 						emit(f,"\thlf\n");

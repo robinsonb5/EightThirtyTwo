@@ -160,15 +160,9 @@ static int exit_label;
 /* assembly-prefixes for labels and external identifiers */
 static char *labprefix="l",*idprefix="_";
 
-#if FIXED_SP
-/* variables to calculate the size and partitioning of the stack-frame
-   in the case of FIXED_SP */
-static long frameoffset,pushed,maxpushed,framesize;
-#else
 /* variables to keep track of the current stack-offset in the case of
    a moving stack-pointer */
 static long notpopped,pushed,dontpop,stackoffset,maxpushed;
-#endif
 
 static long localsize,rsavesize,argsize;
 
@@ -192,32 +186,12 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t);
    | arguments to called functions [size=argsize] |
    ------------------------------------------------
    All sizes will be aligned as necessary.
-   In the case of FIXED_SP, the stack-pointer will be adjusted at
-   function-entry to leave enough space for the arguments and have it
-   aligned to 16 bytes. Therefore, when calling a function, the
-   stack-pointer is always aligned to 16 bytes.
    For a moving stack-pointer, the stack-pointer will usually point
    to the bottom of the area for local variables, but will move while
    arguments are put on the stack.
 
    This is just an example layout. Other layouts are also possible.
 */
-
-
-static void push(long l)
-{
-  stackoffset-=l;
-  if(stackoffset<maxpushed) 
-    maxpushed=stackoffset;
-  if(-maxpushed>stack)
-    stack=-maxpushed;
-}
-
-static void pop(long l)
-{
-  stackoffset+=l;
-}
-
 
 static long real_offset(struct obj *o)
 {
@@ -226,12 +200,7 @@ static long real_offset(struct obj *o)
     /* function parameter */
     off=localsize+rsavesize+4-off-zm2l(maxalign);
   }
-
-#if FIXED_SP
-  off+=argsize;
-#else
   off+=stackoffset;
-#endif
   off+=zm2l(o->val.vmax);
   return off;
 }
@@ -421,7 +390,10 @@ void save_temp(FILE *f,struct IC *p)
 	switch(ztyp(p)&NQ)
 	{
 		case CHAR:
-		    emit(f,"\tstbinc\t%s\n",regnames[p->z.reg]);
+			if(p->z.am && p->z.am->type==AM_POSTINC)
+			    emit(f,"\tstbinc\t%s\n",regnames[p->z.reg]);
+			else
+			    emit(f,"\tstbinc\t%s\n// FIXME - need to fix up the pointer",regnames[p->z.reg]);
 			break;
 		case SHORT:
 		    emit(f,"\thlf\n\tst\t%s\n",regnames[p->z.reg]);
@@ -429,7 +401,10 @@ void save_temp(FILE *f,struct IC *p)
 		case INT:
 		case LONG:
 		case POINTER:
-		    emit(f,"\tst\t%s\n",regnames[p->z.reg]);
+			if(p->z.am && p->z.am->type==AM_PREDEC)
+			    emit(f,"\tstdec\t%s\n",regnames[p->z.reg]);
+			else
+			    emit(f,"\tst\t%s\n",regnames[p->z.reg]);
 			break;
 		default:
 			emit(f,"// FIXME - type %d not yet handled\n",ztyp(p));
@@ -479,6 +454,7 @@ void save_result(FILE *f,struct IC *p)
   }
 }
 
+#include "addressingmodes.c"
 #include "tempregs.c"
 
 /*  Test if there is a sequence of FREEREGs containing FREEREG reg.
@@ -731,7 +707,7 @@ int cost_savings(struct IC *p,int r,struct obj *o)
 	{
 		struct obj *o2=&o->v->cobj;
 		int c=count_constantchunks(o2->val.vmax);
-		printf("Cost saving from storing %d in register: %d\n",o2->val.vmax,c);
+//		printf("Cost saving from storing %d in register: %d\n",o2->val.vmax,c);
       return c-1;
 	}
   }
@@ -961,9 +937,6 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 	}
       }
     }
-#if FIXED_SP
-    if(c==CALL&&argsize<zm2l(m->q2.val.vmax)) argsize=zm2l(m->q2.val.vmax);
-#endif
   }
 
   for(c=1;c<=MAXR;c++){
@@ -972,15 +945,11 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
     }
   }
   localsize=(zm2l(offset)+3)/4*4;
-#if FIXED_SP
-  /*FIXME: adjust localsize to get an aligned stack-frame */
-#endif
+
+	printf("\nSeeking addressing modes for function %s\n",v->identifier);
+	find_addressingmodes(p);
 
   function_top(f,v,localsize);
-
-#if FIXED_SP
-  pushed=0;
-#endif
 
   for(;p;p=p->next){
     c=p->code;t=p->typf;
@@ -1013,7 +982,6 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 
     // OK
     if(c>=BEQ&&c<BRA){
-      printf("cond\n");
       emit(f,"\tcond\t%s\n",ccs[c-BEQ]);
       emit(f,"\t\t\t\t\t//conditional branch ");
       emit_pcreltotemp(f,labprefix,t);
@@ -1053,7 +1021,6 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
     // 
     if(c==CONVERT){
       emit(f,"\t\t\t\t\t//FIXME convert\n");
-	printf("convert : %s ",regnames[zreg]);
       if(ISFLOAT(q1typ(p))||ISFLOAT(ztyp(p))) ierror(0);
       if(sizetab[q1typ(p)&NQ]<sizetab[ztyp(p)&NQ]){
 		int shamt=0;
@@ -1082,7 +1049,6 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
     // Investigate - Still to be implemented
     if(c==KOMPLEMENT){
       emit(f,"\t\t\t\t\t//comp\n");
-	printf("comp\n");
       load_reg(f,zreg,&p->q1,t);
       emit(f,"\tcpl.%s\t%s\n",dt(t),regnames[zreg]);
       save_result(f,p);
@@ -1133,9 +1099,6 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 	emit(f,"\n");
       }
       /*FIXME*/
-#if FIXED_SP
-      pushed-=zm2l(p->q2.val.vmax);
-#endif
       if((p->q1.flags&(VAR|DREFOBJ))==VAR&&p->q1.v->fi&&(p->q1.v->fi->flags&ALL_REGS)){
 	bvunite(regs_modified,p->q1.v->fi->regs_modified,RSIZE);
       }else{
@@ -1147,34 +1110,30 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
       continue;
     }
 
-    if(c==ASSIGN||c==PUSH){
-      if(t==0) ierror(0);
+    if((c==ASSIGN||c==PUSH) && t==0)
+ 		ierror(0);
 
-      // Basically OK - not used very much.  Perhaps don't use a fixed stackframe?
-      if(c==PUSH){
-        emit(f,"\t\t\t\t\t// (a/p push)\n");
+    // Basically OK - not used very much.  Perhaps don't use a fixed stackframe?
+    if(c==PUSH){
+		emit(f,"\t\t\t\t\t// (a/p push)\n");
 
-/* FIXME - need to take dt into account */
-	emit(f,"\t\t\t\t\t// a: pushed %ld, regnames[sp] %s\n",pushed,regnames[sp]);
-	emit_objtotemp(f,&p->q1,t);
-	emit(f,"\tstdec\t%s\n",regnames[sp]);
-	pushed+=zm2l(p->q2.val.vmax);
-	continue;
-      }
+		/* FIXME - need to take dt into account */
+		emit(f,"\t\t\t\t\t// a: pushed %ld, regnames[sp] %s\n",pushed,regnames[sp]);
+		emit_objtotemp(f,&p->q1,t);
+		emit(f,"\tstdec\t%s\n",regnames[sp]);
+		pushed+=zm2l(p->q2.val.vmax);
+		continue;
+    }
 
-      // Need to special case writing register to memory using addt and stt
-      if(c==ASSIGN){
+    // Need to special case writing register to memory using addt and stt
+    if(c==ASSIGN){
 	// FIXME - have to deal with arrays and structs, not just elementary types
-	{
 		emit(f,"\t\t\t\t\t// (a/p assign)\n");
 		emit_prepobj(f,&p->z,t,t2,0);
 		load_temp(f,zreg,&p->q1,t);
 		save_temp(f,p);
+		continue;
 	}
-      }
-      continue;
-
-    }
 
     // Not yet seen it used.
     if(c==ADDRESS){
@@ -1208,7 +1167,6 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
     // Compare
     // Revisit
     if(c==COMPARE){
-		printf("compare\n");
 	// FIXME - is q1 is a register we can compare directly against it.
 	// FIXME - determine if q2 is a register, if not move to reg, move q1 to temp, compare.
       emit(f,"\t\t\t\t\t// (compare)");
@@ -1257,7 +1215,6 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
     v->fi->flags|=ALL_STACK;
     v->fi->stack1=stack;
   }
-  printf("done\n");
   emit(f,"# stacksize=%lu%s\n",zum2ul(stack),stack_valid?"":"+??");
 }
 

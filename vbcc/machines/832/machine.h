@@ -1,17 +1,5 @@
-/*  Example backend for vbcc, it models a generic 32bit RISC or CISC
-    CPU.
-
-    Configurable at build-time are:
-    - number of (32bit) general-purpose-registers
-    - number of (64bit) floating-point-registers
-    - number of (8bit) condition-code-registers
-    - mechanism for stack-arguments (moving ot fixed sp)
-
-    It allows to select as run-time-options:
-    - two- or three-address code
-    - memory operands or load-store-architecture
-    - number of register-arguments
-    - number of caller-save-registers
+/*  EightThirtyTwo backend for vbcc.
+    Based on the "generic" backend.
 */
 
 /* build-time configurable options: */
@@ -34,8 +22,9 @@
 /*  addressing-modes.                                               */
 /*  Currently possible are (const,gpr) and (gpr,gpr)                */
 /*  FIXME - we can make use of ldidx here */
+enum AddressingMode_Type { AM_POSTINC, AM_PREDEC, AM_DISPOSABLE };
 struct AddressingMode{
-    int never_used;
+    enum AddressingMode_Type type;
 };
 
 /*  The number of registers of the target machine.                  */
