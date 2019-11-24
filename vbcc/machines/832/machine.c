@@ -262,7 +262,7 @@ static int load_temp(FILE *f,int r,struct obj *o,int type)
   if(o->flags&VARADR){
 	// FIXME - this block net yet tested
 	emit(f,"FIXME - not tested\n");
-	switch(type)
+	switch(type&NQ)
 	{
 		case CHAR:
 			if(o->flags&DREFOBJ)
@@ -1049,6 +1049,12 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 			emit(f,"\tshr\t%s\n",regnames[zreg]);
 		}
       }
+		else {	// If the size is the same then this is effectively just an assign.
+			emit(f,"\t\t\t\t\t// (convert -> assign)\n");
+			emit_prepobj(f,&p->z,t,t2,0);
+			load_temp(f,zreg,&p->q1,t);
+			save_temp(f,p);
+		}
       save_result(f,p);
       continue;
     }
