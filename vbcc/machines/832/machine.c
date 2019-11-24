@@ -1051,6 +1051,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 			emit(f,"\tsgn\n");
 			emit(f,"\tshr\t%s\n",regnames[zreg]);
 		}
+	      save_result(f,p);
       }
 		else {	// If the size is the same then this is effectively just an assign.
 			emit(f,"\t\t\t\t\t// (convert -> assign)\n");
@@ -1058,7 +1059,6 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 			load_temp(f,zreg,&p->q1,t);
 			save_temp(f,p);
 		}
-      save_result(f,p);
       continue;
     }
 
