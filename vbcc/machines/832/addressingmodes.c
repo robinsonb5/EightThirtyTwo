@@ -1,6 +1,68 @@
 /* search for possible addressing-modes */
 
-/* To Do: Determine whether a given ob is disposable. */
+/* DONE: Determine whether a given ob is disposable. */
+
+/* ToDo: Look for pairs of ICs with Z set to register,
+   followed by disposable q1 on the same register ->
+   use tmp for that register.  Can we avoid the 
+   passing register being allocated? */
+
+
+
+// If the obj doesn't already have an addressing mode, create one and zero it out.
+void am_alloc(struct obj *o)
+{
+	if(!o->am)
+	{
+		o->am=mymalloc(sizeof(struct AddressingMode));
+		memset(o->am,0,sizeof(struct AddressingMode));
+	}
+}
+
+void am_disposable(struct IC *p,struct obj *o)
+{
+	struct IC *p2;
+	int disposable=0;
+	if(o->flags&REG)
+	{
+		p2=p->next;
+		while(p2)
+		{
+			if(p2->code==FREEREG && p2->q1.reg==o->reg)
+			{
+				printf("\t(%s disposable.)\n",regnames[o->reg]);
+				am_alloc(o);
+				o->am->disposable=1;
+				return;
+			}
+			if( (p2->q1.flags&(REG|DREFOBJ) && p2->q1.reg==o->reg)
+				|| (p2->q1.flags&(REG|DREFOBJ) && p2->q1.reg==o->reg)
+				|| (p2->z.flags&(REG|DREFOBJ) && p2->z.reg==o->reg) )
+			{
+				//Found another instruction referencing reg - not disposable.
+				return;
+			}
+			switch(p2->code)
+			{
+				case CALL:
+				case BEQ:
+				case BNE:
+				case BLT:
+				case BGE:
+				case BLE:
+				case BGT:
+				case BRA:
+					// Control flow changed, erring on the side of safety - not disposable.
+					return;
+					break;
+				default:
+					break;
+			}
+			p2=p2->next;
+		}		
+	}
+}
+
 
 struct IC *am_find_adjustment(struct IC *p,int reg)
 {
@@ -11,25 +73,28 @@ struct IC *am_find_adjustment(struct IC *p,int reg)
 	{
 		if(p2->code==ADDI2P)
 		{
-			printf("Found Addi2p to register %s \n",regnames[p2->z.reg]);
-			if(((p2->q2.flags&KONST)==0)||((p2->z.flags&REG)==0))
+			printf("\tFound Addi2p to register %s \n",regnames[p2->z.reg]);
+			if((p2->q2.flags&KONST)&&(p2->z.flags&REG))
 			{
-				printf("not a constant, however - bailing out. %x\n",p2->z.flags);
-				p2=0;
-			}
-			if(p2->z.reg==reg)
-			{
-				printf("Adjusting the correct register\n");
-				break;
+				if(p2->z.reg==reg)
+				{
+					printf("\t\tAdjusting the correct register - match found\n");
+					break;
+				}
+				else
+					printf("\t\tWrong register - keep looking\n");
 			}
 			else
-				printf("Wrong register - keep looking\n");
+			{
+				printf("\t\tnot a constant, however - bailing out.\n");
+				p2=0;
+			}
 		}
 		else if( (p2->q1.flags&(REG|DREFOBJ) && p2->q1.reg==reg)
 			|| (p2->q1.flags&(REG|DREFOBJ) && p2->q1.reg==reg)
 			|| (p2->z.flags&(REG|DREFOBJ) && p2->z.reg==reg) )
 		{
-			printf("Found another instruction referencing reg - bailing out\n");
+			printf("\t\tFound another instruction referencing reg - bailing out\n");
 			p2=0;
 		}
 		// FIXME - check for control flow changes
@@ -38,32 +103,35 @@ struct IC *am_find_adjustment(struct IC *p,int reg)
 	}
 	if(p2)
 		return(p2);
-	printf("No postincrements found - checking for predecrements\n");
+	printf("\tNo postincrements found - checking for predecrements\n");
 	/* Search for a predecrement */
 	p2=p->prev;
 	while(p2)
 	{
 		if(p2->code==SUBIFP)
 		{
-			printf("Found subifp to register %s \n",regnames[p2->z.reg]);
-			if(((p2->q2.flags&KONST)==0)||((p2->z.flags&REG)==0))
+			printf("\t\tFound subifp to register %s \n",regnames[p2->z.reg]);
+			if((p2->q2.flags&KONST)&&(p2->z.flags&REG))
 			{
-				printf("not a constant, however - bailing out. %x\n",p2->z.flags);
-				p2=0;
-			}
-			if(p2->z.reg==reg)
-			{
-				printf("Adjusting the correct register\n");
-				break;
+				if(p2 && p2->z.reg==reg)
+				{
+					printf("\t\tAdjusting the correct register - match found\n");
+					break;
+				}
+				else
+					printf("\t\tWrong register - keep looking\n");
 			}
 			else
-				printf("Wrong register - keep looking\n");
+			{
+				printf("\t\tnot a constant, however - bailing out.\n");
+				p2=0;
+			}
 		}
-		if( (p2->q1.flags&(REG|DREFOBJ) && p2->q1.reg==reg)
+		else if( (p2->q1.flags&(REG|DREFOBJ) && p2->q1.reg==reg)
 			|| (p2->q1.flags&(REG|DREFOBJ) && p2->q1.reg==reg)
 			|| (p2->z.flags&(REG|DREFOBJ) && p2->z.reg==reg) )
 		{
-			printf("Found another instruction referencing reg - bailing out\n");
+			printf("\t\tFound another instruction referencing reg - bailing out\n");
 			p2=0;
 		}
 		// FIXME - check for control flow changes
@@ -113,18 +181,30 @@ int am_get_adjvalue(struct IC *p, int type,int target)
 void am_prepost_incdec(struct IC *p,struct obj *o)
 {
 	struct IC *p2=0;
+	int type;
 	if(o->flags&(REG)&&(o->flags&DREFOBJ))
 	{
-		printf("Referencing register %s - searching for adjustments\n",regnames[o->reg]);
+		printf("Dereferencing register %s - searching for adjustments\n",regnames[o->reg]);
 		p2=am_find_adjustment(p,o->reg);
 
 		if(p2)	// Did we find a candidate for postinc / predec?
 		{
-			int adj=am_get_adjvalue(p2,p->typf,o==&p->z);	// Validate the adjustment
+			switch(p->code)
+			{
+				case CONVERT:
+					printf("\tConvert operation - type is %d\n",p->typf2);
+					type=p->typf2;
+					break;
+				default:
+					printf("\tRegular operation - type is %d\n",p->typf);
+					type=p->typf;
+					break;
+			}
+			int adj=am_get_adjvalue(p2,type,o==&p->z);	// Validate the adjustment
 			if(adj)
 			{
 				p2->code=NOP;	// Nullify the manual adjustment if we can do it as an opcode side-effect
-				o->am=mymalloc(sizeof(struct AddressingMode));
+				am_alloc(o);
 				o->am->type=(adj>0) ? AM_POSTINC : AM_PREDEC;
 			}
 		}
@@ -146,10 +226,8 @@ static void find_addressingmodes(struct IC *p)
 				printf("Komma\n");
 				break;
 			case ASSIGN:
+//				printic(stdout,p);
 				printf("Assign\n");
-				am_prepost_incdec(p,&p->q1);
-				am_prepost_incdec(p,&p->q2);
-				am_prepost_incdec(p,&p->z);
 				break;
 			case ASSIGNOP:
 				printf("AssignOP\n");
@@ -387,7 +465,13 @@ static void find_addressingmodes(struct IC *p)
 				break;
 			default:
 				break;
-		}		
+		}
+		am_prepost_incdec(p,&p->q1);
+		am_prepost_incdec(p,&p->q2);
+		am_prepost_incdec(p,&p->z);
+		am_disposable(p,&p->q1);
+		am_disposable(p,&p->q2);
+		am_disposable(p,&p->z);
 	}
 }
 

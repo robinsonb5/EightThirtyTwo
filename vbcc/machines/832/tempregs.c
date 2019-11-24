@@ -234,7 +234,7 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 				case CHAR:
 					if(p->am && p->am->type==AM_POSTINC)
 						emit(f,"\tldbinc\t%s\n",regnames[p->reg]);
-					else if(p->am && p->am->type==AM_DISPOSABLE)
+					else if(p->am && p->am->disposable)
 						emit(f,"\tldbinc\t%s\n//Disposable, postinc doesn't matter.",regnames[p->reg]);
 					else
 						emit(f,"\tbyt\n\tld\t%s\n",regnames[p->reg]);

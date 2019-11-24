@@ -14,10 +14,12 @@
     - number of caller-save-registers
 */                                                                             
 
-// FIXME - eliminate unnecessary register shuffling for compare.
+// TODO - eliminate unnecessary register shuffling for compare.
+// Implement block copying
+// Implement division / modulo using library code.
+// Mark registers as disposable if their contents are never used beyond the current op.
+// Look at ways of improving code efficiency.
 
-// FIXME - need to reduce unneccesary ea calculations - r5 often contains the target address +/- a small offset,
-// find a way to prevent it being recalculated from scratch.
 
 #include "supp.h"
 
@@ -26,7 +28,7 @@ static char FILE_[]=__FILE__;
 /*  Public data that MUST be there.                             */
 
 /* Name and copyright. */
-char cg_copyright[]="vbcc generic code-generator adapted to 832 in baby steps V0.1b (c) in 2001 by Volker Barthelmann, 2019 AMR";
+char cg_copyright[]="vbcc generic code-generator adapted to 832 in baby steps V0.1b.\nOriginal code (c) 2001 by Volker Barthelmann,\n832 Backend 2019 AMR";
 
 /*  Commandline-flags the code-generator accepts:
     0: just a flag
@@ -41,6 +43,7 @@ int g_flags[MAXGF]={0,0,
 
 /* the flag-name, do not use names beginning with l, L, I, D or U, because
    they collide with the frontend */
+/* FIXME - 832-specific flags, such as perhaps the reach of PCREL immediates? */
 char *g_flags_name[MAXGF]={"three-addr","load-store",
 			   "volatile-gprs","volatile-fprs","volatile-ccrs",
 			   "imm-ind","gpr-ind",
@@ -394,7 +397,7 @@ void save_temp(FILE *f,struct IC *p)
 		case CHAR:
 			if(p->z.am && p->z.am->type==AM_POSTINC)
 			    emit(f,"\tstbinc\t%s\n",regnames[p->z.reg]);
-			else if(p->z.am && p->z.am->type==AM_DISPOSABLE)
+			else if(p->z.am && p->z.am->disposable)
 				emit(f,"\tstbinc\t%s\n//Disposable, postinc doesn't matter.",regnames[p->z.reg]);
 			else
 				emit(f,"\tbyt\n\tst\t%s\n",regnames[p->z.reg]);
@@ -898,7 +901,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
   // if(DEBUG&1) 
   printf("gen_code() - stackframe %d bytes\n",offset);
   for(c=1;c<=MAXR;c++)
-    regs[c]=regsa[c];
+   regs[c]=regsa[c];
   maxpushed=0;
 
 //  for(c=FIRST_GPR;c<=LAST_GPR;++c)
