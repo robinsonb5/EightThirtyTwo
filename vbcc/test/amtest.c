@@ -18,14 +18,18 @@ int main(int argc,char **argv)
 	char *p2=buf2;
 	int *p3=(int *)buf1;
 	int *p4=(int *)buf2;
+//	for(i=0;i<20;++i)
+//	{
+//		*p2++=*p1++;
+//		c=*p1++;
+//		*p2++=c;
+//	}
 	for(i=0;i<20;++i)
 	{
-		c=*p1++;
-		*p2++=c;
-	}
-	for(i=0;i<20;++i)
-	{
-		*p4++=*p3++;
+		int t;
+//		t=*p3++;
+//		*--p4=t;
+		*--p4=*p3++;
 	}
 	return(0);
 }

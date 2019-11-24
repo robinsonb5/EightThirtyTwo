@@ -22,6 +22,7 @@ architecture behavoural of eightthirtytwo_decode is
 signal op : std_logic_vector(7 downto 0);
 signal reg : std_logic_vector(e32_reg_maxbit downto 0);
 signal addop : std_logic_vector(e32_ex_maxbit downto 0);
+signal mulop : std_logic_vector(e32_ex_maxbit downto 0);
 signal andop : std_logic_vector(e32_ex_maxbit downto 0);
 signal orop : std_logic_vector(e32_ex_maxbit downto 0);
 signal xorop : std_logic_vector(e32_ex_maxbit downto 0);
@@ -50,6 +51,10 @@ orop<=e32_ex_sgn when opcode(2 downto 0)="111"
 -- And is overloaded when r=7; becomes the hlf instruction
 andop<=e32_ex_flags or e32_ex_halfword when opcode(2 downto 0)="111"
 	else e32_ex_q1toreg or e32_ex_flags;
+
+-- Mul is overloaded when r=7; becomes the byt instruction
+mulop<=e32_ex_flags or e32_ex_byte when opcode(2 downto 0)="111"
+	else e32_ex_q1toreg or e32_ex_q2totmp or e32_ex_flags or e32_ex_waitalu;
 
 -- Xor is overloaded when r=7; becomes the ldt instruction
 xorop<=e32_ex_load when opcode(2 downto 0)="111"
@@ -201,7 +206,8 @@ with op select ex_op <=
 	(e32_ex_q1toreg or e32_ex_flags or e32_ex_waitalu) when e32_op_ror,
 
 	(e32_ex_q1toreg or e32_ex_q2totmp) when e32_op_exg,
-	(e32_ex_q1toreg or e32_ex_q2totmp or e32_ex_flags or e32_ex_waitalu) when e32_op_mul,
+	mulop when e32_op_mul,
+--	(e32_ex_q1toreg or e32_ex_q2totmp or e32_ex_flags or e32_ex_waitalu) when e32_op_mul,
 	addop when e32_op_add, -- Overloaded so we can modify its behaviour with r7
 
 	(e32_ex_q1totmp or e32_ex_flags) when e32_op_addt,

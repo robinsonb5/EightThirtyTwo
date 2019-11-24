@@ -60,7 +60,7 @@ type e32_regfile is record
 	flag_sgn : std_logic;
 	flag_interrupting : std_logic;
 	flag_halfword : std_logic;
-
+	flag_byte : std_logic;
 end record;
 
 signal regfile : e32_regfile;
@@ -460,6 +460,7 @@ begin
 		regfile.flag_z<='0';
 		regfile.flag_interrupting<='0';
 		regfile.flag_halfword<='0';
+		regfile.flag_byte<='0';
 		regfile.gpr7_readflags<='0';
 		thread.pc<=(others=>'0');
 		thread.setpc<='1';
@@ -484,6 +485,7 @@ begin
 			regfile2.flag_z<='0';
 			regfile2.flag_interrupting<='0';
 			regfile2.flag_halfword<='0';
+			regfile2.flag_byte<='0';
 			regfile2.gpr7_readflags<='0';
 			thread2.pc<=(others=>'0');
 			thread2.setpc<='1';
@@ -855,7 +857,7 @@ begin
 		-- If we have a postinc operation we need to avoid triggering the load/store a
 		-- second time, so we filter on ls_req='0'
 		
-		if m_ex_op(e32_exb_load)='1' and ls_req_r='0' then
+		if (m_ex_op(e32_exb_load)='1' or m_ex_op(e32_exb_store)='1') and ls_req_r='0' then
 			ls_addr<=alu_q1;
 			ls_d<=alu_q2;
 			if m_thread='1' and dualthread=true then
@@ -865,26 +867,18 @@ begin
 				ls_halfword<=m_ex_op(e32_exb_halfword) or regfile.flag_halfword;
 				regfile.flag_halfword<='0';
 			end if;			
-			ls_byte<=m_ex_op(e32_exb_byte);
-			ls_req_r<='1';
-		end if;
-
-		if m_ex_op(e32_exb_store)='1' and ls_req_r='0' then
-			ls_addr<=alu_q1;
-			ls_d<=alu_q2;
 			if m_thread='1' and dualthread=true then
-				ls_halfword<=m_ex_op(e32_exb_halfword) or regfile2.flag_halfword;
-				regfile2.flag_halfword<='0';
+				ls_byte<=m_ex_op(e32_exb_byte) or regfile2.flag_byte;
+				regfile2.flag_byte<='0';
 			else
-				ls_halfword<=m_ex_op(e32_exb_halfword) or regfile.flag_halfword;
-				regfile.flag_halfword<='0';
+				ls_byte<=m_ex_op(e32_exb_byte) or regfile.flag_byte;
+				regfile.flag_byte<='0';
 			end if;			
-			ls_byte<=m_ex_op(e32_exb_byte);
-			ls_wr<='1';
+--			ls_byte<=m_ex_op(e32_exb_byte);
+			ls_wr<=m_ex_op(e32_exb_store);
 			ls_req_r<='1';
 		end if;
 
-	
 
 		-- Either output of the ALU can go to tmp.
 
@@ -968,6 +962,9 @@ begin
 				if m_ex_op(e32_exb_halfword)='1' then	-- Modify the next load/store to operate on a halfword.
 					regfile2.flag_halfword<='1';
 				end if;
+				if m_ex_op(e32_exb_byte)='1' and m_ex_op(e32_exb_q1toreg)='0' then	-- Modify the next load/store to operate on a byte.
+					regfile2.flag_byte<='1';
+				end if;
 				regfile2.flag_c<=alu_carry;
 				if alu_q1=X"00000000" then
 					regfile2.flag_z<='1';
@@ -978,6 +975,9 @@ begin
 				regfile.flag_sgn<='0'; -- Any ALU op that sets flags will clear the sign modifier.
 				if m_ex_op(e32_exb_halfword)='1' then	-- Modify the next load/store to operate on a halfword.
 					regfile.flag_halfword<='1';
+				end if;
+				if m_ex_op(e32_exb_byte)='1' and m_ex_op(e32_exb_q1toreg)='0' then	-- Modify the next load/store to operate on a byte.
+					regfile.flag_byte<='1';
 				end if;
 				regfile.flag_c<=alu_carry;
 				if alu_q1=X"00000000" then

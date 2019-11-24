@@ -41,8 +41,9 @@
 
 // Overloaded opcodes.  Mostly ops that make no sense when applied to R7
 
-#define ldt .byte 0xbf	// Overloads xor
 #define	sgn .byte 0xb7	// Overloads or
+#define ldt .byte 0xbf	// Overloads xor
+#define byt	.byte 0x97  // Overloads mul
 #define hlf	.byte 0x9f  // Overloads and
 
 #define r0 0
