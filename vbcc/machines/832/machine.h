@@ -70,7 +70,7 @@ struct AddressingMode{
 
 /*  Parameters on the stack should be pushed in order rather than   */
 /*  in reverse order.                                               */
-#define ORDERED_PUSH 1
+// #define ORDERED_PUSH 1
 // FIXED_SP
 
 /*  Structure for reg_parm().                                       */

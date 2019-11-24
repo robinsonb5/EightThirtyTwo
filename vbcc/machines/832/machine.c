@@ -19,6 +19,8 @@
 // Implement division / modulo using library code.
 // Mark registers as disposable if their contents are never used beyond the current op.
 // Look at ways of improving code efficiency.
+// Minus could be optimised for the in-register case.
+// Do we need to reserve two temp registers?
 
 
 #include "supp.h"
@@ -201,6 +203,7 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t);
 static long real_offset(struct obj *o)
 {
   long off=zm2l(o->v->offset);
+	printf("Parameter offset: %d, localsize: %d, rsavesize: %d\n",off,localsize,rsavesize);
   if(off<0){
     /* function parameter */
     off=localsize+rsavesize+4-off-zm2l(maxalign);
@@ -555,7 +558,7 @@ static void function_bottom(FILE *f,struct Var *v,long offset)
       emit(f,"\tadd\t%s\n",regnames[sp]);
     }
 
-    for(i=FIRST_GPR+1;i<=LAST_GPR-3;++i)
+    for(i=LAST_GPR-3;i>=FIRST_GPR+1;--i)
     {
       if(regused[i] && !regscratch[i])
         emit(f,"\tldinc\t%s\n\tmr\t%s\n",regnames[sp],regnames[i]);
