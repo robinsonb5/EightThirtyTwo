@@ -1106,10 +1106,14 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
         if(p->q1.v->storage_class==STATIC){
           emit_pcreltotemp(f,labprefix,zm2l(p->q1.v->offset));
           emit(f,"\tadd\t%s\n",regnames[pc]);
-        }else{
+        }else if(p->q1.v->storage_class==EXTERN){
           emit_externtotemp(f,p->q1.v->identifier,p->q1.val.vmax);
           emit(f,"\texg\t%s\n",regnames[pc]);
         }
+		else {
+			emit_objtotemp(f,&p->q1,t);
+			emit(f,"\texg\t%s\n",regnames[pc]);
+		}
         emit_constanttotemp(f,pushedargsize(p));
         emit(f,"\tadd\t%s\n",regnames[sp]);
 	emit(f,"\n");

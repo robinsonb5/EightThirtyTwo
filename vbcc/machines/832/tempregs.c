@@ -251,6 +251,8 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 					else
 						emit(f,"\tld\t%s\n",regnames[p->reg]);
 					break;
+				case FUNKT: // Function pointers are dereferenced by calling them.
+					emit(f,"\tmt\t%s\n",regnames[p->reg]);
 				default:
 					emit(f,"//FIXME - unhandled type %d\n",t);
 					break;
@@ -258,7 +260,8 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 		}
 		else {
 			emit_prepobj(f,p,t,tmp,0);
-			emit(f,"\tldt\n");
+			if((t&NQ)!=FUNKT) // Function pointers are dereferenced by calling them.
+				emit(f,"\tldt\n");
 		}
 	}
 	else
@@ -292,6 +295,7 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 					case INT:
 					case LONG:
 					case POINTER:
+					case FUNKT:
 						emit(f,"\tldt\n");
 						break;
 					default:

@@ -22,7 +22,7 @@
 /*  addressing-modes.                                               */
 /*  Currently possible are (const,gpr) and (gpr,gpr)                */
 /*  FIXME - we can make use of ldidx here */
-enum AddressingMode_Type { AM_POSTINC, AM_PREDEC };
+enum AddressingMode_Type { AM_POSTINC=1, AM_PREDEC };
 struct AddressingMode{
     enum AddressingMode_Type type;
 	int disposable;
