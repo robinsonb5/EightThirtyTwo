@@ -401,7 +401,7 @@ void save_temp(FILE *f,struct IC *p)
 			if(p->z.am && p->z.am->type==AM_POSTINC)
 			    emit(f,"\tstbinc\t%s\n",regnames[p->z.reg]);
 			else if(p->z.am && p->z.am->disposable)
-				emit(f,"\tstbinc\t%s\n//Disposable, postinc doesn't matter.",regnames[p->z.reg]);
+				emit(f,"\tstbinc\t%s\n//Disposable, postinc doesn't matter.\n",regnames[p->z.reg]);
 			else
 				emit(f,"\tbyt\n\tst\t%s\n",regnames[p->z.reg]);
 			break;
@@ -425,7 +425,7 @@ void save_temp(FILE *f,struct IC *p)
 	switch(ztyp(p)&NQ)
 	{
 		case CHAR:
-		    emit(f,"\tstbinc\t%s\n//Disposable, postinc doesn't matter",regnames[t2]);
+		    emit(f,"\tstbinc\t%s\n//Disposable, postinc doesn't matter\n",regnames[t2]);
 			break;
 		case SHORT:
 		    emit(f,"\thlf\n\tst\t%s\n",regnames[t2]);
