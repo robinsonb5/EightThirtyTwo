@@ -1150,6 +1150,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
         emit_constanttotemp(f,pushedargsize(p));
         emit(f,"\tadd\t%s\n",regnames[sp]);
 		emit(f,"\n");
+		pushed-=pushedargsize(p);
       }
       /*FIXME*/
       if((p->q1.flags&(VAR|DREFOBJ))==VAR&&p->q1.v->fi&&(p->q1.v->fi->flags&ALL_REGS)){
