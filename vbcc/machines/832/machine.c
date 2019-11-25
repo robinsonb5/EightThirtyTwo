@@ -1,17 +1,7 @@
-/*  Example backend for vbcc, it models a generic 32bit RISC or CISC
-    CPU.
+/*  EightThirtyTwo backend for vbcc,
+	based on the generic RISCK backend
  
     Configurable at build-time are:
-    - number of (32bit) general-purpose-registers
-    - number of (64bit) floating-point-registers
-    - number of (8bit) condition-code-registers
-    - mechanism for stack-arguments (moving ot fixed sp)
- 
-    It allows to select as run-time-options:
-    - two- or three-address code
-    - memory operands or load-store-architecture
-    - number of register-arguments
-    - number of caller-save-registers
 */                                                                             
 
 // TODO - eliminate unnecessary register shuffling for compare.
@@ -30,7 +20,7 @@ static char FILE_[]=__FILE__;
 /*  Public data that MUST be there.                             */
 
 /* Name and copyright. */
-char cg_copyright[]="vbcc generic code-generator adapted to 832 in baby steps V0.1b.\nOriginal code (c) 2001 by Volker Barthelmann,\n832 Backend 2019 AMR";
+char cg_copyright[]="vbcc EightThirtyTwo code-generator, (c) 2019 by Alastair M. Robinson\nBased on the generic RISC example backend (c) 2001 by Volker Barthelmann";
 
 /*  Commandline-flags the code-generator accepts:
     0: just a flag
@@ -127,7 +117,7 @@ static struct Typ ltyp={LONG},ldbl={DOUBLE},lchar={CHAR};
 
 /* macros defined by the backend */
 static char *marray[]={"__section(x)=__vattr(\"section(\"#x\")\")",
-		       "__GENERIC__",
+		       "__EIGHTTHIRTYTWO__",
 		       0};
 
 /* special registers */
@@ -1167,7 +1157,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
     if((c==ASSIGN||c==PUSH) && t==0)
  		ierror(0);
 
-    // Basically OK - not used very much.  Perhaps don't use a fixed stackframe?
+    // Basically OK.
     if(c==PUSH){
 		emit(f,"\t\t\t\t\t// (a/p push)\n");
 
@@ -1186,6 +1176,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 		emit_prepobj(f,&p->z,t,t2,0);
 		if(((t&NQ)==STRUCT)||((t&NQ)==UNION))
 		{
+			// FIXME - library function?
 			zmax copysize=opsize(p);
 			emit(f,"// Copying %d bytes to %s\n",copysize,p->z.v->identifier);
 			// Copy bytes...

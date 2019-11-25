@@ -69,7 +69,7 @@ clear and the second with the carry flag set. Startup code will use these
 flags to diverge the two execution threads, as well as interrupts.
 
 ## Instruction set
-The ISA has 27 instructions, most of which take one nominated operand and
+The ISA has 28 instructions, most of which take one nominated operand and
 one implicit operand:
 
 ### Move instructions
@@ -91,6 +91,9 @@ have written to r7.
 * sgn  -  Sets the sgn flag, which modifies the "cmp", "shr" and "mul"
 instructions.  Any subsequent ALU instruction will clear it again.
 * hlf  -  modifies the next load/store instruction to operate on halfwords
+rather than full words.  Only modifies the storage size, doesn't modify
+increment or decrement amounts.
+* byt  -  modifies the next load/store instruction to operate on bytes
 rather than full words.  Only modifies the storage size, doesn't modify
 increment or decrement amounts.
 
