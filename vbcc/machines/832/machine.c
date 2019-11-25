@@ -169,7 +169,7 @@ static char *labprefix="l",*idprefix="_";
 
 /* variables to keep track of the current stack-offset in the case of
    a moving stack-pointer */
-static long notpopped,pushed,dontpop,stackoffset,maxpushed;
+static long notpopped,pushed,dontpop,maxpushed;
 
 static long localsize,rsavesize,argsize;
 
@@ -208,7 +208,7 @@ static long real_offset(struct obj *o)
     /* function parameter */
     off=localsize+rsavesize+4-off-zm2l(maxalign);
   }
-  off+=stackoffset;
+  off+=pushed;
   off+=zm2l(o->val.vmax);
   return off;
 }
@@ -286,7 +286,7 @@ static int load_temp(FILE *f,int r,struct obj *o,int type)
 		case POINTER:
 		    emit_prepobj(f,o,type,tmp,0);
 			if(o->flags&DREFOBJ)
-				emit(f,"\tldt\n");
+				emit(f,"\tldt\n// marker4\n");
 			break;
 		default:
 		    emit(f,"#FIXME - load_temp doesn't yet handle type %d\n",type);
@@ -864,6 +864,7 @@ void gen_dc(FILE *f,int t,struct const_list *p)
         emit(f,"#FIXME - unsupported type\n");
     }
     emitval(f,&p->val,t&NU);
+	emit(f,"\n");
 
 #if 0
     if(ISFLOAT(t)){
@@ -879,10 +880,29 @@ void gen_dc(FILE *f,int t,struct const_list *p)
     }
 #endif
   }else{
-        emit(f,"#FIXME - declare from tree\n");
-//    emit_obj(f,&p->tree->o,t&NU);
-  }
-  emit(f,"\n");newobj=0;
+	struct obj *o=&p->tree->o;
+		emit(f,"// Declaring from tree\n");
+		if(isextern(o->v->storage_class)){
+			emit(f,"// extern (offset %d)\n",o->val.vmax);
+			if(o->val.vmax)
+				emit(f,"\t.int\t_%s + %d\n",o->v->identifier,o->val.vmax);
+			else
+				emit(f,"\t.int\t_%s\n",o->v->identifier);
+//			emit_externtotemp(f,p->v->identifier,p->val.vmax);
+//					if(!(p->flags&VARADR))
+//						emit(f,"\tldt\t//Not varadr\n");
+//					if(reg!=tmp)
+//						emit(f,"\tmr\t%s\n",regnames[reg]);
+		}
+		else if(isstatic(o->v->storage_class)){
+			emit(f,"// static\n");
+			emit(f,"\t.int\t%s%d\n",labprefix,zm2l(o->v->offset));
+		}else{
+			emit(f,"error: GenDC (tree) - unknown storage class!\n");
+		}
+//		emit_obj(f,&p->tree->o,t&NU);
+	}
+	newobj=0;
 }
 
 
@@ -906,6 +926,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
   for(c=1;c<=MAXR;c++)
    regs[c]=regsa[c];
   maxpushed=0;
+	pushed=0;
 
 //  for(c=FIRST_GPR;c<=LAST_GPR;++c)
 //    reg_stackrel[c]=0;
@@ -1014,7 +1035,11 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
     }
 
     // Reject types we can't handle - anything beyond a pointer and chars with more than 1 byte.
-    if((c==ASSIGN||c==PUSH)&&((t&NQ)>POINTER||((t&NQ)==CHAR&&zm2l(p->q2.val.vmax)!=1))){
+    if((c==PUSH)&&((t&NQ)>POINTER||((t&NQ)==CHAR&&zm2l(p->q2.val.vmax)!=1))){
+      ierror(0);
+    }
+
+    if((c==ASSIGN)&&((t&NQ)>POINTER && (t&NQ)!=STRUCT||((t&NQ)==CHAR&&zm2l(p->q2.val.vmax)!=1))){
       ierror(0);
     }
 
@@ -1105,9 +1130,17 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 	/* FIXME - deal with different object types here */
         if(p->q1.v->storage_class==STATIC){
           emit_pcreltotemp(f,labprefix,zm2l(p->q1.v->offset));
-          emit(f,"\tadd\t%s\n",regnames[pc]);
+			if(p->q1.flags&DREFOBJ)
+			{
+				emit(f,"\taddt\t%s\t//Deref function pointer\n",regnames[pc]);
+				emit(f,"\tldt\n\texg\t%s\n",regnames[pc]);
+			}
+			else
+				emit(f,"\tadd\t%s\n",regnames[pc]);
         }else if(p->q1.v->storage_class==EXTERN){
           emit_externtotemp(f,p->q1.v->identifier,p->q1.val.vmax);
+			if(p->q1.flags&DREFOBJ)	// Is this a function pointer?
+				emit(f,"\tldt\t// deref function ptr\n");
           emit(f,"\texg\t%s\n",regnames[pc]);
         }
 		else {
@@ -1116,7 +1149,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 		}
         emit_constanttotemp(f,pushedargsize(p));
         emit(f,"\tadd\t%s\n",regnames[sp]);
-	emit(f,"\n");
+		emit(f,"\n");
       }
       /*FIXME*/
       if((p->q1.flags&(VAR|DREFOBJ))==VAR&&p->q1.v->fi&&(p->q1.v->fi->flags&ALL_REGS)){
@@ -1150,8 +1183,31 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 	// FIXME - have to deal with arrays and structs, not just elementary types
 		emit(f,"\t\t\t\t\t// (a/p assign)\n");
 		emit_prepobj(f,&p->z,t,t2,0);
-		load_temp(f,zreg,&p->q1,t);
-		save_temp(f,p);
+		if(((t&NQ)==STRUCT)||((t&NQ)==UNION))
+		{
+			zmax copysize=opsize(p);
+			emit(f,"// Copying %d bytes to %s\n",copysize,p->z.v->identifier);
+			// Copy bytes...
+			load_temp(f,zreg,&p->q1,t);
+			emit(f,"\tmr\t%s\n",regnames[t1]);
+			emit(f,"\tmt\t%s\n\tstdec\t%s\n",regnames[t2+1],regnames[sp]);
+			emit_constanttotemp(f,copysize);
+			emit(f,"\taddt\t%s\n",regnames[t2]);
+			emit(f,"\tmr\t%s\n",regnames[t2+1]);
+			emit(f,".cpy%sloop:\n",p->z.v->identifier);
+			emit(f,"\tldbinc\t%s\n\tstbinc\t%s\n",regnames[t1],regnames[t2]);
+			emit(f,"\tmt\t%s\n\tcmp\t%s\n",regnames[t2],regnames[t2+1]);
+			emit(f,"\tcond\tNEQ\n");
+			emit(f,"\t\tli\tIMW0(PCREL(.cpy%sloop))\n",p->z.v->identifier),
+			emit(f,"\t\tadd\t%s\n",regnames[pc]);
+			emit(f,"\tldinc\t%s\n",regnames[sp]);
+			emit(f,"\tmr\t%s\n",regnames[t2+1]);
+		}
+		else
+		{
+			load_temp(f,zreg,&p->q1,t);
+			save_temp(f,p);
+		}
 		continue;
 	}
 

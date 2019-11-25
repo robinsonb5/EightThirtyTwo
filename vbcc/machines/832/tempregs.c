@@ -65,7 +65,7 @@ static int count_constantchunks(zmax v)
 {
 	int chunk=1;
 	int v2=(int)v;
-	while(((v2&0xffffffe0)!=0) && ((v2&0xffffffe0)!=0xffffffe0)) // Are we looking at a sign-extended 8-bit value yet?
+	while(((v2&0xffffffe0)!=0) && ((v2&0xffffffe0)!=0xffffffe0)) // Are we looking at a sign-extended 6-bit value yet?
 	{
 //		 printf("%08x\n",v2);
 		 v2>>=6;
@@ -122,7 +122,7 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 				}
 				else
 					emit(f,"\tmt\t%s\n",regnames[sp]);
-				emit(f,"\tldt\n");
+				emit(f,"\tldt\n//marker 1\n");
 				if(reg!=tmp)
 					emit(f,"\tmr\t%s\n",regnames[reg]);
 			}
@@ -261,7 +261,7 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 		else {
 			emit_prepobj(f,p,t,tmp,0);
 			if((t&NQ)!=FUNKT) // Function pointers are dereferenced by calling them.
-				emit(f,"\tldt\n");
+				emit(f,"\tldt\n//marker 2\n");
 		}
 	}
 	else
@@ -295,9 +295,13 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 					case INT:
 					case LONG:
 					case POINTER:
-					case FUNKT:
-						emit(f,"\tldt\n");
+						emit(f,"\tldt//marker 3\n");
 						break;
+					case FUNKT:
+						break; // Function pointers are dereferenced by calling them.
+					case STRUCT:
+					case UNION:
+						break; // Structs and unions have to remain as pointers
 					default:
 						emit(f,"// FIXME - type %d not handled\n",t);
 						break;
