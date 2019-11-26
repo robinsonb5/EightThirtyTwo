@@ -5,12 +5,15 @@ GHDL = ghdl
 CC=../bin/vbcc832
 CFLAGS = -+ -O=1311 -size
 COPT = -O=1311
+TIME=100000ns
 all: compiler helloworld.bin
 
 compiler:
 	make -C .. TARGET=832
 
 run: helloworld.ghw
+
+tests: helloworld.ghw helloworld_byte.ghw fptrtest.ghw copytest.ghw comparisons.ghw vatest.ghw
 
 clean :
 	rm *.o
@@ -20,7 +23,7 @@ clean :
 	sed 's/_rom/$*_rom/;s/cpu_tb/$*_tb/' >$*_tb.vhd <tb.vhd
 	$(GHDL) -a $*_ROM.vhd
 	$(GHDL) -a $*_tb.vhd
-	$(GHDL) -c -r $*_tb --ieee-asserts=disable-at-0 --stop-time=100000ns --read-wave-opt=waveopt --wave=$*.ghw
+	$(GHDL) -c -r $*_tb --ieee-asserts=disable-at-0 --stop-time=$(TIME) --read-wave-opt=waveopt --wave=$*.ghw
 
 
 %_ROM.vhd: %.bin $(ROMGEN)
@@ -34,7 +37,7 @@ clean :
 %.o : %.s Makefile
 	gcc -c $*.s
 
-%.elf : start.o %.o
+%.elf : start.o uart.o small_printf.o division.o %.o
 	gcc -Wl,--build-id=none -nostartfiles -nostdlib -Tldscript.ld -o $@ $+
 
 %.o : %.S Makefile ldscript.ld $(832DIR)/start.S

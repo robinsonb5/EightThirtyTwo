@@ -1,10 +1,9 @@
 #include "uart.h"
 #include "stdarg.h"
 
-#define PRINTF_HEX_ONLY
 static char temp[80];
 
-static int _cvt(int val, char *buf, int radix)
+int _cvt(int val, char *buf, int radix)
 {
 #ifdef PRINTF_HEX_ONLY
 	int c;
@@ -56,6 +55,7 @@ static int _cvt(int val, char *buf, int radix)
         }
     }
     while (cp != temp) {
+//		putchar((unsigned char)(*(cp-1)));
         *buf++ = *--cp;
         length++;
     }
@@ -64,7 +64,7 @@ static int _cvt(int val, char *buf, int radix)
 #endif
 }
 
-static char vpfbuf[sizeof(long long)*8];
+static char vpfbuf[sizeof(long)*8];
 
 int small_printf(const char *fmt, ...)
 {
@@ -86,9 +86,11 @@ int small_printf(const char *fmt, ...)
 	        switch (c) {
 			    case 'd':
 			        ret+=length = _cvt(va_arg(ap,int), vpfbuf, 10);
+					puts(vpfbuf);
 				    break;
 			    case 'x':
 			        ret+=length = _cvt(va_arg(ap,int), vpfbuf, 16);
+					puts(vpfbuf);
 				    break;
 			    case 's':
 			        ret+=puts(va_arg(ap, char *));

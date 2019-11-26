@@ -2,27 +2,8 @@
 
 #include "uart.h"
 
-//int thread2main(int argc,char **argv)
-//{
-//}
 
-int main(int argc,char **argv)
-{
-	puts("Hello world!\n");
-	return(-1);
-}
-
-int putchar(int c)
-{
-	volatile int *uart=&HW_UART(REG_UART);
-	do {} while(!((*uart)&(1<<REG_UART_TXREADY)));
-
-	*uart=c;
-	return(c);
-}
-
-
-int puts(const char *msg)
+int puts_nobyte(const char *msg)
 {
 	int c;
 	int result=0;
@@ -43,5 +24,11 @@ int puts(const char *msg)
 		}
 	}
 	return(result);
+}
+
+int main(int argc,char **argv)
+{
+	puts_nobyte("Hello world!\n");
+	return(-1);
 }
 

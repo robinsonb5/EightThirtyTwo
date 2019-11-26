@@ -2,12 +2,16 @@
 #include "stdarg.h"
 #include "small_printf.h"
 
+int _cvt(int val, char *buf, int radix);
+
+char buf[16];
+
 int main(int argc,char **argv)
 {
-	small_printf("T: %s, %c, %d\n","Testing",65,42);
+	int a=512;
+	int	b=10;
+	small_printf("T: %s, %c, %d\n","Testing",65,a/b);
+	small_printf("X: %x\n",0x12345678);
 	return(0);
 }
-
-#include "small_printf.c"
-#include "uart.c"
 

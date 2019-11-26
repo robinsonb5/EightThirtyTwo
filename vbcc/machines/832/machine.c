@@ -1183,6 +1183,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 			load_temp(f,zreg,&p->q1,t);
 			emit(f,"\tmr\t%s\n",regnames[t1]);
 			emit(f,"\tmt\t%s\n\tstdec\t%s\n",regnames[t2+1],regnames[sp]);
+			pushed+=4;
 			emit_constanttotemp(f,copysize);
 			emit(f,"\taddt\t%s\n",regnames[t2]);
 			emit(f,"\tmr\t%s\n",regnames[t2+1]);
@@ -1194,6 +1195,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 			emit(f,"\t\tadd\t%s\n",regnames[pc]);
 			emit(f,"\tldinc\t%s\n",regnames[sp]);
 			emit(f,"\tmr\t%s\n",regnames[t2+1]);
+			pushed-=4;
 		}
 		else
 		{
@@ -1261,21 +1263,62 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 	// FIXME - need to deal with loading both operands here.
         emit(f,"\t\t\t\t\t// (bitwise) ");
         emit(f,"loadreg\n");
-	if(!isreg(q1) || q1reg!=zreg)
-	{
-		emit_objtotemp(f,&p->q1,t);
-		emit(f,"\tmr\t%s\n",regnames[zreg]);	// FIXME - what happens if zreg and q1/2 are the same?
+
+	// FIXME - have a collision here if the second operand is already in the target register
+	if((c>=OR&&c<=AND) || (c<DIV)){
+		if(isreg(q2) && q2reg==zreg)
+		{
+			printf("Target register and q2 are the same!  Attempting a switch...\n");
+			if(!switch_IC(p))
+			{
+				printf("FIXME - need to handle this case\n");
+				ierror(0);
+			}
+		}
+		if(!isreg(q1) || q1reg!=zreg)
+		{
+			emit_objtotemp(f,&p->q1,t);
+			emit(f,"\tmr\t%s\n",regnames[zreg]);	// FIXME - what happens if zreg and q1/2 are the same?
+		}
+		emit_objtotemp(f,&p->q2,t);
+		if(c>=OR&&c<=AND)
+			emit(f,"\t%s\t%s\n",logicals[c-OR],regnames[zreg]);
+		else
+			emit(f,"\t%s\t%s\n",arithmetics[c-LSHIFT],regnames[zreg]);
+		save_result(f,p);
+		continue;
 	}
-	emit_objtotemp(f,&p->q2,t);
-      if(c>=OR&&c<=AND)
-	emit(f,"\t%s\t%s\n",logicals[c-OR],regnames[zreg]);
-      else
-	emit(f,"\t%s\t%s\n",arithmetics[c-LSHIFT],regnames[zreg]);
-      save_result(f,p);
-      continue;
-    }
+	else if((c==MOD)||(c==DIV)){
+		emit(f,"\t//Call division routine\n");
+		emit_objtotemp(f,&p->q1,t);
+		emit(f,"\tmr\t%s\n",regnames[t2]);
+		// FIXME - determine here whether R2 really needs saving - may be in use, or may be the target register.
+		emit(f,"\tmt\t%s\n\tstdec\t%s\n",regnames[t2+1],regnames[sp]);
+		pushed+=4;
+
+		emit_objtotemp(f,&p->q2,t);
+		emit(f,"\tmr\t%s\n",regnames[t2+1]);
+
+		emit(f,"\tldinc\t%s\n",regnames[pc]);
+		if((!(q1typ(p)&UNSIGNED))&&(!(q2typ(p)&UNSIGNED)))	// If we have a mismatch of signedness we treat as unsigned.
+			emit(f,"\t.int\t_div_u32byu32\n");
+		else
+			emit(f,"\t.int\t_div_s32bys32\n");
+		emit(f,"\texg\t%s\n",regnames[pc]);
+
+		emit(f,"\tldinc\t%s\n\tmr\t%s\n",regnames[sp],regnames[t2+1]);
+		pushed-=4;
+
+		if(c==MOD)
+			emit(f,"\tmt\t%s\n\tmr\t%s\n",regnames[t2],regnames[zreg]);
+		else
+			emit(f,"\tmt\t%s\n\tmr\t%s\n",regnames[t1],regnames[zreg]);
+
+		continue;
+	}
     pric2(stdout,p);
     ierror(0);
+	}
   }
   function_bottom(f,v,localsize);
   if(stack_valid){
