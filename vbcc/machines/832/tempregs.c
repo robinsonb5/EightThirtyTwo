@@ -91,8 +91,8 @@ static void emit_constanttotemp(FILE *f,zmax v)
 static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 {
 	emit(f,"\t\t\t\t\t// (prepobj %s)",regnames[reg]);
-	if(p->v && p->v->identifier)
-		emit(f," (%s) ",p->v->identifier);
+//	if(p->v && p->v->identifier)
+//		emit(f," (%s) ",p->v->identifier);
 	if((p->flags&(KONST|DREFOBJ))==(KONST|DREFOBJ)){
 		emit(f," const/deref\n");
 		emit_constanttotemp(f,val2zmax(f,p,p->dtyp));

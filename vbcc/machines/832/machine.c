@@ -1,16 +1,23 @@
 /*  EightThirtyTwo backend for vbcc,
-	based on the generic RISCK backend
+	based on the generic RISC backend
  
-    Configurable at build-time are:
 */                                                                             
 
 // TODO - eliminate unnecessary register shuffling for compare.
+
 // Implement block copying
-// Implement division / modulo using library code.
-// Mark registers as disposable if their contents are never used beyond the current op.
-// Look at ways of improving code efficiency.
+
+// DONE: Implement division / modulo using library code.
+// DONE: Mark registers as disposable if their contents are never used beyond the current op.
+
+// Look at ways of improving code efficiency.  Look for situations where the output of one IC
+// becomes the input of another?  Would make a big difference when registers are all in use.
+
 // Minus could be optimised for the in-register case.
-// Do we need to reserve two temp registers?
+
+// Do we need to reserve two temp registers?  So far I think we do, but revisit.
+
+// Restrict byte and halfword storage to static and extern types, not stack-based variables.
 
 
 #include "supp.h"
@@ -193,7 +200,7 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t);
 static long real_offset(struct obj *o)
 {
   long off=zm2l(o->v->offset);
-	printf("Parameter offset: %d, localsize: %d, rsavesize: %d\n",off,localsize,rsavesize);
+//	printf("Parameter offset: %d, localsize: %d, rsavesize: %d\n",off,localsize,rsavesize);
   if(off<0){
     /* function parameter */
     off=localsize+rsavesize+4-off-zm2l(maxalign);
@@ -255,7 +262,7 @@ static int load_temp(FILE *f,int r,struct obj *o,int type)
   if(o->flags&VARADR){
 	// FIXME - this block net yet tested
 	emit(f,"FIXME - not tested\n");
-	switch(type&NQ)
+	switch(type)
 	{
 		case CHAR:
 			if(o->flags&DREFOBJ)
@@ -310,7 +317,17 @@ static void store_reg(FILE *f,int r,struct obj *o,int type)
 {
 	// Need to take different types into account here.
 	emit(f,"// Store_reg to type 0x%x\n",type);
-	switch(type&NQ)
+
+	type&=NQ;	// Filter out unsigned, etc.
+
+	// We don't want to modify the storage size for stack-based variables.
+	if(o->v->storage_class==AUTO && (type==CHAR || type==SHORT))
+	{
+		emit(f,"(promoting to int for stack");
+		type=INT;
+	}
+
+	switch(type)
 	{
 		case CHAR:
 			emit_prepobj(f,o,type&NQ,tmp,0);
@@ -402,12 +419,16 @@ static struct IC *preload(FILE *f,struct IC *p)
 void save_temp(FILE *f,struct IC *p)
 {
   emit(f,"\t\t\t\t\t// (save temp) ");
+  int type=ztyp(p)&NQ;
+
   if(isreg(z)){
     emit(f,"isreg\n");
     emit(f,"\tmr\t%s\n",regnames[p->z.reg]);
   }else if ((p->z.flags&DREFOBJ) && (p->z.flags&REG)){
+	// We don't want to change the storage type for stack-based variables.
+
     emit(f,"store reg\n");
-	switch(ztyp(p)&NQ)
+	switch(type)
 	{
 		case CHAR:
 			if(p->z.am && p->z.am->type==AM_POSTINC)
@@ -433,8 +454,13 @@ void save_temp(FILE *f,struct IC *p)
 			break;
 	}
   } else {
+	if(p->z.v->storage_class==AUTO && (type==CHAR || type==SHORT))
+	{
+		emit(f,"(promoting to int for stack");
+		type=INT;
+	}
     emit(f,"store prepped reg\n");
-	switch(ztyp(p)&NQ)
+	switch(type)
 	{
 		case CHAR:
 		    emit(f,"\tstbinc\t%s\n//Disposable, postinc doesn't matter\n",regnames[t2]);

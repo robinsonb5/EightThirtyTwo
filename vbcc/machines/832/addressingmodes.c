@@ -219,6 +219,7 @@ static void find_addressingmodes(struct IC *p)
 
 	for(;p;p=p->next){
 		c=p->code;
+#if 0
 		printf("Code %x\t",c);
 		switch(c)
 		{
@@ -466,6 +467,7 @@ static void find_addressingmodes(struct IC *p)
 			default:
 				break;
 		}
+#endif
 		am_prepost_incdec(p,&p->q1);
 		am_prepost_incdec(p,&p->q2);
 		am_prepost_incdec(p,&p->z);
