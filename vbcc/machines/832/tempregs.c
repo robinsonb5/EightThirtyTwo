@@ -91,6 +91,8 @@ static void emit_constanttotemp(FILE *f,zmax v)
 static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 {
 	emit(f,"\t\t\t\t\t// (prepobj %s)",regnames[reg]);
+	if(p->v && p->v->identifier)
+		emit(f," (%s) ",p->v->identifier);
 	if((p->flags&(KONST|DREFOBJ))==(KONST|DREFOBJ)){
 		emit(f," const/deref\n");
 		emit_constanttotemp(f,val2zmax(f,p,p->dtyp));
@@ -261,7 +263,26 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 		else {
 			emit_prepobj(f,p,t,tmp,0);
 			if((t&NQ)!=FUNKT) // Function pointers are dereferenced by calling them.
+			{
+				switch(t&NQ)
+				{
+					case CHAR:
+						emit(f,"\tbyt\n\tldt\n");
+						break;
+					case SHORT:
+						emit(f,"\thlf\n");
+						break;
+					case INT:
+					case LONG:
+					case POINTER:
+						break;
+					default:
+						printf("//emit_objtotmp - unhandled type 0x%x\n",t);
+						ierror(0);
+						break;
+				}
 				emit(f,"\tldt\n//marker 2\n");
+			}
 		}
 	}
 	else

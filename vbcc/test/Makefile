@@ -5,7 +5,7 @@ GHDL = ghdl
 CC=../bin/vbcc832
 CFLAGS = -+ -O=1311 -size
 COPT = -O=1311
-TIME=100000ns
+TIME=200000ns
 all: compiler helloworld.bin
 
 compiler:

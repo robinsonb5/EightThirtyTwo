@@ -70,7 +70,7 @@ int small_printf(const char *fmt, ...)
 {
     va_list ap;
     int ret=0;
-	int c;
+	unsigned int c;
 	int nextfmt=0;
 	int length;
 

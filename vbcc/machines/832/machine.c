@@ -308,9 +308,31 @@ static void load_reg(FILE *f,int r,struct obj *o,int type)
 /*  Generates code to store register r into memory object o. */
 static void store_reg(FILE *f,int r,struct obj *o,int type)
 {
-  type&=NQ;
-  emit_prepobj(f,o,type,tmp,4); // FIXME - stmpdec predecrements, so need to add 4!
-  emit(f,"\tstmpdec\t%s\n",regnames[r]);
+	// Need to take different types into account here.
+	emit(f,"// Store_reg to type 0x%x\n",type);
+	switch(type&NQ)
+	{
+		case CHAR:
+			emit_prepobj(f,o,type&NQ,tmp,0);
+			emit(f,"\texg\t%s\n",regnames[r]);
+			emit(f,"\tstbinc\t%s\t//WARNING - pointer / reg not restored, might cause trouble!\n",regnames[r]);
+			break;
+		case SHORT:
+			emit_prepobj(f,o,type&NQ,tmp,0);
+			emit(f,"\texg\t%s\n",regnames[r]);
+			emit(f,"\thlf\n\tst\t%s\t//WARNING - reg not restored, might cause trouble!\n",regnames[r]);
+			break;
+		case INT:
+		case LONG:
+		case POINTER:
+			emit_prepobj(f,o,type&NQ,tmp,4); // FIXME - stmpdec predecrements, so need to add 4!
+			emit(f,"\tstmpdec\t%s\n",regnames[r]);
+			break;
+		default:
+			printf("store_reg: unhandled type 0x%x\n",type);
+			ierror(0);
+			break;
+	}
 }
 
 /*  Generates code to store temp register r into memory object o. */
@@ -991,6 +1013,9 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 	continue;
     }
 
+	if(p->file)
+		emit(f,"\n\t//%s, line %d\n",p->file,p->line);
+
     // OK
     if(c==BRA){
       if(0/*t==exit_label&&framesize==0*/)
@@ -1026,10 +1051,12 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 
     // Reject types we can't handle - anything beyond a pointer and chars with more than 1 byte.
     if((c==PUSH)&&((t&NQ)>POINTER||((t&NQ)==CHAR&&zm2l(p->q2.val.vmax)!=1))){
+		printf("Pushing a type we don't yet handle: 0x%x\n",t);
       ierror(0);
     }
 
     if((c==ASSIGN)&&((t&NQ)>POINTER && (t&NQ)!=STRUCT||((t&NQ)==CHAR&&zm2l(p->q2.val.vmax)!=1))){
+		printf("Assignment of a type we don't yet handle: 0x%x\n",t);
       ierror(0);
     }
 
@@ -1313,7 +1340,8 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 			emit(f,"\tmt\t%s\n\tmr\t%s\n",regnames[t2],regnames[zreg]);
 		else
 			emit(f,"\tmt\t%s\n\tmr\t%s\n",regnames[t1],regnames[zreg]);
-
+		// Target not guaranteed to be a register.
+		save_result(f,p);
 		continue;
 	}
     pric2(stdout,p);
