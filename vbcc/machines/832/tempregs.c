@@ -34,6 +34,34 @@ zmax val2zmax(FILE *f,struct obj *o,int t)
 }
 
 
+static void emit_sizemod(FILE *f,int type)
+{
+	emit(f,"\t\t//sizemod based on type 0x%x\n",type);
+	switch(type&NQ)
+	{
+		case CHAR:
+			emit(f,"\tbyt\n");
+			break;
+		case SHORT:
+			emit(f,"\thlf\n");
+			break;
+		case INT:
+		case LONG:
+		case POINTER:
+			break;
+		case FUNKT:
+			break; // Function pointers are dereferenced by calling them.
+		case STRUCT:
+		case UNION:
+			break; // Structs and unions have to remain as pointers
+		default:
+			emit(f,"// FIXME - emit_sizemod - type %d not handled\n",type);
+			ierror(0);
+			break;
+	}
+}
+
+
 static void emit_pcreltotemp(FILE *f,char *lab,int suffix)
 {
 	emit(f,"#pcrel - FIXME - might need more bits; we currently only support 12-bit signed offset.\n");
@@ -95,7 +123,7 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 //		emit(f," (%s) ",p->v->identifier);
 	if((p->flags&(KONST|DREFOBJ))==(KONST|DREFOBJ)){
 		emit(f," const/deref\n");
-		emit_constanttotemp(f,val2zmax(f,p,p->dtyp));
+		emit_constanttotemp(f,val2zmax(f,p,p->dtyp)+offset);
 		if(reg!=tmp)
 			emit(f,"\tmr\t%s\n",regnames[reg]);
 		return;
@@ -183,36 +211,20 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 				if(isextern(p->v->storage_class)){
 					emit(f," extern (offset %d)\n",p->val.vmax);
 					emit_externtotemp(f,p->v->identifier,p->val.vmax);
-//					if(!(p->flags&VARADR))
-//						emit(f,"\tldt\t//Not varadr\n");
 					if(reg!=tmp)
 						emit(f,"\tmr\t%s\n",regnames[reg]);
 				}
 				else if(isstatic(p->v->storage_class)){
 					emit(f," static\n");
 					emit(f,"\tldinc\tr7\n\t.int\t%s%d\n",labprefix,zm2l(p->v->offset));
-//					if(!(p->flags&VARADR))
-//						emit(f,"\tldt\t//Not varadr\n");
 					if(reg!=tmp)
 						emit(f,"\tmr\t%s\n",regnames[reg]);
 				}else{
 					emit(f," FIXME - unknown storage class!\n");
 				}
-#if 0
-				if(!zmeqto(l2zm(0L),p->val.vmax)){
-					emit(f," offset (p->val.vmax==0) - storage class: %x ",p->v->storage_class);
-					emit_constanttotemp(f,val2zmax(f,p,LONG));
-					emit(f,"\tmr\t%s\n",regnames[reg]);
-					emit_pcreltotemp(f,labprefix,zm2l(p->v->offset));
-					emit(f,"\tadd\t%s\n",regnames[reg]);
-				}
-#endif
 			}
 		}
 	}
-//	if(p->flags&KONST){
-//		emit_constanttotemp(f,val2zmax(f,p,t));
-//	}
 }
 
 
@@ -222,6 +234,23 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 	if((p->flags&(KONST|DREFOBJ))==(KONST|DREFOBJ)){
 		emit(f," const/deref # FIXME deal with different data sizes when dereferencing\n");
 		emit_prepobj(f,p,t,t1,0);
+		switch(t&NQ)
+		{
+			case CHAR:
+				emit(f,"\tbyt\n");
+				break;
+			case SHORT:
+				emit(f,"\thlf\n");
+				break;
+			case INT:
+			case LONG:
+			case POINTER:
+				break;
+			default:
+				printf("Obttotmp contstant - unhandled type 0x%x\n",t);
+				ierror(0);
+				break;
+		}
 		emit(f,"\tld\t%s\n",regnames[t1]);
 		return;
 	}
@@ -264,23 +293,7 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 			emit_prepobj(f,p,t,tmp,0);
 			if((t&NQ)!=FUNKT) // Function pointers are dereferenced by calling them.
 			{
-				switch(t&NQ)
-				{
-					case CHAR:
-						emit(f,"\tbyt\n\tldt\n");
-						break;
-					case SHORT:
-						emit(f,"\thlf\n");
-						break;
-					case INT:
-					case LONG:
-					case POINTER:
-						break;
-					default:
-						printf("//emit_objtotmp - unhandled type 0x%x\n",t);
-						ierror(0);
-						break;
-				}
+				emit_sizemod(f,t);
 				emit(f,"\tldt\n//marker 2\n");
 			}
 		}
@@ -293,6 +306,7 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 		}else if(p->flags&VAR) {
 			if(isauto(p->v->storage_class)) {
 				emit(f," var, auto|reg\n");
+				emit_sizemod(f,t);
 				if(real_offset(p)) {
 					emit_constanttotemp(f,real_offset(p));
 					emit(f,"\tldidx\t%s\n",regnames[sp]);
@@ -306,8 +320,8 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 				switch(t&NQ)
 				{
 					case CHAR:
-						emit(f,"\tmr\t%s\n",regnames[t1]);
-						emit(f,"\tldbinc\t%s\n",regnames[t1]);	// Disposable, no need to worry about postinc / predec
+						emit(f,"\tbyt\n");
+						emit(f,"\tldt\n");
 						break;
 					case SHORT:
 						emit(f,"\thlf\n");
@@ -324,19 +338,10 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 					case UNION:
 						break; // Structs and unions have to remain as pointers
 					default:
-						emit(f,"// FIXME - type %d not handled\n",t);
+						emit(f,"// FIXME - emitobjtotmp extern loadtype %d not handled\n",t);
+						ierror(0);
 						break;
 				}
-#if 0
-				if(!zmeqto(l2zm(0L),p->val.vmax)){
-					emit_constanttotemp(f,val2zmax(f,p,LONG));
-					emit(f,"\tmr\t%s\n",regnames[t1]);
-		// FIXME - not pc-relative!
-					emit_pcreltotemp(f,labprefix,zm2l(p->v->offset));
-					emit(f,"\taddt\t%s\n",regnames[t1]);
-		// FIXME - probably need to load here.
-				}
-#endif
 			}
 			else if(isstatic(p->v->storage_class))
 			{

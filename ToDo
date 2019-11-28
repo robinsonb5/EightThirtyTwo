@@ -8,10 +8,16 @@ DONE Implement interrupts
 
 * Results forwarding?
 
-* GHDL - can we integrate a proper UART emulation and print results to the Shell window?
+DONE  GHDL - can we integrate a proper UART emulation and print results to the Shell window?
+      (Sort of - have to write a line at a time.)
 
-* Look at multithreading.  Would need a second register file, a second PC and a second fetch channel.
-  The second thread would launch with the C flag set, so startup code can tell whether it's dealing with
-  Thread 1, Thread 2 or an interrupt.
+DONE  Look at multithreading.  Would need a second register file, a second PC and a second fetch channel.
+      The second thread would launch with the C flag set, so startup code can tell whether it's dealing with
+      Thread 1, Thread 2 or an interrupt.
 
 * C backend - get signed-ness, composite types and halfword / byte operations working.
+
+* Look at the instruction set again.
+	* stinc?
+	* Can we adjust pre/postinc based on byt/hlf directives?
+

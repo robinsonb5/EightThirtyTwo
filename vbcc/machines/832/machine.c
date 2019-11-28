@@ -321,11 +321,11 @@ static void store_reg(FILE *f,int r,struct obj *o,int type)
 	type&=NQ;	// Filter out unsigned, etc.
 
 	// We don't want to modify the storage size for stack-based variables.
-	if(o->v->storage_class==AUTO && (type==CHAR || type==SHORT))
-	{
-		emit(f,"(promoting to int for stack");
-		type=INT;
-	}
+//	if(o->v && isauto(o->v->storage_class) && (type==CHAR || type==SHORT))
+//	{
+//		emit(f,"(promoting to int for stack");
+//		type=INT;
+//	}
 
 	switch(type)
 	{
@@ -425,7 +425,6 @@ void save_temp(FILE *f,struct IC *p)
     emit(f,"isreg\n");
     emit(f,"\tmr\t%s\n",regnames[p->z.reg]);
   }else if ((p->z.flags&DREFOBJ) && (p->z.flags&REG)){
-	// We don't want to change the storage type for stack-based variables.
 
     emit(f,"store reg\n");
 	switch(type)
@@ -454,11 +453,11 @@ void save_temp(FILE *f,struct IC *p)
 			break;
 	}
   } else {
-	if(p->z.v->storage_class==AUTO && (type==CHAR || type==SHORT))
-	{
-		emit(f,"(promoting to int for stack");
-		type=INT;
-	}
+//	if(p->z.v->storage_class==AUTO && (type==CHAR || type==SHORT))
+//	{
+//		emit(f,"(promoting to int for stack");
+//		type=INT;
+//	}
     emit(f,"store prepped reg\n");
 	switch(type)
 	{
@@ -491,6 +490,7 @@ void save_result(FILE *f,struct IC *p)
     load_reg(f,t2,&p->z,POINTER);
     p->z.reg=t2;
     p->z.flags|=(REG|DREFOBJ);
+	emit(f,"\t\t\t\t// ");
   }
   if(isreg(z)){
     emit(f,"isreg\n");

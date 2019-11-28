@@ -96,6 +96,7 @@ begin
 	elsif rising_edge(clk) then
 
 		immediatestreak<='0';
+		busyflag<='0';
 
 		if multiplier=true then
 			mulresult <= signed((d1(31) and sgn)&d1) * signed((d2(31) and sgn)&d2);
