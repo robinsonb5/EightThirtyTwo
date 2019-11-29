@@ -38,7 +38,7 @@ clean :
 	gcc -c $*.s
 
 %.elf : start.o uart.o small_printf.o division.o %.o
-	gcc -Wl,--build-id=none -nostartfiles -nostdlib -Tldscript.ld -o $@ $+
+	gcc -Wl,--build-id=none -Wl,--gc-sections -nostartfiles -nostdlib -Tldscript.ld -o $@ $+
 
 %.o : %.S Makefile ldscript.ld $(832DIR)/start.S
 	gcc -I. -I$(832DIR) -c $*.S -o $*.o

@@ -149,9 +149,9 @@ static char *udt[MAX_TYPE+1]={"??","uc","us","ui","ul","ull","f","d","ld","v","p
 static long stack;
 static int stack_valid;
 static int section=-1,newobj;
-static char *codename="\t.text\n",
-  *dataname="\t.data\n",
-  *bssname="",
+static char *codename="\t.section\t.text\n",
+  *dataname="\t.section\t.data\n",
+  *bssname="\t.section\t.bss\n",
   *rodataname="\t.section\t.rodata\n";
 
 
@@ -527,7 +527,10 @@ static void function_top(FILE *f,struct Var *v,long offset)
       ++regcount;
   }
   rsavesize=0;
-  if(!special_section(f,v)&&section!=CODE){emit(f,codename);if(f) section=CODE;} 
+  if(!special_section(f,v)){ // &&section!=CODE){ // We want a new section for every function so that --gc-sections can work.
+//		emit(f,codename);//if(f) section=CODE;
+		emit(f,"\t.section\t.text.%s\n",v->identifier);
+	}
   if(v->storage_class==EXTERN){
     if((v->flags&(INLINEFUNC|INLINEEXT))!=INLINEFUNC)
       emit(f,"\t.global\t%s%s\n",idprefix,v->identifier);

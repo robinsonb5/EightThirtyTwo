@@ -7,13 +7,19 @@ SECTIONS
 {
 	. = 0x0;
 	_start = .;
+
+	.text.startup :
+	{
+		KEEP(*(.text.startup)) /* Seed section, allows use of --gc-sections */
+	} >mem
+
 	.code : {
-	  *(.text.startup)
 	  *(.text)
 	  *(.rodata)
 	  *(.rodata.*)
 	  *(.data)
 	} >mem
+
 	.extra : {
 		__bss_start__ = . ;
 	  *(.bss)
