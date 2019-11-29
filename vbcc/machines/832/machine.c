@@ -134,9 +134,6 @@ static int tmp;
 static int t1,t2;                  /*  temporary gprs */
 static int f1,f2,f3;               /*  temporary fprs */
 
-// int reg_stackrel[LAST_GPR+1];	/* Register currently contains a pointer to an item on the stack */
-// int reg_stackoffset[LAST_GPR+1];	/* Offset of stack item */
-
 
 #define dt(t) (((t)&UNSIGNED)?udt[(t)&NQ]:sdt[(t)&NQ])
 static char *sdt[MAX_TYPE+1]={"??","c","s","i","l","ll","f","d","ld","v","p"};
@@ -241,7 +238,8 @@ static int special_section(FILE *f,struct Var *v)
 static void load_address_to_temp(FILE *f,int r,struct obj *o,int type)
 /*  Generates code to load the address of a variable into register r.   */
 {
-  emit(f,"\t\t\t\t//FIXME - load_address\n");
+	printf("load_address_to_temp not yet implemented\n");
+	ierror(0);
 }
 
 /* generate code to load the address of a variable into register r */
@@ -250,7 +248,8 @@ static void load_address(FILE *f,int r,struct obj *o,int type)
 {
   emit_prepobj(f,o,type,r,0);
   if(o->v->storage_class==REGISTER){
-    emit(f,"#FIXME - can't get the address of a register!\n");
+    printf("load_address: ERROR - can't get the address of a register!\n");
+	ierror(0);
   }
 }
 
@@ -260,8 +259,6 @@ static int load_temp(FILE *f,int r,struct obj *o,int type)
   type&=NQ;
   emit(f,"\t\t\t\t\t// (load_temp - type %d)",type);
   if(o->flags&VARADR){
-	// FIXME - this block net yet tested
-	emit(f,"FIXME - not tested\n");
 	switch(type)
 	{
 		case CHAR:
@@ -286,7 +283,8 @@ static int load_temp(FILE *f,int r,struct obj *o,int type)
 				emit(f,"\tldt\n// marker4\n");
 			break;
 		default:
-		    emit(f,"#FIXME - load_temp doesn't yet handle type %d\n",type);
+		    printf("FIXME - load_temp doesn't yet handle type 0x%x\n",type);
+			ierror(0);
 			break;
 	}
   }else{
@@ -308,7 +306,6 @@ static void load_reg(FILE *f,int r,struct obj *o,int type)
   if(load_temp(f,r,o,type))
   {
     emit(f,"\tmr\t%s\n",regnames[r]);
-//    reg_stackrel[r]=0;
   }
 }
 
@@ -899,7 +896,8 @@ void gen_dc(FILE *f,int t,struct const_list *p)
         emit(f,"\t.int\t");
         break;
       default:
-        emit(f,"#FIXME - unsupported type\n");
+        printf("gen_dc: unsupported type 0x%x\n",t);
+		ierror(0);
     }
     emitval(f,&p->val,t&NU);
 	emit(f,"\n");
@@ -926,19 +924,13 @@ void gen_dc(FILE *f,int t,struct const_list *p)
 				emit(f,"\t.int\t_%s + %d\n",o->v->identifier,o->val.vmax);
 			else
 				emit(f,"\t.int\t_%s\n",o->v->identifier);
-//			emit_externtotemp(f,p->v->identifier,p->val.vmax);
-//					if(!(p->flags&VARADR))
-//						emit(f,"\tldt\t//Not varadr\n");
-//					if(reg!=tmp)
-//						emit(f,"\tmr\t%s\n",regnames[reg]);
 		}
 		else if(isstatic(o->v->storage_class)){
 			emit(f,"// static\n");
 			emit(f,"\t.int\t%s%d\n",labprefix,zm2l(o->v->offset));
 		}else{
-			emit(f,"error: GenDC (tree) - unknown storage class!\n");
+			printf("error: GenDC (tree) - unknown storage class 0x%x!\n",o->v->storage_class);
 		}
-//		emit_obj(f,&p->tree->o,t&NU);
 	}
 	newobj=0;
 }
@@ -955,6 +947,7 @@ void gen_dc(FILE *f,int t,struct const_list *p)
 void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 /*  The main code-generation.                                           */
 {
+  static int loopid=0;
   static int idemp=0;
   int c,t,i;
   struct IC *m;
@@ -966,8 +959,6 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
   maxpushed=0;
 	pushed=0;
 
-//  for(c=FIRST_GPR;c<=LAST_GPR;++c)
-//    reg_stackrel[c]=0;
 
   if(!idemp)
   {
@@ -1034,8 +1025,6 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
     if(c==LABEL) {
         int i;
         emit(f,"%s%d: # \n",labprefix,t);
-//        for(i=FIRST_GPR;i<=LAST_GPR;++i) // Can't carry register contexts across labels.
-//          reg_stackrel[i]=0;
 	continue;
     }
 
@@ -1081,7 +1070,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
       ierror(0);
     }
 
-    if((c==ASSIGN)&&((t&NQ)>POINTER && (t&NQ)!=STRUCT||((t&NQ)==CHAR&&zm2l(p->q2.val.vmax)!=1))){
+    if((c==ASSIGN)&&((t&NQ)>POINTER && (t&NQ)!=STRUCT)){ // ||((t&NQ)==CHAR&&zm2l(p->q2.val.vmax)!=1))){
 		printf("Assignment of a type we don't yet handle: 0x%x\n",t);
       ierror(0);
     }
@@ -1151,8 +1140,6 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
     if(c==GETRETURN){
       emit(f,"\t\t\t\t\t// (getreturn)");
       if(p->q1.reg){
-//        emit(f," reg\n");
-//        emit(f,"\tmt\t%s\n",regnames[p->q1.reg]);
         zreg=p->q1.reg;
 	save_result(f,p);
       }else
@@ -1215,6 +1202,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 		emit(f,"\t\t\t\t\t// (a/p push)\n");
 
 		/* FIXME - need to take dt into account */
+		// FIXME - need to handle pushing composite types */
 		emit(f,"\t\t\t\t\t// a: pushed %ld, regnames[sp] %s\n",pushed,regnames[sp]);
 		emit_objtotemp(f,&p->q1,t);
 		emit(f,"\tstdec\t%s\n",regnames[sp]);
@@ -1222,13 +1210,14 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 		continue;
     }
 
-    // Need to special case writing register to memory using addt and stt
     if(c==ASSIGN){
 	// FIXME - have to deal with arrays and structs, not just elementary types
 		emit(f,"\t\t\t\t\t// (a/p assign)\n");
 		emit_prepobj(f,&p->z,t,t2,0);
-		if(((t&NQ)==STRUCT)||((t&NQ)==UNION))
+		if(((t&NQ)==STRUCT)||((t&NQ)==UNION)||((t&NQ)==CHAR && zm2l(p->q2.val.vmax)!=1))
 		{
+			if((t&NQ)==CHAR)
+				emit(f,"// (char with size!=1 -> array of unknown type)\n");
 			// FIXME - library function?
 			zmax copysize=opsize(p);
 			emit(f,"// Copying %d bytes to %s\n",copysize,p->z.v->identifier);
@@ -1240,15 +1229,16 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 			emit_constanttotemp(f,copysize);
 			emit(f,"\taddt\t%s\n",regnames[t2]);
 			emit(f,"\tmr\t%s\n",regnames[t2+1]);
-			emit(f,".cpy%sloop:\n",p->z.v->identifier);
+			emit(f,".cpy%sloop%d:\n",p->z.v->identifier,loopid);
 			emit(f,"\tldbinc\t%s\n\tstbinc\t%s\n",regnames[t1],regnames[t2]);
 			emit(f,"\tmt\t%s\n\tcmp\t%s\n",regnames[t2],regnames[t2+1]);
 			emit(f,"\tcond\tNEQ\n");
-			emit(f,"\t\tli\tIMW0(PCREL(.cpy%sloop))\n",p->z.v->identifier),
+			emit(f,"\t\tli\tIMW0(PCREL(.cpy%sloop%d))\n",p->z.v->identifier,loopid);
 			emit(f,"\t\tadd\t%s\n",regnames[pc]);
 			emit(f,"\tldinc\t%s\n",regnames[sp]);
 			emit(f,"\tmr\t%s\n",regnames[t2+1]);
 			pushed-=4;
+			loopid++;
 		}
 		else
 		{
@@ -1303,7 +1293,6 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 			emit(f," (q2 signed)");
       emit_objtotemp(f,&p->q1,t);
       emit(f,"\tmr\t%s\n",regnames[t2]);
-//      reg_stackrel[t2]=0;
       emit_objtotemp(f,&p->q2,t);
 	  if((!(q1typ(p)&UNSIGNED))&&(!(q2typ(p)&UNSIGNED)))	// If we have a mismatch of signedness we treat as unsigned.
 		emit(f,"\tsgn\n"); // Signed comparison
@@ -1380,7 +1369,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
     v->fi->flags|=ALL_STACK;
     v->fi->stack1=stack;
   }
-  emit(f,"# stacksize=%lu%s\n",zum2ul(stack),stack_valid?"":"+??");
+  emit(f,"// stacksize=%lu%s\n",zum2ul(stack),stack_valid?"":"+??");
 }
 
 int shortcut(int code,int typ)

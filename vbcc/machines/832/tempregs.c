@@ -31,6 +31,7 @@ zmax val2zmax(FILE *f,struct obj *o,int t)
 	if(t==(UNSIGNED|MAXINT)) return(p->vumax);
 	if(t==POINTER) return(zul2zum(p->vulong));
 	emit(f,"#FIXME - no float support yet\n");
+	ierror(0);
 }
 
 
@@ -64,7 +65,8 @@ static void emit_sizemod(FILE *f,int type)
 
 static void emit_pcreltotemp(FILE *f,char *lab,int suffix)
 {
-	emit(f,"#pcrel - FIXME - might need more bits; we currently only support 12-bit signed offset.\n");
+	printf("Warning: PC Relative offsets are currently (arbitrarily) restricted to 12 bits.\n");
+	emit(f,"\t\t\t//pcreltotemp - FIXME - might need more bits; we currently only support 12-bit signed offset.\n");
 	emit(f,"\tli\tIMW1(PCREL(%s%d)-1)\n",lab,suffix);
 	emit(f,"\tli\tIMW0(PCREL(%s%d))\n",lab,suffix);
 }
@@ -83,7 +85,7 @@ static void emit_externtotemp(FILE *f,char *lab,int offset)
 
 static void emit_statictotemp(FILE *f,char *lab,int suffix)
 {
-	emit(f,"#static\n");
+	emit(f,"\t\t\t\t//statictotemp\n");
 	emit(f,"\tldinc\t%s\n",regnames[pc]); // Assuming 16 bits will be enough for offset.
 	emit(f,"\t.int\t%s%d\n",lab,suffix);
 }
@@ -192,7 +194,7 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 			{
 				/* Set a register to point to a stack-base variable. */
 				emit(f," var, auto|reg\n");
-				if(p->v->storage_class==REGISTER) emit(f,"# (is actually REGISTER)\n");
+				if(p->v->storage_class==REGISTER) emit(f,"\t\t\t// (is actually REGISTER)\n");
 				if(real_offset(p)+offset==0)	/* No offset? Just copy the stack pointer */
 				{
 					emit(f,"\tmt\t%s\n",regnames[sp]);
@@ -345,7 +347,7 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 			}
 			else if(isstatic(p->v->storage_class))
 			{
-				emit(f,"# static\n");
+				emit(f,"//static\n");
 				emit_statictotemp(f,labprefix,zm2l(p->v->offset));
 			}
 			else
