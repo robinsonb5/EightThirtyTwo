@@ -5,15 +5,13 @@ GHDL = ghdl
 CC=../bin/vbcc832
 CFLAGS = -+ -O=1311 -size
 COPT = -O=1311
-TIME=200000ns
+TIME=1ms
 all: compiler helloworld.bin
 
 compiler:
 	make -C .. TARGET=832
 
-run: helloworld.ghw
-
-tests: helloworld.ghw helloworld_byte.ghw fptrtest.ghw copytest.ghw comparisons.ghw vatest.ghw
+run: dhrystone.ghw
 
 clean :
 	rm *.o
@@ -23,7 +21,7 @@ clean :
 	sed 's/_rom/$*_rom/;s/cpu_tb/$*_tb/' >$*_tb.vhd <tb.vhd
 	$(GHDL) -a $*_ROM.vhd
 	$(GHDL) -a $*_tb.vhd
-	$(GHDL) -c -r $*_tb --ieee-asserts=disable-at-0 --stop-time=$(TIME) --read-wave-opt=waveopt --wave=$*.ghw
+	$(GHDL) -c -r $*_tb --ieee-asserts=disable-at-0 --stop-time=$(TIME)
 
 
 %_ROM.vhd: %.bin $(ROMGEN)
@@ -37,7 +35,7 @@ clean :
 %.o : %.s Makefile
 	gcc -c $*.s
 
-%.elf : start.o uart.o small_printf.o division.o strcmp.o %.o
+dhrystone.elf : start.o uart.o small_printf.o division.o strcmp.o dhry_1.o dhry_2.o
 	gcc -Wl,--build-id=none -Wl,--gc-sections -nostartfiles -nostdlib -Tldscript.ld -o $@ $+
 
 %.o : %.S Makefile ldscript.ld $(832DIR)/start.S
@@ -69,7 +67,6 @@ init:
 	$(GHDL) -a $(GHDLFLAGS) ../../RTL/eightthirtytwo_hazard.vhd
 	$(GHDL) -a $(GHDLFLAGS) ../../RTL/eightthirtytwo_cpu.vhd
 	$(GHDL) -a $(GHDLFLAGS) ../../romgen/rom_pkg.vhd
-	$(GHDL) -a $(GHDLFLAGS) helloworld_ROM.vhd
 
 force:
 

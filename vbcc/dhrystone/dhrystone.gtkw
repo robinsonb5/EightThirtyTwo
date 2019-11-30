@@ -1,0 +1,30 @@
+[*]
+[*] GTKWave Analyzer v3.3.103 (w)1999-2019 BSI
+[*] Sat Nov 30 21:55:39 2019
+[*]
+[dumpfile] "/home/amr/FPGA/Projects/EightThirtyTwoDemos/EightThirtyTwo/vbcc/dhrystone/dhrystone.ghw"
+[dumpfile_mtime] "Sat Nov 30 21:53:51 2019"
+[dumpfile_size] 12655482
+[savefile] "/home/amr/FPGA/Projects/EightThirtyTwoDemos/EightThirtyTwo/vbcc/dhrystone/dhrystone.gtkw"
+[timestart] 0
+[size] 1268 957
+[pos] -7 -30
+*-25.725634 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[treeopen] top.dhrystone_tb.
+[treeopen] top.dhrystone_tb.cpu.
+[treeopen] top.dhrystone_tb.cpu.thread.
+[sst_width] 234
+[signals_width] 110
+[sst_expanded] 1
+[sst_vpaned_height] 276
+@28
+top.dhrystone_tb.cpu.thread.setpc
+@22
+#{top.dhrystone_tb.cpu.thread.pc[29:0]} top.dhrystone_tb.cpu.thread.pc[29] top.dhrystone_tb.cpu.thread.pc[28] top.dhrystone_tb.cpu.thread.pc[27] top.dhrystone_tb.cpu.thread.pc[26] top.dhrystone_tb.cpu.thread.pc[25] top.dhrystone_tb.cpu.thread.pc[24] top.dhrystone_tb.cpu.thread.pc[23] top.dhrystone_tb.cpu.thread.pc[22] top.dhrystone_tb.cpu.thread.pc[21] top.dhrystone_tb.cpu.thread.pc[20] top.dhrystone_tb.cpu.thread.pc[19] top.dhrystone_tb.cpu.thread.pc[18] top.dhrystone_tb.cpu.thread.pc[17] top.dhrystone_tb.cpu.thread.pc[16] top.dhrystone_tb.cpu.thread.pc[15] top.dhrystone_tb.cpu.thread.pc[14] top.dhrystone_tb.cpu.thread.pc[13] top.dhrystone_tb.cpu.thread.pc[12] top.dhrystone_tb.cpu.thread.pc[11] top.dhrystone_tb.cpu.thread.pc[10] top.dhrystone_tb.cpu.thread.pc[9] top.dhrystone_tb.cpu.thread.pc[8] top.dhrystone_tb.cpu.thread.pc[7] top.dhrystone_tb.cpu.thread.pc[6] top.dhrystone_tb.cpu.thread.pc[5] top.dhrystone_tb.cpu.thread.pc[4] top.dhrystone_tb.cpu.thread.pc[3] top.dhrystone_tb.cpu.thread.pc[2] top.dhrystone_tb.cpu.thread.pc[1] top.dhrystone_tb.cpu.thread.pc[0]
+@29
+top.dhrystone_tb.cpu.thread.f_op_valid
+@22
+#{top.dhrystone_tb.cpu.thread.f_op[7:0]} top.dhrystone_tb.cpu.thread.f_op[7] top.dhrystone_tb.cpu.thread.f_op[6] top.dhrystone_tb.cpu.thread.f_op[5] top.dhrystone_tb.cpu.thread.f_op[4] top.dhrystone_tb.cpu.thread.f_op[3] top.dhrystone_tb.cpu.thread.f_op[2] top.dhrystone_tb.cpu.thread.f_op[1] top.dhrystone_tb.cpu.thread.f_op[0]
+[pattern_trace] 1
+[pattern_trace] 0
