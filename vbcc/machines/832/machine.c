@@ -19,6 +19,10 @@
 
 // Restrict byte and halfword storage to static and extern types, not stack-based variables.
 
+// Avoid moving registers for cmp and test when possible.
+
+// Condition code for test may well be already set by previous load.
+
 
 #include "supp.h"
 
