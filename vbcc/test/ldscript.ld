@@ -20,11 +20,13 @@ SECTIONS
 	  *(.data)
 	} >mem
 
-	.extra : {
+	.bss : {
 		__bss_start__ = . ;
 	  *(.bss)
+	  *(.bss.*)
 	  	__bss_end__ = . ;
 	} >mem
+
 	/DISCARD/ : {
 	  *(.eh_frame)
 	  *(.gnu.build-id)

@@ -2,9 +2,7 @@
 #include "stdarg.h"
 #include "small_printf.h"
 
-int _cvt(int val, char *buf, int radix);
-
-char buf[16];
+static char buf[16];
 
 int main(int argc,char **argv)
 {

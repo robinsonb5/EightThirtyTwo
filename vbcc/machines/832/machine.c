@@ -39,18 +39,12 @@ char cg_copyright[]="vbcc EightThirtyTwo code-generator, (c) 2019 by Alastair M.
     STRINGFLAG: a string can be specified
     FUNCFLAG: a function will be called
     apart from FUNCFLAG, all other versions can only be specified once */
-int g_flags[MAXGF]={0,0,
-		    VALFLAG,VALFLAG,VALFLAG,
-		    0,0,
-		    VALFLAG,VALFLAG,0};
+int g_flags[MAXGF]={0};
 
 /* the flag-name, do not use names beginning with l, L, I, D or U, because
    they collide with the frontend */
 /* FIXME - 832-specific flags, such as perhaps the reach of PCREL immediates? */
-char *g_flags_name[MAXGF]={"three-addr","load-store",
-			   "volatile-gprs","volatile-fprs","volatile-ccrs",
-			   "imm-ind","gpr-ind",
-			   "gpr-args","fpr-args","use-commons"};
+char *g_flags_name[MAXGF]={"function-sections"};
 
 /* the results of parsing the command-line-flags will be stored here */
 union ppi g_flags_val[MAXGF];
@@ -157,7 +151,7 @@ static char *codename="\t.section\t.text\n",
   *dataname="\t.section\t.data\n",
   *bssname="\t.section\t.bss\n",
   *rodataname="\t.section\t.rodata\n";
-
+static int sectionid;
 
 /* label at the end of the function (if any) */
 static int exit_label;
@@ -533,7 +527,8 @@ static void function_top(FILE *f,struct Var *v,long offset)
   rsavesize=0;
   if(!special_section(f,v)){ // &&section!=CODE){ // We want a new section for every function so that --gc-sections can work.
 //		emit(f,codename);//if(f) section=CODE;
-		emit(f,"\t.section\t.text.%s\n",v->identifier);
+//		emit(f,"\t.section\t.text.%s\n",v->identifier);
+		emit(f,"\t.section\t.text.%x\n",sectionid);
 	}
   if(v->storage_class==EXTERN){
     if((v->flags&(INLINEFUNC|INLINEEXT))!=INLINEFUNC)
@@ -970,6 +965,17 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
   if(!idemp)
   {
     emit(f,"#include \"assembler.pp\"\n\n");
+	sectionid=0;
+	if(p->file)
+	{
+		int v;
+		char *c=p->file;
+		while(v=*c++)
+		{
+			sectionid<<=3;
+			sectionid^=v;
+		}
+	}
     idemp=1;
   }
 
