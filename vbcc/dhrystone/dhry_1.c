@@ -73,7 +73,7 @@ long            Microseconds,
                 
 /* end of variables for time measurement */
 
-int             Number_Of_Runs = 1;
+int             Number_Of_Runs = 2;
 
 
 long _readMilliseconds()
@@ -115,8 +115,6 @@ int main ()
   REG   char            Ch_Index;
         Enumeration     Enum_Loc;
   REG   int             Run_Index;
-  Begin_Time = _readMilliseconds();
-	printf("Begin_time: %d\n",Begin_Time);
 
   /* Initializations */
 

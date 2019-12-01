@@ -7,8 +7,6 @@
    use tmp for that register.  Can we avoid the 
    passing register being allocated? */
 
-
-
 // If the obj doesn't already have an addressing mode, create one and zero it out.
 void am_alloc(struct obj *o)
 {
@@ -36,7 +34,7 @@ void am_disposable(struct IC *p,struct obj *o)
 				return;
 			}
 			if( (p2->q1.flags&(REG|DREFOBJ) && p2->q1.reg==o->reg)
-				|| (p2->q1.flags&(REG|DREFOBJ) && p2->q1.reg==o->reg)
+				|| (p2->q2.flags&(REG|DREFOBJ) && p2->q2.reg==o->reg)
 				|| (p2->z.flags&(REG|DREFOBJ) && p2->z.reg==o->reg) )
 			{
 				//Found another instruction referencing reg - not disposable.
@@ -90,9 +88,9 @@ struct IC *am_find_adjustment(struct IC *p,int reg)
 				p2=0;
 			}
 		}
-		else if( (p2->q1.flags&(REG|DREFOBJ) && p2->q1.reg==reg)
-			|| (p2->q1.flags&(REG|DREFOBJ) && p2->q1.reg==reg)
-			|| (p2->z.flags&(REG|DREFOBJ) && p2->z.reg==reg) )
+		else if( ((p2->q1.flags&(REG|DREFOBJ)) && p2->q1.reg==reg)
+			|| ((p2->q2.flags&(REG|DREFOBJ)) && p2->q2.reg==reg)
+			|| ((p2->z.flags&(REG|DREFOBJ)) && p2->z.reg==reg) )
 		{
 			printf("\t\tFound another instruction referencing reg - bailing out\n");
 			p2=0;
@@ -127,9 +125,9 @@ struct IC *am_find_adjustment(struct IC *p,int reg)
 				p2=0;
 			}
 		}
-		else if( (p2->q1.flags&(REG|DREFOBJ) && p2->q1.reg==reg)
-			|| (p2->q1.flags&(REG|DREFOBJ) && p2->q1.reg==reg)
-			|| (p2->z.flags&(REG|DREFOBJ) && p2->z.reg==reg) )
+		else if( ((p2->q1.flags&(REG|DREFOBJ)) && p2->q1.reg==reg)
+			|| ((p2->q2.flags&(REG|DREFOBJ)) && p2->q2.reg==reg)
+			|| ((p2->z.flags&(REG|DREFOBJ)) && p2->z.reg==reg) )
 		{
 			printf("\t\tFound another instruction referencing reg - bailing out\n");
 			p2=0;
@@ -210,6 +208,8 @@ void am_prepost_incdec(struct IC *p,struct obj *o)
 		}
 	}
 }
+
+#define getreg(x) (x.flags&REG ? x.reg : 0)
 
 static void find_addressingmodes(struct IC *p)
 {
@@ -468,9 +468,24 @@ static void find_addressingmodes(struct IC *p)
 				break;
 		}
 #endif
-		am_prepost_incdec(p,&p->q1);
-		am_prepost_incdec(p,&p->q2);
-		am_prepost_incdec(p,&p->z);
+		// Have to make sure that operands are different registers!
+		if((getreg(p->q1)==getreg(p->q2))
+			|| (getreg(p->q1)==getreg(p->z)))
+			printf("Collision between q1 and q2 or z - ignoring\n");
+		else
+			am_prepost_incdec(p,&p->q1);
+
+		if((getreg(p->q1)==getreg(p->q2))
+			|| (getreg(p->q2)==getreg(p->z)))
+			printf("Collision between q2 and q1 or z - ignoring\n");
+		else
+			am_prepost_incdec(p,&p->q2);
+
+		if((getreg(p->q1)==getreg(p->z))
+			|| (getreg(p->q2)==getreg(p->z)))
+			printf("Collision between z and q1 or q2 - ignoring\n");
+		else
+			am_prepost_incdec(p,&p->z);
 		am_disposable(p,&p->q1);
 		am_disposable(p,&p->q2);
 		am_disposable(p,&p->z);

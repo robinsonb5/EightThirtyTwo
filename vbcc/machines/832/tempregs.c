@@ -231,7 +231,7 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 
 static void emit_objtotemp(FILE *f,struct obj *p,int t)
 {
-	emit(f,"\t\t\t\t\t// (objtotemp)");
+	emit(f,"\t\t\t\t\t// (objtotemp) ");
 	if((p->flags&(KONST|DREFOBJ))==(KONST|DREFOBJ)){
 		emit(f," const/deref # FIXME deal with different data sizes when dereferencing\n");
 		emit_prepobj(f,p,t,t1,0);
@@ -248,7 +248,7 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 			case POINTER:
 				break;
 			default:
-				printf("Obttotmp contstant - unhandled type 0x%x\n",t);
+				printf("Objtotmp contstant - unhandled type 0x%x\n",t);
 				ierror(0);
 				break;
 		}
@@ -278,6 +278,8 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 				case INT:
 				case LONG:
 				case POINTER:
+					if(p->v)
+						emit(f,"\t//(offset %d)\n",p->val.vlong);
 					if(p->am && p->am->type==AM_POSTINC)
 						emit(f,"\tldinc\t%s\n",regnames[p->reg]);
 					else

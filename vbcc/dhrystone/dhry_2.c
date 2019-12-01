@@ -116,13 +116,14 @@ int             Int_2_Par_Val;
 {
   REG One_Fifty Int_Index;
   REG One_Fifty Int_Loc;
-
   Int_Loc = Int_1_Par_Val + 5;
   Arr_1_Par_Ref [Int_Loc] = Int_2_Par_Val;
   Arr_1_Par_Ref [Int_Loc+1] = Arr_1_Par_Ref [Int_Loc];
   Arr_1_Par_Ref [Int_Loc+30] = Int_Loc;
   for (Int_Index = Int_Loc; Int_Index <= Int_Loc+1; ++Int_Index)
+  {
     Arr_2_Par_Ref [Int_Loc] [Int_Index] = Int_Loc;
+  }
   Arr_2_Par_Ref [Int_Loc] [Int_Loc-1] += 1;
   Arr_2_Par_Ref [Int_Loc+20] [Int_Loc] = Arr_1_Par_Ref [Int_Loc];
   Int_Glob = 5;

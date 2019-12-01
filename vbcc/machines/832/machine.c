@@ -1108,6 +1108,8 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
     if(c==ADDI2P) c=ADD;
     if(c==SUBIFP) c=SUB;
 
+	emit(f,"// code 0x%x\n",c);
+
     // Investigate - but not currently seeing it used.
     // Sign extension of a register involved moving to temp, extb or exth, move to dest
     // 
@@ -1202,8 +1204,11 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 			emit_objtotemp(f,&p->q1,t);
 			emit(f,"\texg\t%s\n",regnames[pc]);
 		}
-        emit_constanttotemp(f,pushedargsize(p));
-        emit(f,"\tadd\t%s\n",regnames[sp]);
+		if(pushedargsize(p))
+		{
+	        emit_constanttotemp(f,pushedargsize(p));
+	        emit(f,"\tadd\t%s\n",regnames[sp]);
+		}
 		emit(f,"\n");
 		pushed-=pushedargsize(p);
       }
