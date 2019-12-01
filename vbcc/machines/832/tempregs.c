@@ -121,8 +121,6 @@ static void emit_constanttotemp(FILE *f,zmax v)
 static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 {
 	emit(f,"\t\t\t\t\t// (prepobj %s)",regnames[reg]);
-//	if(p->v && p->v->identifier)
-//		emit(f," (%s) ",p->v->identifier);
 	if((p->flags&(KONST|DREFOBJ))==(KONST|DREFOBJ)){
 		emit(f," const/deref\n");
 		emit_constanttotemp(f,val2zmax(f,p,p->dtyp)+offset);
@@ -324,28 +322,24 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 				{
 					case CHAR:
 						emit(f,"\tbyt\n");
-//						emit(f,"\tldt\n");
 						break;
 					case SHORT:
 						emit(f,"\thlf\n");
-//						emit(f,"\tldt\n");
 						break;
 					case INT:
 					case LONG:
 					case POINTER:
-//						emit(f,"\tldt//marker 3, 0x%x, 0x%x\n",t,p->flags);
-						break;
 					case FUNKT:
-						break; // Function pointers are dereferenced by calling them.
 					case STRUCT:
 					case UNION:
-						break; // Structs and unions have to remain as pointers
+						break;
 					default:
 						emit(f,"// FIXME - emitobjtotmp extern loadtype %d not handled\n",t);
 						ierror(0);
 						break;
 				}
-				if(!(p->flags&VARADR))
+				// Structs and unions have to remain as pointers
+				if((!(p->flags&VARADR)) && ((t&NQ)!=STRUCT) && ((t&NQ)!=UNION))
 					emit(f,"\tldt\n");
 			}
 			else if(isstatic(p->v->storage_class))
