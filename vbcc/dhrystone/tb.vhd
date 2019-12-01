@@ -41,6 +41,8 @@ is
 	signal romin : fromROM;
 	signal romout : toROM;
 
+	signal cyclecounter : unsigned(31 downto 0) := X"00000000";
+
 begin
 
 	rom : entity work._rom
@@ -57,7 +59,7 @@ begin
 
 
 	uart_read<= X"00000000" when uart_count/="0000" else X"00000300";
-	from_ram<=romin.MemARead when ram_addr(31)='0' else uart_read;
+	from_ram<=romin.MemARead when ram_addr(31)='0' else uart_read when ram_addr(7 downto 2)=X"C"&"00" else std_logic_vector(cyclecounter);
 
 	rom_wr<=(ram_wr and ram_req) when ram_addr(31)='0' else '0';
 
@@ -96,6 +98,7 @@ interrupt<='1' when intcounter(5 downto 3)="111" else '0';
 	begin
 
 		if rising_edge(clk) then
+			cyclecounter<=cyclecounter+1;
 
 			intcounter<=intcounter+1;
 

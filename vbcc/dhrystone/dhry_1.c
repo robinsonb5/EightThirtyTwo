@@ -116,6 +116,7 @@ int main ()
         Enumeration     Enum_Loc;
   REG   int             Run_Index;
   Begin_Time = _readMilliseconds();
+	printf("Begin_time: %d\n",Begin_Time);
 
   /* Initializations */
 

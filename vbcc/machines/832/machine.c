@@ -23,6 +23,9 @@
 
 // Condition code for test may well be already set by previous load.
 
+// FIXME - still problems with byte / halfword writes to stack -> should always be 32-bit
+// to a struct or array.
+
 
 #include "supp.h"
 
@@ -332,13 +335,22 @@ static void store_reg(FILE *f,int r,struct obj *o,int type)
 		case SHORT:
 			emit_prepobj(f,o,type&NQ,tmp,0);
 			emit(f,"\texg\t%s\n",regnames[r]);
-			emit(f,"\thlf\n\tst\t%s\t//WARNING - reg not restored, might cause trouble!\n",regnames[r]);
+			emit(f,"\thlf\n\tst\t%s\n",regnames[r]);
 			break;
 		case INT:
 		case LONG:
 		case POINTER:
-			emit_prepobj(f,o,type&NQ,tmp,4); // FIXME - stmpdec predecrements, so need to add 4!
-			emit(f,"\tstmpdec\t%s\n",regnames[r]);
+			// FIXME - if o is a reg, can store directly.
+			if((o->flags&(REG|DREFOBJ))==(REG|DREFOBJ))
+			{
+				emit(f,"\tmt\t%s\n",regnames[r]);
+				emit(f,"\tst\t%s\n",regnames[o->reg]);
+			}
+			else
+			{
+				emit_prepobj(f,o,type&NQ,tmp,4); // FIXME - stmpdec predecrements, so need to add 4!
+				emit(f,"\tstmpdec\t%s\n // WARNING - check that 4 has been added.",regnames[r]);
+			}
 			break;
 		default:
 			printf("store_reg: unhandled type 0x%x\n",type);

@@ -133,16 +133,16 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 
 	if(p->flags&DREFOBJ)
 	{
-		emit(f," deref ");
+		emit(f," deref\n");
 		/* Dereferencing a pointer */
 		if(p->flags&REG){
 		if(reg==tmp)
 			emit(f,"\tmt\t%s\n",regnames[p->reg]);
 		else
-			emit(f," reg %s - no need to prep\n",regnames[p->reg]);
+			emit(f,"\t\t\t\t// reg %s - no need to prep\n",regnames[p->reg]);
 		}
 		else if(p->flags&VAR) {	// FIXME - figure out what dereferencing means in these contexts
-			emit(f," var FIXME - deref?");
+			emit(f,"\t\t\t\t// var FIXME - deref?");
 			if(p->v->storage_class==AUTO||p->v->storage_class==REGISTER){
 				emit(f," reg \n");
 				if(real_offset(p)+offset!=0)
@@ -170,7 +170,7 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 				if(p->v->storage_class==STATIC){
 					emit(f," static\n");
 					emit(f," FIXME - deref?\n");
-					emit(f,"\tldinc\tr7\n\t.int\t%s%d\n",labprefix,zm2l(p->v->offset));
+					emit(f,"\tldinc\tr7\n\t.int\t%s%d+%d\n",labprefix,zm2l(p->v->offset),offset);
 					if(reg!=tmp)
 						emit(f,"\tmr\t%s\n",regnames[reg]);
 				}else{
@@ -211,13 +211,13 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 			else{
 				if(isextern(p->v->storage_class)){
 					emit(f," extern (offset %d)\n",p->val.vmax);
-					emit_externtotemp(f,p->v->identifier,p->val.vmax);
+					emit_externtotemp(f,p->v->identifier,p->val.vmax+offset);
 					if(reg!=tmp)
 						emit(f,"\tmr\t%s\n",regnames[reg]);
 				}
 				else if(isstatic(p->v->storage_class)){
 					emit(f," static\n");
-					emit(f,"\tldinc\tr7\n\t.int\t%s%d\n",labprefix,zm2l(p->v->offset));
+					emit(f,"\tldinc\tr7\n\t.int\t%s%d+%d\n",labprefix,zm2l(p->v->offset),offset);
 					if(reg!=tmp)
 						emit(f,"\tmr\t%s\n",regnames[reg]);
 				}else{
