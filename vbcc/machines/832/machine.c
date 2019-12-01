@@ -1225,26 +1225,47 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 
     if(c==ASSIGN){
 	// FIXME - have to deal with arrays and structs, not just elementary types
+
 		emit(f,"\t\t\t\t\t// (a/p assign)\n");
 		emit_prepobj(f,&p->z,t,t2,0);
 		if(((t&NQ)==STRUCT)||((t&NQ)==UNION)||((t&NQ)==CHAR && zm2l(p->q2.val.vmax)!=1))
 		{
+			int srcr=t1;
+			int dstr=t2;
+			int cntr=t2+1;
 			if((t&NQ)==CHAR)
 				emit(f,"// (char with size!=1 -> array of unknown type)\n");
 			// FIXME - library function?
+
+			// If the target pointer happens to be in r2, we have to swap dstr and cntr!
+			if(p->z.flags&REG)
+			{
+				if(p->z.reg==cntr)	// Collision - swap registers
+				{
+					emit(f,"\t\t\t//Swapping dest and counter registers\n");
+					dstr=t2+1;
+					cntr=t2;
+				}
+				else	// Move target register to dstr
+				{
+					emit(f,"\tmt\t%s\n",regnames[p->z.reg]);
+					emit(f,"\tmr\t%s\n",regnames[dstr]);
+				}
+			}
+
 			zmax copysize=opsize(p);
 			emit(f,"// Copying %d bytes to %s\n",copysize,p->z.v->identifier);
 			// Copy bytes...
 			load_temp(f,zreg,&p->q1,t);
-			emit(f,"\tmr\t%s\n",regnames[t1]);
+			emit(f,"\tmr\t%s\n",regnames[srcr]);
 			emit(f,"\tmt\t%s\n\tstdec\t%s\n",regnames[t2+1],regnames[sp]);
 			pushed+=4;
 			emit_constanttotemp(f,copysize);
-			emit(f,"\taddt\t%s\n",regnames[t2]);
-			emit(f,"\tmr\t%s\n",regnames[t2+1]);
+			emit(f,"\taddt\t%s\n",regnames[dstr]);
+			emit(f,"\tmr\t%s\n",regnames[cntr]);
 			emit(f,".cpy%sloop%d:\n",p->z.v->identifier,loopid);
-			emit(f,"\tldbinc\t%s\n\tstbinc\t%s\n",regnames[t1],regnames[t2]);
-			emit(f,"\tmt\t%s\n\tcmp\t%s\n",regnames[t2],regnames[t2+1]);
+			emit(f,"\tldbinc\t%s\n\tstbinc\t%s\n",regnames[srcr],regnames[dstr]);
+			emit(f,"\tmt\t%s\n\tcmp\t%s\n",regnames[dstr],regnames[cntr]);
 			emit(f,"\tcond\tNEQ\n");
 			emit(f,"\t\tli\tIMW0(PCREL(.cpy%sloop%d))\n",p->z.v->identifier,loopid);
 			emit(f,"\t\tadd\t%s\n",regnames[pc]);

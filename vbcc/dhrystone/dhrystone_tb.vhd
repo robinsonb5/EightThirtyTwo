@@ -107,9 +107,10 @@ interrupt<='1' when intcounter(5 downto 3)="111" else '0';
 				if ram_addr(31)='1' then
 					if ram_wr='1' then
 --					report "out: " & integer'image(to_integer(unsigned(to_ram)));
-						write(textline,character'val(to_integer(unsigned(to_ram(7 downto 0)))));
 						if to_ram(7 downto 0)=X"0a" then
 							writeline(output,textline);
+						else
+							write(textline,character'val(to_integer(unsigned(to_ram(7 downto 0)))));
 						end if;
 						uart_count<="10";
 					elsif uart_count/="00" then

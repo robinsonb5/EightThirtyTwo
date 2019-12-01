@@ -3,9 +3,9 @@ ROMGENDIR = ../../romgen
 ROMGEN = $(ROMGENDIR)/romgen
 GHDL = ghdl
 CC=../bin/vbcc832
-CFLAGS = -+ -O=1311 -size
+CFLAGS = -+ -O=1311 -size 
 COPT = -O=1311
-TIME=1ms
+TIME=10ms
 all: compiler helloworld.bin
 
 compiler:
@@ -21,7 +21,7 @@ clean :
 	sed 's/_rom/$*_rom/;s/cpu_tb/$*_tb/' >$*_tb.vhd <tb.vhd
 	$(GHDL) -a $*_ROM.vhd
 	$(GHDL) -a $*_tb.vhd
-	$(GHDL) -c -r $*_tb --ieee-asserts=disable-at-0 --stop-time=$(TIME)
+	$(GHDL) -c -r $*_tb --ieee-asserts=disable-at-0 --stop-time=$(TIME) --read-wave-opt=waveopt --wave=$*.ghw
 
 
 %_ROM.vhd: %.bin $(ROMGEN)

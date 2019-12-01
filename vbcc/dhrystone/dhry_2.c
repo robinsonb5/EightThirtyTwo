@@ -19,6 +19,7 @@
 //#include <sys/null.h>
 #include <sys/types.h>
 #include <string.h>
+#include <stdio.h>
 
 #ifndef REG
 #define REG
@@ -143,13 +144,11 @@ Capital_Letter   Ch_2_Par_Val;
 
   Ch_1_Loc = Ch_1_Par_Val;
   Ch_2_Loc = Ch_1_Loc;
-	puts("1.a\n");
   if (Ch_2_Loc != Ch_2_Par_Val)
     /* then, executed */
     return (Ident_1);
   else  /* not executed */
   {
-	puts("1.b\n");
     Ch_1_Glob = Ch_1_Loc;
     return (Ident_2);
    }
@@ -167,7 +166,6 @@ Str_30  Str_2_Par_Ref;
 {
   REG One_Thirty        Int_Loc;
       Capital_Letter    Ch_Loc;
-	puts("2.a\n");
   Int_Loc = 2;
   while (Int_Loc <= 2) /* loop body executed once */
     if (Func_1 (Str_1_Par_Ref[Int_Loc],
@@ -177,21 +175,17 @@ Str_30  Str_2_Par_Ref;
       Ch_Loc = 'A';
       Int_Loc += 1;
     } /* if, while */
-	puts("2.b\n");
   if (Ch_Loc >= 'W' && Ch_Loc < 'Z')
     /* then, not executed */
     Int_Loc = 7;
-	puts("2.c\n");
   if (Ch_Loc == 'R')
     /* then, not executed */
     return (true);
   else /* executed */
   {
-	puts("2.d\n");
     if (strcmp (Str_1_Par_Ref, Str_2_Par_Ref) > 0)
       /* then, not executed */
     {
-	puts("2.e\n");
       Int_Loc += 7;
       Int_Glob = Int_Loc;
       return (true);

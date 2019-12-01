@@ -57,9 +57,9 @@ _start:
 	.weak	_premain
 _premain:
 	// Setup the stack
-	li	IMW2(0x800)
-	li	IMW1(0x800)
-	li	IMW0(0x800)
+	li	IMW2(0x2000)
+	li	IMW1(0x2000)
+	li	IMW0(0x2000)
 	mr	r6
 
 	// Clear BSS here
@@ -75,9 +75,9 @@ _premain:
 	.weak	_premain2
 _premain2:
 	// Setup the stack
-	li	IMW2(0x400)
-	li	IMW1(0x400)
-	li	IMW0(0x400)
+	li	IMW2(0x1c00)
+	li	IMW1(0x1c00)
+	li	IMW0(0x1c00)
 	mr	r6
 
 	// Clear BSS here

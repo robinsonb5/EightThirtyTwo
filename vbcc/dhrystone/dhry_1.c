@@ -21,8 +21,10 @@
 #include <sys/types.h>
 #include <string.h>
 #include <stdarg.h>
-#include "small_printf.h"
+#include <stdio.h>
+#ifndef __GNUC__
 #include "timer.h"
+#endif
 
 /* Global Variables: */
 
@@ -73,15 +75,12 @@ long            Microseconds,
 
 int             Number_Of_Runs = 1;
 
+
 long _readMilliseconds()
 {
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-	unsigned int i=HW_TIMER(REG_MILLISECONDS);
-	unsigned int result=(i>>24)&0xff;
-	result|=(i>>8)&0xff00;
-	result|=(i<<8)&0xff0000;
-	result|=(i<<24)&0xff00000;
-	return(result);
+#ifdef __GNUC__
+	static int t=0;
+	return t+=100;
 #else
 	return(HW_TIMER(REG_MILLISECONDS));
 #endif
@@ -116,6 +115,7 @@ int main ()
   REG   char            Ch_Index;
         Enumeration     Enum_Loc;
   REG   int             Run_Index;
+  Begin_Time = _readMilliseconds();
 
   /* Initializations */
 
@@ -138,22 +138,22 @@ int main ()
         /* Arr_2_Glob [8][7] would have an undefined value.             */
         /* Warning: With 16-Bit processors and Number_Of_Runs > 32000,  */
         /* overflow may occur for this array element.                   */
-  small_printf ("\n");
-  small_printf ("Dhrystone Benchmark, Version 2.1 (Language: C)\n");
-  small_printf ("\n");
+  printf ("\n");
+  printf ("Dhrystone Benchmark, Version 2.1 (Language: C)\n");
+  printf ("\n");
   if (Reg)
   {
-    small_printf ("Program compiled with 'register' attribute\n");
-    small_printf ("\n");
+    printf ("Program compiled with 'register' attribute\n");
+    printf ("\n");
   }
   else
   {
-    small_printf ("Program compiled without 'register' attribute\n");
-    small_printf ("\n");
+    printf ("Program compiled without 'register' attribute\n");
+    printf ("\n");
   }
   Number_Of_Runs;
 
-  small_printf ("Execution starts, %d runs through Dhrystone\n", Number_Of_Runs);
+  printf ("Execution starts, %d runs through Dhrystone\n", Number_Of_Runs);
 
   /***************/
   /* Start timer */
@@ -172,21 +172,15 @@ int main ()
 #endif
   for (Run_Index = 1; Run_Index <= Number_Of_Runs; ++Run_Index)
   {
-	puts("5\n");
     Proc_5();
-	puts("4\n");
     Proc_4();
       /* Ch_1_Glob == 'A', Ch_2_Glob == 'B', Bool_Glob == true */
     Int_1_Loc = 2;
     Int_2_Loc = 3;
-	puts("2\n");
     strcpy (Str_2_Loc, "DHRYSTONE PROGRAM, 2'ND STRING");
-	puts("2.1\n");
     Enum_Loc = Ident_2;
-	puts("2.2\n");
     Bool_Glob = ! Func_2 (Str_1_Loc, Str_2_Loc);
       /* Bool_Glob == 1 */
-	puts("1\n");
     while (Int_1_Loc < Int_2_Loc)  /* loop body executed once */
     {
       Int_3_Loc = 5 * Int_1_Loc - Int_2_Loc;
@@ -196,10 +190,8 @@ int main ()
       Int_1_Loc += 1;
     } /* while */
       /* Int_1_Loc == 3, Int_2_Loc == 3, Int_3_Loc == 7 */
-	puts("A\n");
     Proc_8 (Arr_1_Glob, Arr_2_Glob, Int_1_Loc, Int_3_Loc);
       /* Int_Glob == 5 */
-	puts("B\n");
     Proc_1 (Ptr_Glob);
     for (Ch_Index = 'A'; Ch_Index <= Ch_2_Glob; ++Ch_Index)
                              /* loop body executed twice */
@@ -213,7 +205,6 @@ int main ()
         Int_Glob = Run_Index;
         }
     }
-	puts("C\n");
       /* Int_1_Loc == 3, Int_2_Loc == 3, Int_3_Loc == 7 */
     Int_2_Loc = Int_2_Loc * Int_1_Loc;
     Int_1_Loc = Int_2_Loc / Int_3_Loc;
@@ -237,72 +228,72 @@ int main ()
   End_Time = time ( (long *) 0);
 #endif
 #else
-  End_Time = _readMilliseconds();
+//  End_Time = _readMilliseconds();
 #endif
 
 #if 1
-  small_printf ("Execution ends\n");
-  small_printf ("\n");
-  small_printf ("Final values of the variables used in the benchmark:\n");
-  small_printf ("\n");
-  small_printf ("Int_Glob:            %d\n", Int_Glob);
-  small_printf ("        should be:   %d\n", 5);
-  small_printf ("Bool_Glob:           %d\n", Bool_Glob);
-  small_printf ("        should be:   %d\n", 1);
-  small_printf ("Ch_1_Glob:           %c\n", Ch_1_Glob);
-  small_printf ("        should be:   %c\n", 'A');
-  small_printf ("Ch_2_Glob:           %c\n", Ch_2_Glob);
-  small_printf ("        should be:   %c\n", 'B');
-  small_printf ("Arr_1_Glob[8]:       %d\n", Arr_1_Glob[8]);
-  small_printf ("        should be:   %d\n", 7);
-  small_printf ("Arr_2_Glob[8][7]:    %d\n", Arr_2_Glob[8][7]);
-  small_printf ("        should be:   Number_Of_Runs + 10\n");
-  small_printf ("Ptr_Glob->\n");
-  small_printf ("  Ptr_Comp:          %d\n", (int) Ptr_Glob->Ptr_Comp);
-  small_printf ("        should be:   (implementation-dependent)\n");
-  small_printf ("  Discr:             %d\n", Ptr_Glob->Discr);
-  small_printf ("        should be:   %d\n", 0);
-  small_printf ("  Enum_Comp:         %d\n", Ptr_Glob->variant.var_1.Enum_Comp);
-  small_printf ("        should be:   %d\n", 2);
-  small_printf ("  Int_Comp:          %d\n", Ptr_Glob->variant.var_1.Int_Comp);
-  small_printf ("        should be:   %d\n", 17);
-  small_printf ("  Str_Comp:          %s\n", Ptr_Glob->variant.var_1.Str_Comp);
-  small_printf ("        should be:   DHRYSTONE PROGRAM, SOME STRING\n");
-  small_printf ("Next_Ptr_Glob->\n");
-  small_printf ("  Ptr_Comp:          %d\n", (int) Next_Ptr_Glob->Ptr_Comp);
-  small_printf ("        should be:   (implementation-dependent), same as above\n");
-  small_printf ("  Discr:             %d\n", Next_Ptr_Glob->Discr);
-  small_printf ("        should be:   %d\n", 0);
-  small_printf ("  Enum_Comp:         %d\n", Next_Ptr_Glob->variant.var_1.Enum_Comp);
-  small_printf ("        should be:   %d\n", 1);
-  small_printf ("  Int_Comp:          %d\n", Next_Ptr_Glob->variant.var_1.Int_Comp);
-  small_printf ("        should be:   %d\n", 18);
-  small_printf ("  Str_Comp:          %s\n",
+  printf ("Execution ends\n");
+  printf ("\n");
+  printf ("Final values of the variables used in the benchmark:\n");
+  printf ("\n");
+  printf ("Int_Glob:            %d\n", Int_Glob);
+  printf ("        should be:   %d\n", 5);
+  printf ("Bool_Glob:           %d\n", Bool_Glob);
+  printf ("        should be:   %d\n", 1);
+  printf ("Ch_1_Glob:           %c\n", Ch_1_Glob);
+  printf ("        should be:   %c\n", 'A');
+  printf ("Ch_2_Glob:           %c\n", Ch_2_Glob);
+  printf ("        should be:   %c\n", 'B');
+  printf ("Arr_1_Glob[8]:       %d\n", Arr_1_Glob[8]);
+  printf ("        should be:   %d\n", 7);
+  printf ("Arr_2_Glob[8][7]:    %d\n", Arr_2_Glob[8][7]);
+  printf ("        should be:   Number_Of_Runs + 10\n");
+  printf ("Ptr_Glob->\n");
+  printf ("  Ptr_Comp:          %d\n", (int) Ptr_Glob->Ptr_Comp);
+  printf ("        should be:   (implementation-dependent)\n");
+  printf ("  Discr:             %d\n", Ptr_Glob->Discr);
+  printf ("        should be:   %d\n", 0);
+  printf ("  Enum_Comp:         %d\n", Ptr_Glob->variant.var_1.Enum_Comp);
+  printf ("        should be:   %d\n", 2);
+  printf ("  Int_Comp:          %d\n", Ptr_Glob->variant.var_1.Int_Comp);
+  printf ("        should be:   %d\n", 17);
+  printf ("  Str_Comp:          %s\n", Ptr_Glob->variant.var_1.Str_Comp);
+  printf ("        should be:   DHRYSTONE PROGRAM, SOME STRING\n");
+  printf ("Next_Ptr_Glob->\n");
+  printf ("  Ptr_Comp:          %d\n", (int) Next_Ptr_Glob->Ptr_Comp);
+  printf ("        should be:   (implementation-dependent), same as above\n");
+  printf ("  Discr:             %d\n", Next_Ptr_Glob->Discr);
+  printf ("        should be:   %d\n", 0);
+  printf ("  Enum_Comp:         %d\n", Next_Ptr_Glob->variant.var_1.Enum_Comp);
+  printf ("        should be:   %d\n", 1);
+  printf ("  Int_Comp:          %d\n", Next_Ptr_Glob->variant.var_1.Int_Comp);
+  printf ("        should be:   %d\n", 18);
+  printf ("  Str_Comp:          %s\n",
                                 Next_Ptr_Glob->variant.var_1.Str_Comp);
-  small_printf ("        should be:   DHRYSTONE PROGRAM, SOME STRING\n");
-  small_printf ("Int_1_Loc:           %d\n", Int_1_Loc);
-  small_printf ("        should be:   %d\n", 5);
-  small_printf ("Int_2_Loc:           %d\n", Int_2_Loc);
-  small_printf ("        should be:   %d\n", 13);
-  small_printf ("Int_3_Loc:           %d\n", Int_3_Loc);
-  small_printf ("        should be:   %d\n", 7);
-  small_printf ("Enum_Loc:            %d\n", Enum_Loc);
-  small_printf ("        should be:   %d\n", 1);
-  small_printf ("Str_1_Loc:           %s\n", Str_1_Loc);
-  small_printf ("        should be:   DHRYSTONE PROGRAM, 1'ST STRING\n");
-  small_printf ("Str_2_Loc:           %s\n", Str_2_Loc);
-  small_printf ("        should be:   DHRYSTONE PROGRAM, 2'ND STRING\n");
-  small_printf ("\n");
+  printf ("        should be:   DHRYSTONE PROGRAM, SOME STRING\n");
+  printf ("Int_1_Loc:           %d\n", Int_1_Loc);
+  printf ("        should be:   %d\n", 5);
+  printf ("Int_2_Loc:           %d\n", Int_2_Loc);
+  printf ("        should be:   %d\n", 13);
+  printf ("Int_3_Loc:           %d\n", Int_3_Loc);
+  printf ("        should be:   %d\n", 7);
+  printf ("Enum_Loc:            %d\n", Enum_Loc);
+  printf ("        should be:   %d\n", 1);
+  printf ("Str_1_Loc:           %s\n", Str_1_Loc);
+  printf ("        should be:   DHRYSTONE PROGRAM, 1'ST STRING\n");
+  printf ("Str_2_Loc:           %s\n", Str_2_Loc);
+  printf ("        should be:   DHRYSTONE PROGRAM, 2'ND STRING\n");
+  printf ("\n");
 #endif
 
   User_Time = End_Time - Begin_Time;
-  small_printf ("User time: %d\n", (int)User_Time);
+  printf ("User time: %d\n", (int)User_Time);
   
   if (User_Time < Too_Small_Time)
   {
-    small_printf ("Measured time too small to obtain meaningful results\n");
-    small_printf ("Please increase number of runs\n");
-    small_printf ("\n");
+    printf ("Measured time too small to obtain meaningful results\n");
+    printf ("Please increase number of runs\n");
+    printf ("\n");
   }
 /*   else */
   {
@@ -324,12 +315,12 @@ int main ()
     Dhrystones_Per_Second =  (Number_Of_Runs*1000) / User_Time;
     Vax_Mips = (Number_Of_Runs*569) / User_Time;
 #endif 
-    small_printf ("Microseconds for one run through Dhrystone: ");
-    small_printf ("%d \n", (int)Microseconds);
-    small_printf ("Dhrystones per Second:                      ");
-    small_printf ("%d \n", (int)Dhrystones_Per_Second);
-    small_printf ("VAX MIPS rating * 1000 = %d \n",(int)Vax_Mips);
-    small_printf ("\n");
+    printf ("Microseconds for one run through Dhrystone: ");
+    printf ("%d \n", (int)Microseconds);
+    printf ("Dhrystones per Second:                      ");
+    printf ("%d \n", (int)Dhrystones_Per_Second);
+    printf ("VAX MIPS rating * 1000 = %d \n",(int)Vax_Mips);
+    printf ("\n");
   }
   
   return 0;

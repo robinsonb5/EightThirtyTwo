@@ -1,4 +1,3 @@
-/* Hardware registers for a supporting UART to the ZPUFlex project. */
 
 #include "uart.h"
 

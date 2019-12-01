@@ -13,11 +13,13 @@ compiler:
 
 run: helloworld.ghw
 
-tests: helloworld.ghw helloworld_byte.ghw fptrtest.ghw copytest.ghw comparisons.ghw vatest.ghw
+tests: helloworld.ghw helloworld_byte.ghw strcpytest.ghw fptrtest.ghw copytest.ghw comparisons.ghw vatest.ghw
 
 clean :
+	rm *.S
 	rm *.o
 	rm *.bin
+	rm *.elf
 
 %.ghw : %_ROM.vhd  tb.vhd force
 	sed 's/_rom/$*_rom/;s/cpu_tb/$*_tb/' >$*_tb.vhd <tb.vhd

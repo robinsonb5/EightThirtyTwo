@@ -158,11 +158,10 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 				if(reg!=tmp)
 					emit(f,"\tmr\t%s\n",regnames[reg]);
 			}
-
 			else{
 				if(!zmeqto(l2zm(0L),p->val.vmax)){
 					emit(f," offset ");
-					emit(f," FIXME - deref?");
+					emit(f," FIXME - deref?\n");
 					emit_constanttotemp(f,val2zmax(f,p,LONG));
 					emit(f,"\tmr\t%s\n",regnames[reg]);
 					emit_pcreltotemp(f,labprefix,zm2l(p->v->offset));
@@ -170,12 +169,12 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 				}
 				if(p->v->storage_class==STATIC){
 					emit(f," static\n");
-					emit(f," FIXME - deref?");
+					emit(f," FIXME - deref?\n");
 					emit(f,"\tldinc\tr7\n\t.int\t%s%d\n",labprefix,zm2l(p->v->offset));
 					if(reg!=tmp)
 						emit(f,"\tmr\t%s\n",regnames[reg]);
 				}else{
-					emit(f," FIXME - deref?");
+					emit(f," FIXME - deref?\n");
 					emit_externtotemp(f,p->v->identifier,p->val.vmax);
 					if(reg!=tmp)
 						emit(f,"\tmr\t%s\n",regnames[reg]);
@@ -323,16 +322,16 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 				{
 					case CHAR:
 						emit(f,"\tbyt\n");
-						emit(f,"\tldt\n");
+//						emit(f,"\tldt\n");
 						break;
 					case SHORT:
 						emit(f,"\thlf\n");
-						emit(f,"\tldt\n");
+//						emit(f,"\tldt\n");
 						break;
 					case INT:
 					case LONG:
 					case POINTER:
-						emit(f,"\tldt//marker 3\n");
+//						emit(f,"\tldt//marker 3, 0x%x, 0x%x\n",t,p->flags);
 						break;
 					case FUNKT:
 						break; // Function pointers are dereferenced by calling them.
@@ -344,6 +343,8 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 						ierror(0);
 						break;
 				}
+				if(!(p->flags&VARADR))
+					emit(f,"\tldt\n");
 			}
 			else if(isstatic(p->v->storage_class))
 			{
