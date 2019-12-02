@@ -471,19 +471,28 @@ static void find_addressingmodes(struct IC *p)
 		// Have to make sure that operands are different registers!
 		if((getreg(p->q1)==getreg(p->q2))
 			|| (getreg(p->q1)==getreg(p->z)))
-			printf("Collision between q1 and q2 or z - ignoring\n");
+		{
+			if(getreg(p->q1))
+				printf("Collision between q1 and q2 or z - ignoring\n");
+		}
 		else
 			am_prepost_incdec(p,&p->q1);
 
 		if((getreg(p->q1)==getreg(p->q2))
 			|| (getreg(p->q2)==getreg(p->z)))
-			printf("Collision between q2 and q1 or z - ignoring\n");
+		{
+			if(getreg(p->q1))
+				printf("Collision between q2 and q1 or z - ignoring\n");
+		}
 		else
 			am_prepost_incdec(p,&p->q2);
 
 		if((getreg(p->q1)==getreg(p->z))
 			|| (getreg(p->q2)==getreg(p->z)))
-			printf("Collision between z and q1 or q2 - ignoring\n");
+		{
+			if(getreg(p->z))
+				printf("Collision between z and q1 or q2 - ignoring\n");
+		}
 		else
 			am_prepost_incdec(p,&p->z);
 		am_disposable(p,&p->q1);

@@ -1235,6 +1235,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 		// FIXME - need to handle pushing composite types */
 		emit(f,"\t\t\t\t\t// a: pushed %ld, regnames[sp] %s\n",pushed,regnames[sp]);
 		emit_objtotemp(f,&p->q1,t);
+//		load_temp(f,zreg,&p->q1,t);
 		emit(f,"\tstdec\t%s\n",regnames[sp]);
 		pushed+=zm2l(p->q2.val.vmax);
 		continue;

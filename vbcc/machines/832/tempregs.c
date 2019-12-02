@@ -167,13 +167,15 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 				}
 				if(p->v->storage_class==STATIC){
 					emit(f," static\n");
-					emit(f," FIXME - deref?\n");
+//					emit(f," FIXME - deref?\n");
 					emit(f,"\tldinc\tr7\n\t.int\t%s%d+%d\n",labprefix,zm2l(p->v->offset),offset);
+					emit(f,"\tldt\n");
 					if(reg!=tmp)
 						emit(f,"\tmr\t%s\n",regnames[reg]);
 				}else{
-					emit(f," FIXME - deref?\n");
+					emit(f,"\n");
 					emit_externtotemp(f,p->v->identifier,p->val.vmax);
+					emit(f,"\tldt\n");
 					if(reg!=tmp)
 						emit(f,"\tmr\t%s\n",regnames[reg]);
 				}
