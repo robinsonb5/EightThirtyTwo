@@ -26,7 +26,6 @@
 #include "timer.h"
 #endif
 
-#include "hexdump.h"
 
 /* Global Variables: */
 
@@ -235,7 +234,6 @@ int main ()
 #endif
 
 printf("Next_Ptr_Glob: %x\n",(int)Next_Ptr_Glob);
-hexdump(Next_Ptr_Glob,sizeof(rec1));
 
 #if 1
   printf ("Execution ends\n");
