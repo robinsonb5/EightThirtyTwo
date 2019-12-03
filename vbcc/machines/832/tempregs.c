@@ -294,7 +294,7 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 		}
 		else {
 			emit_prepobj(f,p,t,tmp,0);
-			if((t&NQ)!=FUNKT) // Function pointers are dereferenced by calling them.
+			if((t&NQ)!=FUNKT && (t&NQ)!=STRUCT && (t&NQ)!=UNION) // Function pointers are dereferenced by calling them.
 			{
 				emit_sizemod(f,t);
 				emit(f,"\tldt\n//marker 2\n");

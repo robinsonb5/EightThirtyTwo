@@ -7,10 +7,10 @@ _strcmp:						// Parameters: char *s1, char *s2
 	stdec	r6
 	li	4
 	ldidx	r6
-	mr	r1	// s1
+	mr	r2	// s1
 	li	8
 	ldidx	r6
-	mr	r2	// s2
+	mr	r1	// s2
 .loop:
 	ldbinc	r2	// s2++
 	mr	r0
@@ -33,13 +33,13 @@ _strcmp:						// Parameters: char *s1, char *s2
 _strncmp:						// Parameters: char *s1, char *s2, int n
 	stdec	r6
 	mt	r3
-	stdec	r3
+	stdec	r6
 	li	8
 	ldidx	r6
-	mr	r1
+	mr	r2
 	li	12
 	ldidx	r6
-	mr	r2
+	mr	r1
 	li	16
 	ldidx	r6
 	mr	r3

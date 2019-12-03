@@ -6,7 +6,7 @@ CC=../bin/vbcc832
 CFLAGS = -+ -O=1311 -size 
 COPT = -O=1311
 TIME=10ms
-all: compiler helloworld.bin
+all: compiler dhrystone_ROM.vhd
 
 compiler:
 	make -C .. TARGET=832
@@ -14,8 +14,13 @@ compiler:
 run: dhrystone.ghw
 
 clean :
+	rm *.S
 	rm *.o
 	rm *.bin
+	rm *.elf
+
+a.out : dhry_1.c dhry_2.c ../../Lib/hexdump.c
+	gcc $+
 
 %.ghw : %_ROM.vhd  tb.vhd force
 	sed 's/_rom/$*_rom/;s/cpu_tb/$*_tb/' >$*_tb.vhd <tb.vhd
@@ -35,7 +40,7 @@ clean :
 %.o : %.s Makefile
 	gcc -c $*.s
 
-dhrystone.elf : start.o uart.o small_printf.o division.o strcmp.o dhry_1.o dhry_2.o
+dhrystone.elf : start.o uart.o small_printf.o division.o strcmp.o dhry_1.o dhry_2.o hexdump.o
 	gcc -Wl,--build-id=none -Wl,--gc-sections -nostartfiles -nostdlib -Tldscript.ld -o $@ $+
 
 %.o : %.S Makefile ldscript.ld $(832DIR)/start.S

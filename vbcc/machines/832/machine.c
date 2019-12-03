@@ -391,8 +391,7 @@ static int q1reg,q2reg,zreg;
 
 static char *ccs[]={"EQ","NEQ","SLT","GE","LE","SGT","EX",""};
 static char *logicals[]={"or","xor","and"};
-// FIXME - separate lsr / asr
-static char *arithmetics[]={"shl","sgn\n\tshr","add","sub","mul","//#FIXME call division routine","//#fixme call modulus routine"};
+static char *arithmetics[]={"shl","shr","add","sub","mul","//#FIXME call division routine","//#fixme call modulus routine"};
 
 /* Does some pre-processing like fetching operands from memory to
    registers etc. */
@@ -1378,7 +1377,14 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 		if(c>=OR&&c<=AND)
 			emit(f,"\t%s\t%s\n",logicals[c-OR],regnames[zreg]);
 		else
+		{
+			if(c==RSHIFT)	// Modify right shift operations with appropriate signedness...
+			{
+				if(!(t&UNSIGNED))
+					emit(f,"\tsgn\n");
+			}
 			emit(f,"\t%s\t%s\n",arithmetics[c-LSHIFT],regnames[zreg]);
+		}
 		save_result(f,p);
 		continue;
 	}

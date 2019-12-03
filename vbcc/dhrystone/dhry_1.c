@@ -26,6 +26,8 @@
 #include "timer.h"
 #endif
 
+#include "hexdump.h"
+
 /* Global Variables: */
 
 Rec_Pointer     Ptr_Glob,
@@ -125,8 +127,6 @@ int main ()
   Ptr_Glob = &rec2;
 
   Ptr_Glob->Ptr_Comp                    = Next_Ptr_Glob;
-  printf("%x\n",Next_Ptr_Glob);
-  printf("%x\n",Ptr_Glob->Ptr_Comp);
   Ptr_Glob->Discr                       = Ident_1;
   Ptr_Glob->variant.var_1.Enum_Comp     = Ident_3;
   Ptr_Glob->variant.var_1.Int_Comp      = 40;
@@ -135,7 +135,7 @@ int main ()
   strcpy (Ptr_Glob->variant.var_1.Str_Comp, 
           "DHRYSTONE PROGRAM, SOME STRING");
   strcpy (Str_1_Loc, "DHRYSTONE PROGRAM, 1'ST STRING");
-
+//	printf("%s\n",Ptr_Glob->variant.var_1.Str_Comp);
   Arr_2_Glob [8][7] = 10;
         /* Was missing in published program. Without this statement,    */
         /* Arr_2_Glob [8][7] would have an undefined value.             */
@@ -231,8 +231,11 @@ int main ()
   End_Time = time ( (long *) 0);
 #endif
 #else
-//  End_Time = _readMilliseconds();
+  End_Time = _readMilliseconds();
 #endif
+
+printf("Next_Ptr_Glob: %x\n",(int)Next_Ptr_Glob);
+hexdump(Next_Ptr_Glob,sizeof(rec1));
 
 #if 1
   printf ("Execution ends\n");
@@ -398,7 +401,6 @@ Rec_Pointer *Ptr_Ref_Par;
   if (Ptr_Glob != Null)
     /* then, executed */
     *Ptr_Ref_Par = Ptr_Glob->Ptr_Comp;
-	printf("%d\n",Ptr_Glob->Ptr_Comp);
   Proc_7 (10, Int_Glob, &Ptr_Glob->variant.var_1.Int_Comp);
 } /* Proc_3 */
 
