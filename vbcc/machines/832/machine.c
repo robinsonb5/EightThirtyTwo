@@ -42,15 +42,18 @@ char cg_copyright[]="vbcc EightThirtyTwo code-generator, (c) 2019 by Alastair M.
     STRINGFLAG: a string can be specified
     FUNCFLAG: a function will be called
     apart from FUNCFLAG, all other versions can only be specified once */
-int g_flags[MAXGF]={0};
+int g_flags[MAXGF]={0,VALFLAG};
 
 /* the flag-name, do not use names beginning with l, L, I, D or U, because
    they collide with the frontend */
 /* FIXME - 832-specific flags, such as perhaps the reach of PCREL immediates? */
-char *g_flags_name[MAXGF]={"function-sections"};
+char *g_flags_name[MAXGF]={"function-sections","pcrel-reach"};
+
+#define FLAG_FUNCTIONSECTIONS 0
+#define FLAG_PCRELREACH 1
 
 /* the results of parsing the command-line-flags will be stored here */
-union ppi g_flags_val[MAXGF];
+union ppi g_flags_val[MAXGF]={0,2};
 
 /*  Alignment-requirements for all types in bytes.              */
 zmax align[MAX_TYPE+1];
@@ -629,6 +632,10 @@ int init_cg(void)
   char_bit=l2zm(8L);
   stackalign=l2zm(4);
 
+	printf("flags:\n");
+	printf("Function sections: %d\n",g_flags[FLAG_FUNCTIONSECTIONS]&USEDFLAG);
+	printf("PC Relative reach: %d\n",g_flags_val[FLAG_PCRELREACH]);
+
   for(i=0;i<=MAX_TYPE;i++){
     sizetab[i]=l2zm(msizetab[i]);
     align[i]=l2zm(malign[i]);
@@ -636,13 +643,13 @@ int init_cg(void)
 
   regnames[0]="noreg";
   for(i=FIRST_GPR;i<=LAST_GPR-1;i++){
-    regnames[i]=mymalloc(10);
+    regnames[i]=mymalloc(5);
     sprintf(regnames[i],"r%d",i-FIRST_GPR);
     regsize[i]=l2zm(4L);
     regtype[i]=&ltyp;
     regsa[i]=0;
   }
-  regnames[i]=mymalloc(10);
+  regnames[i]=mymalloc(5);
   sprintf(regnames[i],"tmp");
   regsize[i]=l2zm(4L);
   regtype[i]=&ltyp;
@@ -847,7 +854,7 @@ void gen_align(FILE *f,zmax align)
 /*  This function has to make sure the next data is     */
 /*  aligned to multiples of <align> bytes.              */
 {
-  if(zm2l(align)>1) emit(f,"\t.align\t2\n");
+  if(zm2l(align)>1) emit(f,"\t.align\t%d\n",align);
 }
 
 void gen_var_head(FILE *f,struct Var *v)
@@ -1121,20 +1128,33 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 		switch(q1typ(p)&NU)	// Exclude unsigned values, since we don't need to convert them.
 		{
 			case CHAR:
+				if(!optsize)
+				{
+					emit_constanttotemp(f,0x1000000);
+					emit(f,"\tmul\t%s\n",regnames[zreg]);
+					emit_constanttotemp(f,0x100);
+					emit(f,"\tsgn\n\tmul\t%s\n",regnames[zreg]);
+					emit(f,"\tmr\t%s\n",regnames[zreg]);
+				}
 				shamt=24;
 				break;
 			case SHORT:
+				emit_constanttotemp(f,0x10000);
+				emit(f,"\tmul\t%s\n",regnames[zreg]);
+				emit_constanttotemp(f,0x10000);
+				emit(f,"\tsgn\n\tmul\t%s\n",regnames[zreg]);
+				emit(f,"\tmr\t%s\n",regnames[zreg]);
 				shamt=16;
 				break;
 		}
-		if(shamt)
+		if(shamt && optsize)
 		{
 			emit(f,"\tli\t%d\n",shamt);
 			emit(f,"\tshl\t%s\n",regnames[zreg]);
 			emit(f,"\tsgn\n");
 			emit(f,"\tshr\t%s\n",regnames[zreg]);
 		}
-	      save_result(f,p);
+		save_result(f,p);
       }
 		else {	// If the size is the same then this is effectively just an assign.
 			emit(f,"\t\t\t\t\t// (convert -> assign)\n");
@@ -1250,6 +1270,8 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 			int srcr=t1;
 			int dstr=t2;
 			int cntr=t2+1;
+			int wordcopy;
+			int bytecopy;
 			if((t&NQ)==CHAR)
 				emit(f,"// (char with size!=1 -> array of unknown type)\n");
 			// FIXME - library function?
@@ -1271,21 +1293,72 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 			}
 
 			zmax copysize=opsize(p);
-			emit(f,"// Copying %d bytes to %s\n",copysize,p->z.v->identifier);
-			// Copy bytes...
+
+			if(!optsize)	// Can we create larger code in the interests of speed?  If so, partially unroll the copy.
+				wordcopy=copysize&~3;
+			else
+				wordcopy=0;
+			bytecopy=copysize-wordcopy;
+			
+			// FIXME - could unroll more agressively if optspeed is set.  Can then avoid messing with r2.
+			emit(f,"// Copying %d words and %d bytes to %s\n",wordcopy/4,bytecopy,p->z.v->identifier);
+
+			// Prepare the copy
 			load_temp(f,zreg,&p->q1,t);
 			emit(f,"\tmr\t%s\n",regnames[srcr]);
 			emit(f,"\tmt\t%s\n\tstdec\t%s\n",regnames[t2+1],regnames[sp]);
 			pushed+=4;
-			emit_constanttotemp(f,copysize);
-			emit(f,"\taddt\t%s\n",regnames[dstr]);
-			emit(f,"\tmr\t%s\n",regnames[cntr]);
-			emit(f,".cpy%sloop%d:\n",p->z.v->identifier,loopid);
-			emit(f,"\tldbinc\t%s\n\tstbinc\t%s\n",regnames[srcr],regnames[dstr]);
-			emit(f,"\tmt\t%s\n\tcmp\t%s\n",regnames[dstr],regnames[cntr]);
-			emit(f,"\tcond\tNEQ\n");
-			emit(f,"\t\tli\tIMW0(PCREL(.cpy%sloop%d))\n",p->z.v->identifier,loopid);
-			emit(f,"\t\tadd\t%s\n",regnames[pc]);
+
+			if(wordcopy<32)
+			{
+				wordcopy>>=2;
+				if(wordcopy)
+					emit(f,"// Copying %d word tail to %s\n",bytecopy,p->z.v->identifier);
+				while(wordcopy--)
+				{
+					emit(f,"\tldinc\t%s\n\tst\t%s\n",regnames[srcr],regnames[dstr]);
+					emit(f,"\tli\t4\n\tadd\t%s\n",regnames[dstr]);
+				}
+			}
+			else
+			{
+				emit(f,"// Copying %d words to %s\n",wordcopy/4,p->z.v->identifier);
+				// Copy bytes...
+				emit_constanttotemp(f,wordcopy);
+				emit(f,"\taddt\t%s\n",regnames[dstr]);
+				emit(f,"\tmr\t%s\n",regnames[cntr]);
+				emit(f,".cpy%swordloop%d:\n",p->z.v->identifier,loopid);
+				emit(f,"\tldinc\t%s\n\tst\t%s\n",regnames[srcr],regnames[dstr]);
+				emit(f,"\tli\t4\n\tadd\t%s\n",regnames[dstr]);  // FIXME - stinc would speed this up.
+				emit(f,"\tmt\t%s\n\tcmp\t%s\n",regnames[dstr],regnames[cntr]);
+				emit(f,"\tcond\tNEQ\n");
+				emit(f,"\t\tli\tIMW0(PCREL(.cpy%swordloop%d))\n",p->z.v->identifier,loopid);
+				emit(f,"\t\tadd\t%s\n",regnames[pc]);
+			}
+
+			if(bytecopy<5)
+			{
+				if(bytecopy)
+					emit(f,"// Copying %d byte tail to %s\n",bytecopy,p->z.v->identifier);
+				while(bytecopy--)
+					emit(f,"\tldbinc\t%s\n\tstbinc\t%s\n",regnames[srcr],regnames[dstr]);
+			}
+			else
+			{
+				emit(f,"// Copying %d bytes to %s\n",bytecopy,p->z.v->identifier);
+				// Copy bytes...
+				emit_constanttotemp(f,bytecopy);
+				emit(f,"\taddt\t%s\n",regnames[dstr]);
+				emit(f,"\tmr\t%s\n",regnames[cntr]);
+				emit(f,".cpy%sloop%d:\n",p->z.v->identifier,loopid);
+				emit(f,"\tldbinc\t%s\n\tstbinc\t%s\n",regnames[srcr],regnames[dstr]);
+				emit(f,"\tmt\t%s\n\tcmp\t%s\n",regnames[dstr],regnames[cntr]);
+				emit(f,"\tcond\tNEQ\n");
+				emit(f,"\t\tli\tIMW0(PCREL(.cpy%sloop%d))\n",p->z.v->identifier,loopid);
+				emit(f,"\t\tadd\t%s\n",regnames[pc]);
+
+			}
+			// cleanup
 			emit(f,"\tldinc\t%s\n",regnames[sp]);
 			emit(f,"\tmr\t%s\n",regnames[t2+1]);
 			pushed-=4;
@@ -1342,12 +1415,16 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 			emit(f," (q2 unsigned)");
 		else
 			emit(f," (q2 signed)");
-      emit_objtotemp(f,&p->q1,t);
-      emit(f,"\tmr\t%s\n",regnames[t2]);
+		if(!q1reg)
+		{
+			emit_objtotemp(f,&p->q1,t);
+			emit(f,"\tmr\t%s\n",regnames[t2]);
+			q1reg=t2;
+		}
       emit_objtotemp(f,&p->q2,t);
 	  if((!(q1typ(p)&UNSIGNED))&&(!(q2typ(p)&UNSIGNED)))	// If we have a mismatch of signedness we treat as unsigned.
 		emit(f,"\tsgn\n"); // Signed comparison
-      emit(f,"\tcmp\t%s\n",regnames[t2]);
+      emit(f,"\tcmp\t%s\n",regnames[q1reg]);
       continue;
     }
 
@@ -1389,6 +1466,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 		continue;
 	}
 	else if((c==MOD)||(c==DIV)){
+		// FIXME - do we need to use switch_IC here?
 		emit(f,"\t//Call division routine\n");
 		emit_objtotemp(f,&p->q1,t);
 		emit(f,"\tmr\t%s\n",regnames[t2]);

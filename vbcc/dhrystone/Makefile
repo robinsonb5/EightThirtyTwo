@@ -3,7 +3,7 @@ ROMGENDIR = ../../romgen
 ROMGEN = $(ROMGENDIR)/romgen
 GHDL = ghdl
 CC=../bin/vbcc832
-CFLAGS = -+ -O=1311 -size 
+CFLAGS = -+ -O=1311 -speed 
 COPT = -O=1311
 TIME=10ms
 all: compiler dhrystone_ROM.vhd
@@ -55,7 +55,7 @@ dhrystone.elf : start.o uart.o small_printf.o division.o strcmp.o dhry_1.o dhry_
 	gcc -c $(832DIR)/$*.S -I$(832DIR) -o $*.o
 
 %.S : %.c Makefile ../bin/vbcc832
-	../bin/vbcc832 -+ $(COPT) -size -I$(832DIR) $*.c
+	../bin/vbcc832 -+ $(COPT) -speed -I$(832DIR) $*.c
 	mv $*.asm $*.S
 
 $(ROMGEN): $(ROMGENDIR)/romgen.c

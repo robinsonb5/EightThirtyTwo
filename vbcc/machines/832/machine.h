@@ -32,7 +32,7 @@ struct AddressingMode{
 #define MAXR NUM_GPRS+NUM_FPRS+NUM_CCRS
 
 /*  Number of commandline-options the code-generator accepts.       */
-#define MAXGF 0
+#define MAXGF 2
 
 /*  If this is set to zero vbcc will not generate ICs where the     */
 /*  target operand is the same as the 2nd source operand.           */
