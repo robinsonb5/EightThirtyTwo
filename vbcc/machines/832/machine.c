@@ -277,7 +277,7 @@ static int load_temp(FILE *f,int r,struct obj *o,int type)
 		case SHORT:
 		    emit_prepobj(f,o,type,tmp,0);
 			if(o->flags&DREFOBJ)
-				emit(f,"\thfl\n\tldt\n");
+				emit(f,"\thlf\n\tldt\n");
 			break;
 		case INT:
 		case LONG:
@@ -294,7 +294,6 @@ static int load_temp(FILE *f,int r,struct obj *o,int type)
   }else{
     if((o->flags&(REG|DREFOBJ))==REG&&o->reg==r)
     {
-      emit(f," nop\n");
       return(0);
     }
     emit(f," not varadr\n");
@@ -320,13 +319,6 @@ static void store_reg(FILE *f,int r,struct obj *o,int type)
 	emit(f,"// Store_reg to type 0x%x\n",type);
 
 	type&=NQ;	// Filter out unsigned, etc.
-
-	// We don't want to modify the storage size for stack-based variables.
-//	if(o->v && isauto(o->v->storage_class) && (type==CHAR || type==SHORT))
-//	{
-//		emit(f,"(promoting to int for stack");
-//		type=INT;
-//	}
 
 	switch(type)
 	{
@@ -458,15 +450,11 @@ void save_temp(FILE *f,struct IC *p)
 			    emit(f,"\tst\t%s\n",regnames[p->z.reg]);
 			break;
 		default:
-			emit(f,"// FIXME - type %d not yet handled\n",ztyp(p));
+			printf("save_temp - type %d not yet handled\n",ztyp(p));
+			ierror(0);
 			break;
 	}
   } else {
-//	if(p->z.v->storage_class==AUTO && (type==CHAR || type==SHORT))
-//	{
-//		emit(f,"(promoting to int for stack");
-//		type=INT;
-//	}
     emit(f,"store prepped reg\n");
 	switch(type)
 	{
@@ -482,7 +470,8 @@ void save_temp(FILE *f,struct IC *p)
 		    emit(f,"\tst\t%s\n",regnames[t2]);
 			break;
 		default:
-			emit(f,"// FIXME - type %d not yet handled\n",ztyp(p));
+			printf("save_temp - type %d not yet handled\n",ztyp(p));
+			ierror(0);
 			break;
 	}
   }

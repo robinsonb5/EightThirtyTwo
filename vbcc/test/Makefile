@@ -16,9 +16,9 @@ run: helloworld.ghw
 tests: helloworld.ghw helloworld_byte.ghw strcpytest.ghw fptrtest.ghw copytest.ghw comparisons.ghw vatest.ghw
 
 clean :
+	rm *.bin
 	rm *.S
 	rm *.o
-	rm *.bin
 	rm *.elf
 
 %.ghw : %_ROM.vhd  tb.vhd force
@@ -28,12 +28,12 @@ clean :
 	$(GHDL) -c -r $*_tb --ieee-asserts=disable-at-0 --stop-time=$(TIME) --read-wave-opt=waveopt --wave=$*.ghw
 
 
-%_ROM.vhd: %.bin $(ROMGEN)
+%_ROM.vhd: %.bin $(ROMGEN) force
 	sed 's/dualportram/$*_rom/' >$*_ROM.vhd <$(ROMGENDIR)/rom_prologue.vhd
 	$(ROMGEN) -b $*.bin >>$*_ROM.vhd
 	cat >>$*_ROM.vhd $(ROMGENDIR)/rom_epilogue.vhd
 
-%.bin : %.elf Makefile
+%.bin : %.elf Makefile force
 	objcopy -Obinary $< $@
 
 %.o : %.s Makefile
@@ -42,18 +42,18 @@ clean :
 %.elf : start.o uart.o small_printf.o division.o strcmp.o hexdump.o %.o
 	gcc -Wl,--build-id=none -Wl,--gc-sections -nostartfiles -nostdlib -Tldscript.ld -o $@ $+
 
-%.o : %.S Makefile ldscript.ld $(832DIR)/start.S
+%.o : %.S Makefile ldscript.ld $(832DIR)/start.S force
 	gcc -I. -I$(832DIR) -c $*.S -o $*.o
 
-%.o : %.c Makefile ldscript.ld $(832DIR)/start.S $(CC)
+%.o : %.c Makefile ldscript.ld $(832DIR)/start.S $(CC) force
 	../bin/vbcc832 -+ $(COPT) -size -I$(832DIR) $*.c
 	mv $*.asm $*.S
 	gcc -I. -I$(832DIR) -c $*.S -o $*.o
 
-%.o : $(832DIR)/%.S Makefile ldscript.ld $(832DIR)/assembler.pp $(832DIR)/start.S
+%.o : $(832DIR)/%.S Makefile ldscript.ld $(832DIR)/assembler.pp $(832DIR)/start.S force
 	gcc -c $(832DIR)/$*.S -I$(832DIR) -o $*.o
 
-%.S : %.c Makefile ../bin/vbcc832
+%.S : %.c Makefile ../bin/vbcc832 $(CC) force
 	../bin/vbcc832 -+ $(COPT) -size -I$(832DIR) $*.c
 	mv $*.asm $*.S
 

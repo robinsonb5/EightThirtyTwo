@@ -118,6 +118,30 @@ static void emit_constanttotemp(FILE *f,zmax v)
 }
 
 
+static void emit_stackvartotemp(FILE *f,zmax offset,int deref)
+{
+	if(deref)
+	{
+		if(offset)
+		{
+			emit_constanttotemp(f,offset);
+			emit(f,"\tldidx\t%s\n",regnames[sp]);
+		}
+		else
+			emit(f,"\tld\t%s\n",regnames[sp]);
+	}
+	else
+	{
+		if(offset)
+		{
+			emit_constanttotemp(f,offset);
+			emit(f,"\taddt\t%s\n",regnames[sp]);
+		}
+		else
+			emit(f,"\tmt\t%s\n",regnames[sp]);	
+	}
+}
+
 static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 {
 	emit(f,"\t\t\t\t\t// (prepobj %s)",regnames[reg]);
@@ -134,25 +158,16 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 		emit(f," deref\n");
 		/* Dereferencing a pointer */
 		if(p->flags&REG){
-		if(reg==tmp)
-			emit(f,"\tmt\t%s\n",regnames[p->reg]);
-		else
-			emit(f,"\t\t\t\t// reg %s - no need to prep\n",regnames[p->reg]);
+			if(reg==tmp)
+				emit(f,"\tmt\t%s\n",regnames[p->reg]);
+			else
+				emit(f,"\t\t\t\t// reg %s - no need to prep\n",regnames[p->reg]);
 		}
 		else if(p->flags&VAR) {	// FIXME - figure out what dereferencing means in these contexts
 			emit(f,"\t\t\t\t// var FIXME - deref?");
 			if(p->v->storage_class==AUTO||p->v->storage_class==REGISTER){
 				emit(f," reg \n");
-				if(real_offset(p)+offset!=0)
-				{
-					emit_constanttotemp(f,real_offset(p)+offset);
-
-					// FIXME - if we're dereferencing for a read here, can use ldidx.
-					emit(f,"\taddt\t%s\n",regnames[sp]);
-				}
-				else
-					emit(f,"\tmt\t%s\n",regnames[sp]);
-				emit(f,"\tldt\n//marker 1\n");
+				emit_stackvartotemp(f,real_offset(p)+offset,1);
 				if(reg!=tmp)
 					emit(f,"\tmr\t%s\n",regnames[reg]);
 			}
@@ -194,19 +209,9 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 				/* Set a register to point to a stack-base variable. */
 				emit(f," var, auto|reg\n");
 				if(p->v->storage_class==REGISTER) emit(f,"\t\t\t// (is actually REGISTER)\n");
-				if(real_offset(p)+offset==0)	/* No offset? Just copy the stack pointer */
-				{
-					emit(f,"\tmt\t%s\n",regnames[sp]);
-					if(reg!=tmp)
-						emit(f,"\tmr\t%s\n",regnames[reg]);
-				}
-				else
-				{
-					emit_constanttotemp(f,real_offset(p)+offset);
-					emit(f,"\taddt\t%s\n",regnames[sp]);
-					if(reg!=tmp)
-						emit(f,"\tmr\t%s\n\n",regnames[reg]);
-				}
+				emit_stackvartotemp(f,real_offset(p)+offset,0);
+				if(reg!=tmp)
+					emit(f,"\tmr\t%s\n\n",regnames[reg]);
 			}
 			else{
 				if(isextern(p->v->storage_class)){
@@ -221,7 +226,8 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 					if(reg!=tmp)
 						emit(f,"\tmr\t%s\n",regnames[reg]);
 				}else{
-					emit(f," FIXME - unknown storage class!\n");
+					printf("emit_prepobj: - unknown storage class!\n");
+					ierror(0);
 				}
 			}
 		}
@@ -233,26 +239,10 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 {
 	emit(f,"\t\t\t\t\t// (objtotemp) ");
 	if((p->flags&(KONST|DREFOBJ))==(KONST|DREFOBJ)){
-		emit(f," const/deref # FIXME deal with different data sizes when dereferencing\n");
-		emit_prepobj(f,p,t,t1,0);
-		switch(t&NQ)
-		{
-			case CHAR:
-				emit(f,"\tbyt\n");
-				break;
-			case SHORT:
-				emit(f,"\thlf\n");
-				break;
-			case INT:
-			case LONG:
-			case POINTER:
-				break;
-			default:
-				printf("Objtotmp contstant - unhandled type 0x%x\n",t);
-				ierror(0);
-				break;
-		}
-		emit(f,"\tld\t%s\n",regnames[t1]);
+		emit(f," const/deref\n");
+		emit_prepobj(f,p,t,tmp,0);
+		emit_sizemod(f,t);
+		emit(f,"\tldt\n");
 		return;
 	}
 
@@ -320,26 +310,7 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 			else if(isextern(p->v->storage_class)) {
 				emit(f," extern\n");
 				emit_externtotemp(f,p->v->identifier,p->val.vmax);
-				switch(t&NQ)
-				{
-					case CHAR:
-						emit(f,"\tbyt\n");
-						break;
-					case SHORT:
-						emit(f,"\thlf\n");
-						break;
-					case INT:
-					case LONG:
-					case POINTER:
-					case FUNKT:
-					case STRUCT:
-					case UNION:
-						break;
-					default:
-						emit(f,"// FIXME - emitobjtotmp extern loadtype %d not handled\n",t);
-						ierror(0);
-						break;
-				}
+				emit_sizemod(f,t);
 				// Structs and unions have to remain as pointers
 				if((!(p->flags&VARADR)) && ((t&NQ)!=STRUCT) && ((t&NQ)!=UNION))
 					emit(f,"\tldt\n");
@@ -351,9 +322,11 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 			}
 			else
 			{
+				printf("Unhandled storage class: %d\n",p->v->storage_class);
+				ierror(0);
 				// OK what are we dealing with here?
-				emit(f,"// storage class %d\n",p->v->storage_class);
-				emit_externtotemp(f,p->v->identifier,p->val.vmax);
+//				emit(f,"// storage class %d\n",p->v->storage_class);
+//				emit_externtotemp(f,p->v->identifier,p->val.vmax);
 			}
 		}
 		else if(p->flags&KONST){
@@ -361,7 +334,8 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 			emit_constanttotemp(f,val2zmax(f,p,t));
 		}
 		else {
-			emit(f," unknown type %d\n",p->flags);
+			printf(" unknown type %d\n",p->flags);
+			ierror(0);
 		}
 	}
 }

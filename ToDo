@@ -15,9 +15,12 @@ DONE  Look at multithreading.  Would need a second register file, a second PC an
       The second thread would launch with the C flag set, so startup code can tell whether it's dealing with
       Thread 1, Thread 2 or an interrupt.
 
-* C backend - get signed-ness, composite types and halfword / byte operations working.
+DONE C backend - get signed-ness, composite types and halfword / byte operations working.
 
 * Look at the instruction set again.
 	* stinc?
-	* Can we adjust pre/postinc based on byt/hlf directives?
+	* Can we adjust pre/postinc based on byt/hlf directives?  Potentially - would need to bring in the
+	  increment value through the imm channel?  Might be a worthwhile simplification anyway.
+
+
 
