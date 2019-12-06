@@ -417,7 +417,7 @@ static struct IC *preload(FILE *f,struct IC *p)
 }
 
 /* save the result (in temp) into p->z */
-void save_temp(FILE *f,struct IC *p)
+void save_temp(FILE *f,struct IC *p,int treg)
 {
   emit(f,"\t\t\t\t\t// (save temp) ");
   int type=ztyp(p)&NQ;
@@ -425,49 +425,31 @@ void save_temp(FILE *f,struct IC *p)
   if(isreg(z)){
     emit(f,"isreg\n");
     emit(f,"\tmr\t%s\n",regnames[p->z.reg]);
-  }else if ((p->z.flags&DREFOBJ) && (p->z.flags&REG)){
+  }else {
+	if ((p->z.flags&DREFOBJ) && (p->z.flags&REG))
+		treg=p->z.reg;
 
-    emit(f,"store reg\n");
+    emit(f,"store\n");
 	switch(type)
 	{
 		case CHAR:
 			if(p->z.am && p->z.am->type==AM_POSTINC)
-			    emit(f,"\tstbinc\t%s\n",regnames[p->z.reg]);
-			else if(p->z.am && p->z.am->disposable)
-				emit(f,"\tstbinc\t%s\n//Disposable, postinc doesn't matter.\n",regnames[p->z.reg]);
+			    emit(f,"\tstbinc\t%s\n",regnames[treg]);
+			else if((p->z.am && p->z.am->disposable) || (treg!=p->z.reg))
+				emit(f,"\tstbinc\t%s\n//Disposable, postinc doesn't matter.\n",regnames[treg]);
 			else
-				emit(f,"\tbyt\n\tst\t%s\n",regnames[p->z.reg]);
+				emit(f,"\tbyt\n\tst\t%s\n",regnames[treg]);
 			break;
 		case SHORT:
-		    emit(f,"\thlf\n\tst\t%s\n",regnames[p->z.reg]);
+		    emit(f,"\thlf\n\tst\t%s\n",regnames[treg]);
 			break;
 		case INT:
 		case LONG:
 		case POINTER:
 			if(p->z.am && p->z.am->type==AM_PREDEC)
-			    emit(f,"\tstdec\t%s\n",regnames[p->z.reg]);
+			    emit(f,"\tstdec\t%s\n",regnames[treg]);
 			else
-			    emit(f,"\tst\t%s\n",regnames[p->z.reg]);
-			break;
-		default:
-			printf("save_temp - type %d not yet handled\n",ztyp(p));
-			ierror(0);
-			break;
-	}
-  } else {
-    emit(f,"store prepped reg\n");
-	switch(type)
-	{
-		case CHAR:
-		    emit(f,"\tstbinc\t%s\n//Disposable, postinc doesn't matter\n",regnames[t2]);
-			break;
-		case SHORT:
-		    emit(f,"\thlf\n\tst\t%s\n",regnames[t2]);
-			break;
-		case INT:
-		case LONG:
-		case POINTER:
-		    emit(f,"\tst\t%s\n",regnames[t2]);
+			    emit(f,"\tst\t%s\n",regnames[treg]);
 			break;
 		default:
 			printf("save_temp - type %d not yet handled\n",ztyp(p));
@@ -1128,11 +1110,14 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 				shamt=24;
 				break;
 			case SHORT:
-				emit_constanttotemp(f,0x10000);
-				emit(f,"\tmul\t%s\n",regnames[zreg]);
-				emit_constanttotemp(f,0x10000);
-				emit(f,"\tsgn\n\tmul\t%s\n",regnames[zreg]);
-				emit(f,"\tmr\t%s\n",regnames[zreg]);
+				if(!optsize)
+				{
+					emit_constanttotemp(f,0x10000);
+					emit(f,"\tmul\t%s\n",regnames[zreg]);
+					emit_constanttotemp(f,0x10000);
+					emit(f,"\tsgn\n\tmul\t%s\n",regnames[zreg]);
+					emit(f,"\tmr\t%s\n",regnames[zreg]);
+				}
 				shamt=16;
 				break;
 		}
@@ -1149,7 +1134,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 			emit(f,"\t\t\t\t\t// (convert -> assign)\n");
 			emit_prepobj(f,&p->z,t,t2,0);
 			load_temp(f,zreg,&p->q1,t);
-			save_temp(f,p);
+			save_temp(f,p,t2);
 		}
       continue;
     }
@@ -1356,7 +1341,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 		else
 		{
 			load_temp(f,zreg,&p->q1,t);
-			save_temp(f,p);
+			save_temp(f,p,t2);
 		}
 		continue;
 	}

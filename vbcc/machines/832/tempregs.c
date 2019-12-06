@@ -49,9 +49,7 @@ static void emit_sizemod(FILE *f,int type)
 		case INT:
 		case LONG:
 		case POINTER:
-			break;
-		case FUNKT:
-			break; // Function pointers are dereferenced by calling them.
+		case FUNKT: // Function pointers are dereferenced by calling them.
 		case STRUCT:
 		case UNION:
 			break; // Structs and unions have to remain as pointers
@@ -72,9 +70,9 @@ static void emit_pcreltotemp(FILE *f,char *lab,int suffix)
 }
 
 
-static void emit_externtotemp(FILE *f,char *lab,int offset)
+static void emit_externtotemp(FILE *f,char *lab,int offset)	// FIXME - need to find a way to do this PC-relative.
 {
-	emit(f,"\tldinc\t%s\n",regnames[pc]); // Assuming 16 bits will be enough for offset.
+	emit(f,"\tldinc\t%s\n",regnames[pc]);
 	if(offset)
 		emit(f,"\t.int\t_%s + %d\n",lab,offset);
 	else
@@ -83,10 +81,10 @@ static void emit_externtotemp(FILE *f,char *lab,int offset)
 
 
 
-static void emit_statictotemp(FILE *f,char *lab,int suffix)
+static void emit_statictotemp(FILE *f,char *lab,int suffix) // FIXME - need to find a way to do this PC relative
 {
 	emit(f,"\t\t\t\t//statictotemp\n");
-	emit(f,"\tldinc\t%s\n",regnames[pc]); // Assuming 16 bits will be enough for offset.
+	emit(f,"\tldinc\t%s\n",regnames[pc]);
 	emit(f,"\t.int\t%s%d\n",lab,suffix);
 }
 
@@ -145,66 +143,61 @@ static void emit_stackvartotemp(FILE *f,zmax offset,int deref)
 static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 {
 	emit(f,"\t\t\t\t\t// (prepobj %s)",regnames[reg]);
-	if((p->flags&(KONST|DREFOBJ))==(KONST|DREFOBJ)){
-		emit(f," const/deref\n");
-		emit_constanttotemp(f,val2zmax(f,p,p->dtyp)+offset);
-		if(reg!=tmp)
-			emit(f,"\tmr\t%s\n",regnames[reg]);
-		return;
-	}
 
 	if(p->flags&DREFOBJ)
 	{
 		emit(f," deref\n");
 		/* Dereferencing a pointer */
-		if(p->flags&REG){
+		if(p->flags&KONST){
+			emit(f,"\t\t\t// const\n");
+			emit_constanttotemp(f,val2zmax(f,p,p->dtyp)+offset);
+			if(reg!=tmp)
+				emit(f,"\tmr\t%s\n",regnames[reg]);
+		} else if(p->flags&REG){
 			if(reg==tmp)
 				emit(f,"\tmt\t%s\n",regnames[p->reg]);
 			else
 				emit(f,"\t\t\t\t// reg %s - no need to prep\n",regnames[p->reg]);
-		}
-		else if(p->flags&VAR) {	// FIXME - figure out what dereferencing means in these contexts
+		} else if(p->flags&VAR) {
 			emit(f,"\t\t\t\t// var FIXME - deref?");
-			if(p->v->storage_class==AUTO||p->v->storage_class==REGISTER){
+			if(isauto(p->v->storage_class)){
 				emit(f," reg \n");
 				emit_stackvartotemp(f,real_offset(p)+offset,1);
 				if(reg!=tmp)
 					emit(f,"\tmr\t%s\n",regnames[reg]);
-			}
-			else{
-				if(!zmeqto(l2zm(0L),p->val.vmax)){
-					emit(f," offset ");
-					emit(f," FIXME - deref?\n");
-					emit_constanttotemp(f,val2zmax(f,p,LONG));
+			} else if(isstatic(p->v->storage_class)){
+				emit(f," static\n");
+				emit(f,"\tldinc\tr7\n\t.int\t%s%d+%d\n",labprefix,zm2l(p->v->offset),offset);
+				emit(f,"\tldt\n");
+				if(reg!=tmp)
 					emit(f,"\tmr\t%s\n",regnames[reg]);
-					emit_pcreltotemp(f,labprefix,zm2l(p->v->offset));
-					emit(f,"\tadd\t%s\n",regnames[reg]);
-				}
-				if(p->v->storage_class==STATIC){
-					emit(f," static\n");
-//					emit(f," FIXME - deref?\n");
-					emit(f,"\tldinc\tr7\n\t.int\t%s%d+%d\n",labprefix,zm2l(p->v->offset),offset);
-					emit(f,"\tldt\n");
-					if(reg!=tmp)
-						emit(f,"\tmr\t%s\n",regnames[reg]);
-				}else{
-					emit(f,"\n");
-					emit_externtotemp(f,p->v->identifier,p->val.vmax);
-					emit(f,"\tldt\n");
-					if(reg!=tmp)
-						emit(f,"\tmr\t%s\n",regnames[reg]);
-				}
+			} else if(isextern(p->v->storage_class)){
+				emit(f,"\n");
+				emit_externtotemp(f,p->v->identifier,p->val.vmax);
+				emit(f,"\tldt\n");
+				if(reg!=tmp)
+					emit(f,"\tmr\t%s\n",regnames[reg]);
 			}
+			else {
+				printf("emit_prepobj (deref): - unknown storage class!\n");
+				ierror(0);
+			}
+//				if(!zmeqto(l2zm(0L),p->val.vmax)){
+//					emit(f," offset ");
+//					emit(f," FIXME - deref?\n");
+//					emit_constanttotemp(f,val2zmax(f,p,LONG));
+//					emit(f,"\tmr\t%s\n",regnames[reg]);
+//					emit_pcreltotemp(f,labprefix,zm2l(p->v->offset));
+//					emit(f,"\tadd\t%s\n",regnames[reg]);
+//				}
 		}
 	}
 	else
 	{
-
 		if(p->flags&REG){
 			emit(f," reg %s - no need to prep\n",regnames[p->reg]);
-
 		}else if(p->flags&VAR) {
-			if(p->v->storage_class==AUTO||p->v->storage_class==REGISTER)
+			if(isauto(p->v->storage_class))
 			{
 				/* Set a register to point to a stack-base variable. */
 				emit(f," var, auto|reg\n");
@@ -212,23 +205,19 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 				emit_stackvartotemp(f,real_offset(p)+offset,0);
 				if(reg!=tmp)
 					emit(f,"\tmr\t%s\n\n",regnames[reg]);
-			}
-			else{
-				if(isextern(p->v->storage_class)){
-					emit(f," extern (offset %d)\n",p->val.vmax);
-					emit_externtotemp(f,p->v->identifier,p->val.vmax+offset);
-					if(reg!=tmp)
-						emit(f,"\tmr\t%s\n",regnames[reg]);
-				}
-				else if(isstatic(p->v->storage_class)){
-					emit(f," static\n");
-					emit(f,"\tldinc\tr7\n\t.int\t%s%d+%d\n",labprefix,zm2l(p->v->offset),offset);
-					if(reg!=tmp)
-						emit(f,"\tmr\t%s\n",regnames[reg]);
-				}else{
-					printf("emit_prepobj: - unknown storage class!\n");
-					ierror(0);
-				}
+			} else if(isextern(p->v->storage_class)){
+				emit(f," extern (offset %d)\n",p->val.vmax);
+				emit_externtotemp(f,p->v->identifier,p->val.vmax+offset);
+				if(reg!=tmp)
+					emit(f,"\tmr\t%s\n",regnames[reg]);
+			} else if(isstatic(p->v->storage_class)){
+				emit(f," static\n");
+				emit(f,"\tldinc\tr7\n\t.int\t%s%d+%d\n",labprefix,zm2l(p->v->offset),offset);
+				if(reg!=tmp)
+					emit(f,"\tmr\t%s\n",regnames[reg]);
+			}else{
+				printf("emit_prepobj: - unknown storage class!\n");
+				ierror(0);
 			}
 		}
 	}
@@ -322,11 +311,8 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 			}
 			else
 			{
-				printf("Unhandled storage class: %d\n",p->v->storage_class);
+				printf("Objtotemp: Unhandled storage class: %d\n",p->v->storage_class);
 				ierror(0);
-				// OK what are we dealing with here?
-//				emit(f,"// storage class %d\n",p->v->storage_class);
-//				emit_externtotemp(f,p->v->identifier,p->val.vmax);
 			}
 		}
 		else if(p->flags&KONST){
