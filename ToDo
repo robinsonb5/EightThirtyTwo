@@ -22,5 +22,32 @@ DONE C backend - get signed-ness, composite types and halfword / byte operations
 	* Can we adjust pre/postinc based on byt/hlf directives?  Potentially - would need to bring in the
 	  increment value through the imm channel?  Might be a worthwhile simplification anyway.
 
+* Look at integrating tmp register in the ALU itself.  (Might be tricky due to dual-threading.)
 
+Code generator needs a further intermediate format.
+
+struct e32obj
+{
+	struct e32obj *next,*prev;
+	char *identifier;
+	int offset;
+	int type;	// Can use the existing extern / static / auto flags + maybe an immediate type too?  + function type
+	struct e32op *first;	// If a function, this is a string of instructions.
+};
+
+Create one of these for each function, static object, external object (and stack variable?)
+
+struct e32op
+{
+	struct e32op *next,*prev;
+	enum e32opcode op;
+	int reg;
+	char *identifier;
+	int offset;
+	struct e32obj *obj;
+};
+
+When generating the code for a function, generate one of these for each opcode.
+
+Need to model the register set and stack, keeping track of which object (and offset) is held in each.
 

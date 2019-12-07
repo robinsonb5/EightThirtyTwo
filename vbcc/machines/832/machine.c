@@ -344,7 +344,7 @@ static void store_reg(FILE *f,int r,struct obj *o,int type)
 			else
 			{
 				emit_prepobj(f,o,type&NQ,tmp,4); // FIXME - stmpdec predecrements, so need to add 4!
-				emit(f,"\tstmpdec\t%s\n // WARNING - check that 4 has been added.",regnames[r]);
+				emit(f,"\tstmpdec\t%s\n // WARNING - check that 4 has been added.\n",regnames[r]);
 			}
 			break;
 		default:
