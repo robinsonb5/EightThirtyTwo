@@ -1415,8 +1415,8 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 			printf("Target register and q2 are the same!  Attempting a switch...\n");
 			if(!switch_IC(p))
 			{
-				printf("FIXME - need to handle this case\n");
-				ierror(0);
+				emit(f,"\t\t// WARNING - evading q2 and target collision - check code for correctness.\n");
+				zreg=t1;
 			}
 		}
 		if(!isreg(q1) || q1reg!=zreg)

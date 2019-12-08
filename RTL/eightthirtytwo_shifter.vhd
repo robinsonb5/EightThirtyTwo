@@ -28,8 +28,10 @@ architecture rtl of eightthirtytwo_shifter is
 	signal result : std_logic_vector(31 downto 0);
 	signal count : unsigned(4 downto 0);
 	signal signbit : std_logic;
+	signal busy_r : std_logic;
 begin
 
+	busy<=busy_r;
 	q<=result;
 
 	process(clk,req,reset_n)
@@ -37,7 +39,7 @@ begin
 
 		if reset_n='0' then
 			count<=(others=>'0');
-			busy<='0';
+			busy_r<='0';
 		elsif rising_edge(clk) then
 
 			ack<='0';
@@ -45,7 +47,7 @@ begin
 				signbit<=sgn and d(31);
 				count<=unsigned(shift);
 				result<=d;
-				busy<='1';
+				busy_r<='1';
 			else
 				if count/="00000" then
 					if rotate='1' then
@@ -64,9 +66,12 @@ begin
 					
 					if count="00001" then
 						ack<='1';
+						busy_r<='0';
 					end if;
 					count<=count-1;
-
+				else
+					ack<=busy_r;
+					busy_r<='0';
 				end if;				
 			end if;
 

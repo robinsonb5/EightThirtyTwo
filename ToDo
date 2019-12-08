@@ -1,3 +1,5 @@
+FIXME - Printf in hex mode is screwy.  Look at remainders of negative numbers.
+
 DONE Look at potential little endian mode
 
 DONE Add another overloaded instruction for a halfword modifier
@@ -29,6 +31,7 @@ Code generator needs a further intermediate format.
 struct e32obj
 {
 	struct e32obj *next,*prev;
+	int uid;
 	char *identifier;
 	int offset;
 	int type;	// Can use the existing extern / static / auto flags + maybe an immediate type too?  + function type
