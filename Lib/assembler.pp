@@ -18,6 +18,7 @@
 #define ror .byte 0x38 +
 
 // #define sth .byte 0x40 + // STH is replaced by hlf; st - opcode available for re-use
+#define stinc .byte 0x40 +
 #define mr .byte 0x48 +
 #define stbinc .byte 0x50 +
 #define stmpdec .byte 0x58 +

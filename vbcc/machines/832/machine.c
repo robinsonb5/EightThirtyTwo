@@ -448,6 +448,8 @@ void save_temp(FILE *f,struct IC *p,int treg)
 		case POINTER:
 			if(p->z.am && p->z.am->type==AM_PREDEC)
 			    emit(f,"\tstdec\t%s\n",regnames[treg]);
+			else if(p->z.am && p->z.am->type==AM_POSTINC)
+			    emit(f,"\tstinc\t%s\n",regnames[treg]);
 			else
 			    emit(f,"\tst\t%s\n",regnames[treg]);
 			break;
@@ -1287,11 +1289,11 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 			{
 				wordcopy>>=2;
 				if(wordcopy)
-					emit(f,"// Copying %d word tail to %s\n",bytecopy,p->z.v->identifier);
+					emit(f,"// Copying %d words to %s\n",wordcopy/4,p->z.v->identifier);
 				while(wordcopy--)
 				{
-					emit(f,"\tldinc\t%s\n\tst\t%s\n",regnames[srcr],regnames[dstr]);
-					emit(f,"\tli\t4\n\tadd\t%s\n",regnames[dstr]);
+					emit(f,"\tldinc\t%s\n\tstinc\t%s\n",regnames[srcr],regnames[dstr]);
+//					emit(f,"\tli\t4\n\tadd\t%s\n",regnames[dstr]);
 				}
 			}
 			else
@@ -1302,8 +1304,8 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 				emit(f,"\taddt\t%s\n",regnames[dstr]);
 				emit(f,"\tmr\t%s\n",regnames[cntr]);
 				emit(f,".cpy%swordloop%d:\n",p->z.v->identifier,loopid);
-				emit(f,"\tldinc\t%s\n\tst\t%s\n",regnames[srcr],regnames[dstr]);
-				emit(f,"\tli\t4\n\tadd\t%s\n",regnames[dstr]);  // FIXME - stinc would speed this up.
+				emit(f,"\tldinc\t%s\n\tstinc\t%s\n",regnames[srcr],regnames[dstr]);
+//				emit(f,"\tli\t4\n\tadd\t%s\n",regnames[dstr]);  // FIXME - stinc would speed this up.
 				emit(f,"\tmt\t%s\n\tcmp\t%s\n",regnames[dstr],regnames[cntr]);
 				emit(f,"\tcond\tNEQ\n");
 				emit(f,"\t\tli\tIMW0(PCREL(.cpy%swordloop%d))\n",p->z.v->identifier,loopid);

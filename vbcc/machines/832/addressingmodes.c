@@ -159,7 +159,8 @@ int am_get_adjvalue(struct IC *p, int type,int target)
 		case INT:
 		case LONG:
 		case POINTER:	// We support post-increment and predecrement for INTs/LONGs/PTRs
-			if(target && offset!=-4)	// We only support predec for writing.
+//			if(target && offset!=-4)	// We only support predec for writing.
+			if(target && ((offset!=-4)||(offset!=4)))	// We now support predec and postinc for writing.
 				offset=0;
 			if(!target && offset!=4)	// We only support postinc for reading
 				offset=0;
