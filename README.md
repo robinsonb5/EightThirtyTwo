@@ -111,12 +111,10 @@ tmp.
 
 ### Store instructions
 * st r&lt;n&gt;  -  Stores the contents of tmp to the address in r&lt;n&gt;.
-* stdec r&lt;n&gt;  -  Stores the contents of tmp to the address in r&lt;n&gt;, decrements
-r&lt;n&gt;.
-* stbinc r&lt;n&gt;  -  Stores the lowest byte of tmp to the address in r&lt;n&gt;,
-increments r&lt;n&gt;
-* stmpdec r&lt;n&gt;  -  Stores the contents of r&lt;n&gt; to the address in tmp,
-decrements tmp.
+* stinc r&lt;n&gt;  -  Stores the contents of tmp to the address in r&lt;n&gt;, increments r&lt;n&gt;.
+* stdec r&lt;n&gt;  -  Decrements r&lt;n&gt;, stores the contents of tmp to the address in r&lt;n&gt;.
+* stbinc r&lt;n&gt;  -  Stores the lowest byte of tmp to the address in r&lt;n&gt;, increments r&lt;n&gt;
+* stmpdec r&lt;n&gt;  -  Decrements tmp, stores the contents of r&lt;n&gt; to the address in tmp.
 
 ### Arithmetic, Bitwise and Shift instructions
 All ALU instructions set or clear the Zero flag based on the result.
