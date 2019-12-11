@@ -11,15 +11,29 @@ _start:
 		li	IMW0(PCREL(.start2))
 		add	r7
 
-	cond	GE	// Z flag set (by elimination), C flag clear
-		li	IMW0(PCREL(.interrupt))
-		add	r7
+	// By elimination the Z flag must be set, so this must be an interrupt.
+	// (The interrupt is triggered using the xor alu op, so C is not cleared.)
 
-	// By elimination, Z flag set, C flag set - currently reserved.
-.spin:
-	cond NEX
-	li	IMW0(PCREL(.spin))
-	add	r7
+	exg	r6
+	stdec	r0
+	stdec	r6
+	exg	r6
+
+	ldinc	r7
+
+	.global _InterruptVector	// This word can be written to install an int handler.  Location 11.
+_InterruptVector:
+	.int	_interrupt
+
+	exg	r7
+
+	ldinc	r6
+	mr	r0
+	li	IMW0(-1)
+	add	r0		// Decrement return address
+	ldinc r6
+	exg	r0		// Restore r0
+	mr	r7		// Jump to return address - 1.
 
 
 .start1:
@@ -32,26 +46,6 @@ _start:
 	ldinc	r7
 	.int	_premain2
 	mr	r7
-
-.interrupt:
-	exg	r6
-	stdec	r0
-	stdec	r6
-	exg	r6
-
-	// Service interrupt here.
-	ldinc	r7
-	.int	_interrupt
-	exg	r7
-
-	ldinc	r6
-	mr	r0
-	li	IMW0(-1)
-	add	r0		// Decrement return address
-	ldinc r6
-	exg	r0		// Restore r0
-	mr	r7		// Jump to return address - 1.
-
 
 	.section	.text.premain
 	.weak	_premain
@@ -96,18 +90,5 @@ _thread2main:
 	.section	.text.interrupt
 	.weak	_interrupt
 _interrupt:
-	exg	r6
-	stdec	r0
-	stdec	r6
-	exg	r6
-
-	// Service interrupt here.
-
-	ldinc	r6
-	mr	r0
-	li	IMW0(-1)
-	add	r0		// Decrement return address
-	ldinc r6
-	exg	r0		// Restore r0
-	mr	r7		// Jump to return address - 1.
+	mr	r7	// return immediately
 
