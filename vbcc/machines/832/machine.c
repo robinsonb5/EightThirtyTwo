@@ -1145,7 +1145,9 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
     if(c==KOMPLEMENT){
       emit(f,"\t\t\t\t\t//comp\n");
       load_reg(f,zreg,&p->q1,t);
-      emit(f,"\tcpl.%s\t%s\n",dt(t),regnames[zreg]);
+		emit(f,"\tli\tIMW0(-1)\n");
+		emit(f,"\txor\t%s\n",regnames[zreg]);
+//      emit(f,"\tcpl.%s\t%s\n",dt(t),regnames[zreg]);
       save_result(f,p);
       continue;
     }
