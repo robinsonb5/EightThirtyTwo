@@ -19,6 +19,7 @@
 #include "dhry.h"
 //#include <sys/null.h>
 #include <sys/types.h>
+#include <stddef.h>
 #include <string.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -233,8 +234,6 @@ int main ()
   End_Time = _readMilliseconds();
 #endif
 
-printf("Next_Ptr_Glob: %x\n",(int)Next_Ptr_Glob);
-
 #if 1
   printf ("Execution ends\n");
   printf ("\n");
@@ -315,9 +314,9 @@ printf("Next_Ptr_Glob: %x\n",(int)Next_Ptr_Glob);
     Vax_Mips = Dhrystones_Per_Second / 1757.0;
 #endif
 #else
-    Microseconds = (1000*User_Time) / Number_Of_Runs;
-    Dhrystones_Per_Second =  (Number_Of_Runs*1000) / User_Time;
-    Vax_Mips = (Number_Of_Runs*569) / User_Time;
+    Microseconds = (1000*User_Time) / (Number_Of_Runs*50000);
+    Dhrystones_Per_Second =  (Number_Of_Runs*50000000) / User_Time;
+    Vax_Mips = (Number_Of_Runs*56900000) / User_Time;
 #endif 
     printf ("Microseconds for one run through Dhrystone: ");
     printf ("%d \n", (int)Microseconds);

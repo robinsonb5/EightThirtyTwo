@@ -1,4 +1,4 @@
-832DIR=../../Lib/
+832DIR=../../
 ROMGENDIR = ../../romgen
 ROMGEN = $(ROMGENDIR)/romgen
 GHDL = ghdl
@@ -43,19 +43,19 @@ a.out : dhry_1.c dhry_2.c ../../Lib/hexdump.c
 dhrystone.elf : start.o uart.o small_printf.o division.o strcmp.o dhry_1.o dhry_2.o hexdump.o
 	gcc -Wl,--build-id=none -Wl,--gc-sections -nostartfiles -nostdlib -Tldscript.ld -o $@ $+
 
-%.o : %.S Makefile ldscript.ld $(832DIR)/start.S
-	gcc -I. -I$(832DIR) -c $*.S -o $*.o
+%.o : %.S Makefile ldscript.ld $(832DIR)/Lib/start.S
+	gcc -I. -I$(832DIR)/include -I$(832DIR)/Lib -c $*.S -o $*.o
 
-%.o : %.c Makefile ldscript.ld $(832DIR)/start.S $(CC)
-	../bin/vbcc832 -+ $(COPT) -size -I$(832DIR) $*.c
+%.o : %.c Makefile ldscript.ld $(832DIR)/Lib/start.S $(CC)
+	../bin/vbcc832 -+ $(COPT) -size -I$(832DIR)/include -I$(832DIR)/Lib $*.c
 	mv $*.asm $*.S
-	gcc -I. -I$(832DIR) -c $*.S -o $*.o
+	gcc -I. -I$(832DIR)/Lib -c $*.S -o $*.o
 
-%.o : $(832DIR)/%.S Makefile ldscript.ld $(832DIR)/assembler.pp $(832DIR)/start.S
-	gcc -c $(832DIR)/$*.S -I$(832DIR) -o $*.o
+%.o : $(832DIR)/Lib/%.S Makefile ldscript.ld $(832DIR)/Lib/assembler.pp $(832DIR)/Lib/start.S
+	gcc -c $(832DIR)/Lib/$*.S -I$(832DIR)/include -I$(832DIR)/Lib -o $*.o
 
 %.S : %.c Makefile ../bin/vbcc832
-	../bin/vbcc832 -+ $(COPT) -speed -I$(832DIR) $*.c
+	../bin/vbcc832 -+ $(COPT) -speed -I$(832DIR)/include -I$(832DIR)/Lib $*.c
 	mv $*.asm $*.S
 
 $(ROMGEN): $(ROMGENDIR)/romgen.c
