@@ -22,7 +22,10 @@ clean :
 	rm *.o
 	rm *.elf
 
-%.ghw : %_ROM.vhd  tb.vhd force
+%.gtkw :
+	sed 's/cpu_tb/$*_tb/g' >$*.gtkw <tb.gtkw
+
+%.ghw : %_ROM.vhd  tb.vhd %.gktw force
 	sed 's/_rom/$*_rom/;s/cpu_tb/$*_tb/' >$*_tb.vhd <tb.vhd
 	$(GHDL) -a $*_ROM.vhd
 	$(GHDL) -a $*_tb.vhd
@@ -40,7 +43,7 @@ clean :
 %.o : %.s Makefile
 	gcc -c $*.s
 
-%.elf : start.o uart.o small_printf.o division.o strcmp.o hexdump.o %.o
+%.elf : start.o uart.o small_printf.o tiny_printf.o division.o strcmp.o hexdump.o %.o
 	gcc -Wl,--build-id=none -Wl,--gc-sections -nostartfiles -nostdlib -Tldscript.ld -o $@ $+
 
 %.o : %.S Makefile ldscript.ld $(LIBDIR)/start.S force
