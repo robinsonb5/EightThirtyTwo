@@ -106,7 +106,7 @@ interrupt<='1' when intcounter(5 downto 3)="111" else '0';
 			if ram_req='1' and ramwait="0000" then
 				if ram_addr(31)='1' then
 					if ram_wr='1' then
-					report "out: " & integer'image(to_integer(unsigned(to_ram(15 downto 0))));
+--					report "out: " & integer'image(to_integer(unsigned(to_ram(15 downto 0))));
 						write(textline,character'val(to_integer(unsigned(to_ram(7 downto 0)))));
 						if to_ram(7 downto 0)=X"0a" then
 							writeline(output,textline);

@@ -53,7 +53,7 @@ signal immediatestreak : std_logic;
 begin
 
 
-sgn_mod<=(not sgn) and (d1(31) xor d2(31));
+sgn_mod<=(not sgn) and (d1(31) xor d2(31)) and op(0); -- op(0) differentiates add from sub.
 
 with op select shiftreq <=
 	req when e32_alu_shr,

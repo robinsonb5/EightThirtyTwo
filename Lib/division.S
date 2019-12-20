@@ -110,6 +110,8 @@ _div_u32byu32:
 	mr	r7
 #endif
 
+#if 1
+
 _div_u32byu32:
 	stdec	r6
 	mt	r3	// Save r3
@@ -118,6 +120,7 @@ _div_u32byu32:
 	mt	r2
 	and	r2
 	cond	EQ	// Division by zero?
+		li	IMW1(PCREL(.end)-1)
 		li	IMW0(PCREL(.end))
 		add	r7
 
@@ -126,15 +129,32 @@ _div_u32byu32:
 	li	1
 	mr	r3
 
+	mt	r2
+	cmp	r1
+	cond	LE
+		li	IMW1(PCREL(.next)-1)
+		li	IMW0(PCREL(.next))
+		add	r7
+
 .start:
+	mt	r3	// We adjust the marker first so that we can detect overflow.
+	add	r3
+	cond	EQ	// Did we just shift the marker bit off the left hand end?
+		li	1	// If so, replace it on the extreme right, to be put back by a subsequent ror.
+		mr	r3
+		li	IMW0(PCREL(.aligned))
+		add	r7
+
 	mt	r2
 	cmp	r1
 	cond	SGT
 		add	r2	// Faster than lsl
-		mt	r3
-		add	r3
 		li IMW0(PCREL(.start))
 		add	r7
+
+.aligned:
+	li	1
+	ror	r3
 
 .next:
 	mt	r2
@@ -157,6 +177,7 @@ _div_u32byu32:
 	mr	r3
 	ldinc	r6
 	mr	r7
+#endif
 
 	.global	_div_s32bys32
 
@@ -169,9 +190,8 @@ _div_s32bys32:
 	mr	r5	// Keep track of signs here
 
 	mt	r1	// Check sign of numerator.
-	sgn
 	addt	r1
-	cond	SLT	// Did we overflow?
+	cond	LE	// Did we overflow?
 		li	IMW0(-1)
 		xor	r1	// Negate if negative
 		li	IMW0(1)
@@ -180,9 +200,8 @@ _div_s32bys32:
 	cond EX
 
 	mt	r2	// Check sign of denominator.
-	sgn
 	addt	r2
-	cond	SLT
+	cond	LE
 		li	IMW0(-1)
 		xor	r2	// Negate if negative...
 		li	IMW0(1)
@@ -191,6 +210,7 @@ _div_s32bys32:
 	cond EX
 
 	// Now perform an unsigned division.
+	li	IMW1(PCREL(_div_u32byu32)-1)
 	li	IMW0(PCREL(_div_u32byu32))
 	add	r7
 	mt	r5
