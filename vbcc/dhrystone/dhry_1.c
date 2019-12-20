@@ -22,7 +22,8 @@
 #include <stddef.h>
 #include <string.h>
 #include <stdarg.h>
-#include <stdio.h>
+#include "tiny_printf.h"
+//#include <stdio.h>
 #ifndef __GNUC__
 #include "timer.h"
 #endif

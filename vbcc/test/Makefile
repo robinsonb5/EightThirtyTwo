@@ -22,10 +22,12 @@ clean :
 	rm *.o
 	rm *.elf
 
-%.gtkw :
+.PRECIOUS : %.ghw
+
+%.gtkw : %.ghw
 	sed 's/cpu_tb/$*_tb/g' >$*.gtkw <tb.gtkw
 
-%.ghw : %_ROM.vhd  tb.vhd %.gktw force
+%.ghw : %_ROM.vhd  tb.vhd force
 	sed 's/_rom/$*_rom/;s/cpu_tb/$*_tb/' >$*_tb.vhd <tb.vhd
 	$(GHDL) -a $*_ROM.vhd
 	$(GHDL) -a $*_tb.vhd

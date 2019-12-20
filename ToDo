@@ -6,6 +6,10 @@ DONE Add another overloaded instruction for a halfword modifier
 
 DONE Implement interrupts
 
+* Need to find some way of detecting carry set, zero don't care.
+
+* Look at changing carry behaviour for add and addt.
+
 * Look at fusing mr with li, and potentially addt.
 
 * Results forwarding?
