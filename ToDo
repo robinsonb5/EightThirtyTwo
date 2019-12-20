@@ -1,5 +1,3 @@
-FIXME - Printf in hex mode is screwy.  Look at remainders of negative numbers.
-
 DONE Look at potential little endian mode
 
 DONE Add another overloaded instruction for a halfword modifier
@@ -7,8 +5,9 @@ DONE Add another overloaded instruction for a halfword modifier
 DONE Implement interrupts
 
 * Need to find some way of detecting carry set, zero don't care.
+  Redefine cond NEX maybe?  Then create a separate pause instruction?
 
-* Look at changing carry behaviour for add and addt.
+DONE  Look at changing carry behaviour for add and addt.
 
 * Look at fusing mr with li, and potentially addt.
 
@@ -24,7 +23,7 @@ DONE  Look at multithreading.  Would need a second register file, a second PC an
 DONE C backend - get signed-ness, composite types and halfword / byte operations working.
 
 * Look at the instruction set again.
-	* stinc?
+DONE  stinc
 	* Can we adjust pre/postinc based on byt/hlf directives?  Potentially - would need to bring in the
 	  increment value through the imm channel?  Might be a worthwhile simplification anyway.
 

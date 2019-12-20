@@ -14,7 +14,7 @@ compiler:
 
 run: helloworld.ghw
 
-tests: helloworld.ghw helloworld_byte.ghw strcpytest.ghw fptrtest.ghw copytest.ghw comparisons.ghw vatest.ghw
+tests: helloworld.ghw helloworld_byte.ghw strcpytest.ghw fptrtest.ghw copytest.ghw comparisons.ghw vatest.ghw divtest.ghw
 
 clean :
 	rm *.bin
