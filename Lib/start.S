@@ -51,10 +51,16 @@ _InterruptVector:
 	.weak	_premain
 _premain:
 	// Setup the stack
+#ifdef LDSTACK
+	ldinc	r7
+	.int	STACKTOP
+	mr	r6
+#else
 	li	IMW2(0x2000)
 	li	IMW1(0x2000)
 	li	IMW0(0x2000)
 	mr	r6
+#endif
 
 	// Clear BSS here
 	ldinc	r7
@@ -68,11 +74,17 @@ _premain:
 	.section	.text.premain2
 	.weak	_premain2
 _premain2:
+#ifdef LDSTACK2
+	ldinc	r7
+	.int	STACKTOP2
+	mr	r6
+#else
 	// Setup the stack
 	li	IMW2(0x1c00)
 	li	IMW1(0x1c00)
 	li	IMW0(0x1c00)
 	mr	r6
+#endif
 
 	// Clear BSS here
 	ldinc	r7
