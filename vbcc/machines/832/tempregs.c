@@ -146,6 +146,8 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 
 	if(p->flags&DREFOBJ)
 	{
+		if(p->flags&VARADR)
+			emit(f,"varadr AND ");
 		emit(f," deref\n");
 		/* Dereferencing a pointer */
 		if(p->flags&KONST){
@@ -208,11 +210,13 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 			} else if(isextern(p->v->storage_class)){
 				emit(f," extern (offset %d)\n",p->val.vmax);
 				emit_externtotemp(f,p->v->identifier,p->val.vmax+offset);
+				emit(f,"// extern pe %s varadr\n", p->flags&VARADR ? "is" : "not");
 				if(reg!=tmp)
 					emit(f,"\tmr\t%s\n",regnames[reg]);
 			} else if(isstatic(p->v->storage_class)){
 				emit(f," static\n");
 				emit(f,"\tldinc\tr7\n\t.int\t%s%d+%d\n",labprefix,zm2l(p->v->offset),offset+p->val.vmax);
+				emit(f,"// static pe %s varadr\n", p->flags&VARADR ? "is" : "not");
 				if(reg!=tmp)
 					emit(f,"\tmr\t%s\n",regnames[reg]);
 			}else{
@@ -258,7 +262,9 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 				case LONG:
 				case POINTER:
 					if(p->v)
-						emit(f,"\t//(offset %d)\n",p->val.vlong);
+						emit(f,"\t//(offset %d)\n",p->v->offset);
+					if(p->v)
+						emit(f,"\t//(val %d)\n",p->val.vlong);
 					if(p->am && p->am->type==AM_POSTINC)
 						emit(f,"\tldinc\t%s\n",regnames[p->reg]);
 					else
@@ -273,6 +279,7 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 		}
 		else {
 			emit_prepobj(f,p,t,tmp,0);
+			// FIXME - array type?
 			if((t&NQ)!=FUNKT && (t&NQ)!=STRUCT && (t&NQ)!=UNION) // Function pointers are dereferenced by calling them.
 			{
 				emit_sizemod(f,t);
@@ -283,7 +290,7 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 	else
 	{
 		if(p->flags&REG){
-			emit(f," reg %s\n",regnames[p->reg]);
+			emit(f," reg %s, offset %d, val %d\n",regnames[p->reg],p->v->offset,p->val.vmax);
 			emit(f,"\tmt\t%s\n",regnames[p->reg]);
 		}else if(p->flags&VAR) {
 			if(isauto(p->v->storage_class)) {
@@ -301,13 +308,22 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 				emit_externtotemp(f,p->v->identifier,p->val.vmax);
 				emit_sizemod(f,t);
 				// Structs and unions have to remain as pointers
-				if((!(p->flags&VARADR)) && ((t&NQ)!=STRUCT) && ((t&NQ)!=UNION))
+				if((!(p->flags&VARADR)) && ((t&NQ)!=STRUCT) && ((t&NQ)!=UNION) && ((t&NQ)!=ARRAY))
+				{
+					emit(f,"\t//extern deref\n");
 					emit(f,"\tldt\n");
+				}
 			}
 			else if(isstatic(p->v->storage_class))
 			{
-				emit(f,"//static\n");
+				emit(f,"//static %s\n", p->flags&VARADR ? "varadr" : "not varadr");
 				emit_statictotemp(f,labprefix,zm2l(p->v->offset),p->val.vmax);
+				// Structs and unions have to remain as pointers
+				if((!(p->flags&VARADR)) && ((t&NQ)!=STRUCT) && ((t&NQ)!=UNION) && ((t&NQ)!=ARRAY))
+				{
+					emit(f,"\t//static deref\n");
+					emit(f,"\tldt\n");
+				}
 			}
 			else
 			{

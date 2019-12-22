@@ -380,6 +380,7 @@ static void function_top(FILE *,struct Var *,long);
 static void function_bottom(FILE *f,struct Var *,long);
 
 #define isreg(x) ((p->x.flags&(REG|DREFOBJ))==REG)
+#define involvesreg(x) ((p->x.flags&(REG))==REG)
 #define isconst(x) ((p->x.flags&(KONST|DREFOBJ))==KONST)
 
 static int q1reg,q2reg,zreg;
@@ -394,17 +395,17 @@ static struct IC *preload(FILE *f,struct IC *p)
 {
   int r;
 
-  if(isreg(q1))
+  if(involvesreg(q1))
     q1reg=p->q1.reg;
   else
     q1reg=0;
 
-  if(isreg(q2))
+  if(involvesreg(q2))
     q2reg=p->q2.reg;
   else
     q2reg=0;
 
-  if(isreg(z)){
+  if(involvesreg(z)){
     zreg=p->z.reg;
   }else{
     if(ISFLOAT(ztyp(p)))
@@ -1251,8 +1252,10 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 			int wordcopy;
 			int bytecopy;
 			if((t&NQ)==CHAR)
+			{
 				emit(f,"// (char with size!=1 -> array of unknown type)\n");
-			// FIXME - library function?
+				t=ARRAY;	// FIXME - ugly hack
+			}
 
 			// If the target pointer happens to be in r2, we have to swap dstr and cntr!
 			if(p->z.flags&REG)
@@ -1393,7 +1396,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 			emit(f," (q2 unsigned)");
 		else
 			emit(f," (q2 signed)");
-		if(!q1reg)
+		if(!isreg(q1))
 		{
 			emit_objtotemp(f,&p->q1,t);
 			emit(f,"\tmr\t%s\n",regnames[t2]);
@@ -1411,10 +1414,11 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 	// FIXME - need to deal with loading both operands here.
         emit(f,"\t\t\t\t\t// (bitwise) ");
         emit(f,"loadreg\n");
+		emit(f,"\t//ops: %d, %d, %d\n",q1reg,q2reg,zreg);
 
 	// FIXME - have a collision here if the second operand is already in the target register
 	if((c>=OR&&c<=AND) || (c<DIV)){
-		if(isreg(q2) && q2reg==zreg)
+		if(involvesreg(q2) && q2reg==zreg)
 		{
 			printf("Target register and q2 are the same!  Attempting a switch...\n");
 			if(!switch_IC(p))
@@ -1423,7 +1427,10 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 				zreg=t1;
 			}
 		}
-		if(!isreg(q1) || q1reg!=zreg)
+		if(involvesreg(q1) && q1reg==zreg)
+			emit(f,"\t\t// WARNING - q1 and target collision - check code for correctness.\n");
+
+		if(!involvesreg(q1) || q1reg!=zreg)
 		{
 			emit_objtotemp(f,&p->q1,t);
 			emit(f,"\tmr\t%s\n",regnames[zreg]);	// FIXME - what happens if zreg and q1/2 are the same?
