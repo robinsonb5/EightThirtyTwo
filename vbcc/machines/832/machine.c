@@ -1040,7 +1040,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
       if(0/*t==exit_label&&framesize==0*/)
 	function_bottom(f,v,localsize);
       else
-        emit_pcreltotemp(f,labprefix,t);
+        emit_pcreltotemp(f,labprefix,t);	// FIXME - double-check that we shouldn't include an offset here.
         emit(f,"\tadd\t%s\n",regnames[pc]);
       continue;
     }
@@ -1049,7 +1049,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
     if(c>=BEQ&&c<BRA){
       emit(f,"\tcond\t%s\n",ccs[c-BEQ]);
       emit(f,"\t\t\t\t\t//conditional branch ");
-      emit_pcreltotemp(f,labprefix,t);
+      emit_pcreltotemp(f,labprefix,t); 	// FIXME - double-check that we shouldn't include an offset here.
       emit(f,"\t\tadd\tr7\n");
       continue;
     }
@@ -1183,7 +1183,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
       }else{
 	/* FIXME - deal with different object types here */
         if(p->q1.v->storage_class==STATIC){
-          emit_pcreltotemp(f,labprefix,zm2l(p->q1.v->offset));
+          emit_pcreltotemp(f,labprefix,zm2l(p->q1.v->offset));  // FIXME - double-check that we shouldn't include an offset here.
 			if(p->q1.flags&DREFOBJ)
 			{
 				emit(f,"\taddt\t%s\t//Deref function pointer\n",regnames[pc]);

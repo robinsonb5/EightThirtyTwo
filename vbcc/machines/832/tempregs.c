@@ -81,11 +81,11 @@ static void emit_externtotemp(FILE *f,char *lab,int offset)	// FIXME - need to f
 
 
 
-static void emit_statictotemp(FILE *f,char *lab,int suffix) // FIXME - need to find a way to do this PC relative
+static void emit_statictotemp(FILE *f,char *lab,int suffix,int offset) // FIXME - need to find a way to do this PC relative
 {
 	emit(f,"\t\t\t\t//statictotemp\n");
 	emit(f,"\tldinc\t%s\n",regnames[pc]);
-	emit(f,"\t.int\t%s%d\n",lab,suffix);
+	emit(f,"\t.int\t%s%d+%d\n",lab,suffix,offset);
 }
 
 
@@ -167,7 +167,7 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 					emit(f,"\tmr\t%s\n",regnames[reg]);
 			} else if(isstatic(p->v->storage_class)){
 				emit(f," static\n");
-				emit(f,"\tldinc\tr7\n\t.int\t%s%d+%d\n",labprefix,zm2l(p->v->offset),offset);
+				emit(f,"\tldinc\tr7\n\t.int\t%s%d+%d\n",labprefix,zm2l(p->v->offset),offset+p->val.vmax);
 				emit(f,"\tldt\n");
 				if(reg!=tmp)
 					emit(f,"\tmr\t%s\n",regnames[reg]);
@@ -212,7 +212,7 @@ static void emit_prepobj(FILE *f,struct obj *p,int t,int reg,int offset)
 					emit(f,"\tmr\t%s\n",regnames[reg]);
 			} else if(isstatic(p->v->storage_class)){
 				emit(f," static\n");
-				emit(f,"\tldinc\tr7\n\t.int\t%s%d+%d\n",labprefix,zm2l(p->v->offset),offset);
+				emit(f,"\tldinc\tr7\n\t.int\t%s%d+%d\n",labprefix,zm2l(p->v->offset),offset+p->val.vmax);
 				if(reg!=tmp)
 					emit(f,"\tmr\t%s\n",regnames[reg]);
 			}else{
@@ -307,7 +307,7 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 			else if(isstatic(p->v->storage_class))
 			{
 				emit(f,"//static\n");
-				emit_statictotemp(f,labprefix,zm2l(p->v->offset));
+				emit_statictotemp(f,labprefix,zm2l(p->v->offset),p->val.vmax);
 			}
 			else
 			{
