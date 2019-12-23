@@ -1,3 +1,7 @@
+/* Simulation time:
+--stop-time=5ms
+*/
+
 #ifdef DEBUG
 #include <stdio.h>
 #else

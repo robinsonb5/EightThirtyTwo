@@ -235,7 +235,35 @@ int main ()
   End_Time = _readMilliseconds();
 #endif
 
-#if 1
+#define checkparam(n,v,d) if(v!=d) printf("Error %s is %d but should be %d\n",n,v,d);
+#define checksparam(n,v,d) if(strcmp(v,d)) printf("Error %s is %s but should be %s\n",n,v,d);
+
+
+printf("Checking results...\n");
+
+checkparam("Int_Glob",Int_Glob,5);
+checkparam("Bool_Glob",Bool_Glob,1);
+checkparam("Ch_1_Glob",Ch_1_Glob,'A');
+checkparam("Ch_2_Glob",Ch_2_Glob,'B');
+checkparam("Arr_1_Glob[8]",Arr_1_Glob[8],7);
+checkparam("Arr_2_Glob[8][7]",Arr_2_Glob[8][7],Number_Of_Runs+10);
+checkparam("Next_Ptr_Glob->Ptr_Comp",Next_Ptr_Glob->Ptr_Comp,Ptr_Glob->Ptr_Comp);
+checkparam("Discr",Ptr_Glob->Discr,0);
+checkparam("Enum_Comp",Ptr_Glob->variant.var_1.Enum_Comp,2);
+checkparam("Int_Comp",Ptr_Glob->variant.var_1.Int_Comp,17);
+checksparam("Str_Comp",Ptr_Glob->variant.var_1.Str_Comp,"DHRYSTONE PROGRAM, SOME STRING");
+checkparam("next->Discr",Next_Ptr_Glob->Discr,0);
+checkparam("next->Enum_Comp",Next_Ptr_Glob->variant.var_1.Enum_Comp,1);
+checkparam("next->Int_Comp",Next_Ptr_Glob->variant.var_1.Int_Comp,18);
+checksparam("next->Str_Comp",Ptr_Glob->variant.var_1.Str_Comp,"DHRYSTONE PROGRAM, SOME STRING");
+checkparam("Int_1_Loc",Int_1_Loc,5);
+checkparam("Int_2_Loc",Int_2_Loc,13);
+checkparam("Int_3_Loc",Int_3_Loc,7);
+checkparam("Enum_Loc",Enum_Loc,1);
+checksparam("Str_1_Loc",Str_1_Loc,"DHRYSTONE PROGRAM, 1'ST STRING");
+checksparam("Str_2_Loc",Str_2_Loc,"DHRYSTONE PROGRAM, 2'ND STRING");
+
+#if 0
   printf ("Execution ends\n");
   printf ("\n");
   printf ("Final values of the variables used in the benchmark:\n");
