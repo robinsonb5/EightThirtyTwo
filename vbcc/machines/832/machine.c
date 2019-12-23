@@ -99,7 +99,7 @@ int reg_prio[MAXR+1];
 struct reg_handle empty_reg_handle={0,0};
 
 /* Names of target-specific variable attributes.                */
-char *g_attr_name[]={"__interrupt",0};
+char *g_attr_name[]={"__interrupt","__ctor","__dtor",0};
 
 
 /****************************************/
@@ -129,6 +129,7 @@ static struct Typ ltyp={LONG},ldbl={DOUBLE},lchar={CHAR};
 /* macros defined by the backend */
 static char *marray[]={"__section(x)=__vattr(\"section(\"#x\")\")",
 		       "__EIGHTTHIRTYTWO__",
+				"__constructor(pri)=__vattr(\"ctor(\"#pri\")\")",
 		       0};
 
 /* special registers */
@@ -238,6 +239,30 @@ static int special_section(FILE *f,struct Var *v)
   if(f) section=SPECIAL;
   return 1;
 }
+
+
+/* Emits a pointer to a function in a .ctor or .dtor section for automatic setup/cleanup */
+static int ctor_dtor(FILE *f,struct Var *v)
+{
+  int dtor=0;
+  char *sec;
+  if(!v->vattr) return 0;
+  sec=strstr(v->vattr,"ctor(");
+  if(!sec)
+  {
+    dtor=1;
+    sec=strstr(v->vattr,"dtor(");
+  }
+  if(!sec)
+    return 0;
+  sec+=strlen("ctor(");
+  emit(f,"\t.section\t%s.",dtor ? ".dtors" : ".ctors");
+  while(*sec&&*sec!=')') emit_char(f,*sec++);
+  emit(f,"\n\t.int\t%s%s\n",idprefix,v->identifier);
+
+  return 1;
+}
+
 
 static void load_address_to_temp(FILE *f,int r,struct obj *o,int type)
 /*  Generates code to load the address of a variable into register r.   */
@@ -512,6 +537,10 @@ static void function_top(FILE *f,struct Var *v,long offset)
     if(regused[i] && (i>FIRST_GPR) && (i<=LAST_GPR-3))
       ++regcount;
   }
+
+// Emit ctor / dtor tables
+  ctor_dtor(f,v);
+
   rsavesize=0;
   if(!special_section(f,v)){ // &&section!=CODE){ // We want a new section for every function so that --gc-sections can work.
 //		emit(f,codename);//if(f) section=CODE;

@@ -49,6 +49,7 @@ _InterruptVector:
 
 	.section	.text.premain
 	.weak	_premain
+	.globl _premain
 _premain:
 	// Setup the stack
 #ifdef LDSTACK
