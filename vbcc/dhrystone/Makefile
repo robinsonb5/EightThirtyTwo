@@ -47,7 +47,7 @@ dhrystone.elf : start.o uart.o small_printf.o tiny_printf.o division.o strcmp.o 
 	gcc -I. -I$(832DIR)/include -I$(832DIR)/Lib -c $*.S -o $*.o
 
 %.o : %.c Makefile ldscript.ld $(832DIR)/Lib/start.S $(CC)
-	../bin/vbcc832 -+ $(COPT) -size -I$(832DIR)/include -I$(832DIR)/Lib $*.c
+	../bin/vbcc832 -+ $(COPT) -I$(832DIR)/include -I$(832DIR)/Lib $*.c
 	mv $*.asm $*.S
 	gcc -I. -I$(832DIR)/Lib -c $*.S -o $*.o
 

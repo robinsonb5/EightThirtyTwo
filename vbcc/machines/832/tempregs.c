@@ -336,7 +336,7 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 			emit_constanttotemp(f,val2zmax(f,p,t));
 		}
 		else {
-			printf(" unknown type %d\n",p->flags);
+			printf("Objtotemp: unknown flags %d\n",p->flags);
 			ierror(0);
 		}
 	}

@@ -405,7 +405,7 @@ static struct IC *preload(FILE *f,struct IC *p)
   else
     q2reg=0;
 
-  if(involvesreg(z)){
+  if(isreg(z)){
     zreg=p->z.reg;
   }else{
     if(ISFLOAT(ztyp(p)))
@@ -1430,7 +1430,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 		if(involvesreg(q1) && q1reg==zreg)
 			emit(f,"\t\t// WARNING - q1 and target collision - check code for correctness.\n");
 
-		if(!involvesreg(q1) || q1reg!=zreg)
+		if(!isreg(q1) || q1reg!=zreg)
 		{
 			emit_objtotemp(f,&p->q1,t);
 			emit(f,"\tmr\t%s\n",regnames[zreg]);	// FIXME - what happens if zreg and q1/2 are the same?
