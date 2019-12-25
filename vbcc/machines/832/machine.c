@@ -99,7 +99,7 @@ int reg_prio[MAXR+1];
 struct reg_handle empty_reg_handle={0,0};
 
 /* Names of target-specific variable attributes.                */
-char *g_attr_name[]={"__interrupt","__ctor","__dtor",0};
+char *g_attr_name[]={"__interrupt","__ctor","__dtor","__weak",0};
 
 
 /****************************************/
@@ -130,6 +130,7 @@ static struct Typ ltyp={LONG},ldbl={DOUBLE},lchar={CHAR};
 static char *marray[]={"__section(x)=__vattr(\"section(\"#x\")\")",
 		       "__EIGHTTHIRTYTWO__",
 				"__constructor(pri)=__vattr(\"ctor(\"#pri\")\")",
+				"__weak=__vattr(\"weak\")",
 		       0};
 
 /* special registers */
@@ -238,6 +239,16 @@ static int special_section(FILE *f,struct Var *v)
   emit(f,"\n");
   if(f) section=SPECIAL;
   return 1;
+}
+
+
+/* Returns 1 if the symbol has weak linkage */
+static int isweak(struct Var *v)
+{
+  if(!v->vattr) return 0;
+  if(strstr(v->vattr,"weak"))
+	return(1);
+  return 0;
 }
 
 
@@ -549,7 +560,12 @@ static void function_top(FILE *f,struct Var *v,long offset)
 	}
   if(v->storage_class==EXTERN){
     if((v->flags&(INLINEFUNC|INLINEEXT))!=INLINEFUNC)
-      emit(f,"\t.global\t%s%s\n",idprefix,v->identifier);
+	{
+		if(isweak(v))
+			emit(f,"\t.weak\t%s%s\n",idprefix,v->identifier);
+		else
+			emit(f,"\t.global\t%s%s\n",idprefix,v->identifier);
+	}
     emit(f,"%s%s:\n",idprefix,v->identifier);
   }else
     emit(f,"%s%ld:\n",labprefix,zm2l(v->offset));
@@ -893,7 +909,12 @@ void gen_var_head(FILE *f,struct Var *v)
 	gen_align(f,falign(v->vtyp));
         emit(f,"%s%s:\n",idprefix,v->identifier);
       }else
-        emit(f,"\t.global\t%s%s\n\t.%scomm\t%s%s,",idprefix,v->identifier,(USE_COMMONS?"":"l"),idprefix,v->identifier);
+		{
+			if(isweak(v))
+				emit(f,"\t.weak\t%s%s\n",idprefix,v->identifier);
+			else
+				emit(f,"\t.global\t%s%s\n\t.%scomm\t%s%s,",idprefix,v->identifier,(USE_COMMONS?"":"l"),idprefix,v->identifier);
+		}
       newobj=1;
     }
   }
@@ -1124,7 +1145,11 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
     // 
     if(c==CONVERT){
       emit(f,"\t\t\t\t\t//FIXME convert\n");
-      if(ISFLOAT(q1typ(p))||ISFLOAT(ztyp(p))) ierror(0);
+      if(ISFLOAT(q1typ(p))||ISFLOAT(ztyp(p)))
+	  {
+		printf("Float not yet supported\n");
+		ierror(0);
+	  }
       if(sizetab[q1typ(p)&NQ]<sizetab[ztyp(p)&NQ]){
 		int shamt=0;
 		load_reg(f,zreg,&p->q1,q1typ(p));
@@ -1252,7 +1277,10 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
     }
 
     if((c==ASSIGN||c==PUSH) && t==0)
+    {
+        printf("Bad type for assign / push\n");
  		ierror(0);
+    }
 
     // Basically OK.
     if(c==PUSH){
@@ -1273,15 +1301,16 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 
 		emit(f,"\t\t\t\t\t// (a/p assign)\n");
 		emit_prepobj(f,&p->z,t,t2,0);
-		if(((t&NQ)==STRUCT)||((t&NQ)==UNION)||((t&NQ)==CHAR && zm2l(p->q2.val.vmax)!=1))
+		if(((t&NQ)==STRUCT)||((t&NQ)==UNION)||((t&NQ)==CHAR && opsize(p)!=1))
 		{
 			int srcr=t1;
 			int dstr=t2;
 			int cntr=t2+1;
 			int wordcopy;
 			int bytecopy;
-			if((t&NQ)==CHAR)
+			if((t&NQ)==CHAR && (opsize(p)!=1))
 			{
+				printf("t&nq: %d, opsize(p) %d, vmax %d\n",t&NQ,opsize(p),zm2l(p->q2.val.vmax));
 				emit(f,"// (char with size!=1 -> array of unknown type)\n");
 				t=ARRAY;	// FIXME - ugly hack
 			}
@@ -1509,6 +1538,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 		save_result(f,p);
 		continue;
 	}
+	printf("Unhandled IC\n");
     pric2(stdout,p);
     ierror(0);
 	}

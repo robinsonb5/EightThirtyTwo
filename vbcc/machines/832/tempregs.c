@@ -30,7 +30,7 @@ zmax val2zmax(FILE *f,struct obj *o,int t)
 	if(t==MAXINT) return(p->vmax);
 	if(t==(UNSIGNED|MAXINT)) return(p->vumax);
 	if(t==POINTER) return(zul2zum(p->vulong));
-	emit(f,"#FIXME - no float support yet\n");
+	printf("#FIXME - no float support yet\n");
 	ierror(0);
 }
 
@@ -52,9 +52,10 @@ static void emit_sizemod(FILE *f,int type)
 		case FUNKT: // Function pointers are dereferenced by calling them.
 		case STRUCT:
 		case UNION:
+		case ARRAY:
 			break; // Structs and unions have to remain as pointers
 		default:
-			emit(f,"// FIXME - emit_sizemod - type %d not handled\n",type);
+			printf("emit_sizemod - type %d not handled\n",type);
 			ierror(0);
 			break;
 	}
