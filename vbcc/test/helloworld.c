@@ -26,7 +26,7 @@ int puts_nobyte(const char *msg)
 
 int main(int argc,char **argv)
 {
-	puts_nobyte("Hello world!\n");
+	puts_nobyte("\033[32mHello world!\033[0m\n");
 	return(-1);
 }
 

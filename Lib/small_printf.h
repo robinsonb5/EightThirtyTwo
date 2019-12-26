@@ -6,8 +6,7 @@
 #define printf(x,...)
 #define puts(x)
 #else
-int small_printf(const char *fmt, ...);
-#define printf small_printf
+int printf(const char *fmt, ...);
 #endif
 
 #endif
