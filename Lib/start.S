@@ -14,10 +14,12 @@ _start:
 	// By elimination the Z flag must be set, so this must be an interrupt.
 	// (The interrupt is triggered using the xor alu op, so C is not cleared.)
 
-	exg	r6
-	stdec	r0
-	stdec	r6
-	exg	r6
+	exg	r0
+	stdec	r6	// Store r0 first since we need a register for decrementing the return address
+	exg	r0
+	stdec	r6	// Now save the return address
+	mt	r1
+	stdec	r6	// Save r1
 
 	ldinc	r7
 
@@ -28,7 +30,9 @@ _InterruptVector:
 	exg	r7
 
 	ldinc	r6
-	mr	r0
+	mr	r1
+	ldinc	r6
+	mr	r0		// Return address temporarily into r0
 	li	IMW0(-1)
 	add	r0		// Decrement return address
 	ldinc r6
