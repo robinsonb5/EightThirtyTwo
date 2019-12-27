@@ -667,9 +667,9 @@ begin
 
 				-- Interrupt logic:
 				if interrupts=true then
-					if thread.interruptable='1' and interrupt='1'
+					if thread.interruptable='1' and interrupt='1' and regfile.flag_cond='0'
 								and (thread.d_ex_op(e32_exb_q1toreg)='0' or thread.d_reg/="111") -- Can't be about to write to r7
-								and thread.d_ex_op(e32_exb_cond)='0' and alu_op/=e32_alu_li and -- Can't be cond or an immediately previous li
+								and thread.d_ex_op(e32_exb_cond)='0' and thread.d_alu_op/=e32_alu_li and -- Can't be cond or an immediately previous li
 									regfile.flag_interrupting='0' then
 						regfile.flag_interrupting<='1';
 						regfile.gpr7_readflags<='1';

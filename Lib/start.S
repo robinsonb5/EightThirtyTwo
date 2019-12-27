@@ -14,16 +14,15 @@ _start:
 	// By elimination the Z flag must be set, so this must be an interrupt.
 	// (The interrupt is triggered using the xor alu op, so C is not cleared.)
 
-	exg	r0
-	stdec	r6	// Store r0 first since we need a register for decrementing the return address
-	exg	r0
-	stdec	r6	// Now save the return address
-	mt	r1
-	stdec	r6	// Save r1
+	exg	r6
+	stmpdec	r0	// Store r0 first since we need a register for decrementing the return address
+	stmpdec	r6	// Now save the return address
+	stmpdec	r1	// Save r1
+	exg	r6
 
 	ldinc	r7
 
-	.global _InterruptVector	// This word can be written to install an int handler.  Location 11.
+	.global _InterruptVector	// This word can be written to install an int handler.  Location 12.
 _InterruptVector:
 	.int	_interrupt
 
