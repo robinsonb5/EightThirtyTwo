@@ -10,7 +10,7 @@ generic
 	storealign : in boolean := true;
 	littleendian : in boolean := true;
 	dualthread : in boolean := true;
-	prefetch : in boolean := false
+	prefetch : in boolean := true
 );
 port
 (

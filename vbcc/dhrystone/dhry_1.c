@@ -344,7 +344,7 @@ checksparam("Str_2_Loc",Str_2_Loc,"DHRYSTONE PROGRAM, 2'ND STRING");
 #endif
 #else
     Microseconds = (1000*User_Time) / (Number_Of_Runs*50000);
-    Dhrystones_Per_Second =  (Number_Of_Runs*50000000) / User_Time;
+    Dhrystones_Per_Second =  (Number_Of_Runs*100000000) / User_Time;
     Vax_Mips = (Number_Of_Runs*56900000) / User_Time;
 #endif 
     printf ("Microseconds for one run through Dhrystone: ");

@@ -268,6 +268,7 @@ generic map
 (
 	storealign=>storealign,
 	littleendian=>littleendian,
+	prefetch=>prefetch,
 	dualthread=>false
 )
 port map
