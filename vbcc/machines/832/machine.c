@@ -299,6 +299,7 @@ static int load_temp(FILE *f,int r,struct obj *o,int type)
   type&=NQ;
   emit(f,"\t\t\t\t\t// (load_temp - type %d)",type);
   if(o->flags&VARADR){
+	emit(f," (varadr)");
 	switch(type)
 	{
 		case CHAR:
@@ -1153,8 +1154,17 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
       if(sizetab[q1typ(p)&NQ]<sizetab[ztyp(p)&NQ]){
 		int shamt=0;
 		load_reg(f,zreg,&p->q1,q1typ(p));
-		switch(q1typ(p)&NU)	// Exclude unsigned values, since we don't need to convert them.
+		switch(q1typ(p)&NU)
 		{
+			// Potential optimisation here - track which ops could have caused a value to require truncation.
+			case CHAR|UNSIGNED:
+				emit_constanttotemp(f,0xff);
+				emit(f,"\tand\t%s\n",regnames[zreg]);
+				break;
+			case SHORT|UNSIGNED:
+				emit_constanttotemp(f,0xffff);
+				emit(f,"\tand\t%s\n",regnames[zreg]);
+				break;
 			case CHAR:
 				if(!optsize)
 				{
@@ -1190,8 +1200,8 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 		else {	// If the size is the same then this is effectively just an assign.
 			emit(f,"\t\t\t\t\t// (convert -> assign)\n");
 			emit_prepobj(f,&p->z,t,t2,0);
-			load_temp(f,zreg,&p->q1,t);
-			save_temp(f,p,t2);
+			if(load_temp(f,zreg,&p->q1,t))
+				save_temp(f,p,t2);	// Skip if the value is already in the dst register.
 		}
       continue;
     }
