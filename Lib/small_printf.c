@@ -3,7 +3,7 @@
 
 static char temp[16];
 
-static int _cvt(int val, char *buf, int radix)
+static int _cvt(int val, char *buf, unsigned int radix)
 {
     char *cp = temp;
 	const char *digits="0123456789ABCDEF";

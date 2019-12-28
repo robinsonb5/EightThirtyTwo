@@ -265,10 +265,6 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 				case INT:
 				case LONG:
 				case POINTER:
-					if(p->v)
-						emit(f,"\t//(offset %d)\n",p->v->offset);
-					if(p->v)
-						emit(f,"\t//(val %d)\n",p->val.vlong);
 					if(p->am && p->am->type==AM_POSTINC)
 						emit(f,"\tldinc\t%s\n",regnames[p->reg]);
 					else
@@ -294,7 +290,7 @@ static void emit_objtotemp(FILE *f,struct obj *p,int t)
 	else
 	{
 		if(p->flags&REG){
-			emit(f," reg %s, offset %d, val %d\n",regnames[p->reg],p->v->offset,p->val.vmax);
+			emit(f," reg %s\n",regnames[p->reg]);
 			emit(f,"\tmt\t%s\n",regnames[p->reg]);
 		}else if(p->flags&VAR) {
 			if(isauto(p->v->storage_class)) {
