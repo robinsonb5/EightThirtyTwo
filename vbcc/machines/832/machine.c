@@ -998,7 +998,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
   struct IC *m;
   argsize=0;
   // if(DEBUG&1) 
-  printf("gen_code() - stackframe %d bytes\n",offset);
+//  printf("gen_code() - stackframe %d bytes\n",offset);
   for(c=1;c<=MAXR;c++)
    regs[c]=regsa[c];
   maxpushed=0;
@@ -1062,12 +1062,13 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
   }
   localsize=(zm2l(offset)+3)/4*4;
 
-	printf("\nSeeking addressing modes for function %s\n",v->identifier);
+//	printf("\nSeeking addressing modes for function %s\n",v->identifier);
 	find_addressingmodes(p);
 
   function_top(f,v,localsize);
-
+//	printf("%s:\n",v->identifier);
   for(;p;p=p->next){
+//	printic(stdout,p);
     c=p->code;t=p->typf;
     if(c==NOP) {p->z.flags=0;continue;}
     if(c==ALLOCREG) {
@@ -1446,7 +1447,12 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 	// This works if we're loading the value - but if it's a register we
 	// need to compare - unless we redefine mt to set flags?
 		if(p->q1.flags&REG)
-			emit(f,"\tand\t%s\n",regnames[p->q1.reg]);
+		{
+			if(p->q1.flags&DREFOBJ)
+				emit(f,"\tmr\t%s\n\tand\t%s\n",regnames[t1],regnames[t1]);
+			else
+				emit(f,"\tand\t%s\n",regnames[p->q1.reg]);
+		}
       continue;
     }
 
@@ -1488,7 +1494,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
 	if((c>=OR&&c<=AND) || (c<DIV)){
 		if(involvesreg(q2) && q2reg==zreg)
 		{
-			printf("Target register and q2 are the same!  Attempting a switch...\n");
+//			printf("Target register and q2 are the same!  Attempting a switch...\n");
 			if(!switch_IC(p))
 			{
 				emit(f,"\t\t// WARNING - evading q2 and target collision - check code for correctness.\n");

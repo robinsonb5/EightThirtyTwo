@@ -64,10 +64,13 @@ static void emit_sizemod(FILE *f,int type)
 
 static void emit_pcreltotemp(FILE *f,char *lab,int suffix)
 {
-	printf("Warning: PC Relative offsets are currently (arbitrarily) restricted to 12 bits.\n");
-	emit(f,"\t\t\t//pcreltotemp - FIXME - might need more bits; we currently only support 12-bit signed offset.\n");
-	emit(f,"\tli\tIMW1(PCREL(%s%d)-1)\n",lab,suffix);
-	emit(f,"\tli\tIMW0(PCREL(%s%d))\n",lab,suffix);
+	int i;
+//	printf("Warning: PC Relative offsets are currently (arbitrarily) restricted to 12 bits.\n");
+	emit(f,"\t\t\t//pcreltotemp - reach of %d bits\n",6*g_flags_val[FLAG_PCRELREACH].l);
+	for(i=g_flags_val[FLAG_PCRELREACH].l-1;i>=0;--i)
+	{
+		emit(f,"\tli\tIMW%d(PCREL(%s%d)-%d)\n",i,lab,suffix,i);
+	}
 }
 
 
