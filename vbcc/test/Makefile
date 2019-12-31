@@ -46,7 +46,7 @@ clean :
 %.o : %.s Makefile
 	gcc -c $*.s
 
-%.elf : start.o uart.o small_printf.o tiny_printf.o division.o strcmp.o hexdump.o %.o
+%.elf : start.o uart.o small_printf.o division.o strcmp.o hexdump.o %.o
 	gcc -Wl,--build-id=none -Wl,--gc-sections -nostartfiles -nostdlib -Tldscript.ld -o $@ $+
 
 %.o : %.S Makefile ldscript.ld $(LIBDIR)/start.S force
