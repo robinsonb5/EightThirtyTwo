@@ -331,6 +331,7 @@ static int load_temp(FILE *f,int r,struct obj *o,int type)
   }else{
     if((o->flags&(REG|DREFOBJ))==REG&&o->reg==r)
     {
+		emit(f,"\n");
       return(0);
     }
     emit(f," not varadr\n");
