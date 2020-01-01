@@ -28,7 +28,7 @@
  char *strndup(const char *, size_t);
  char *strerror(int);
  char *strsignal(int);
- size_t strlen(__reg("r1" const char *);
+ size_t strlen(__reg("r1") const char *);
  size_t strnlen(const char *, size_t);
  char *strncat(__reg("r2") char *, __reg("r1") const char *, __reg("r3") size_t);
  size_t strlcat(char *, const char *, size_t);
