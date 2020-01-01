@@ -120,6 +120,39 @@ _strncmp:						// Parameters: char *s1, char *s2, int n
 
 
 
+// int memcmp(__reg("r2") const char *, __reg("r1") const char *, __reg("r3") size_t);
+
+	.section	.text.memcmp
+	.global	_memcmp
+_memcmp:						// Parameters: char *s1, char *s2, int n
+	stdec	r6
+	mt	r3
+	stdec	r6
+	mt	r2
+	stdec	r6
+.loopmemcmp:
+	li	1
+	sub	r3
+	cond SLT
+		li	IMW0(PCREL(.endstrncmp))
+		add	r7
+	ldbinc	r2	// s2++
+	mr	r0
+	ldbinc	r1
+	sub	r0						// Perform comparison
+	cond	EQ
+		li	IMW0(PCREL(.loopmemcmp))
+		add	r7
+.endmemcmp:
+	ldinc	r6
+	mr	r2
+	ldinc	r6
+	mr	r3
+	ldinc	r6
+	mr	r7
+
+
+
 	// char *strncpy(__reg("r3") char *dst, __reg("r2") const char *src, __reg("r1") size_t size);
 
 	.section	.text.strncpy
