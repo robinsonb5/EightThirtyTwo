@@ -1516,7 +1516,13 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			else
 				emit_objtotemp(f, &p->q2, t);
 			if ((!(q1typ(p) & UNSIGNED)) && (!(q2typ(p) & UNSIGNED)))	// If we have a mismatch of signedness we treat as unsigned.
-				emit(f, "\tsgn\n");	// Signed comparison
+			{
+				int nextop=p->next->code;	// Does the sign matter for the branch being done?
+				if(nextop==FREEREG)
+					nextop=p->next->next->code;
+				if((nextop!=BEQ) && (nextop!=BNE))
+					emit(f, "\tsgn\n");	// Signed comparison
+			}
 			emit(f, "\tcmp\t%s\n", regnames[q1reg]);
 			continue;
 		}
