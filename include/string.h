@@ -15,7 +15,7 @@
  void bzero(void *, size_t);
  int strcasecmp(const char *, const char *);
  int strncasecmp(const char *, const char *, size_t);
- char *strcat(char *, const char *);
+ char *strcat(__reg("r2") char *, __reg("r1") const char *);
  char *strchr(const char *, int);
  char *index(const char *, int);
  char *strrchr(const char *, int);
@@ -28,11 +28,11 @@
  char *strndup(const char *, size_t);
  char *strerror(int);
  char *strsignal(int);
- size_t strlen(const char *);
+ size_t strlen(__reg("r1" const char *);
  size_t strnlen(const char *, size_t);
- char *strncat(char *, const char *, size_t);
+ char *strncat(__reg("r2") char *, __reg("r1") const char *, __reg("r3") size_t);
  size_t strlcat(char *, const char *, size_t);
- int strncmp(const char *, const char *, size_t);
+ int strncmp(__reg("r2") const char *, __reg("r1") const char *, __reg("r3") size_t);
  size_t strlcpy(char *, const char *, size_t);
  char *strpbrk(const char *, const char *);
  char *strsep(char **, const char *);

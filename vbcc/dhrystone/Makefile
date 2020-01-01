@@ -40,7 +40,7 @@ a.out : dhry_1.c dhry_2.c ../../Lib/hexdump.c
 %.o : %.s Makefile
 	gcc -c $*.s
 
-dhrystone.elf : start.o uart.o small_printf.o tiny_printf.o division.o strcmp.o dhry_1.o dhry_2.o hexdump.o
+dhrystone.elf : start.o uart.o small_printf.o tiny_printf.o division.o string.o dhry_1.o dhry_2.o hexdump.o
 	gcc -Wl,--build-id=none -Wl,--gc-sections -nostartfiles -nostdlib -Tldscript.ld -o $@ $+
 
 %.o : %.S Makefile ldscript.ld $(832DIR)/Lib/start.S
