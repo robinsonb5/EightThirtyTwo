@@ -176,7 +176,7 @@ static void emit_obj(FILE * f, struct obj *p, int t);
 static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset);
 //static void emit_prepobjtotemp(FILE *f,struct obj *p,int t,int reg);
 //static void emit_destobj(FILE *f,struct obj *p,int t);
-static void emit_objtotemp(FILE * f, struct obj *p, int t);
+static int emit_objtotemp(FILE * f, struct obj *p, int t);
 
 /* calculate the actual current offset of an object relativ to the
    stack-pointer; we use a layout like this:
@@ -1470,14 +1470,14 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		// Revisit
 		if (c == TEST) {
 			emit(f, "\t\t\t\t\t// (test)\n");
-			emit_objtotemp(f, &p->q1, t);	// Only need Z flag - moving to temp should be enough.
-			// This works if we're loading the value - but if it's a register we
-			// need to compare - unless we redefine mt to set flags?
-			if (p->q1.flags & REG) {
-				if (p->q1.flags & DREFOBJ)
-					emit(f, "\tmr\t%s\n\tand\t%s\n", regnames[t1], regnames[t1]);
-				else
-					emit(f, "\tand\t%s\n", regnames[p->q1.reg]);
+			if(!emit_objtotemp(f, &p->q1, t))	// Only need Z flag - did emit_objtotemp set it?
+			{
+				if (p->q1.flags & REG) {
+					if (p->q1.flags & DREFOBJ)
+						emit(f, "\tmr\t%s\n\tand\t%s\n", regnames[t1], regnames[t1]);
+					else
+						emit(f, "\tand\t%s\n", regnames[p->q1.reg]);
+				}
 			}
 			continue;
 		}
@@ -1537,7 +1537,9 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			if ((c >= OR && c <= AND) || (c < DIV)) {
 				if (involvesreg(q2) && q2reg == zreg) {
 //                      printf("Target register and q2 are the same!  Attempting a switch...\n");
-					if (!switch_IC(p)) {
+					if (switch_IC(p)) {
+						preload(f,p);	// refresh q1reg, etc after switching the IC
+					} else {
 						emit(f,
 						     "\t\t// WARNING - evading q2 and target collision - check code for correctness.\n");
 						zreg = t1;

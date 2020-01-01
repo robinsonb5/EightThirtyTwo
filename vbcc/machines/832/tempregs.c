@@ -225,15 +225,18 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 	}
 }
 
-static void emit_objtotemp(FILE * f, struct obj *p, int t)
+
+// Returns 1 if the Z flag can has been set (i.e. a load has occurred)
+static int emit_objtotemp(FILE * f, struct obj *p, int t)
 {
+	int result=0;
 	emit(f, "\t\t\t\t\t// (objtotemp) ");
 	if ((p->flags & (KONST | DREFOBJ)) == (KONST | DREFOBJ)) {
 		emit(f, " const/deref\n");
 		emit_prepobj(f, p, t, tmp, 0);
 		emit_sizemod(f, t);
 		emit(f, "\tldt\n");
-		return;
+		return(1);
 	}
 
 	if (p->flags & DREFOBJ) {
@@ -268,6 +271,7 @@ static void emit_objtotemp(FILE * f, struct obj *p, int t)
 				emit(f, "//FIXME - unhandled type %d\n", t);
 				break;
 			}
+			result=1;
 		} else {
 			emit_prepobj(f, p, t, tmp, 0);
 			// FIXME - array type?
@@ -275,6 +279,7 @@ static void emit_objtotemp(FILE * f, struct obj *p, int t)
 			{
 				emit_sizemod(f, t);
 				emit(f, "\tldt\n//marker 2\n");
+				result=1;
 			}
 		}
 	} else {
@@ -290,6 +295,7 @@ static void emit_objtotemp(FILE * f, struct obj *p, int t)
 					emit(f, "\tldidx\t%s\n", regnames[sp]);
 				} else
 					emit(f, "\tld\t%s\n", regnames[sp]);
+				result=1;
 			} else if (isextern(p->v->storage_class)) {
 				emit(f, " extern\n");
 				emit_externtotemp(f, p->v->identifier, p->val.vmax);
@@ -301,6 +307,7 @@ static void emit_objtotemp(FILE * f, struct obj *p, int t)
 				    && ((t & NQ) != ARRAY)) {
 					emit(f, "\t//extern deref\n");
 					emit(f, "\tldt\n");
+					result=1;
 				}
 			} else if (isstatic(p->v->storage_class)) {
 				emit(f, "//static %s\n", p->flags & VARADR ? "varadr" : "not varadr");
@@ -312,6 +319,7 @@ static void emit_objtotemp(FILE * f, struct obj *p, int t)
 				    && ((t & NQ) != ARRAY)) {
 					emit(f, "\t//static deref\n");
 					emit(f, "\tldt\n");
+					result=1;
 				}
 			} else {
 				printf("Objtotemp: Unhandled storage class: %d\n", p->v->storage_class);
@@ -325,4 +333,5 @@ static void emit_objtotemp(FILE * f, struct obj *p, int t)
 			ierror(0);
 		}
 	}
+	return(result);
 }

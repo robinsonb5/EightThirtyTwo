@@ -4,8 +4,11 @@
 
 /* ToDo: Look for pairs of ICs with Z set to register,
    followed by disposable q1 on the same register ->
-   use tmp for that register.  Can we avoid the 
-   passing register being allocated? */
+   use tmp for that register.  (Provided second IC won't trash tmp)
+   Can we avoid the passing register being allocated? */
+
+/* Look for ways to use ldidx when an IC adds to a pointer and the next one dereferences it */
+
 
 #define AM_DEBUG 0
 
