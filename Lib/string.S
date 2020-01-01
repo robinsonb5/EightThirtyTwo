@@ -134,7 +134,7 @@ _memcmp:						// Parameters: char *s1, char *s2, int n
 	li	1
 	sub	r3
 	cond SLT
-		li	IMW0(PCREL(.endstrncmp))
+		li	IMW0(PCREL(.endmemcmp))
 		add	r7
 	ldbinc	r2	// s2++
 	mr	r0
