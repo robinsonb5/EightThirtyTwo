@@ -84,11 +84,20 @@ static void emit_pcreltotemp(FILE * f, char *lab, int suffix)
 
 static void emit_externtotemp(FILE * f, char *lab, int offset)	// FIXME - need to find a way to do this PC-relative.
 {
+	char *spec=".int";
+	if(g_flags[FLAG_SMALLADDR] & USEDFLAG)
+	{
+		spec=".short";
+		emit(f,"\thlf\n");
+	}
+
 	emit(f, "\tldinc\t%s\n", regnames[pc]);
 	if (offset)
-		emit(f, "\t.int\t_%s + %d\n", lab, offset);
+		emit(f, "\t%s\t_%s + %d\n",spec, lab, offset);
 	else
-		emit(f, "\t.int\t_%s\n", lab);
+		emit(f, "\t%s\t_%s\n",spec, lab);
+	if(g_flags[FLAG_SMALLADDR] & USEDFLAG)
+		emit(f,"\t.short\t0\n");
 }
 
 static void emit_statictotemp(FILE * f, char *lab, int suffix, int offset)	// FIXME - need to find a way to do this PC relative

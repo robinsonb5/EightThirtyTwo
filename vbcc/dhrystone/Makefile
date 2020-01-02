@@ -3,9 +3,9 @@ ROMGENDIR = ../../romgen
 ROMGEN = $(ROMGENDIR)/romgen
 GHDL = ghdl
 CC=../bin/vbcc832
-CFLAGS = -+ -O=1311 -speed 
 COPT = -O=1311
-TIME=10ms
+CFLAGS = -+ $(COPT) -speed
+TIME=2ms
 all: compiler dhrystone_ROM.vhd
 
 compiler:
@@ -47,7 +47,7 @@ dhrystone.elf : start.o uart.o small_printf.o tiny_printf.o division.o string.o 
 	gcc -I. -I$(832DIR)/include -I$(832DIR)/Lib -c $*.S -o $*.o
 
 %.o : %.c Makefile ldscript.ld $(832DIR)/Lib/start.S $(CC)
-	../bin/vbcc832 -+ $(COPT) -I$(832DIR)/include -I$(832DIR)/Lib $*.c
+	../bin/vbcc832 $(CFLAGS) -I$(832DIR)/include -I$(832DIR)/Lib $*.c
 	mv $*.asm $*.S
 	gcc -I. -I$(832DIR)/Lib -c $*.S -o $*.o
 
@@ -55,7 +55,7 @@ dhrystone.elf : start.o uart.o small_printf.o tiny_printf.o division.o string.o 
 	gcc -c $(832DIR)/Lib/$*.S -I$(832DIR)/include -I$(832DIR)/Lib -o $*.o
 
 %.S : %.c Makefile ../bin/vbcc832
-	../bin/vbcc832 -+ $(COPT) -speed -I$(832DIR)/include -I$(832DIR)/Lib $*.c
+	../bin/vbcc832 $(CFLAGS) -I$(832DIR)/include -I$(832DIR)/Lib $*.c
 	mv $*.asm $*.S
 
 $(ROMGEN): $(ROMGENDIR)/romgen.c

@@ -42,18 +42,19 @@ char cg_copyright[] =
     STRINGFLAG: a string can be specified
     FUNCFLAG: a function will be called
     apart from FUNCFLAG, all other versions can only be specified once */
-int g_flags[MAXGF] = { 0, VALFLAG };
+int g_flags[MAXGF] = { 0, VALFLAG, 0 };
 
 /* the flag-name, do not use names beginning with l, L, I, D or U, because
    they collide with the frontend */
 /* FIXME - 832-specific flags, such as perhaps the reach of PCREL immediates? */
-char *g_flags_name[MAXGF] = { "function-sections", "pcrel-reach" };
+char *g_flags_name[MAXGF] = { "function-sections", "pcrel-reach", "small-addr" };
 
 #define FLAG_FUNCTIONSECTIONS 0
 #define FLAG_PCRELREACH 1
+#define FLAG_SMALLADDR 2	// FIXME - currently broken
 
 /* the results of parsing the command-line-flags will be stored here */
-union ppi g_flags_val[MAXGF] = { 0, 2 };
+union ppi g_flags_val[MAXGF] = { 0, 2, 0 };
 
 /*  Alignment-requirements for all types in bytes.              */
 zmax align[MAX_TYPE + 1];
@@ -639,6 +640,7 @@ int init_cg(void)
 	printf("flags:\n");
 	printf("Function sections: %d\n", g_flags[FLAG_FUNCTIONSECTIONS] & USEDFLAG);
 	printf("PC Relative reach: %d\n", g_flags_val[FLAG_PCRELREACH]);
+	printf("Small address (program and data fits within 64k): %d\n", g_flags[FLAG_SMALLADDR] & USEDFLAG);
 
 	for (i = 0; i <= MAX_TYPE; i++) {
 		sizetab[i] = l2zm(msizetab[i]);
@@ -767,6 +769,8 @@ int reg_pair(int r, struct rpair *p)
 int cost_savings(struct IC *p, int r, struct obj *o)
 {
 	int c = p->code;
+	if(o->v && isextern(o->v->storage_class))  // Externs are particularly costly due to the ldinc r7 shuffle
+		return(o->flags & DREFOBJ ? 5 : 3);
 	if (o->flags & VKONST) {
 //    if(o==&p->q1&&p->code==ASSIGN&&(p->z.flags&DREFOBJ))
 		if (isextern(o->flags) || isstatic(o->flags))
@@ -1437,9 +1441,10 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				pushed -= 4;
 				loopid++;
 			} else {
-				// Can use a simpler method here if q1 is a simple register.
-//                              if((p->q1.flags&(DREFOBJ|REG))==REG)
-//                              {
+//  Can use a simpler method here if q1 is a simple register.
+//	(Fails - messes up printf %d is printed as d%d and isn't interpreted. 
+//                if((p->q1.flags&(DREFOBJ|REG))==REG)
+//                {
 //                                      store_reg(f,q1reg,&p->z,t);
 //                              }
 //                              else

@@ -32,7 +32,7 @@ struct AddressingMode{
 #define MAXR NUM_GPRS+NUM_FPRS+NUM_CCRS
 
 /*  Number of commandline-options the code-generator accepts.       */
-#define MAXGF 2
+#define MAXGF 3
 
 /*  If this is set to zero vbcc will not generate ICs where the     */
 /*  target operand is the same as the 2nd source operand.           */
@@ -88,7 +88,7 @@ struct reg_handle{
 /*  We keep track of all registers modified by a function.          */
 #define HAVE_REGS_MODIFIED 1
 
-/* We have a implement our own cost-functions to adapt 
+/* We have implemented our own cost-functions to adapt 
    register-allocation */
 #define HAVE_TARGET_RALLOC 1
 #define cost_move_reg(x,y) 1
