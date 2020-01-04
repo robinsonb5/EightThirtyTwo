@@ -332,12 +332,32 @@ begin
 				if ram_ack='1' then
 					ram_req_r<='0';
 					ls_state<=LS_WAIT;
+					if ls_req='1' then
+						ram_addr_r<=ls_addr(31 downto 2);
+						ram_req_r<='1';
+						ram_bytesel(3)<=ls_mask(0);
+						ram_bytesel(2)<=ls_mask(1);
+						ram_bytesel(1)<=ls_mask(2);
+						ram_bytesel(0)<=ls_mask(3);
+						ram_wr<=ls_wr;
+						ls_state<=LS_LOAD;
+					end if;
 				end if;
 
 			when LS_FETCH2 =>
 				if ram_ack='1' then
 					ram_req_r<='0';
 					ls_state<=LS_WAIT;
+					if ls_req='1' then
+						ram_addr_r<=ls_addr(31 downto 2);
+						ram_req_r<='1';
+						ram_bytesel(3)<=ls_mask(0);
+						ram_bytesel(2)<=ls_mask(1);
+						ram_bytesel(1)<=ls_mask(2);
+						ram_bytesel(0)<=ls_mask(3);
+						ram_wr<=ls_wr;
+						ls_state<=LS_LOAD;
+					end if;
 				end if;
 
 			when LS_LOAD =>
