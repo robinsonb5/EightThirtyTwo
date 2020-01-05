@@ -370,7 +370,7 @@ static void store_reg(FILE * f, int r, struct obj *o, int type)
 	case INT:
 	case LONG:
 	case POINTER:
-		// FIXME - if o is a reg, can store directly.
+		// if o is a reg, can store directly.
 		if ((o->flags & (REG | DREFOBJ)) == (REG | DREFOBJ)) {
 			emit(f, "\tmt\t%s\n", regnames[r]);
 			emit(f, "\tst\t%s\n", regnames[o->reg]);
@@ -412,7 +412,7 @@ static long pof2(zumax x)
 static struct IC *preload(FILE *, struct IC *);
 
 static void function_top(FILE *, struct Var *, long);
-static void function_bottom(FILE * f, struct Var *, long);
+static void function_bottom(FILE * f, struct Var *, long,int);
 
 #define isreg(x) ((p->x.flags&(REG|DREFOBJ))==REG)
 #define involvesreg(x) ((p->x.flags&(REG))==REG)
@@ -423,9 +423,7 @@ static int q1reg, q2reg, zreg;
 static char *ccs[] = { "EQ", "NEQ", "SLT", "GE", "LE", "SGT", "EX", "" };
 static char *logicals[] = { "or", "xor", "and" };
 
-static char *arithmetics[] = { "shl", "shr", "add", "sub", "mul", "//#FIXME call division routine",
-	"//#fixme call modulus routine"
-};
+static char *arithmetics[] = { "shl", "shr", "add", "sub", "mul", "(div)", "(mod)" };
 
 /* Does some pre-processing like fetching operands from memory to
    registers etc. */
@@ -598,13 +596,13 @@ static void function_top(FILE * f, struct Var *v, long offset)
 }
 
 /* generates the function exit code */
-static void function_bottom(FILE * f, struct Var *v, long offset)
+static void function_bottom(FILE * f, struct Var *v, long offset,int firsttail)
 {
 	int i;
 
 	int regcount = 0;
 	for (i = FIRST_GPR + 1; i <= LAST_GPR - 3; ++i) {
-		if (regused[i])
+		if (regused[i] && !regscratch[i])
 			++regcount;
 	}
 
@@ -615,11 +613,33 @@ static void function_bottom(FILE * f, struct Var *v, long offset)
 		emit(f, "\tadd\t%s\n", regnames[sp]);
 	}
 
-	for (i = LAST_GPR - 3; i >= FIRST_GPR + 1; --i) {
-		if (regused[i] && !regscratch[i])
-			emit(f, "\tldinc\t%s\n\tmr\t%s\n", regnames[sp], regnames[i]);
+	if(optsize) // If we're optimising for size we can potentially save some bytes in the function tails.
+	{
+		if(regcount<4 || !firsttail)
+		{
+			int i;
+			for (i = g_flags_val[FLAG_PCRELREACH].l - 1; i >= 0; --i)
+				emit(f,"\tli\tIMW%d(PCREL(.functiontail)+%d)\n",i,(4-regcount)*2-i);
+			emit(f,"\tadd\t%s\n",regnames[pc]);
+		}
+		if(firsttail)
+		{
+			emit(f,".functiontail:\n");
+			for (i = LAST_GPR - 3; i >= FIRST_GPR + 1; --i) {
+				if (!regscratch[i])
+					emit(f, "\tldinc\t%s\n\tmr\t%s\n", regnames[sp], regnames[i]);
+			}
+			emit(f, "\tldinc\t%s\n\tmr\t%s\n\n", regnames[sp], regnames[pc]);
+		}
 	}
-	emit(f, "\tldinc\t%s\n\tmr\t%s\n\n", regnames[sp], regnames[pc]);
+	else
+	{
+		for (i = LAST_GPR - 3; i >= FIRST_GPR + 1; --i) {
+			if (regused[i] && !regscratch[i])
+				emit(f, "\tldinc\t%s\n\tmr\t%s\n", regnames[sp], regnames[i]);
+		}
+		emit(f, "\tldinc\t%s\n\tmr\t%s\n\n", regnames[sp], regnames[pc]);
+	}
 }
 
 /****************************************/
@@ -1016,6 +1036,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 {
 	static int loopid = 0;
 	static int idemp = 0;
+	static int firsttail=1;
 	int reversecmp=0;
 	int c, t, i;
 	struct IC *m;
@@ -1126,7 +1147,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		// OK
 		if (c == BRA) {
 			if (0 /*t==exit_label&&framesize==0 */ )
-				function_bottom(f, v, localsize);
+				function_bottom(f, v, localsize, 0);
 			else
 				emit_pcreltotemp(f, labprefix, t);	// FIXME - double-check that we shouldn't include an offset here.
 			emit(f, "\tadd\t%s\n", regnames[pc]);
@@ -1196,9 +1217,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 
 		emit(f, "// code 0x%x\n", c);
 
-		// Investigate - but not currently seeing it used.
-		// Sign extension of a register involved moving to temp, extb or exth, move to dest
-		// 
+		// Sign extension of a register involves moving to temp, extb or exth, move to dest
 		if (c == CONVERT) {
 			emit(f, "\t\t\t\t\t//FIXME convert\n");
 			if (ISFLOAT(q1typ(p)) || ISFLOAT(ztyp(p))) {
@@ -1254,7 +1273,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			}
 			continue;
 		}
-		// Investigate - Still to be implemented
+
 		if (c == KOMPLEMENT) {
 			emit(f, "\t\t\t\t\t//comp\n");
 			load_reg(f, zreg, &p->q1, t);
@@ -1441,18 +1460,9 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				pushed -= 4;
 				loopid++;
 			} else {
-//  Can use a simpler method here if q1 is a simple register.
-//	(Fails - messes up printf %d is printed as d%d and isn't interpreted. 
-//                if((p->q1.flags&(DREFOBJ|REG))==REG)
-//                {
-//                                      store_reg(f,q1reg,&p->z,t);
-//                              }
-//                              else
-				{
-					emit_prepobj(f, &p->z, t, t2, 0);
-					load_temp(f, zreg, &p->q1, t);
-					save_temp(f, p, t2);
-				}
+				emit_prepobj(f, &p->z, t, t2, 0);
+				load_temp(f, zreg, &p->q1, t);
+				save_temp(f, p, t2);
 			}
 			continue;
 		}
@@ -1503,7 +1513,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			// the subsequent conditional branch.
 
 			if (!isreg(q1)) {
-				if(0)//isreg(q2))
+				if(isreg(q2))
 				{
 					// Reverse the test.
 					emit_objtotemp(f, &p->q1, t);
@@ -1606,7 +1616,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			ierror(0);
 		}
 	}
-	function_bottom(f, v, localsize);
+	function_bottom(f, v, localsize,firsttail);
+	firsttail=0;
 	if (stack_valid) {
 		if (!v->fi)
 			v->fi = new_fi();
