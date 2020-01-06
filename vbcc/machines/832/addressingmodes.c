@@ -12,6 +12,71 @@
 
 #define AM_DEBUG 0
 
+// Look for 832-specific optmisations
+
+void am_simplify(struct IC *p)
+{
+	int c;
+	struct IC *p2;
+	struct IC *p3;
+	for (; p; p = p->next) {
+		c = p->code;
+		// Check for GETRETURN followed by TEST of a function call result which is then discarded...
+		switch(c)
+		{
+			case GETRETURN:
+				p2=p->next;
+				printf("Checking getreturn with regs %x, %x\n",p->z.reg,p->z.flags);
+				if((p->z.flags&(REG|DREFOBJ|SCRATCH))!=(REG|SCRATCH))
+					break;
+
+				// FIXME - can do the same for cmp, provided we don't need to use r0 to derive the compare value.
+
+				printf("Checking next IC %x, %x, %x\n",p2->code,p2->q1.reg,p2->q1.flags);
+				if(!p2)
+					break;
+
+				p3=p2->next;
+				if(!p3 || p3->code!=FREEREG || p3->q1.reg!=p->z.reg)
+					break;
+
+				switch(p2->code)
+				{
+					case TEST:
+						if(p2->q1.flags&(REG|DREFOBJ)!=REG || p2->q1.reg!=p->z.reg)
+							break;
+						p->code=NOP;	// Don't bother retrieving the return value...
+						p2->q1.reg=p->q1.reg;	// Test it directly from return register.
+						break;
+					case COMPARE:
+						printf("Checking compare IC: %x, %x, %x, %x\n",p2->q1.flags,p2->q1.reg,p2->q2.flags,p2->q2.reg);
+						if((p2->q1.flags&(REG|DREFOBJ))==REG && p2->q1.reg==p->z.reg)
+						{
+							// Make sure the other op is simple enough not to need r0: FIXME - can we improve this?
+							if((p2->q2.flags&(REG|DREFOBJ))==REG || p2->q2.flags&KONST)
+							{
+								p->code=NOP;	// Don't bother retrieving the return value...
+								p2->q1.reg=p->q1.reg;	// Test it directly from return register.
+							}
+						}
+						else if((p2->q2.flags&(REG|DREFOBJ))==REG && p2->q2.reg==p->z.reg)
+						{
+							if((p2->q1.flags&(REG|DREFOBJ))==REG || p2->q1.flags&KONST)
+							{
+								p->code=NOP;	// Don't bother retrieving the return value...
+								p2->q2.reg=p->q1.reg;	// Test it directly from return register.
+							}
+						}
+						break;
+				}
+				break;
+			default:
+				break;
+		}
+	}
+}
+
+
 // If the obj doesn't already have an addressing mode, create one and zero it out.
 void am_alloc(struct obj *o)
 {
@@ -215,6 +280,8 @@ static void find_addressingmodes(struct IC *p)
 	int c;
 	struct obj *o;
 	struct AddressingMode *am;
+
+	am_simplify(p);
 
 	for (; p; p = p->next) {
 		c = p->code;
