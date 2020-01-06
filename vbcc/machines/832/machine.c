@@ -351,6 +351,7 @@ static void load_reg(FILE * f, int r, struct obj *o, int type)
 /*  Generates code to store register r into memory object o. */
 static void store_reg(FILE * f, int r, struct obj *o, int type)
 {
+	printf("store reg\n");
 	// Need to take different types into account here.
 	emit(f, "// Store_reg to type 0x%x\n", type);
 
@@ -1121,6 +1122,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 //      printic(stdout,p);
 		c = p->code;
 		t = p->typf;
+
 		if (c == NOP) {
 			p->z.flags = 0;
 			continue;
@@ -1189,7 +1191,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		// Investigate - but not currently seeing it used.
 		if (c == MOVEFROMREG) {
 			emit(f, "\t\t\t\t\t//CHECKME movefromreg\n");
-			store_reg(f, p->z.reg, &p->q1, regtype[p->z.reg]->flags);
+			store_reg(f, p->q1.reg, &p->z, regtype[p->q1.reg]->flags);
 			continue;
 		}
 		// Reject types we can't handle - anything beyond a pointer and chars with more than 1 byte.

@@ -151,6 +151,7 @@ static void emit_stackvartotemp(FILE * f, zmax offset, int deref)
 
 static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 {
+	printf("Prepobj %s\n", regnames[reg]);
 	emit(f, "\t\t\t\t\t// (prepobj %s)", regnames[reg]);
 
 	if (p->flags & DREFOBJ) {
