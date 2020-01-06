@@ -240,6 +240,12 @@ static int emit_objtotemp(FILE * f, struct obj *p, int t)
 {
 	int result=0;
 	emit(f, "\t\t\t\t\t// (objtotemp) ");
+	// FIXME - does this have implications for structs, unions, fptrs, etc?
+	if(p->flags&VARADR)
+	{
+		emit_prepobj(f,p,t,tmp,0);
+		return(0);
+	}
 	if ((p->flags & (KONST | DREFOBJ)) == (KONST | DREFOBJ)) {
 		emit(f, " const/deref\n");
 		emit_prepobj(f, p, t, tmp, 0);

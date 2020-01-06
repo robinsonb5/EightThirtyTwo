@@ -12,7 +12,7 @@
 
 #define AM_DEBUG 0
 
-// Look for 832-specific optmisations
+// Look for 832-specific optimizations
 
 void am_simplify(struct IC *p)
 {
@@ -21,23 +21,73 @@ void am_simplify(struct IC *p)
 	struct IC *p3;
 	for (; p; p = p->next) {
 		c = p->code;
-		// Check for GETRETURN followed by TEST of a function call result which is then discarded...
+
+		p2=p->next;
+		if(!p2)
+			break;
+		p3=p2->next;
+		if(!p3)
+			break;
+
 		switch(c)
 		{
-			case GETRETURN:
-				p2=p->next;
-				printf("Checking getreturn with regs %x, %x\n",p->z.reg,p->z.flags);
+			// Check for ADDRESS followed by push - can we merge?
+			// (Code 
+			case ADDRESS:
 				if((p->z.flags&(REG|DREFOBJ|SCRATCH))!=(REG|SCRATCH))
 					break;
 
-				// FIXME - can do the same for cmp, provided we don't need to use r0 to derive the compare value.
+				printf("Address IC candidate: zreg: %d, z flags %x\n",p->z.reg,p->z.flags);
 
-				printf("Checking next IC %x, %x, %x\n",p2->code,p2->q1.reg,p2->q1.flags);
-				if(!p2)
+				while(p3)
+				{
+					printf(" next op: %x, q1reg: %d, q1flags: %x, q2reg: %d, q2flags: %x\n",
+						p2->code,p2->q1.reg,p2->q1.flags,p2->q2.reg,p2->q2.flags);
+					switch(p2->code)
+					{
+						case PUSH:
+							if((p2->q1.flags&(REG|DREFOBJ|VARADR))==REG && p2->q1.reg==p->z.reg)
+							{
+								printf("p3 code: %x, reg: %d\n",p3->code,p3->q1.reg);
+								if(p3->code!=FREEREG || p3->q1.reg!=p->z.reg)
+									break;
+								printf("Push: merging\n");
+								p->code=NOP;	// Don't prepare the address to a register...
+								p2->q1=p->q1;	// Push it directly.
+								p2->q1.flags|=VARADR;
+								p3=0;
+							}
+							break;
+						case FREEREG:
+							if(p2->q1.reg==p->z.reg)
+							{
+								printf("Freereg: bailing out\n");
+								p3=0;
+							}
+							break;
+						default:
+							break;
+					}
+					// Does the IC reference the register?
+					if((p2->q1.flags&REG) && p2->q1.reg==p->z.reg)
+						p3=0;
+					else if((p2->q2.flags&REG) && p2->q2.reg==p->z.reg)
+						p3=0;
+					p2=p3;
+					if(p3)
+						p3=p3->next;
+				}
+				break;
+
+			// Check for GETRETURN followed by TEST/COMPARE of call result which is then discarded...
+			case GETRETURN:
+				p2=p->next;
+				if((p->z.flags&(REG|DREFOBJ|SCRATCH))!=(REG|SCRATCH))
 					break;
 
-				p3=p2->next;
-				if(!p3 || p3->code!=FREEREG || p3->q1.reg!=p->z.reg)
+				// FIXME - can do the same for other instructions, provided we don't need to use r0 to derive the second op.
+
+				if(p3->code!=FREEREG || p3->q1.reg!=p->z.reg)
 					break;
 
 				switch(p2->code)
@@ -48,24 +98,31 @@ void am_simplify(struct IC *p)
 						p->code=NOP;	// Don't bother retrieving the return value...
 						p2->q1.reg=p->q1.reg;	// Test it directly from return register.
 						break;
+					case SETRETURN:
+						if(p2->q1.flags&(REG|DREFOBJ)!=REG || p2->q1.reg!=p->z.reg)
+							break;
+						p->code=NOP;	// Don't bother retrieving the return value...
+						p2->q1.reg=p->q1.reg;
+						break;
 					case COMPARE:
-						printf("Checking compare IC: %x, %x, %x, %x\n",p2->q1.flags,p2->q1.reg,p2->q2.flags,p2->q2.reg);
 						if((p2->q1.flags&(REG|DREFOBJ))==REG && p2->q1.reg==p->z.reg)
 						{
 							// Make sure the other op is simple enough not to need r0: FIXME - can we improve this?
-							if((p2->q2.flags&(REG|DREFOBJ))==REG || p2->q2.flags&KONST)
-							{
+//							if((p2->q2.flags&(REG|DREFOBJ))==REG || p2->q2.flags&KONST)
+//							{
+								// COMPARE is guaranteed not to touch t1 (r0).
 								p->code=NOP;	// Don't bother retrieving the return value...
 								p2->q1.reg=p->q1.reg;	// Test it directly from return register.
-							}
+//							}
 						}
 						else if((p2->q2.flags&(REG|DREFOBJ))==REG && p2->q2.reg==p->z.reg)
 						{
-							if((p2->q1.flags&(REG|DREFOBJ))==REG || p2->q1.flags&KONST)
-							{
+//							if((p2->q1.flags&(REG|DREFOBJ))==REG || p2->q1.flags&KONST)
+//							{
+								// COMPARE is guaranteed not to touch t1 (r0).
 								p->code=NOP;	// Don't bother retrieving the return value...
 								p2->q2.reg=p->q1.reg;	// Test it directly from return register.
-							}
+//							}
 						}
 						break;
 				}

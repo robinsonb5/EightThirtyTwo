@@ -804,9 +804,9 @@ int cost_savings(struct IC *p, int r, struct obj *o)
 	}
 	if (o->flags & DREFOBJ)
 		return 2;
-	if (c == SETRETURN && r == p->z.reg && !(o->flags & DREFOBJ))
+	if (c == SETRETURN)// && r == p->z.reg && !(o->flags & DREFOBJ))
 		return 1;
-	if (c == GETRETURN && r == p->q1.reg && !(o->flags & DREFOBJ))
+	if (c == GETRETURN)// && r == p->q1.reg && !(o->flags & DREFOBJ))
 		return 1;
 	return 1;
 }
@@ -1466,7 +1466,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			}
 			continue;
 		}
-		// Not yet seen it used.
+		// Seems to work.
 		if (c == ADDRESS) {
 			emit(f, "\t\t\t\t\t// (address)\n");
 			load_address(f, zreg, &p->q1, POINTER);
@@ -1498,6 +1498,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		}
 		// Compare
 		// Revisit
+		// (Guaranteed not to touch t1)
 		if (c == COMPARE) {
 			emit(f, "\t\t\t\t\t// (compare)");
 			if (q1typ(p) & UNSIGNED)
