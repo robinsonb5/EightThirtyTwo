@@ -5,18 +5,16 @@
 /* build-time configurable options: */
 #define NUM_GPRS 9
 #define NUM_FPRS 0
-#define NUM_CCRS 1
+#define NUM_CCRS 0
 #define FIXED_SP 0
 
 #include "dt.h"
 
 /* internally used by the backend */
-#define FIRST_GPR 1
+#define FIRST_GPR 2
 #define LAST_GPR (FIRST_GPR+NUM_GPRS-1)
 #define FIRST_FPR (LAST_GPR+1)
 #define LAST_FPR (FIRST_FPR+NUM_FPRS-1)
-#define FIRST_CCR (LAST_FPR+1)
-#define LAST_CCR (FIRST_CCR+NUM_CCRS-1)
 
 /*  This struct can be used to implement machine-specific           */
 /*  addressing-modes.                                               */

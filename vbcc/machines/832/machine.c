@@ -106,16 +106,7 @@ char *g_attr_name[] = { "__interrupt", "__ctor", "__dtor", "__weak", 0 };
 /*  Private data and functions.         */
 /****************************************/
 
-#define THREE_ADDR (g_flags[0]&USEDFLAG)
-#define LOAD_STORE (g_flags[1]&USEDFLAG)
-#define VOL_GPRS   ((g_flags[2]&USEDFLAG)?g_flags_val[2].l:2)
-#define VOL_FPRS   ((g_flags[3]&USEDFLAG)?g_flags_val[3].l:NUM_FPRS/2)
-#define VOL_CCRS   ((g_flags[4]&USEDFLAG)?g_flags_val[4].l:NUM_CCRS/2)
-#define IMM_IND    ((g_flags[5]&USEDFLAG)?1:0)
-#define GPR_IND    ((g_flags[6]&USEDFLAG)?2:0)
-#define GPR_ARGS   ((g_flags[7]&USEDFLAG)?g_flags_val[7].l:0)
-#define FPR_ARGS   ((g_flags[8]&USEDFLAG)?g_flags_val[8].l:0)
-#define USE_COMMONS (g_flags[9]&USEDFLAG)
+#define USE_COMMONS 0
 
 /* alignment of basic data-types, used to initialize align[] */
 static long malign[MAX_TYPE + 1] = { 1, 1, 2, 4, 4, 4, 4, 8, 8, 1, 4, 1, 1, 1, 4, 1 };
@@ -687,12 +678,6 @@ int init_cg(void)
 		regsize[i] = l2zm(8L);
 		regtype[i] = &ldbl;
 	}
-	for (i = FIRST_CCR; i <= LAST_CCR; i++) {
-		regnames[i] = mymalloc(10);
-		sprintf(regnames[i], "ccr%d", i - FIRST_CCR);
-		regsize[i] = l2zm(1L);
-		regtype[i] = &lchar;
-	}
 
 	/*  Use multiple ccs.   */
 	multiple_ccs = 0;
@@ -724,7 +709,7 @@ int init_cg(void)
 
 	/*  Reserve a few registers for use by the code-generator.      */
 	/*  This is not optimal but simple.                             */
-	tmp = FIRST_GPR + 8;
+	tmp = FIRST_GPR -1;
 	pc = FIRST_GPR + 7;
 	sp = FIRST_GPR + 6;
 	t1 = FIRST_GPR;		// build source address here - r0, also return register.
@@ -732,11 +717,9 @@ int init_cg(void)
 //  f1=FIRST_FPR;
 //  f2=FIRST_FPR+1;
 
-	for (i = FIRST_GPR; i <= LAST_GPR - VOL_GPRS; i++)
+	for (i = FIRST_GPR; i <= LAST_GPR; i++)
 		regscratch[i] = 0;
-	for (i = FIRST_FPR; i <= LAST_FPR - VOL_FPRS; i++)
-		regscratch[i] = 0;
-	for (i = FIRST_CCR; i <= LAST_CCR - VOL_CCRS; i++)
+	for (i = FIRST_FPR; i <= LAST_FPR; i++)
 		regscratch[i] = 0;
 
 	regsa[FIRST_GPR] = 1;	// Allocate the return register
@@ -793,13 +776,11 @@ int cost_savings(struct IC *p, int r, struct obj *o)
 	if(o->v && isextern(o->v->storage_class))  // Externs are particularly costly due to the ldinc r7 shuffle
 		return(o->flags & DREFOBJ ? 5 : 3);
 	if (o->flags & VKONST) {
-//    if(o==&p->q1&&p->code==ASSIGN&&(p->z.flags&DREFOBJ))
 		if (isextern(o->flags) || isstatic(o->flags))
 			return 2;
 		else {
 			struct obj *o2 = &o->v->cobj;
 			int c = count_constantchunks(o2->val.vmax);
-//              printf("Cost saving from storing %d in register: %d\n",o2->val.vmax,c);
 			return c - 1;
 		}
 	}
@@ -821,8 +802,6 @@ int regok(int r, int t, int mode)
 	if (r == 0)
 		return 0;
 	t &= NQ;
-	if (t == 0 && r >= FIRST_CCR && r <= LAST_CCR)
-		return 1;
 	if (ISFLOAT(t) && r >= FIRST_FPR && r <= LAST_FPR)
 		return 1;
 	if (t == POINTER && r >= FIRST_GPR && r <= LAST_GPR)
@@ -1640,13 +1619,13 @@ int reg_parm(struct reg_handle *m, struct Typ *t, int vararg, struct Typ *d)
 	int f;
 	f = t->flags & NQ;
 	if (f <= LONG || f == POINTER) {
-		if (m->gregs >= GPR_ARGS)
+		if (m->gregs >= 0)
 			return 0;
 		else
 			return FIRST_GPR + 3 + m->gregs++;
 	}
 	if (ISFLOAT(f)) {
-		if (m->fregs >= FPR_ARGS)
+		if (m->fregs >= 0)
 			return 0;
 		else
 			return FIRST_FPR + 2 + m->fregs++;
