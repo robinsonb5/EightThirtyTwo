@@ -3,9 +3,9 @@
  
 */
 
-// TODO - eliminate unnecessary register shuffling for compare.
+// DONE: eliminate unnecessary register shuffling for compare.
 
-// Implement block copying
+// DONE: Implement block copying
 
 // DONE: Implement division / modulo using library code.
 // DONE: Mark registers as disposable if their contents are never used beyond the current op.
@@ -19,12 +19,10 @@
 
 // Restrict byte and halfword storage to static and extern types, not stack-based variables.
 
-// Avoid moving registers for cmp and test when possible.
+// DONE - Avoid moving registers for cmp and test when possible.
 
 // Condition code for test may well be already set by previous load.
 
-// FIXME - still problems with byte / halfword writes to stack -> should always be 32-bit
-// to a struct or array.
 
 #include "supp.h"
 
@@ -109,6 +107,7 @@ char *g_attr_name[] = { "__interrupt", "__ctor", "__dtor", "__weak", 0 };
 #define USE_COMMONS 0
 
 /* alignment of basic data-types, used to initialize align[] */
+/* In actual fact 832 has full load/store alignment so this is negotiable based on -speed / -size flags. */
 static long malign[MAX_TYPE + 1] = { 1, 1, 2, 4, 4, 4, 4, 8, 8, 1, 4, 1, 1, 1, 4, 1 };
 
 /* sizes of basic data-types, used to initialize sizetab[] */
@@ -134,9 +133,6 @@ static int tmp;
 static int t1, t2;		/*  temporary gprs */
 static int f1, f2, f3;		/*  temporary fprs */
 
-#define dt(t) (((t)&UNSIGNED)?udt[(t)&NQ]:sdt[(t)&NQ])
-static char *sdt[MAX_TYPE + 1] = { "??", "c", "s", "i", "l", "ll", "f", "d", "ld", "v", "p" };
-static char *udt[MAX_TYPE + 1] = { "??", "uc", "us", "ui", "ul", "ull", "f", "d", "ld", "v", "p" };
 
 /* sections */
 #define DATA 0
@@ -145,29 +141,23 @@ static char *udt[MAX_TYPE + 1] = { "??", "uc", "us", "ui", "ul", "ull", "f", "d"
 #define RODATA 3
 #define SPECIAL 4
 
-static long stack;
-static int stack_valid;
+//static long stack;
 static int section = -1, newobj;
 static char *codename = "\t.section\t.text\n", *dataname = "\t.section\t.data\n", *bssname =
     "\t.section\t.bss\n", *rodataname = "\t.section\t.rodata\n";
 static int sectionid;
-
-/* label at the end of the function (if any) */
-static int exit_label;
 
 /* assembly-prefixes for labels and external identifiers */
 static char *labprefix = "l", *idprefix = "_";
 
 /* variables to keep track of the current stack-offset in the case of
    a moving stack-pointer */
-static long notpopped, pushed, dontpop, maxpushed;
+static long pushed;
 
 static long localsize, rsavesize, argsize;
 
 static void emit_obj(FILE * f, struct obj *p, int t);
 static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset);
-//static void emit_prepobjtotemp(FILE *f,struct obj *p,int t,int reg);
-//static void emit_destobj(FILE *f,struct obj *p,int t);
 static int emit_objtotemp(FILE * f, struct obj *p, int t);
 
 /* calculate the actual current offset of an object relativ to the
@@ -204,18 +194,6 @@ static long real_offset(struct obj *o)
 	return off;
 }
 
-/*  Initializes an addressing-mode structure and returns a pointer to
-    that object. Will not survive a second call! */
-static struct obj *cam(int flags, int base, long offset)
-{
-	static struct obj obj;
-	static struct AddressingMode am;
-	obj.am = &am;
-//  am.flags=flags;
-//  am.base=base;
-//  am.offset=offset;
-	return &obj;
-}
 
 /* changes to a special section, used for __section() */
 static int special_section(FILE * f, struct Var *v)
@@ -267,13 +245,6 @@ static int ctor_dtor(FILE * f, struct Var *v)
 	emit(f, "\n\t.int\t%s%s\n", idprefix, v->identifier);
 
 	return 1;
-}
-
-static void load_address_to_temp(FILE * f, int r, struct obj *o, int type)
-/*  Generates code to load the address of a variable into register r.   */
-{
-	printf("load_address_to_temp not yet implemented\n");
-	ierror(0);
 }
 
 /* generate code to load the address of a variable into register r */
@@ -516,17 +487,6 @@ void save_result(FILE * f, struct IC *p)
 #include "addressingmodes.c"
 #include "tempregs.c"
 
-/*  Test if there is a sequence of FREEREGs containing FREEREG reg.
-    Used by peephole. */
-static int exists_freereg(struct IC *p, int reg)
-{
-	while (p && (p->code == FREEREG || p->code == ALLOCREG)) {
-		if (p->code == FREEREG && p->q1.reg == reg)
-			return 1;
-		p = p->next;
-	}
-	return 0;
-}
 
 /* generates the function entry code */
 static void function_top(FILE * f, struct Var *v, long offset)
@@ -709,7 +669,7 @@ int init_cg(void)
 
 	/*  Reserve a few registers for use by the code-generator.      */
 	/*  This is not optimal but simple.                             */
-	tmp = FIRST_GPR -1;
+	tmp = FIRST_GPR + 8;
 	pc = FIRST_GPR + 7;
 	sp = FIRST_GPR + 6;
 	t1 = FIRST_GPR;		// build source address here - r0, also return register.
@@ -1025,7 +985,6 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 //  printf("gen_code() - stackframe %d bytes\n",offset);
 	for (c = 1; c <= MAXR; c++)
 		regs[c] = regsa[c];
-	maxpushed = 0;
 	pushed = 0;
 
 	if (!idemp) {
@@ -1127,10 +1086,10 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 
 		// OK
 		if (c == BRA) {
-			if (0 /*t==exit_label&&framesize==0 */ )
+			if(0) // FIXME - could duplicate function tail here.  Perhaps do it depending on number of saved registers?
 				function_bottom(f, v, localsize, 0);
 			else
-				emit_pcreltotemp(f, labprefix, t);	// FIXME - double-check that we shouldn't include an offset here.
+				emit_pcreltotemp(f, labprefix, t);
 			emit(f, "\tadd\t%s\n", regnames[pc]);
 			continue;
 		}
@@ -1600,17 +1559,11 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 	}
 	function_bottom(f, v, localsize,firsttail);
 	firsttail=0;
-	if (stack_valid) {
-		if (!v->fi)
-			v->fi = new_fi();
-		v->fi->flags |= ALL_STACK;
-		v->fi->stack1 = stack;
-	}
-	emit(f, "// stacksize=%lu%s\n", zum2ul(stack), stack_valid ? "" : "+??");
 }
 
 int shortcut(int code, int typ)
 {
+//	printf("Taking shortcut for code %d, type %x\n",code,typ);
 	return 0;
 }
 

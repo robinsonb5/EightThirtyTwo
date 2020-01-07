@@ -11,7 +11,7 @@
 #include "dt.h"
 
 /* internally used by the backend */
-#define FIRST_GPR 2
+#define FIRST_GPR 1
 #define LAST_GPR (FIRST_GPR+NUM_GPRS-1)
 #define FIRST_FPR (LAST_GPR+1)
 #define LAST_FPR (FIRST_FPR+NUM_FPRS-1)
