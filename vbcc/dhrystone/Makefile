@@ -4,7 +4,7 @@ ROMGEN = $(ROMGENDIR)/romgen
 GHDL = ghdl
 CC=../bin/vbcc832
 COPT = -O=1311
-CFLAGS = -+ $(COPT) -speed
+CFLAGS = -+ $(COPT) -speed -pcrel-reach=2
 TIME=2ms
 all: compiler dhrystone_ROM.vhd
 

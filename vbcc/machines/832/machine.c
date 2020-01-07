@@ -301,19 +301,21 @@ static int load_temp(FILE * f, int r, struct obj *o, int type)
 	return (1);
 }
 
-/* Generates code to load a memory object into register r. */
+/* Generates code to load a memory object into register r.  Returns 1 if code was emitted, 0 if there was no need */
 
-static void load_reg(FILE * f, int r, struct obj *o, int type)
+static int load_reg(FILE * f, int r, struct obj *o, int type)
 {
-	if (load_temp(f, r, o, type)) {
+	int result;
+	if (result=load_temp(f, r, o, type)) {
 		emit(f, "\tmr\t%s\n", regnames[r]);
 	}
+	return(result);
 }
+
 
 /*  Generates code to store register r into memory object o. */
 static void store_reg(FILE * f, int r, struct obj *o, int type)
 {
-	printf("store reg\n");
 	// Need to take different types into account here.
 	emit(f, "// Store_reg to type 0x%x\n", type);
 
@@ -539,11 +541,11 @@ static void function_top(FILE * f, struct Var *v, long offset)
 
 	// FIXME - Allow the stack to float, in the hope that we can use stdec to adjust it.
 
-	if (offset == 4)
-		emit(f, "\tstdec\tr6\t// quickest way to decrement sp by 4\n");
+	if ((offset == 4) && optsize)
+		emit(f, "\tstdec\tr6\t// shortest way to decrement sp by 4\n");
 	else if (offset) {
-		emit_constanttotemp(f, offset);
-		emit(f, "\tsub\t%s\n", regnames[sp]);
+		emit_constanttotemp(f, -offset);
+		emit(f, "\tadd\t%s\n", regnames[sp]);
 	}
 }
 
@@ -558,11 +560,11 @@ static void function_bottom(FILE * f, struct Var *v, long offset,int firsttail)
 			++regcount;
 	}
 
-	if (offset == 4)
-		emit(f, "\tldinc\t%s\t// quickest way to add 4 to sp\n", regnames[sp]);
+	if ((offset == 4) && optsize)
+		emit(f, "\tldinc\t%s\t// shortest way to add 4 to sp\n", regnames[sp]);
 	else if (offset) {
-		emit_constanttotemp(f, offset);
-		emit(f, "\tadd\t%s\n", regnames[sp]);
+		emit_constanttotemp(f, -offset);	// Negative range extends one integer further than positive range.
+		emit(f, "\tsub\t%s\n", regnames[sp]);
 	}
 
 	if(optsize) // If we're optimising for size we can potentially save some bytes in the function tails.
@@ -614,9 +616,11 @@ int init_cg(void)
 	printf("PC Relative reach: %d\n", g_flags_val[FLAG_PCRELREACH]);
 	printf("Small address (program and data fits within 64k): %d\n", g_flags[FLAG_SMALLADDR] & USEDFLAG);
 
+	// We have full load-store align, so in size mode we can pack data more tightly...
+
 	for (i = 0; i <= MAX_TYPE; i++) {
 		sizetab[i] = l2zm(msizetab[i]);
-		align[i] = l2zm(malign[i]);
+		align[i] = optsize ? 1 : l2zm(malign[i]);
 	}
 
 	regnames[0] = "noreg";
@@ -963,6 +967,50 @@ void gen_dc(FILE * f, int t, struct const_list *p)
 	newobj = 0;
 }
 
+
+int matchobj(FILE *f,struct obj *o1,struct obj *o2)
+{
+	int result=1;
+	emit(f,"//Comparing flags %x, %x\n",o1->flags,o2->flags);
+	if(o1->flags!=o2->flags)
+		return(0);
+
+	if((o1->flags&REG) && (o1->reg==o2->reg))
+		return(1);
+
+	if((o1->flags&KONST) && (o1->val.vlong == o2->val.vlong))
+		return(1);
+
+	emit(f,"//%x, %x\n",o1->v,o2->v);
+
+	if(!o1->v || !o2->v)
+		return(0);
+
+	emit(f,"//Comparing vars\n");
+	if(o1->v == o2->v)
+		return(1);
+
+	if(isauto(o1->v) && isauto(o2->v))
+	{
+		emit(f,"//comparing offsets: %x, %x\n",o1->v->offset,o2->v->offset);
+		if(o1->v->offset!=o2->v->offset)
+			return(0);
+		emit(f,"//comparing vlong: %x, %x\n",o1->val.vlong,o2->val.vlong);
+		if(o1->val.vlong==o2->val.vlong)
+			return(1);
+	}
+
+	if(isextern(o1->v) && isextern(o2->v))
+	{
+		if(strcmp(o1->v->identifier,o2->v->identifier))
+			return(0);
+		if(o1->val.vlong==o2->val.vlong)
+			return(1);
+	}
+
+	return(0);
+}
+
 /*  The main code-generation routine.                   */
 /*  f is the stream the code should be written to.      */
 /*  p is a pointer to a doubly linked list of ICs       */
@@ -1155,7 +1203,9 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		if (c == SUBIFP)
 			c = SUB;
 
-		emit(f, "// code 0x%x\n", c);
+		emit(f, "// code 0x%x, q1->v: %x\n", c,&p->q1.v);
+		if(p->prev && matchobj(f,&p->q1,&p->prev->q1))
+			emit(f, "// Matching objs found\n", p->prev->code,&p->prev->q1.v);
 
 		// Sign extension of a register involves moving to temp, extb or exth, move to dest
 		if (c == CONVERT) {
@@ -1166,16 +1216,25 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			}
 			if (sizetab[q1typ(p) & NQ] < sizetab[ztyp(p) & NQ]) {
 				int shamt = 0;
-				load_reg(f, zreg, &p->q1, q1typ(p));
+				int preextended;
+				preextended=load_reg(f, zreg, &p->q1, q1typ(p));
+				if((p->q1.flags&(REG|DREFOBJ))==REG)
+					preextended=0;
 				switch (q1typ(p) & NU) {
 					// Potential optimisation here - track which ops could have caused a value to require truncation.
 				case CHAR | UNSIGNED:
-					emit_constanttotemp(f, 0xff);
-					emit(f, "\tand\t%s\n", regnames[zreg]);
+					if(!preextended)
+					{
+						emit_constanttotemp(f, 0xff);
+						emit(f, "\tand\t%s\n", regnames[zreg]);
+					}
 					break;
 				case SHORT | UNSIGNED:
-					emit_constanttotemp(f, 0xffff);
-					emit(f, "\tand\t%s\n", regnames[zreg]);
+					if(!preextended)
+					{
+						emit_constanttotemp(f, 0xffff);
+						emit(f, "\tand\t%s\n", regnames[zreg]);
+					}
 					break;
 				case CHAR:
 					if (!optsize) {
@@ -1207,9 +1266,17 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				save_result(f, p);
 			} else {	// If the size is the same then this is effectively just an assign.
 				emit(f, "\t\t\t\t\t// (convert -> assign)\n");
-				emit_prepobj(f, &p->z, t, t2, 0);
-				if (load_temp(f, zreg, &p->q1, t))
-					save_temp(f, p, t2);	// Skip if the value is already in the dst register.
+				if(((p->q1.flags&(REG|DREFOBJ))==REG) && !(p->z.flags&REG))	// Use stmpdec if q1 is already in a register...
+				{
+					emit_prepobj(f, &p->z, t, tmp, 4); // Need an offset
+					emit(f,"\tstmpdec\t%s\n",regnames[q1reg]);
+				}
+				else
+				{
+					emit_prepobj(f, &p->z, t, t2, 0);
+					load_temp(f, zreg, &p->q1, t);
+					save_temp(f, p, t2);
+				}
 			}
 			continue;
 		}
@@ -1400,9 +1467,17 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				pushed -= 4;
 				loopid++;
 			} else {
-				emit_prepobj(f, &p->z, t, t2, 0);
-				load_temp(f, zreg, &p->q1, t);
-				save_temp(f, p, t2);
+				if(((p->q1.flags&(REG|DREFOBJ))==REG) && !(p->z.flags&REG))	// Use stmpdec if q1 is already in a register...
+				{
+					emit_prepobj(f, &p->z, t, tmp, 4); // Need an offset
+					emit(f,"\tstmpdec\t%s\n",regnames[q1reg]);
+				}
+				else
+				{
+					emit_prepobj(f, &p->z, t, t2, 0);
+					load_temp(f, zreg, &p->q1, t);
+					save_temp(f, p, t2);
+				}
 			}
 			continue;
 		}
@@ -1563,7 +1638,27 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 
 int shortcut(int code, int typ)
 {
-//	printf("Taking shortcut for code %d, type %x\n",code,typ);
+	// FIXME - always return 1 here, and attend to any requisite conversion in the backend,
+	// since we can use tmp and the scratch registers and the compiler core can't.
+
+	// So far have seen shortcut requests for
+	// Only RSHIFT and AND are safe on 832.
+	// DIV
+	// ADD
+	// RSHIFT
+	// COMPARE
+	// SUB
+	// LSHIFT
+	// AND
+	// MULT
+	// OR
+
+//	printf("Evaluating shortcut for code %d, type %x\n",code,typ);
+	if(code==RSHIFT)
+		return(1);
+	if(code==AND)
+		return(1);
+
 	return 0;
 }
 

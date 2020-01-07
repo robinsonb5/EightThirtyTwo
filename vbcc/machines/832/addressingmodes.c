@@ -12,6 +12,43 @@
 
 #define AM_DEBUG 0
 
+void am_conversions(struct IC *p)
+{
+	int c;
+	struct IC *p2;
+	struct IC *p3;
+	for (; p; p = p->next) {
+		c = p->code;
+		switch(c)
+		{
+			case BEQ:
+			case BNE:
+			case BLT:
+			case BLE:
+			case BGT:
+			case BGE:
+			case ALLOCREG:
+			case FREEREG:
+			case NOP:
+				break;
+			case CONVERT:
+				printf("(conversion)\n");
+				break;
+
+			default:
+				switch(q1typ(p)&NQ)
+				{
+					case CHAR:
+					case SHORT:
+						printf("IC %d, non-int operation %x, %x\n",c,q1typ(p),ztyp(p));
+					default:
+						break;
+				}
+				break;
+		}
+	}
+}
+
 // Look for 832-specific optimizations
 
 void am_simplify(struct IC *p)
@@ -37,21 +74,21 @@ void am_simplify(struct IC *p)
 				if((p->z.flags&(REG|DREFOBJ|SCRATCH))!=(REG|SCRATCH))
 					break;
 
-				printf("Address IC candidate: zreg: %d, z flags %x\n",p->z.reg,p->z.flags);
+//				printf("Address IC candidate: zreg: %d, z flags %x\n",p->z.reg,p->z.flags);
 
 				while(p3)
 				{
-					printf(" next op: %x, q1reg: %d, q1flags: %x, q2reg: %d, q2flags: %x\n",
-						p2->code,p2->q1.reg,p2->q1.flags,p2->q2.reg,p2->q2.flags);
+//					printf(" next op: %x, q1reg: %d, q1flags: %x, q2reg: %d, q2flags: %x\n",
+//						p2->code,p2->q1.reg,p2->q1.flags,p2->q2.reg,p2->q2.flags);
 					switch(p2->code)
 					{
 						case PUSH:
 							if((p2->q1.flags&(REG|DREFOBJ|VARADR))==REG && p2->q1.reg==p->z.reg)
 							{
-								printf("p3 code: %x, reg: %d\n",p3->code,p3->q1.reg);
+//								printf("p3 code: %x, reg: %d\n",p3->code,p3->q1.reg);
 								if(p3->code!=FREEREG || p3->q1.reg!=p->z.reg)
 									break;
-								printf("Push: merging\n");
+//								printf("Push: merging\n");
 								p->code=NOP;	// Don't prepare the address to a register...
 								p2->q1=p->q1;	// Push it directly.
 								p2->q1.flags|=VARADR;
@@ -61,7 +98,7 @@ void am_simplify(struct IC *p)
 						case FREEREG:
 							if(p2->q1.reg==p->z.reg)
 							{
-								printf("Freereg: bailing out\n");
+//								printf("Freereg: bailing out\n");
 								p3=0;
 							}
 							break;
@@ -126,6 +163,13 @@ void am_simplify(struct IC *p)
 						}
 						break;
 				}
+				break;
+
+			// Just analyse conversions for now.  Loads cause automatic zero-extension so can avoid conversion
+			// in that case.  Arithmetic functions may require conversion - with the exception of AND and SHR,
+			// since neither can result in extra set bits in the MSBs.
+			case CONVERT:
+//				printic(stdout,p);
 				break;
 			default:
 				break;
@@ -339,6 +383,7 @@ static void find_addressingmodes(struct IC *p)
 	struct AddressingMode *am;
 
 	am_simplify(p);
+//	am_conversions(p);
 
 	for (; p; p = p->next) {
 		c = p->code;
