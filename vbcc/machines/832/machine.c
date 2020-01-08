@@ -247,16 +247,101 @@ static int ctor_dtor(FILE * f, struct Var *v)
 	return 1;
 }
 
-/* generate code to load the address of a variable into register r */
-static void load_address(FILE * f, int r, struct obj *o, int type)
-/*  Generates code to load the address of a variable into register r.   */
+
+#define TEMP_T1 0
+#define TEMP_T2 0
+#define TEMP_TMP 0
+struct tempobj
 {
-	emit_prepobj(f, o, type, r, 0);
-	if (o->v->storage_class == REGISTER) {
-		printf("load_address: ERROR - can't get the address of a register!\n");
-		ierror(0);
-	}
+	struct obj o;
+	int reg;
+};
+struct tempobj tempobjs[3];
+
+void cleartempobj(int reg)
+{
+	int i;
+	if(reg==tmp) i=TEMP_TMP;
+	else if(reg==t1) i=TEMP_T1;
+	else if(reg==t2) i=TEMP_T2;
+	else return;
+
+	tempobjs[i].reg=0;
 }
+
+
+// Store any passing value in tempobj records for optimisation.
+void settempobj(int reg,struct obj *o,int offset)
+{
+	int i;
+	if(reg==tmp) i=TEMP_TMP;
+	else if(reg==t1) i=TEMP_T1;
+	else if(reg==t2) i=TEMP_T2;
+	else return;
+
+	tempobjs[i].reg=reg;
+	tempobjs[i].o=*o;
+	tempobjs[i].o.val.vlong+=offset;	// Account for any postinc / predec
+}
+
+// Check the tempobj records to see if the value we're interested in can be found in either.
+int matchtempobj(struct obj *o)
+{
+	if(matchobj(o,tempobjs[0]))
+		return(tempobjs[0].reg);
+	else if(matchobj(o,tempobjs[1]))
+		return(tempobjs[1].reg);
+	else if(matchobj(o,tempobjs[2]))
+		return(tempobjs[2].reg);
+	else
+		return(0);
+}
+
+
+// Compare a pair of struct obj* for equivalence.
+int matchobj(FILE *f,struct obj *o1,struct obj *o2)
+{
+	int result=1;
+	emit(f,"//Comparing flags %x, %x\n",o1->flags,o2->flags);
+	if(o1->flags!=o2->flags)
+		return(0);
+
+	if((o1->flags&REG) && (o1->reg==o2->reg))
+		return(1);
+
+	if((o1->flags&KONST) && (o1->val.vlong == o2->val.vlong))
+		return(1);
+
+	emit(f,"//%x, %x\n",o1->v,o2->v);
+
+	if(!o1->v || !o2->v)
+		return(0);
+
+	emit(f,"//Comparing vars\n");
+	if(o1->v == o2->v)
+		return(1);
+
+	if(isauto(o1->v->storage_class) && isauto(o2->v->storage_class))
+	{
+		emit(f,"//comparing offsets: %x, %x\n",o1->v->offset,o2->v->offset);
+		if(o1->v->offset!=o2->v->offset)
+			return(0);
+		emit(f,"//comparing vlong: %x, %x\n",o1->val.vlong,o2->val.vlong);
+		if(o1->val.vlong==o2->val.vlong)
+			return(1);
+	}
+
+	if(isextern(o1->v->storage_class) && isextern(o2->v->storage_class))
+	{
+		if(strcmp(o1->v->identifier,o2->v->identifier))
+			return(0);
+		if(o1->val.vlong==o2->val.vlong)
+			return(1);
+	}
+
+	return(0);
+}
+
 
 /* Generates code to load a memory object into temp.  Returns 1 if code was emitted, 0 if there's no need. */
 static int load_temp(FILE * f, int r, struct obj *o, int type)
@@ -968,49 +1053,6 @@ void gen_dc(FILE * f, int t, struct const_list *p)
 }
 
 
-int matchobj(FILE *f,struct obj *o1,struct obj *o2)
-{
-	int result=1;
-	emit(f,"//Comparing flags %x, %x\n",o1->flags,o2->flags);
-	if(o1->flags!=o2->flags)
-		return(0);
-
-	if((o1->flags&REG) && (o1->reg==o2->reg))
-		return(1);
-
-	if((o1->flags&KONST) && (o1->val.vlong == o2->val.vlong))
-		return(1);
-
-	emit(f,"//%x, %x\n",o1->v,o2->v);
-
-	if(!o1->v || !o2->v)
-		return(0);
-
-	emit(f,"//Comparing vars\n");
-	if(o1->v == o2->v)
-		return(1);
-
-	if(isauto(o1->v) && isauto(o2->v))
-	{
-		emit(f,"//comparing offsets: %x, %x\n",o1->v->offset,o2->v->offset);
-		if(o1->v->offset!=o2->v->offset)
-			return(0);
-		emit(f,"//comparing vlong: %x, %x\n",o1->val.vlong,o2->val.vlong);
-		if(o1->val.vlong==o2->val.vlong)
-			return(1);
-	}
-
-	if(isextern(o1->v) && isextern(o2->v))
-	{
-		if(strcmp(o1->v->identifier,o2->v->identifier))
-			return(0);
-		if(o1->val.vlong==o2->val.vlong)
-			return(1);
-	}
-
-	return(0);
-}
-
 /*  The main code-generation routine.                   */
 /*  f is the stream the code should be written to.      */
 /*  p is a pointer to a doubly linked list of ICs       */
@@ -1105,7 +1147,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 	function_top(f, v, localsize);
 //      printf("%s:\n",v->identifier);
 	for (; p; p = p->next) {
-//      printic(stdout,p);
+      printic(stdout,p);
 		c = p->code;
 		t = p->typf;
 
@@ -1274,7 +1316,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				else
 				{
 					emit_prepobj(f, &p->z, t, t2, 0);
-					load_temp(f, zreg, &p->q1, t);
+//					load_temp(f, zreg, &p->q1, t);
+					emit_objtotemp(f, &p->q1, t);
 					save_temp(f, p, t2);
 				}
 			}
@@ -1381,7 +1424,9 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				int cntr = t2 + 1;
 				int wordcopy;
 				int bytecopy;
+				printf("Assigning struct preopobj\n");
 				emit_prepobj(f, &p->z, t, t2, 0);
+				printf("Checking size\n");
 				if ((t & NQ) == CHAR && (opsize(p) != 1)) {
 					printf("t&nq: %d, opsize(p) %d, vmax %d\n", t & NQ, opsize(p),
 					       zm2l(p->q2.val.vmax));
@@ -1402,7 +1447,10 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					}
 				}
 
+				printf("Finding copysize\n");
+
 				zmax copysize = opsize(p);
+				printf("Copysize is %d\n",copysize);
 
 				if (!optsize)	// Can we create larger code in the interests of speed?  If so, partially unroll the copy.
 					wordcopy = copysize & ~3;
@@ -1410,12 +1458,21 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					wordcopy = 0;
 				bytecopy = copysize - wordcopy;
 
+				printf("Copying %d words and %d bytes - v is %x\n", wordcopy / 4, bytecopy,p->z.v);
+
 				// FIXME - could unroll more agressively if optspeed is set.  Can then avoid messing with r2.
 				emit(f, "// Copying %d words and %d bytes to %s\n", wordcopy / 4, bytecopy,
-				     p->z.v->identifier);
+				     p->z.v ? p->z.v->identifier : "(null)");
+
+				if(!p->z.v)
+					printf("No z->v: z flags: %x\n",p->z.flags);
 
 				// Prepare the copy
-				load_temp(f, zreg, &p->q1, t);
+// FIXME - we don't necessarily have a valid z->v!  If not, where does the target come from?
+// Stack based variable?
+//				load_temp(f, zreg, &p->q1, t);
+				printf("calling objtotemp...\n");
+				emit_objtotemp(f, &p->q1, t);
 				emit(f, "\tmr\t%s\n", regnames[srcr]);
 				emit(f, "\tmt\t%s\n\tstdec\t%s\n", regnames[t2 + 1], regnames[sp]);
 				pushed += 4;
@@ -1423,12 +1480,12 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				if (wordcopy < 32) {
 					wordcopy >>= 2;
 					if (wordcopy)
-						emit(f, "// Copying %d words to %s\n", wordcopy, p->z.v->identifier);
+						emit(f, "// Copying %d words to %s\n", wordcopy, p->z.v ? p->z.v->identifier : "(null)");
 					while (wordcopy--) {
 						emit(f, "\tldinc\t%s\n\tstinc\t%s\n", regnames[srcr], regnames[dstr]);
 					}
 				} else {
-					emit(f, "// Copying %d words to %s\n", wordcopy / 4, p->z.v->identifier);
+					emit(f, "// Copying %d words to %s\n", wordcopy / 4, p->z.v ? p->z.v->identifier : "(null)");
 					// Copy bytes...
 					emit_constanttotemp(f, wordcopy);
 					emit(f, "\taddt\t%s\n", regnames[dstr]);
@@ -1475,7 +1532,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				else
 				{
 					emit_prepobj(f, &p->z, t, t2, 0);
-					load_temp(f, zreg, &p->q1, t);
+//					load_temp(f, zreg, &p->q1, t);
+					emit_objtotemp(f, &p->q1, t);
 					save_temp(f, p, t2);
 				}
 			}
@@ -1484,7 +1542,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		// Seems to work.
 		if (c == ADDRESS) {
 			emit(f, "\t\t\t\t\t// (address)\n");
-			load_address(f, zreg, &p->q1, POINTER);
+			emit_prepobj(f, &p->q1, POINTER, zreg, 0);
 			save_result(f, p);
 			continue;
 		}
