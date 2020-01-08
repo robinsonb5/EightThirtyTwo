@@ -343,58 +343,16 @@ int matchobj(FILE *f,struct obj *o1,struct obj *o2)
 }
 
 
-/* Generates code to load a memory object into temp.  Returns 1 if code was emitted, 0 if there's no need. */
-static int load_temp(FILE * f, int r, struct obj *o, int type)
-{
-	type &= NQ;
-	emit(f, "\t\t\t\t\t// (load_temp - type %d)", type);
-	if (o->flags & VARADR) {
-		emit(f, " (varadr)");
-		switch (type) {
-		case CHAR:
-			if (o->flags & DREFOBJ) {
-				emit_prepobj(f, o, type, r, 0);
-				emit(f, "\tldbinc\t%s\n", regnames[r]);
-			} else
-				emit_prepobj(f, o, type, tmp, 0);
-			break;
-		case SHORT:
-			emit_prepobj(f, o, type, tmp, 0);
-			if (o->flags & DREFOBJ)
-				emit(f, "\thlf\n\tldt\n");
-			break;
-		case INT:
-		case LONG:
-		case POINTER:
-			emit_prepobj(f, o, type, tmp, 0);
-			if (o->flags & DREFOBJ)
-				emit(f, "\tldt\n// marker4\n");
-			break;
-		default:
-			printf("FIXME - load_temp doesn't yet handle type 0x%x\n", type);
-			ierror(0);
-			break;
-		}
-	} else {
-		if ((o->flags & (REG | DREFOBJ)) == REG && o->reg == r) {
-			emit(f, "\n");
-			return (0);
-		}
-		emit(f, " not varadr\n");
-		emit_objtotemp(f, o, type);
-	}
-	return (1);
-}
-
 /* Generates code to load a memory object into register r.  Returns 1 if code was emitted, 0 if there was no need */
 
 static int load_reg(FILE * f, int r, struct obj *o, int type)
 {
 	int result;
-	if (result=load_temp(f, r, o, type)) {
-		emit(f, "\tmr\t%s\n", regnames[r]);
-	}
-	return(result);
+	if ((o->flags & (REG | DREFOBJ)) == REG && o->reg == r)
+		return (0);
+	emit_objtotemp(f, o, type);
+	emit(f, "\tmr\t%s\n", regnames[r]);
+	return(1);
 }
 
 
@@ -556,7 +514,9 @@ void save_result(FILE * f, struct IC *p)
 	if ((p->z.flags & (REG | DREFOBJ)) == DREFOBJ && !p->z.am) {
 		emit(f, "deref\n");
 		p->z.flags &= ~DREFOBJ;
-		load_reg(f, t2, &p->z, POINTER);
+//		load_reg(f, t2, &p->z, POINTER);
+		emit_objtotemp(f, &p->z, ztyp(p));
+		emit(f,"\tmr\t%s\n",regnames[t2]);
 		p->z.reg = t2;
 		p->z.flags |= (REG | DREFOBJ);
 		emit(f, "\t\t\t\t// ");
@@ -1147,7 +1107,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 	function_top(f, v, localsize);
 //      printf("%s:\n",v->identifier);
 	for (; p; p = p->next) {
-      printic(stdout,p);
+//      printic(stdout,p);
 		c = p->code;
 		t = p->typf;
 
@@ -1213,7 +1173,9 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		// Investigate - but not currently seeing it used.
 		if (c == MOVETOREG) {
 			emit(f, "\t\t\t\t\t//CHECKME movetoreg\n");
-			load_reg(f, p->z.reg, &p->q1, regtype[p->z.reg]->flags);
+//			load_reg(f, p->z.reg, &p->q1, regtype[p->z.reg]->flags);
+			emit_objtotemp(f, &p->q1, ztyp(p));
+			emit(f,"\tmr\t%s\n",regnames[zreg]);
 			continue;
 		}
 		// Investigate - but not currently seeing it used.
@@ -1245,9 +1207,9 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		if (c == SUBIFP)
 			c = SUB;
 
-		emit(f, "// code 0x%x, q1->v: %x\n", c,&p->q1.v);
-		if(p->prev && matchobj(f,&p->q1,&p->prev->q1))
-			emit(f, "// Matching objs found\n", p->prev->code,&p->prev->q1.v);
+//		emit(f, "// code 0x%x, q1->v: %x\n", c,&p->q1.v);
+//		if(p->prev && matchobj(f,&p->q1,&p->prev->q1))
+//			emit(f, "// Matching objs found\n", p->prev->code,&p->prev->q1.v);
 
 		// Sign extension of a register involves moving to temp, extb or exth, move to dest
 		if (c == CONVERT) {
