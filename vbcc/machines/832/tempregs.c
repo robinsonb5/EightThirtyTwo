@@ -155,8 +155,10 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 
 	if (p->flags & DREFOBJ) {
 		if (p->flags & VARADR)
-			emit(f, "varadr AND ");
-		emit(f, " deref\n");
+			emit(f, "//varadr AND ");
+		emit(f, "// deref\n");
+		cleartempobj(f,tmp);
+		cleartempobj(f,reg);
 		/* Dereferencing a pointer */
 		if (p->flags & KONST) {
 			emit(f, "\t\t\t// const\n");
@@ -205,6 +207,8 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 		if (p->flags & REG) {
 			emit(f, " reg %s - no need to prep\n", regnames[p->reg]);
 		} else if (p->flags & VAR) {
+			settempobj(f,p,tmp,0);
+			settempobj(f,p,reg,0);
 			if (isauto(p->v->storage_class)) {
 				/* Set a register to point to a stack-base variable. */
 				emit(f, " var, auto|reg\n");
@@ -239,7 +243,29 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 static int emit_objtotemp(FILE * f, struct obj *p, int t)
 {
 	int result=0;
+	int matchreg;
 	emit(f, "\t\t\t\t\t// (objtotemp) ");
+	matchreg=matchtempobj(f,p);
+	if(matchreg==tmp)
+	{
+		emit(f,"\n// required value found in tmp\n");
+		return(result);
+	}
+	else if(matchreg==t1)
+	{
+		emit(f,"\n// required value found in %s\n",regnames[t1]);
+		emit(f,"\tmt\t%s\n",regnames[t1]);
+		return(result);
+	}
+	else if(matchreg==t2)
+	{
+		emit(f,"\n// required value found in %s\n",regnames[t2]);
+		emit(f,"\tmt\t%s\n",regnames[t2]);
+		return(result);
+	}
+
+	settempobj(f,tmp,p,0);
+
 	// FIXME - does this have implications for structs, unions, fptrs, etc?
 	if(p->flags&VARADR)
 	{
@@ -247,7 +273,7 @@ static int emit_objtotemp(FILE * f, struct obj *p, int t)
 		return(0);
 	}
 	if ((p->flags & (KONST | DREFOBJ)) == (KONST | DREFOBJ)) {
-		emit(f, " const/deref\n");
+		emit(f, "// const/deref\n");
 		emit_prepobj(f, p, t, tmp, 0);
 		emit_sizemod(f, t);
 		emit(f, "\tldt\n");
@@ -255,7 +281,7 @@ static int emit_objtotemp(FILE * f, struct obj *p, int t)
 	}
 
 	if (p->flags & DREFOBJ) {
-		emit(f, " deref \n");
+		emit(f, "// deref \n");
 		/* Dereferencing a pointer */
 		if (p->flags & REG) {
 			switch (t & NQ) {
@@ -299,11 +325,11 @@ static int emit_objtotemp(FILE * f, struct obj *p, int t)
 		}
 	} else {
 		if (p->flags & REG) {
-			emit(f, " reg %s\n", regnames[p->reg]);
+			emit(f, "// reg %s\n", regnames[p->reg]);
 			emit(f, "\tmt\t%s\n", regnames[p->reg]);
 		} else if (p->flags & VAR) {
 			if (isauto(p->v->storage_class)) {
-				emit(f, " var, auto|reg\n");
+				emit(f, "// var, auto|reg\n");
 				emit_sizemod(f, t);
 				if (real_offset(p)) {
 					emit_constanttotemp(f, real_offset(p));
@@ -312,7 +338,7 @@ static int emit_objtotemp(FILE * f, struct obj *p, int t)
 					emit(f, "\tld\t%s\n", regnames[sp]);
 				result=1;
 			} else if (isextern(p->v->storage_class)) {
-				emit(f, " extern\n");
+				emit(f, "// extern\n");
 				emit_externtotemp(f, p->v->identifier, p->val.vmax);
 				emit_sizemod(f, t);
 				// Structs and unions have to remain as pointers
@@ -341,7 +367,7 @@ static int emit_objtotemp(FILE * f, struct obj *p, int t)
 				ierror(0);
 			}
 		} else if (p->flags & KONST) {
-			emit(f, " const\n");
+			emit(f, "// const\n");
 			emit_constanttotemp(f, val2zmax(f, p, t));
 		} else {
 			printf("Objtotemp: unknown flags %d\n", p->flags);

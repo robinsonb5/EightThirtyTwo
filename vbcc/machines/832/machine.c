@@ -258,43 +258,31 @@ struct tempobj
 };
 struct tempobj tempobjs[3];
 
-void cleartempobj(int reg)
+void cleartempobj(FILE *f, int reg)
 {
 	int i;
 	if(reg==tmp) i=TEMP_TMP;
 	else if(reg==t1) i=TEMP_T1;
 	else if(reg==t2) i=TEMP_T2;
 	else return;
+	emit(f,"// clearing %s\n",regnames[reg]);
 
 	tempobjs[i].reg=0;
 }
 
 
 // Store any passing value in tempobj records for optimisation.
-void settempobj(int reg,struct obj *o,int offset)
+void settempobj(FILE *f,int reg,struct obj *o,int offset)
 {
 	int i;
 	if(reg==tmp) i=TEMP_TMP;
 	else if(reg==t1) i=TEMP_T1;
 	else if(reg==t2) i=TEMP_T2;
 	else return;
-
+	emit(f,"// Setting %s to %x (%x)\n",regnames[reg],o,o->v);
 	tempobjs[i].reg=reg;
 	tempobjs[i].o=*o;
 	tempobjs[i].o.val.vlong+=offset;	// Account for any postinc / predec
-}
-
-// Check the tempobj records to see if the value we're interested in can be found in either.
-int matchtempobj(struct obj *o)
-{
-	if(matchobj(o,tempobjs[0]))
-		return(tempobjs[0].reg);
-	else if(matchobj(o,tempobjs[1]))
-		return(tempobjs[1].reg);
-	else if(matchobj(o,tempobjs[2]))
-		return(tempobjs[2].reg);
-	else
-		return(0);
 }
 
 
@@ -302,6 +290,8 @@ int matchtempobj(struct obj *o)
 int matchobj(FILE *f,struct obj *o1,struct obj *o2)
 {
 	int result=1;
+	printf("//Comparing objs %x, %x\n",o1,o2);
+	printf("//Comparing flags %x, %x\n",o1->flags,o2->flags);
 	emit(f,"//Comparing flags %x, %x\n",o1->flags,o2->flags);
 	if(o1->flags!=o2->flags)
 		return(0);
@@ -312,25 +302,30 @@ int matchobj(FILE *f,struct obj *o1,struct obj *o2)
 	if((o1->flags&KONST) && (o1->val.vlong == o2->val.vlong))
 		return(1);
 
-	emit(f,"//%x, %x\n",o1->v,o2->v);
+	if(!(o1->flags&VAR))
+		return(0); // Not a var?  Can't do any more.
 
-	if(!o1->v || !o2->v)
+	printf("//%x, %x\n",o1->v,o2->v);
+
+	if(o1->v==0 || o2->v==0)
 		return(0);
 
-	emit(f,"//Comparing vars\n");
+	printf("//Comparing vars %x, %x\n",o1->v, o2->v);
 	if(o1->v == o2->v)
 		return(1);
 
+	printf("//Comparing autos...\n");
 	if(isauto(o1->v->storage_class) && isauto(o2->v->storage_class))
 	{
-		emit(f,"//comparing offsets: %x, %x\n",o1->v->offset,o2->v->offset);
+		printf("//comparing offsets: %x, %x\n",o1->v->offset,o2->v->offset);
 		if(o1->v->offset!=o2->v->offset)
 			return(0);
-		emit(f,"//comparing vlong: %x, %x\n",o1->val.vlong,o2->val.vlong);
+		printf("//comparing vlong: %x, %x\n",o1->val.vlong,o2->val.vlong);
 		if(o1->val.vlong==o2->val.vlong)
 			return(1);
 	}
 
+	printf("//Comparing externs...\n");
 	if(isextern(o1->v->storage_class) && isextern(o2->v->storage_class))
 	{
 		if(strcmp(o1->v->identifier,o2->v->identifier))
@@ -340,6 +335,29 @@ int matchobj(FILE *f,struct obj *o1,struct obj *o2)
 	}
 
 	return(0);
+}
+
+
+// Check the tempobj records to see if the value we're interested in can be found in either.
+int matchtempobj(FILE *f,struct obj *o)
+{
+	if(matchobj(f,o,&tempobjs[0].o))
+	{
+		emit(f,"//match found - tmp\n");
+		return(tempobjs[0].reg);
+	}
+	else if(matchobj(f,o,&tempobjs[1].o))
+	{
+		emit(f,"//match found - t1\n");
+		return(tempobjs[1].reg);
+	}
+	else if(matchobj(f,o,&tempobjs[2].o))
+	{
+		emit(f,"//match found - t2\n");
+		return(tempobjs[2].reg);
+	}
+	else
+		return(0);
 }
 
 
@@ -366,11 +384,15 @@ static void store_reg(FILE * f, int r, struct obj *o, int type)
 
 	switch (type) {
 	case CHAR:
+		cleartempobj(f,tmp);
+		cleartempobj(f,r);
 		emit_prepobj(f, o, type & NQ, tmp, 0);
 		emit(f, "\texg\t%s\n", regnames[r]);
 		emit(f, "\tstbinc\t%s\t//WARNING - pointer / reg not restored, might cause trouble!\n", regnames[r]);
 		break;
 	case SHORT:
+		cleartempobj(f,tmp);
+		cleartempobj(f,r);
 		emit_prepobj(f, o, type & NQ, tmp, 0);
 		emit(f, "\texg\t%s\n", regnames[r]);
 		emit(f, "\thlf\n\tst\t%s\n", regnames[r]);
@@ -382,7 +404,11 @@ static void store_reg(FILE * f, int r, struct obj *o, int type)
 		if ((o->flags & (REG | DREFOBJ)) == (REG | DREFOBJ)) {
 			emit(f, "\tmt\t%s\n", regnames[r]);
 			emit(f, "\tst\t%s\n", regnames[o->reg]);
+			settempobj(f,r,o,0);
+			settempobj(f,tmp,o,0);
 		} else {
+			cleartempobj(f,tmp);
+			cleartempobj(f,r);
 			emit_prepobj(f, o, type & NQ, tmp, 4);	// FIXME - stmpdec predecrements, so need to add 4!
 			emit(f, "\tstmpdec\t%s\n // WARNING - check that 4 has been added.\n", regnames[r]);
 		}
@@ -394,13 +420,6 @@ static void store_reg(FILE * f, int r, struct obj *o, int type)
 	}
 }
 
-/*  Generates code to store temp register r into memory object o. */
-static void store_temp(FILE * f, int r, struct obj *o, int type)
-{
-	type &= NQ;
-	emit_prepobj(f, o, type, t2, 0);
-	emit(f, "\tst\t%s\n", regnames[r], regnames[t2]);
-}
 
 /*  Yields log2(x)+1 or 0. */
 static long pof2(zumax x)
@@ -512,7 +531,7 @@ void save_result(FILE * f, struct IC *p)
 {
 	emit(f, "\t\t\t\t\t// (save result) ");
 	if ((p->z.flags & (REG | DREFOBJ)) == DREFOBJ && !p->z.am) {
-		emit(f, "deref\n");
+		emit(f, "// deref\n");
 		p->z.flags &= ~DREFOBJ;
 //		load_reg(f, t2, &p->z, POINTER);
 		emit_objtotemp(f, &p->z, ztyp(p));
@@ -520,13 +539,19 @@ void save_result(FILE * f, struct IC *p)
 		p->z.reg = t2;
 		p->z.flags |= (REG | DREFOBJ);
 		emit(f, "\t\t\t\t// ");
+		cleartempobj(f,tmp);
+		cleartempobj(f,t2);
 	}
 	if (isreg(z)) {
-		emit(f, "isreg\n");
+		emit(f, "// isreg\n");
 		if (p->z.reg != zreg)
+		{
+			settempobj(f,tmp,&p->z,0);
+			settempobj(f,zreg,&p->z,0);
 			emit(f, "\tmt\t%s\n\tmr\t%s\n", regnames[zreg], regnames[p->z.reg]);
+		}
 	} else {
-		emit(f, "store reg\n");
+		emit(f, "// store reg\n");
 		store_reg(f, zreg, &p->z, ztyp(p));
 	}
 }
@@ -1140,6 +1165,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				function_bottom(f, v, localsize, 0);
 			else
 				emit_pcreltotemp(f, labprefix, t);
+			cleartempobj(f,tmp);
 			emit(f, "\tadd\t%s\n", regnames[pc]);
 			continue;
 		}
@@ -1168,6 +1194,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			reversecmp=0;
 			emit_pcreltotemp(f, labprefix, t);	// FIXME - double-check that we shouldn't include an offset here.
 			emit(f, "\t\tadd\tr7\n");
+			cleartempobj(f,tmp);
 			continue;
 		}
 		// Investigate - but not currently seeing it used.
@@ -1175,6 +1202,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			emit(f, "\t\t\t\t\t//CHECKME movetoreg\n");
 //			load_reg(f, p->z.reg, &p->q1, regtype[p->z.reg]->flags);
 			emit_objtotemp(f, &p->q1, ztyp(p));
+			settempobj(f,f,&p->q1,0);
 			emit(f,"\tmr\t%s\n",regnames[zreg]);
 			continue;
 		}
@@ -1229,19 +1257,24 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				case CHAR | UNSIGNED:
 					if(!preextended)
 					{
+						cleartempobj(f,tmp);
 						emit_constanttotemp(f, 0xff);
+						// FIXME - set tmp to constant.  Define a dummy obj for this purpose?
 						emit(f, "\tand\t%s\n", regnames[zreg]);
 					}
 					break;
 				case SHORT | UNSIGNED:
 					if(!preextended)
 					{
+						cleartempobj(f,tmp);
 						emit_constanttotemp(f, 0xffff);
+						// FIXME - set tmp to constant.  Define a dummy obj for this purpose?
 						emit(f, "\tand\t%s\n", regnames[zreg]);
 					}
 					break;
 				case CHAR:
 					if (!optsize) {
+						cleartempobj(f,tmp);
 						emit_constanttotemp(f, 0x1000000);
 						emit(f, "\tmul\t%s\n", regnames[zreg]);
 						emit_constanttotemp(f, 0x100);
@@ -1252,6 +1285,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					break;
 				case SHORT:
 					if (!optsize) {
+						cleartempobj(f,tmp);
 						emit_constanttotemp(f, 0x10000);
 						emit(f, "\tmul\t%s\n", regnames[zreg]);
 						emit_constanttotemp(f, 0x10000);
@@ -1262,6 +1296,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					break;
 				}
 				if (shamt && optsize) {
+					cleartempobj(f,tmp);
 					emit(f, "\tli\t%d\n", shamt);
 					emit(f, "\tshl\t%s\n", regnames[zreg]);
 					emit(f, "\tsgn\n");
@@ -1273,13 +1308,17 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				if(((p->q1.flags&(REG|DREFOBJ))==REG) && !(p->z.flags&REG))	// Use stmpdec if q1 is already in a register...
 				{
 					emit_prepobj(f, &p->z, t, tmp, 4); // Need an offset
+					settempobj(f,tmp,&p->z,-4);
 					emit(f,"\tstmpdec\t%s\n",regnames[q1reg]);
 				}
 				else
 				{
 					emit_prepobj(f, &p->z, t, t2, 0);
+					cleartempobj(f,t1);
+					settempobj(f,t2,&p->z,0);
 //					load_temp(f, zreg, &p->q1, t);
 					emit_objtotemp(f, &p->q1, t);
+					settempobj(f,tmp,&p->q1,0);
 					save_temp(f, p, t2);
 				}
 			}
@@ -1290,8 +1329,9 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			emit(f, "\t\t\t\t\t//comp\n");
 			load_reg(f, zreg, &p->q1, t);
 			emit(f, "\tli\tIMW0(-1)\n");
+			cleartempobj(f,tmp);
+			// FIXME save constant
 			emit(f, "\txor\t%s\n", regnames[zreg]);
-//      emit(f,"\tcpl.%s\t%s\n",dt(t),regnames[zreg]);
 			save_result(f, p);
 			continue;
 		}
@@ -1320,6 +1360,9 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			emit(f, "\t\t\t\t\t//call\n");
 			if ((p->q1.flags & (VAR | DREFOBJ)) == VAR && p->q1.v->fi && p->q1.v->fi->inline_asm) {
 				emit_inline_asm(f, p->q1.v->fi->inline_asm);
+				cleartempobj(f,t1);
+				cleartempobj(f,t2);
+				cleartempobj(f,tmp);
 			} else {
 				/* FIXME - deal with different object types here */
 				if (p->q1.v->storage_class == STATIC) {
@@ -1345,6 +1388,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				}
 				emit(f, "\n");
 				pushed -= pushedargsize(p);
+				cleartempobj(f,tmp);
 			}
 			 /*FIXME*/ if ((p->q1.flags & (VAR | DREFOBJ)) == VAR && p->q1.v->fi
 				       && (p->q1.v->fi->flags & ALL_REGS)) {
@@ -1365,13 +1409,14 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		}
 		// Basically OK.
 		if (c == PUSH) {
+			int matchreg;
 			emit(f, "\t\t\t\t\t// (a/p push)\n");
 
 			/* FIXME - need to take dt into account */
 			// FIXME - need to handle pushing composite types */
 			emit(f, "\t\t\t\t\t// a: pushed %ld, regnames[sp] %s\n", pushed, regnames[sp]);
 			emit_objtotemp(f, &p->q1, t);
-//              load_temp(f,zreg,&p->q1,t);
+			settempobj(f,tmp,&p->q1,0);
 			emit(f, "\tstdec\t%s\n", regnames[sp]);
 			pushed += zm2l(p->q2.val.vmax);
 			continue;
@@ -1386,6 +1431,10 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				int cntr = t2 + 1;
 				int wordcopy;
 				int bytecopy;
+				cleartempobj(f,t1);
+				cleartempobj(f,t2);
+				cleartempobj(f,tmp);
+
 				printf("Assigning struct preopobj\n");
 				emit_prepobj(f, &p->z, t, t2, 0);
 				printf("Checking size\n");
@@ -1490,13 +1539,28 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				{
 					emit_prepobj(f, &p->z, t, tmp, 4); // Need an offset
 					emit(f,"\tstmpdec\t%s\n",regnames[q1reg]);
+					cleartempobj(f,t1);
+					cleartempobj(f,t2);
+					cleartempobj(f,tmp);
 				}
 				else
 				{
+					int matchreg;
 					emit_prepobj(f, &p->z, t, t2, 0);
-//					load_temp(f, zreg, &p->q1, t);
-					emit_objtotemp(f, &p->q1, t);
-					save_temp(f, p, t2);
+					// FIXME - check that prepobj didn't mess up tmp.
+					matchreg=matchtempobj(f,&p->q1);
+					if(0)
+					{
+//						emit(f,"// Found match with %s\n",regnames[matchreg]);
+//						if(matchreg==tmp)
+//							save_temp(f,p,t2);
+					}
+					else {
+						emit_objtotemp(f, &p->q1, t);
+						save_temp(f, p, t2);
+						cleartempobj(f,t1);
+						settempobj(f,tmp,&p->q1,0);
+					}
 				}
 			}
 			continue;
@@ -1522,6 +1586,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			emit(f, "\t\t\t\t\t// (test)\n");
 			if(!emit_objtotemp(f, &p->q1, t))	// Only need Z flag - did emit_objtotemp set it?
 			{
+				settempobj(f,tmp,&p->q1,0);
+				settempobj(f,t1,&p->q1,0);
 				if (p->q1.flags & REG) {
 					if (p->q1.flags & DREFOBJ)
 						emit(f, "\tmr\t%s\n\tand\t%s\n", regnames[t1], regnames[t1]);
@@ -1640,9 +1706,17 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				pushed -= 4;
 
 				if (c == MOD)
+				{
+					cleartempobj(f,t1);
+					settempobj(f,t2,&p->z,0);
 					emit(f, "\tmt\t%s\n\tmr\t%s\n", regnames[t2], regnames[zreg]);
+				}
 				else
+				{
+					settempobj(f,t1,&p->z,0);
+					cleartempobj(f,t2);
 					emit(f, "\tmt\t%s\n\tmr\t%s\n", regnames[t1], regnames[zreg]);
+				}
 				// Target not guaranteed to be a register.
 				save_result(f, p);
 				continue;
