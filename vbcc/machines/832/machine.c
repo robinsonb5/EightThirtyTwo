@@ -270,6 +270,18 @@ void cleartempobj(FILE *f, int reg)
 	tempobjs[i].reg=0;
 }
 
+void settempkonst(FILE *f,int reg,int v)
+{
+	int i;
+	if(reg==tmp) i=TEMP_TMP;
+	else if(reg==t1) i=TEMP_T1;
+	else if(reg==t2) i=TEMP_T2;
+	else return;
+	tempobjs[i].reg=reg;
+	tempobjs[i].o.flags=KONST;
+	tempobjs[i].o.val.vlong=v;
+	emit(f,"// set %s to konst %d\n",regnames[reg],v);
+}
 
 // Store any passing value in tempobj records for optimisation.
 void settempobj(FILE *f,int reg,struct obj *o,int offset)
@@ -290,8 +302,6 @@ void settempobj(FILE *f,int reg,struct obj *o,int offset)
 int matchobj(FILE *f,struct obj *o1,struct obj *o2)
 {
 	int result=1;
-	printf("//Comparing objs %x, %x\n",o1,o2);
-	printf("//Comparing flags %x, %x\n",o1->flags,o2->flags);
 	emit(f,"//Comparing flags %x, %x\n",o1->flags,o2->flags);
 	if(o1->flags!=o2->flags)
 		return(0);
@@ -305,27 +315,20 @@ int matchobj(FILE *f,struct obj *o1,struct obj *o2)
 	if(!(o1->flags&VAR))
 		return(0); // Not a var?  Can't do any more.
 
-	printf("//%x, %x\n",o1->v,o2->v);
-
 	if(o1->v==0 || o2->v==0)
 		return(0);
 
-	printf("//Comparing vars %x, %x\n",o1->v, o2->v);
 	if(o1->v == o2->v)
 		return(1);
 
-	printf("//Comparing autos...\n");
 	if(isauto(o1->v->storage_class) && isauto(o2->v->storage_class))
 	{
-		printf("//comparing offsets: %x, %x\n",o1->v->offset,o2->v->offset);
 		if(o1->v->offset!=o2->v->offset)
 			return(0);
-		printf("//comparing vlong: %x, %x\n",o1->val.vlong,o2->val.vlong);
 		if(o1->val.vlong==o2->val.vlong)
 			return(1);
 	}
 
-	printf("//Comparing externs...\n");
 	if(isextern(o1->v->storage_class) && isextern(o2->v->storage_class))
 	{
 		if(strcmp(o1->v->identifier,o2->v->identifier))
@@ -341,23 +344,34 @@ int matchobj(FILE *f,struct obj *o1,struct obj *o2)
 // Check the tempobj records to see if the value we're interested in can be found in either.
 int matchtempobj(FILE *f,struct obj *o)
 {
-	if(matchobj(f,o,&tempobjs[0].o))
+	if(tempobjs[0].reg && matchobj(f,o,&tempobjs[0].o))
 	{
 		emit(f,"//match found - tmp\n");
+		printf("//match found - tmp\n");
 		return(tempobjs[0].reg);
 	}
-	else if(matchobj(f,o,&tempobjs[1].o))
+	else if(tempobjs[1].reg && matchobj(f,o,&tempobjs[1].o))
 	{
 		emit(f,"//match found - t1\n");
+		printf("//match found - t1\n");
 		return(tempobjs[1].reg);
 	}
-	else if(matchobj(f,o,&tempobjs[2].o))
+	else if(tempobjs[2].reg && matchobj(f,o,&tempobjs[2].o))
 	{
 		emit(f,"//match found - t2\n");
+		printf("//match found - t2\n");
 		return(tempobjs[2].reg);
 	}
 	else
 		return(0);
+}
+
+int matchtempkonst(FILE *f,int k)
+{
+	struct obj o;
+	o.flags=KONST;
+	o.val.vlong=k;
+	return(matchtempobj(f,&o));
 }
 
 
@@ -1314,11 +1328,9 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				else
 				{
 					emit_prepobj(f, &p->z, t, t2, 0);
-					cleartempobj(f,t1);
 					settempobj(f,t2,&p->z,0);
 //					load_temp(f, zreg, &p->q1, t);
 					emit_objtotemp(f, &p->q1, t);
-					settempobj(f,tmp,&p->q1,0);
 					save_temp(f, p, t2);
 				}
 			}
@@ -1328,9 +1340,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		if (c == KOMPLEMENT) {
 			emit(f, "\t\t\t\t\t//comp\n");
 			load_reg(f, zreg, &p->q1, t);
-			emit(f, "\tli\tIMW0(-1)\n");
-			cleartempobj(f,tmp);
-			// FIXME save constant
+			emit_constanttotemp(f,-1);
 			emit(f, "\txor\t%s\n", regnames[zreg]);
 			save_result(f, p);
 			continue;
@@ -1539,7 +1549,6 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				{
 					emit_prepobj(f, &p->z, t, tmp, 4); // Need an offset
 					emit(f,"\tstmpdec\t%s\n",regnames[q1reg]);
-					cleartempobj(f,t1);
 					cleartempobj(f,t2);
 					cleartempobj(f,tmp);
 				}
@@ -1558,7 +1567,6 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					else {
 						emit_objtotemp(f, &p->q1, t);
 						save_temp(f, p, t2);
-						cleartempobj(f,t1);
 						settempobj(f,tmp,&p->q1,0);
 					}
 				}

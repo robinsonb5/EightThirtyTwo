@@ -4,6 +4,7 @@ To do:
 	| Optimise addresses of stack variables - lea's can mostly be replaced with simple adds.
 	Detect absolute moves to reg, prune any that aren't needed.
 
+	tempreg logic should be correct - now it's up to machine.c to make good use of it.
 */
 
 zmax val2zmax(FILE * f, struct obj *o, int t)
@@ -72,6 +73,9 @@ static void emit_sizemod(FILE * f, int type)
 	}
 }
 
+
+// tempobj logic should be correct.
+
 static void emit_pcreltotemp(FILE * f, char *lab, int suffix)
 {
 	int i;
@@ -80,7 +84,11 @@ static void emit_pcreltotemp(FILE * f, char *lab, int suffix)
 	for (i = g_flags_val[FLAG_PCRELREACH].l - 1; i >= 0; --i) {
 		emit(f, "\tli\tIMW%d(PCREL(%s%d)-%d)\n", i, lab, suffix, i);
 	}
+	cleartempobj(f,tmp);
 }
+
+
+// tempobj logic should be correct.
 
 static void emit_externtotemp(FILE * f, char *lab, int offset)	// FIXME - need to find a way to do this PC-relative.
 {
@@ -98,13 +106,18 @@ static void emit_externtotemp(FILE * f, char *lab, int offset)	// FIXME - need t
 		emit(f, "\t%s\t_%s\n",spec, lab);
 	if(g_flags[FLAG_SMALLADDR] & USEDFLAG)
 		emit(f,"\t.short\t0\n");
+	cleartempobj(f,tmp);
 }
+
+
+// tempobj logic should be correct.
 
 static void emit_statictotemp(FILE * f, char *lab, int suffix, int offset)	// FIXME - need to find a way to do this PC relative
 {
 	emit(f, "\t\t\t\t//statictotemp\n");
 	emit(f, "\tldinc\t%s\n", regnames[pc]);
 	emit(f, "\t.int\t%s%d+%d\n", lab, suffix, offset);
+	cleartempobj(f,tmp);
 }
 
 static int count_constantchunks(zmax v)
@@ -120,17 +133,30 @@ static int count_constantchunks(zmax v)
 	return (chunk);
 }
 
+
+// tempobj logic should be correct.
+
 static void emit_constanttotemp(FILE * f, zmax v)
 {
 	int chunk = count_constantchunks(v);
+	int matchreg=matchtempkonst(f,v);
+	if(matchreg==tmp)
+		return;
+	else if(matchreg)
+		emit(f,"\t,mt\t%s\n",regnames[matchreg]);
+	else {
+		emit(f, "\t\t\t\t// constant: %x in %d chunks\n", v, chunk);
 
-	emit(f, "\t\t\t\t// constant: %x in %d chunks\n", v, chunk);
-
-	while (chunk--)		// Do we need to emit the top two bits?
-	{
-		emit(f, "\tli\tIMW%d(%d)\n", chunk, v);
+		while (chunk--)		// Do we need to emit the top two bits?
+		{
+			emit(f, "\tli\tIMW%d(%d)\n", chunk, v);
+		}
+		settempkonst(f,tmp,v);
 	}
 }
+
+
+// tempobj logic should be correct.
 
 static void emit_stackvartotemp(FILE * f, zmax offset, int deref)
 {
@@ -147,7 +173,15 @@ static void emit_stackvartotemp(FILE * f, zmax offset, int deref)
 		} else
 			emit(f, "\tmt\t%s\n", regnames[sp]);
 	}
+	cleartempobj(f,tmp);
 }
+
+
+// Load the address of a target obj into reg in preparation for a store.
+// If the target is simply a register then does nothing.
+// The nominated register can be tmp or any gpr.
+// Guaranteed not to modify t1 or t2 except when nominated.
+// tempobj logic should be correct.
 
 static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 {
@@ -157,17 +191,19 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 		if (p->flags & VARADR)
 			emit(f, "//varadr AND ");
 		emit(f, "// deref\n");
-		cleartempobj(f,tmp);
-		cleartempobj(f,reg);
 		/* Dereferencing a pointer */
 		if (p->flags & KONST) {
 			emit(f, "\t\t\t// const\n");
 			emit_constanttotemp(f, val2zmax(f, p, p->dtyp) + offset);
 			if (reg != tmp)
 				emit(f, "\tmr\t%s\n", regnames[reg]);
+			settempkonst(f,reg,val2zmax(f, p, p->dtyp) + offset);
 		} else if (p->flags & REG) {
 			if (reg == tmp)
+			{
 				emit(f, "\tmt\t%s\n", regnames[p->reg]);
+				cleartempobj(f,tmp);
+			}
 			else
 				emit(f, "\t\t\t\t// reg %s - no need to prep\n", regnames[p->reg]);
 		} else if (p->flags & VAR) {
@@ -176,9 +212,14 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 				emit(f, " reg \n");
 				emit_stackvartotemp(f, real_offset(p) + offset, 1);
 				if (reg != tmp)
+				{
 					emit(f, "\tmr\t%s\n", regnames[reg]);
+					cleartempobj(f,reg);
+				}
 			} else if (isstatic(p->v->storage_class)) {
-				emit(f, " static\n");
+				cleartempobj(f,tmp);
+				cleartempobj(f,reg);
+				emit(f, "// static\n");
 				emit(f, "\tldinc\tr7\n\t.int\t%s%d+%d\n",
 				     labprefix, zm2l(p->v->offset), offset + p->val.vmax);
 				emit(f, "\tldt\n");
@@ -207,8 +248,6 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 		if (p->flags & REG) {
 			emit(f, " reg %s - no need to prep\n", regnames[p->reg]);
 		} else if (p->flags & VAR) {
-			settempobj(f,p,tmp,0);
-			settempobj(f,p,reg,0);
 			if (isauto(p->v->storage_class)) {
 				/* Set a register to point to a stack-base variable. */
 				emit(f, " var, auto|reg\n");
@@ -234,12 +273,17 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 				printf("emit_prepobj: - unknown storage class!\n");
 				ierror(0);
 			}
+			settempobj(f,p,tmp,0);
+			settempobj(f,p,reg,0);
 		}
 	}
 }
 
 
 // Returns 1 if the Z flag can has been set (i.e. a load has occurred)
+// Guaranteed not to modify t1 or t2.
+// tempobj logic should be correct.
+
 static int emit_objtotemp(FILE * f, struct obj *p, int t)
 {
 	int result=0;
@@ -264,8 +308,6 @@ static int emit_objtotemp(FILE * f, struct obj *p, int t)
 		return(result);
 	}
 
-	settempobj(f,tmp,p,0);
-
 	// FIXME - does this have implications for structs, unions, fptrs, etc?
 	if(p->flags&VARADR)
 	{
@@ -277,6 +319,7 @@ static int emit_objtotemp(FILE * f, struct obj *p, int t)
 		emit_prepobj(f, p, t, tmp, 0);
 		emit_sizemod(f, t);
 		emit(f, "\tldt\n");
+		settempobj(f,tmp,p,0);
 		return(1);
 	}
 
@@ -374,5 +417,6 @@ static int emit_objtotemp(FILE * f, struct obj *p, int t)
 			ierror(0);
 		}
 	}
+	settempobj(f,tmp,p,0);
 	return(result);
 }
