@@ -4,8 +4,8 @@ ROMGENDIR = ../../romgen
 ROMGEN = $(ROMGENDIR)/romgen
 GHDL = ghdl
 CC=../bin/vbcc832
-CFLAGS = -+ -size -I$(832DIR)/include/ -I$(LIBDIR)
-COPT = -O=1311
+CFLAGS = -+ -I$(832DIR)/include/ -I$(LIBDIR)
+COPT = -O=1311 -size
 TIME=200us
 
 all: compiler helloworld.bin

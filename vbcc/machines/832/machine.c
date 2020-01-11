@@ -295,7 +295,7 @@ void settempkonst(FILE *f,int reg,int v)
 	tempobjs[i].reg=reg;
 	tempobjs[i].o.flags=KONST;
 	tempobjs[i].o.val.vlong=v;
-	emit(f,"// set %s to konst %d\n",regnames[reg],v);
+//	emit(f,"// set %s to konst %d\n",regnames[reg],v);
 }
 
 // Store any passing value in tempobj records for optimisation.
@@ -306,7 +306,7 @@ void settempobj(FILE *f,int reg,struct obj *o,int offset)
 	else if(reg==t1) i=TEMP_T1;
 	else if(reg==t2) i=TEMP_T2;
 	else return;
-	emit(f,"// Setting %s to %x (%x)\n",regnames[reg],o,o->v);
+//	emit(f,"// Setting %s to %x (%x)\n",regnames[reg],o,o->v);
 	tempobjs[i].reg=0;
 	tempobjs[i].o=*o;
 	tempobjs[i].o.val.vlong+=offset;	// Account for any postinc / predec
@@ -317,7 +317,6 @@ void settempobj(FILE *f,int reg,struct obj *o,int offset)
 int matchobj(FILE *f,struct obj *o1,struct obj *o2)
 {
 	int result=1;
-	return(0); // Temporarily disable matching
 	emit(f,"//Comparing flags %x, %x\n",o1->flags,o2->flags);
 	if(o1->flags!=o2->flags)
 		return(0);
@@ -385,6 +384,7 @@ int matchtempobj(FILE *f,struct obj *o)
 
 int matchtempkonst(FILE *f,int k)
 {
+	return(0); // Temporarily disable matching
 	struct obj o;
 	o.flags=KONST;
 	o.val.vlong=k;
@@ -610,7 +610,7 @@ static void function_top(FILE * f, struct Var *v, long offset)
 	emit(f, "\t//registers used:\n");
 	for (i = FIRST_GPR; i <= LAST_GPR; ++i) {
 		emit(f, "\t\t//%s: %s\n", regnames[i], regused[i] ? "yes" : "no");
-		if (regused[i] && (i > FIRST_GPR) && (i <= LAST_GPR - 3))
+		if (regused[i] && (i > FIRST_GPR) && (i <= LAST_GPR - 2))
 			++regcount;
 	}
 
@@ -667,7 +667,7 @@ static void function_bottom(FILE * f, struct Var *v, long offset,int firsttail)
 	int i;
 
 	int regcount = 0;
-	for (i = FIRST_GPR + 1; i <= LAST_GPR - 3; ++i) {
+	for (i = FIRST_GPR + 1; i <= LAST_GPR - 2; ++i) {
 		if (regused[i] && !regscratch[i])
 			++regcount;
 	}
