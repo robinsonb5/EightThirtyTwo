@@ -667,7 +667,7 @@ static void function_bottom(FILE * f, struct Var *v, long offset,int firsttail)
 	int i;
 
 	int regcount = 0;
-	for (i = FIRST_GPR + 1; i <= LAST_GPR - 2; ++i) {
+	for (i = FIRST_GPR + 1; i <= LAST_GPR - 3; ++i) {
 		if (regused[i] && !regscratch[i])
 			++regcount;
 	}
@@ -804,8 +804,8 @@ int init_cg(void)
 	regsa[sp] = 1;
 	regsa[pc] = 1;
 	regsa[tmp] = 1;
+	regscratch[FIRST_GPR] = 1;
 	regscratch[FIRST_GPR+1] = 1;
-	regscratch[FIRST_GPR+2] = 1;
 //  regscratch[t2+1]=1;
 	regscratch[sp] = 0;
 	regscratch[pc] = 0;
