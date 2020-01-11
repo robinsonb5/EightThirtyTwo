@@ -273,8 +273,8 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 				printf("emit_prepobj: - unknown storage class!\n");
 				ierror(0);
 			}
-			settempobj(f,p,tmp,0);
-			settempobj(f,p,reg,0);
+			settempobj(f,tmp,p,0);
+			settempobj(f,reg,p,0);
 		}
 	}
 }
@@ -315,6 +315,7 @@ static int emit_objtotemp(FILE * f, struct obj *p, int t)
 		return(0);
 	}
 	if ((p->flags & (KONST | DREFOBJ)) == (KONST | DREFOBJ)) {
+		printf("// const/deref\n");
 		emit(f, "// const/deref\n");
 		emit_prepobj(f, p, t, tmp, 0);
 		emit_sizemod(f, t);
@@ -323,7 +324,10 @@ static int emit_objtotemp(FILE * f, struct obj *p, int t)
 		return(1);
 	}
 
+	printf("p->flags %x, type %d\n",p->flags,t);
+
 	if (p->flags & DREFOBJ) {
+		printf("// deref\n");
 		emit(f, "// deref \n");
 		/* Dereferencing a pointer */
 		if (p->flags & REG) {
@@ -357,6 +361,7 @@ static int emit_objtotemp(FILE * f, struct obj *p, int t)
 			}
 			result=1;
 		} else {
+			printf("// deref but not a register\n");
 			emit_prepobj(f, p, t, tmp, 0);
 			// FIXME - array type?
 			if ((t & NQ) != FUNKT && (t & NQ) != STRUCT && (t & NQ) != UNION)	// Function pointers are dereferenced by calling them.

@@ -3,6 +3,21 @@
  
 */
 
+// Reduce use of t1 so that we can let the compiler use an extra register.
+// save_result currently uses t2 - can we use stmpdec and tmp, or exg instead?
+
+// Update the memcpy code to save/allocate registers if needed.
+// Update the div code likewise.
+
+// Complete the work on object tracking.  In particular take care of tracking an object vs
+// its address.
+// Also track via addressing-mode analysis whether or not it's valuable to save a value;
+// Values can also be saved to otherwise unused registers.  (The compiler is almost certainly
+// already smart enough to make use of unused registers for this, however!
+
+// Write a separate peephole utility to replace ldinc r7 constructs with PCREL immediate loads
+// where possible.
+
 // DONE: eliminate unnecessary register shuffling for compare.
 
 // DONE: Implement block copying
@@ -292,7 +307,7 @@ void settempobj(FILE *f,int reg,struct obj *o,int offset)
 	else if(reg==t2) i=TEMP_T2;
 	else return;
 	emit(f,"// Setting %s to %x (%x)\n",regnames[reg],o,o->v);
-	tempobjs[i].reg=reg;
+	tempobjs[i].reg=0;
 	tempobjs[i].o=*o;
 	tempobjs[i].o.val.vlong+=offset;	// Account for any postinc / predec
 }
@@ -302,6 +317,7 @@ void settempobj(FILE *f,int reg,struct obj *o,int offset)
 int matchobj(FILE *f,struct obj *o1,struct obj *o2)
 {
 	int result=1;
+	return(0); // Temporarily disable matching
 	emit(f,"//Comparing flags %x, %x\n",o1->flags,o2->flags);
 	if(o1->flags!=o2->flags)
 		return(0);
@@ -344,6 +360,7 @@ int matchobj(FILE *f,struct obj *o1,struct obj *o2)
 // Check the tempobj records to see if the value we're interested in can be found in either.
 int matchtempobj(FILE *f,struct obj *o)
 {
+	return(0); // Temporarily disable matching
 	if(tempobjs[0].reg && matchobj(f,o,&tempobjs[0].o))
 	{
 		emit(f,"//match found - tmp\n");
@@ -450,6 +467,17 @@ static long pof2(zumax x)
 	return 0;
 }
 
+
+static int availreg()
+{
+	int i;
+	for(i=FIRST_GPR;i<(LAST_GPR-1);++i)
+		if(regs[i]==0)
+			return(i);
+	return(0);
+}
+
+
 static struct IC *preload(FILE *, struct IC *);
 
 static void function_top(FILE *, struct Var *, long);
@@ -541,13 +569,13 @@ void save_temp(FILE * f, struct IC *p, int treg)
 }
 
 /* save the result (in zreg) into p->z */
+// FIXME - eliminate usage of t2.
 void save_result(FILE * f, struct IC *p)
 {
 	emit(f, "\t\t\t\t\t// (save result) ");
 	if ((p->z.flags & (REG | DREFOBJ)) == DREFOBJ && !p->z.am) {
 		emit(f, "// deref\n");
 		p->z.flags &= ~DREFOBJ;
-//		load_reg(f, t2, &p->z, POINTER);
 		emit_objtotemp(f, &p->z, ztyp(p));
 		emit(f,"\tmr\t%s\n",regnames[t2]);
 		p->z.reg = t2;
@@ -776,8 +804,8 @@ int init_cg(void)
 	regsa[sp] = 1;
 	regsa[pc] = 1;
 	regsa[tmp] = 1;
-	regscratch[t1] = 1;
-	regscratch[t2] = 1;
+	regscratch[FIRST_GPR+1] = 1;
+	regscratch[FIRST_GPR+2] = 1;
 //  regscratch[t2+1]=1;
 	regscratch[sp] = 0;
 	regscratch[pc] = 0;
@@ -1146,7 +1174,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 	function_top(f, v, localsize);
 //      printf("%s:\n",v->identifier);
 	for (; p; p = p->next) {
-//      printic(stdout,p);
+      printic(stdout,p);
 		c = p->code;
 		t = p->typf;
 
@@ -1214,9 +1242,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		// Investigate - but not currently seeing it used.
 		if (c == MOVETOREG) {
 			emit(f, "\t\t\t\t\t//CHECKME movetoreg\n");
-//			load_reg(f, p->z.reg, &p->q1, regtype[p->z.reg]->flags);
 			emit_objtotemp(f, &p->q1, ztyp(p));
-			settempobj(f,f,&p->q1,0);
+			settempobj(f,zreg,&p->q1,0);
 			emit(f,"\tmr\t%s\n",regnames[zreg]);
 			continue;
 		}
@@ -1595,10 +1622,10 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			if(!emit_objtotemp(f, &p->q1, t))	// Only need Z flag - did emit_objtotemp set it?
 			{
 				settempobj(f,tmp,&p->q1,0);
-				settempobj(f,t1,&p->q1,0);
+				settempobj(f,t2,&p->q1,0);
 				if (p->q1.flags & REG) {
 					if (p->q1.flags & DREFOBJ)
-						emit(f, "\tmr\t%s\n\tand\t%s\n", regnames[t1], regnames[t1]);
+						emit(f, "\tmr\t%s\n\tand\t%s\n", regnames[t2], regnames[t2]);
 					else
 						emit(f, "\tand\t%s\n", regnames[p->q1.reg]);
 				}
@@ -1696,7 +1723,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				emit(f, "\t//Call division routine\n");
 				emit_objtotemp(f, &p->q1, t);
 				emit(f, "\tmr\t%s\n", regnames[t2]);
-				// FIXME - determine here whether R2 really needs saving - may be in use, or may be the target register.
+				// FIXME - determine here whether R2 really needs saving - may not be in use, or may be the target register.
 				emit(f, "\tmt\t%s\n\tstdec\t%s\n", regnames[t2 + 1], regnames[sp]);
 				pushed += 4;
 
