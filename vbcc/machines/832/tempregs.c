@@ -52,6 +52,9 @@ static void emit_sizemod(FILE * f, int type)
 {
 	emit(f, "\t\t//sizemod based on type 0x%x\n", type);
 	switch (type & NQ) {
+	case 0:
+		emit(f, "//sizemod type is zero (movefromreg?)");
+		break;
 	case CHAR:
 		emit(f, "\tbyt\n");
 		break;
@@ -324,10 +327,9 @@ static int emit_objtotemp(FILE * f, struct obj *p, int t)
 		return(1);
 	}
 
-	printf("p->flags %x, type %d\n",p->flags,t);
+//	printf("p->flags %x, type %d\n",p->flags,t);
 
 	if (p->flags & DREFOBJ) {
-		printf("// deref\n");
 		emit(f, "// deref \n");
 		/* Dereferencing a pointer */
 		if (p->flags & REG) {
@@ -361,7 +363,6 @@ static int emit_objtotemp(FILE * f, struct obj *p, int t)
 			}
 			result=1;
 		} else {
-			printf("// deref but not a register\n");
 			emit_prepobj(f, p, t, tmp, 0);
 			// FIXME - array type?
 			if ((t & NQ) != FUNKT && (t & NQ) != STRUCT && (t & NQ) != UNION)	// Function pointers are dereferenced by calling them.

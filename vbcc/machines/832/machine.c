@@ -147,6 +147,7 @@ static int sp;			/*  Stackpointer                        */
 static int tmp;
 static int t1, t2;		/*  temporary gprs */
 static int f1, f2, f3;		/*  temporary fprs */
+static int loopid = 0;	/* must be unique for every function in a compilation unit */
 
 
 /* sections */
@@ -307,7 +308,7 @@ void settempobj(FILE *f,int reg,struct obj *o,int offset)
 	else if(reg==t2) i=TEMP_T2;
 	else return;
 //	emit(f,"// Setting %s to %x (%x)\n",regnames[reg],o,o->v);
-	tempobjs[i].reg=0;
+	tempobjs[i].reg=reg;
 	tempobjs[i].o=*o;
 	tempobjs[i].o.val.vlong+=offset;	// Account for any postinc / predec
 }
@@ -1091,7 +1092,6 @@ void gen_dc(FILE * f, int t, struct const_list *p)
 void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 /*  The main code-generation.                                           */
 {
-	static int loopid = 0;
 	static int idemp = 0;
 	static int firsttail=1;
 	int reversecmp=0;
@@ -1174,7 +1174,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 	function_top(f, v, localsize);
 //      printf("%s:\n",v->identifier);
 	for (; p; p = p->next) {
-      printic(stdout,p);
+//		printic(stdout,p);
 		c = p->code;
 		t = p->typf;
 
@@ -1472,12 +1472,10 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				cleartempobj(f,t2);
 				cleartempobj(f,tmp);
 
-				printf("Assigning struct preopobj\n");
 				emit_prepobj(f, &p->z, t, t2, 0);
-				printf("Checking size\n");
 				if ((t & NQ) == CHAR && (opsize(p) != 1)) {
-					printf("t&nq: %d, opsize(p) %d, vmax %d\n", t & NQ, opsize(p),
-					       zm2l(p->q2.val.vmax));
+//					printf("t&nq: %d, opsize(p) %d, vmax %d\n", t & NQ, opsize(p),
+//					       zm2l(p->q2.val.vmax));
 					emit(f, "// (char with size!=1 -> array of unknown type)\n");
 					t = ARRAY;	// FIXME - ugly hack
 				}
@@ -1495,18 +1493,13 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					}
 				}
 
-				printf("Finding copysize\n");
-
 				zmax copysize = opsize(p);
-				printf("Copysize is %d\n",copysize);
 
 				if (!optsize)	// Can we create larger code in the interests of speed?  If so, partially unroll the copy.
 					wordcopy = copysize & ~3;
 				else
 					wordcopy = 0;
 				bytecopy = copysize - wordcopy;
-
-				printf("Copying %d words and %d bytes - v is %x\n", wordcopy / 4, bytecopy,p->z.v);
 
 				// FIXME - could unroll more agressively if optspeed is set.  Can then avoid messing with r2.
 				emit(f, "// Copying %d words and %d bytes to %s\n", wordcopy / 4, bytecopy,
@@ -1519,7 +1512,6 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 // FIXME - we don't necessarily have a valid z->v!  If not, where does the target come from?
 // Stack based variable?
 //				load_temp(f, zreg, &p->q1, t);
-				printf("calling objtotemp...\n");
 				emit_objtotemp(f, &p->q1, t);
 				emit(f, "\tmr\t%s\n", regnames[srcr]);
 				emit(f, "\tmt\t%s\n\tstdec\t%s\n", regnames[t2 + 1], regnames[sp]);
@@ -1528,7 +1520,9 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				if (wordcopy < 32) {
 					wordcopy >>= 2;
 					if (wordcopy)
+					{
 						emit(f, "// Copying %d words to %s\n", wordcopy, p->z.v ? p->z.v->identifier : "(null)");
+					}
 					while (wordcopy--) {
 						emit(f, "\tldinc\t%s\n\tstinc\t%s\n", regnames[srcr], regnames[dstr]);
 					}
@@ -1538,11 +1532,11 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					emit_constanttotemp(f, wordcopy);
 					emit(f, "\taddt\t%s\n", regnames[dstr]);
 					emit(f, "\tmr\t%s\n", regnames[cntr]);
-					emit(f, ".cpy%swordloop%d:\n", p->z.v->identifier, loopid);
+					emit(f, ".cpy%swordloop%d:\n", p->z.v ? p->z.v->identifier : "null", loopid);
 					emit(f, "\tldinc\t%s\n\tstinc\t%s\n", regnames[srcr], regnames[dstr]);
 					emit(f, "\tmt\t%s\n\tcmp\t%s\n", regnames[dstr], regnames[cntr]);
 					emit(f, "\tcond\tNEQ\n");
-					emit(f, "\t\tli\tIMW0(PCREL(.cpy%swordloop%d))\n", p->z.v->identifier, loopid);
+					emit(f, "\t\tli\tIMW0(PCREL(.cpy%swordloop%d))\n", p->z.v ? p->z.v->identifier : "null", loopid);
 					emit(f, "\t\tadd\t%s\n", regnames[pc]);
 				}
 
