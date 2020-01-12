@@ -709,10 +709,10 @@ static void function_bottom(FILE * f, struct Var *v, long offset,int firsttail)
 
 	if(optsize) // If we're optimising for size we can potentially save some bytes in the function tails.
 	{
-		if(regcount<4 || !firsttail)
+		if(regcount<(5-SCRATCH_GPRS) || !firsttail)
 		{
 			int i;
-			for (i = g_flags_val[FLAG_PCRELREACH].l - 1; i >= 0; --i)
+			for (i = g_flags_val[FLAG_PCRELREACH].l; i >= 0; --i)
 				emit(f,"\tli\tIMW%d(PCREL(.functiontail)+%d)\n",i,((5-SCRATCH_GPRS)-regcount)*2-i);
 			emit(f,"\tadd\t%s\n",regnames[pc]);
 		}
