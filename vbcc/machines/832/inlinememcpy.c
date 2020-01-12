@@ -8,22 +8,23 @@ void emit_inlinememcpy(FILE *f,struct IC *p, int t)
 	int wordcopy;
 	int bytecopy;
 	zmax copysize = opsize(p);
-	int unroll=0;
-
+	int unrollwords=0;
+	int unrollbytes=0;
 
 	// Can we create larger code in the interests of speed?  If so, partially unroll the copy.
 	// FIXME - this is broken
-//	if (!optsize)
-		wordcopy = copysize & ~3;
-//	else
-//		wordcopy = 0;
+	wordcopy = copysize & ~3;
 	bytecopy = copysize - wordcopy;
 
-	if (wordcopy < 32 || bytecopy < 5)
-		unroll=1;
+	if (wordcopy < 32 && !optsize)
+		unrollwords=1;
+	if (bytecopy < 5)
+		unrollbytes=1;
 
 	cleartempobj(f,t1);
 	cleartempobj(f,tmp);
+
+	printf("Getting regs\n");
 
 	if(dstr=availreg())
 	{
@@ -41,7 +42,7 @@ void emit_inlinememcpy(FILE *f,struct IC *p, int t)
 
 	// FIXME - don't necessarily need the counter register if the copy is small...
 
-	if(unroll)
+	if(unrollwords && unrollbytes)
 		savec=0;
 	else if(cntr=availreg())
 	{
@@ -94,7 +95,7 @@ void emit_inlinememcpy(FILE *f,struct IC *p, int t)
 	emit(f, "\tmr\t%s\n", regnames[srcr]);
 
 
-	if (unroll) {
+	if (unrollwords) {
 		wordcopy >>= 2;
 		if (wordcopy)
 		{
@@ -117,23 +118,22 @@ void emit_inlinememcpy(FILE *f,struct IC *p, int t)
 		emit(f, "\t\tadd\t%s\n", regnames[pc]);
 	}
 
-	if (unroll) {
+	if (unrollbytes) {
 		if (bytecopy)
-			emit(f, "// Copying %d byte tail to %s\n", bytecopy,
-			     p->z.v->identifier);
+			emit(f, "// Copying %d byte tail to %s\n", bytecopy,p->z.v ? p->z.v->identifier : "null");
 		while (bytecopy--)
 			emit(f, "\tldbinc\t%s\n\tstbinc\t%s\n", regnames[srcr], regnames[dstr]);
 	} else {
-		emit(f, "// Copying %d bytes to %s\n", bytecopy, p->z.v->identifier);
+		emit(f, "// Copying %d bytes to %s\n", bytecopy, p->z.v ? p->z.v->identifier : "null");
 		// Copy bytes...
 		emit_constanttotemp(f, bytecopy);
 		emit(f, "\taddt\t%s\n", regnames[dstr]);
 		emit(f, "\tmr\t%s\n", regnames[cntr]);
-		emit(f, ".cpy%sloop%d:\n", p->z.v->identifier, loopid);
+		emit(f, ".cpy%sloop%d:\n", p->z.v ? p->z.v->identifier : "null", loopid);
 		emit(f, "\tldbinc\t%s\n\tstbinc\t%s\n", regnames[srcr], regnames[dstr]);
 		emit(f, "\tmt\t%s\n\tcmp\t%s\n", regnames[dstr], regnames[cntr]);
 		emit(f, "\tcond\tNEQ\n");
-		emit(f, "\t\tli\tIMW0(PCREL(.cpy%sloop%d))\n", p->z.v->identifier, loopid);
+		emit(f, "\t\tli\tIMW0(PCREL(.cpy%sloop%d))\n", p->z.v ? p->z.v->identifier : "null", loopid);
 		emit(f, "\t\tadd\t%s\n", regnames[pc]);
 
 	}
