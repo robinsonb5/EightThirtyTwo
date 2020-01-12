@@ -441,8 +441,19 @@ static void store_reg(FILE * f, int r, struct obj *o, int type)
 		} else {
 			cleartempobj(f,tmp);
 			cleartempobj(f,r);
-			emit_prepobj(f, o, type & NQ, tmp, 4);	// FIXME - stmpdec predecrements, so need to add 4!
-			emit(f, "\tstmpdec\t%s\n // WARNING - check that 4 has been added.\n", regnames[r]);
+			if(o->flags & DREFOBJ) {  // Can't use the offset / stmpdec trick for dereferenced objects.
+				emit_prepobj(f, o, type & NQ, tmp, 0);
+				emit(f, "\texg\t%s\n", regnames[r]);
+				emit(f, "\tst\t%s\n", regnames[r]);
+				if(o->am && o->am->disposable)
+					emit(f, "// Object is disposable, not bothering to undo exg\n");
+				else
+					emit(f, "\texg\t%s\n", regnames[r]);
+			}
+			else {
+				emit_prepobj(f, o, type & NQ, tmp, 4);	// FIXME - stmpdec predecrements, so need to add 4!
+				emit(f, "\tstmpdec\t%s\n // WARNING - check that 4 has been added.\n", regnames[r]);
+			}
 		}
 		break;
 	default:
@@ -524,6 +535,7 @@ static struct IC *preload(FILE * f, struct IC *p)
 }
 
 /* save the result (in temp) into p->z */
+/* Guaranteed not to touch t1/t2 unless nominated. */
 void save_temp(FILE * f, struct IC *p, int treg)
 {
 	emit(f, "\t\t\t\t\t// (save temp) ");
@@ -574,6 +586,19 @@ void save_temp(FILE * f, struct IC *p, int treg)
 void save_result(FILE * f, struct IC *p)
 {
 	emit(f, "\t\t\t\t\t// (save result) ");
+	if (isreg(z)) {
+		emit(f, "// isreg\n");
+		if (p->z.reg != zreg)
+		{
+			settempobj(f,tmp,&p->z,0);
+			settempobj(f,zreg,&p->z,0);
+			emit(f, "\tmt\t%s\n\tmr\t%s\n", regnames[zreg], regnames[p->z.reg]);
+		}
+	}
+	else
+		store_reg(f,zreg,&p->z,ztyp(p));
+	return;
+
 	if ((p->z.flags & (REG | DREFOBJ)) == DREFOBJ && !p->z.am) {
 		emit(f, "// deref\n");
 		p->z.flags &= ~DREFOBJ;
@@ -609,7 +634,7 @@ static void function_top(FILE * f, struct Var *v, long offset)
 	int i;
 	int regcount = 0;
 	emit(f, "\t//registers used:\n");
-	for (i = FIRST_GPR; i <= LAST_GPR; ++i) {
+	for (i = FIRST_GPR+SCRATCH_GPRS; i <= LAST_GPR; ++i) {
 		emit(f, "\t\t//%s: %s\n", regnames[i], regused[i] ? "yes" : "no");
 		if (regused[i] && (i > FIRST_GPR) && (i <= LAST_GPR - 2))
 			++regcount;
@@ -635,7 +660,7 @@ static void function_top(FILE * f, struct Var *v, long offset)
 
 	if (regcount < 3) {
 		emit(f, "\tstdec\t%s\n", regnames[sp]);
-		for (i = FIRST_GPR + 1; i <= LAST_GPR - 3; ++i) {
+		for (i = FIRST_GPR + SCRATCH_GPRS; i <= LAST_GPR - 3; ++i) {
 			if (regused[i] && !regscratch[i]) {
 				emit(f, "\tmt\t%s\n\tstdec\t%s\n", regnames[i], regnames[sp]);
 				rsavesize += 4;
@@ -643,7 +668,7 @@ static void function_top(FILE * f, struct Var *v, long offset)
 		}
 	} else {
 		emit(f, "\texg\t%s\n\tstmpdec\t%s\n", regnames[sp], regnames[sp]);
-		for (i = FIRST_GPR + 1; i <= LAST_GPR - 3; ++i) {
+		for (i = FIRST_GPR + SCRATCH_GPRS; i <= LAST_GPR - 3; ++i) {
 			if (regused[i] && !regscratch[i]) {
 				emit(f, "\tstmpdec\t%s\n", regnames[i]);
 				rsavesize += 4;
@@ -668,7 +693,7 @@ static void function_bottom(FILE * f, struct Var *v, long offset,int firsttail)
 	int i;
 
 	int regcount = 0;
-	for (i = FIRST_GPR + 1; i <= LAST_GPR - 3; ++i) {
+	for (i = FIRST_GPR + SCRATCH_GPRS; i <= LAST_GPR - 3; ++i) {
 		if (regused[i] && !regscratch[i])
 			++regcount;
 	}
@@ -692,7 +717,7 @@ static void function_bottom(FILE * f, struct Var *v, long offset,int firsttail)
 		if(firsttail)
 		{
 			emit(f,".functiontail:\n");
-			for (i = LAST_GPR - 3; i >= FIRST_GPR + 1; --i) {
+			for (i = LAST_GPR - 3; i >= FIRST_GPR + SCRATCH_GPRS; --i) {
 				if (!regscratch[i])
 					emit(f, "\tldinc\t%s\n\tmr\t%s\n", regnames[sp], regnames[i]);
 			}
@@ -701,7 +726,7 @@ static void function_bottom(FILE * f, struct Var *v, long offset,int firsttail)
 	}
 	else
 	{
-		for (i = LAST_GPR - 3; i >= FIRST_GPR + 1; --i) {
+		for (i = LAST_GPR - 3; i >= FIRST_GPR + SCRATCH_GPRS; --i) {
 			if (regused[i] && !regscratch[i])
 				emit(f, "\tldinc\t%s\n\tmr\t%s\n", regnames[sp], regnames[i]);
 		}
@@ -789,8 +814,8 @@ int init_cg(void)
 	tmp = FIRST_GPR + 8;
 	pc = FIRST_GPR + 7;
 	sp = FIRST_GPR + 6;
-	t1 = FIRST_GPR;		// build source address here - r0, also return register.
-	t2 = FIRST_GPR + 1;	// build dest address here - mark
+	t1 = FIRST_GPR;		// r0, also return register.
+	t2 = FIRST_GPR + 1;
 //  f1=FIRST_FPR;
 //  f2=FIRST_FPR+1;
 
@@ -805,8 +830,8 @@ int init_cg(void)
 	regsa[sp] = 1;
 	regsa[pc] = 1;
 	regsa[tmp] = 1;
-	regscratch[FIRST_GPR] = 1;
-	regscratch[FIRST_GPR+1] = 1;
+	regscratch[FIRST_GPR] = 0;
+	regscratch[FIRST_GPR+1] = 0;
 //  regscratch[t2+1]=1;
 	regscratch[sp] = 0;
 	regscratch[pc] = 0;
@@ -1300,7 +1325,6 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					{
 						cleartempobj(f,tmp);
 						emit_constanttotemp(f, 0xff);
-						// FIXME - set tmp to constant.  Define a dummy obj for this purpose?
 						emit(f, "\tand\t%s\n", regnames[zreg]);
 					}
 					break;
@@ -1309,7 +1333,6 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					{
 						cleartempobj(f,tmp);
 						emit_constanttotemp(f, 0xffff);
-						// FIXME - set tmp to constant.  Define a dummy obj for this purpose?
 						emit(f, "\tand\t%s\n", regnames[zreg]);
 					}
 					break;
@@ -1354,11 +1377,11 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				}
 				else
 				{
-					emit_prepobj(f, &p->z, t, t2, 0);
-					settempobj(f,t2,&p->z,0);
+					emit_prepobj(f, &p->z, t, t1, 0);
+					settempobj(f,t1,&p->z,0);
 //					load_temp(f, zreg, &p->q1, t);
 					emit_objtotemp(f, &p->q1, t);
-					save_temp(f, p, t2);
+					save_temp(f, p, t1);
 				}
 			}
 			continue;
@@ -1570,13 +1593,12 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				{
 					emit_prepobj(f, &p->z, t, tmp, 4); // Need an offset
 					emit(f,"\tstmpdec\t%s\n",regnames[q1reg]);
-					cleartempobj(f,t2);
 					cleartempobj(f,tmp);
 				}
 				else
 				{
 					int matchreg;
-					emit_prepobj(f, &p->z, t, t2, 0);
+					emit_prepobj(f, &p->z, t, t1, 0);
 					// FIXME - check that prepobj didn't mess up tmp.
 					matchreg=matchtempobj(f,&p->q1);
 					if(0)
@@ -1587,7 +1609,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					}
 					else {
 						emit_objtotemp(f, &p->q1, t);
-						save_temp(f, p, t2);
+						save_temp(f, p, t1);
 						settempobj(f,tmp,&p->q1,0);
 					}
 				}
@@ -1616,10 +1638,10 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			if(!emit_objtotemp(f, &p->q1, t))	// Only need Z flag - did emit_objtotemp set it?
 			{
 				settempobj(f,tmp,&p->q1,0);
-				settempobj(f,t2,&p->q1,0);
+				settempobj(f,t1,&p->q1,0);
 				if (p->q1.flags & REG) {
 					if (p->q1.flags & DREFOBJ)
-						emit(f, "\tmr\t%s\n\tand\t%s\n", regnames[t2], regnames[t2]);
+						emit(f, "\tmr\t%s\n\tand\t%s\n", regnames[t1], regnames[t1]);
 					else
 						emit(f, "\tand\t%s\n", regnames[p->q1.reg]);
 				}
@@ -1654,8 +1676,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				else
 				{
 					emit_objtotemp(f, &p->q1, t);
-					emit(f, "\tmr\t%s\n", regnames[t2]);
-					q1reg = t2;
+					emit(f, "\tmr\t%s\n", regnames[t1]);
+					q1reg = t1;
 					emit_objtotemp(f, &p->q2, t);
 				}
 			}
