@@ -143,12 +143,16 @@ void emit_inlinememcpy(FILE *f,struct IC *p, int t)
 		emit(f,"\tmr\t%s\n",regnames[cntr]);
 		pushed-=4;
 	}
+	else if(cntr)
+		regs[cntr]=0;
 	if(saved)
 	{
 		emit(f,"\tldinc\t%s\n",regnames[sp]);
 		emit(f,"\tmr\t%s\n",regnames[dstr]);
 		pushed-=4;
 	}
+	else if(dstr)
+		regs[dstr]=0;
 	loopid++;
 }
 

@@ -828,12 +828,12 @@ int init_cg(void)
 
 	regsa[FIRST_GPR] = 1;	// Allocate the return register
 	regsa[t1] = 1;
-	regsa[t2] = 1;
+	regsa[t2] = 0;
 	regsa[sp] = 1;
 	regsa[pc] = 1;
 	regsa[tmp] = 1;
 	regscratch[FIRST_GPR] = 0;
-	regscratch[FIRST_GPR+1] = 0;
+	regscratch[t2] = 0;	// T2 is now available for general use, but as a scratch reg.
 //  regscratch[t2+1]=1;
 	regscratch[sp] = 0;
 	regscratch[pc] = 0;
@@ -1649,12 +1649,21 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					emit(f, "\tmt\t%s\n\tstdec\t%s\n", regnames[t2 + 1], regnames[sp]);
 					pushed += 4;
 				}
-				emit_objtotemp(f, &p->q1, t);
-				emit(f, "\tmr\t%s\n", regnames[t2]);
-				// FIXME - determine here whether R2 really needs saving - may not be in use, or may be the target register.
 
-				emit_objtotemp(f, &p->q2, t);
-				emit(f, "\tmr\t%s\n", regnames[t2 + 1]);
+				emit_objtotemp(f, &p->q1, t);
+				// Need to make sure we're not about to overwrite the other operand!
+				if(isreg(q2) && q2reg==t2)
+				{
+					emit(f,"\texg\t%s\n",regnames[t2]);
+					emit(f,"\tmr\t%s\n",regnames[t2+1]);
+				}
+				else
+				{
+					emit(f, "\tmr\t%s\n", regnames[t2]);
+
+					emit_objtotemp(f, &p->q2, t);
+					emit(f, "\tmr\t%s\n", regnames[t2 + 1]);
+				}
 
 				emit(f, "\tldinc\t%s\n", regnames[pc]);
 				if ((!(q1typ(p) & UNSIGNED)) && (!(q2typ(p) & UNSIGNED)))	// If we have a mismatch of signedness we treat as unsigned.
@@ -1667,13 +1676,15 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				{
 					cleartempobj(f,t1);
 					settempobj(f,t2,&p->z,0);
-					emit(f, "\tmt\t%s\n\tmr\t%s\n", regnames[t2], regnames[zreg]);
+					if(zreg!=t2)
+						emit(f, "\tmt\t%s\n\tmr\t%s\n", regnames[t2], regnames[zreg]);
 				}
 				else
 				{
 					settempobj(f,t1,&p->z,0);
 					cleartempobj(f,t2);
-					emit(f, "\tmt\t%s\n\tmr\t%s\n", regnames[t1], regnames[zreg]);
+					if(zreg!=t1)
+						emit(f, "\tmt\t%s\n\tmr\t%s\n", regnames[t1], regnames[zreg]);
 				}
 
 				if(zreg!=(t2+1))
