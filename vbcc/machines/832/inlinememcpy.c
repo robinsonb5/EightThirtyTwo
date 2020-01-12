@@ -50,7 +50,10 @@ void emit_inlinememcpy(FILE *f,struct IC *p, int t)
 	}
 	else
 	{
-		cntr=t1+2;
+		if(dstr==t1+2)	// Make sure we don't collide!
+			cntr=t1+3;
+		else
+			cntr=t1+2;
 		emit(f,"\tmt\t%s\n",regnames[cntr]);
 		emit(f,"\tstdec\t%s\n",regnames[sp]);
 		pushed+=4;
