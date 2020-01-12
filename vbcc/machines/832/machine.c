@@ -483,7 +483,7 @@ static long pof2(zumax x)
 static int availreg()
 {
 	int i;
-	for(i=FIRST_GPR;i<(LAST_GPR-1);++i)
+	for(i=FIRST_GPR+SCRATCH_GPRS;i<(LAST_GPR-1);++i)
 		if(regs[i]==0)
 			return(i);
 	return(0);
@@ -626,6 +626,7 @@ void save_result(FILE * f, struct IC *p)
 
 #include "addressingmodes.c"
 #include "tempregs.c"
+#include "inlinememcpy.c"
 
 
 /* generates the function entry code */
@@ -1421,7 +1422,6 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			if ((p->q1.flags & (VAR | DREFOBJ)) == VAR && p->q1.v->fi && p->q1.v->fi->inline_asm) {
 				emit_inline_asm(f, p->q1.v->fi->inline_asm);
 				cleartempobj(f,t1);
-				cleartempobj(f,t2);
 				cleartempobj(f,tmp);
 			} else {
 				/* FIXME - deal with different object types here */
@@ -1486,108 +1486,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			emit(f, "\t\t\t\t\t// (a/p assign)\n");
 			if (((t & NQ) == STRUCT) || ((t & NQ) == UNION)
 			    || ((t & NQ) == CHAR && opsize(p) != 1)) {
-				int srcr = t1;
-				int dstr = t2;
-				int cntr = t2 + 1;
-				int wordcopy;
-				int bytecopy;
-				cleartempobj(f,t1);
-				cleartempobj(f,t2);
-				cleartempobj(f,tmp);
-
-				emit_prepobj(f, &p->z, t, t2, 0);
-				if ((t & NQ) == CHAR && (opsize(p) != 1)) {
-//					printf("t&nq: %d, opsize(p) %d, vmax %d\n", t & NQ, opsize(p),
-//					       zm2l(p->q2.val.vmax));
-					emit(f, "// (char with size!=1 -> array of unknown type)\n");
-					t = ARRAY;	// FIXME - ugly hack
-				}
-				// If the target pointer happens to be in r2, we have to swap dstr and cntr!
-				if (p->z.flags & REG) {
-					if (p->z.reg == cntr)	// Collision - swap registers
-					{
-						emit(f, "\t\t\t//Swapping dest and counter registers\n");
-						dstr = t2 + 1;
-						cntr = t2;
-					} else	// Move target register to dstr
-					{
-						emit(f, "\tmt\t%s\n", regnames[p->z.reg]);
-						emit(f, "\tmr\t%s\n", regnames[dstr]);
-					}
-				}
-
-				zmax copysize = opsize(p);
-
-				if (!optsize)	// Can we create larger code in the interests of speed?  If so, partially unroll the copy.
-					wordcopy = copysize & ~3;
-				else
-					wordcopy = 0;
-				bytecopy = copysize - wordcopy;
-
-				// FIXME - could unroll more agressively if optspeed is set.  Can then avoid messing with r2.
-				emit(f, "// Copying %d words and %d bytes to %s\n", wordcopy / 4, bytecopy,
-				     p->z.v ? p->z.v->identifier : "(null)");
-
-				if(!p->z.v)
-					printf("No z->v: z flags: %x\n",p->z.flags);
-
-				// Prepare the copy
-// FIXME - we don't necessarily have a valid z->v!  If not, where does the target come from?
-// Stack based variable?
-//				load_temp(f, zreg, &p->q1, t);
-				emit_objtotemp(f, &p->q1, t);
-				emit(f, "\tmr\t%s\n", regnames[srcr]);
-				emit(f, "\tmt\t%s\n\tstdec\t%s\n", regnames[t2 + 1], regnames[sp]);
-				pushed += 4;
-
-				if (wordcopy < 32) {
-					wordcopy >>= 2;
-					if (wordcopy)
-					{
-						emit(f, "// Copying %d words to %s\n", wordcopy, p->z.v ? p->z.v->identifier : "(null)");
-					}
-					while (wordcopy--) {
-						emit(f, "\tldinc\t%s\n\tstinc\t%s\n", regnames[srcr], regnames[dstr]);
-					}
-				} else {
-					emit(f, "// Copying %d words to %s\n", wordcopy / 4, p->z.v ? p->z.v->identifier : "(null)");
-					// Copy bytes...
-					emit_constanttotemp(f, wordcopy);
-					emit(f, "\taddt\t%s\n", regnames[dstr]);
-					emit(f, "\tmr\t%s\n", regnames[cntr]);
-					emit(f, ".cpy%swordloop%d:\n", p->z.v ? p->z.v->identifier : "null", loopid);
-					emit(f, "\tldinc\t%s\n\tstinc\t%s\n", regnames[srcr], regnames[dstr]);
-					emit(f, "\tmt\t%s\n\tcmp\t%s\n", regnames[dstr], regnames[cntr]);
-					emit(f, "\tcond\tNEQ\n");
-					emit(f, "\t\tli\tIMW0(PCREL(.cpy%swordloop%d))\n", p->z.v ? p->z.v->identifier : "null", loopid);
-					emit(f, "\t\tadd\t%s\n", regnames[pc]);
-				}
-
-				if (bytecopy < 5) {
-					if (bytecopy)
-						emit(f, "// Copying %d byte tail to %s\n", bytecopy,
-						     p->z.v->identifier);
-					while (bytecopy--)
-						emit(f, "\tldbinc\t%s\n\tstbinc\t%s\n", regnames[srcr], regnames[dstr]);
-				} else {
-					emit(f, "// Copying %d bytes to %s\n", bytecopy, p->z.v->identifier);
-					// Copy bytes...
-					emit_constanttotemp(f, bytecopy);
-					emit(f, "\taddt\t%s\n", regnames[dstr]);
-					emit(f, "\tmr\t%s\n", regnames[cntr]);
-					emit(f, ".cpy%sloop%d:\n", p->z.v->identifier, loopid);
-					emit(f, "\tldbinc\t%s\n\tstbinc\t%s\n", regnames[srcr], regnames[dstr]);
-					emit(f, "\tmt\t%s\n\tcmp\t%s\n", regnames[dstr], regnames[cntr]);
-					emit(f, "\tcond\tNEQ\n");
-					emit(f, "\t\tli\tIMW0(PCREL(.cpy%sloop%d))\n", p->z.v->identifier, loopid);
-					emit(f, "\t\tadd\t%s\n", regnames[pc]);
-
-				}
-				// cleanup
-				emit(f, "\tldinc\t%s\n", regnames[sp]);
-				emit(f, "\tmr\t%s\n", regnames[t2 + 1]);
-				pushed -= 4;
-				loopid++;
+				emit_inlinememcpy(f,p,t);
 			} else {
 				if(((p->q1.flags&(REG|DREFOBJ))==REG) && !(p->z.flags&REG))	// Use stmpdec if q1 is already in a register...
 				{
