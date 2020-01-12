@@ -264,8 +264,8 @@ static int ctor_dtor(FILE * f, struct Var *v)
 }
 
 
-#define TEMP_T1 0
 #define TEMP_TMP 0
+#define TEMP_T1 1
 struct tempobj
 {
 	struct obj o;
@@ -314,7 +314,6 @@ void settempobj(FILE *f,int reg,struct obj *o,int offset)
 int matchobj(FILE *f,struct obj *o1,struct obj *o2)
 {
 	int result=1;
-//	emit(f,"//Comparing flags %x, %x\n",o1->flags,o2->flags);
 	if(o1->flags!=o2->flags)
 		return(0);
 
@@ -330,7 +329,7 @@ int matchobj(FILE *f,struct obj *o1,struct obj *o2)
 	if(o1->v==0 || o2->v==0)
 		return(0);
 
-	if(o1->v == o2->v)
+	if(o1->v == o2->v && o1->val.vlong == o2->val.vlong)
 		return(1);
 
 	if(isauto(o1->v->storage_class) && isauto(o2->v->storage_class))
@@ -356,26 +355,26 @@ int matchobj(FILE *f,struct obj *o1,struct obj *o2)
 // Check the tempobj records to see if the value we're interested in can be found in either.
 int matchtempobj(FILE *f,struct obj *o)
 {
-//	return(0); // Temporarily disable matching
+	return(0); // Temporarily disable matching
 	if(tempobjs[0].reg && matchobj(f,o,&tempobjs[0].o))
 	{
 //		emit(f,"//match found - tmp\n");
-		printf("//match found - tmp\n");
+//		printf("//match found - tmp\n");
 		return(tempobjs[0].reg);
 	}
-	else if(tempobjs[1].reg && matchobj(f,o,&tempobjs[1].o))
-	{
+//	else if(tempobjs[1].reg && matchobj(f,o,&tempobjs[1].o))
+//	{
 //		emit(f,"//match found - t1\n");
-		printf("//match found - t1\n");
-		return(tempobjs[1].reg);
-	}
+//		printf("//match found - t1\n");
+//		return(tempobjs[1].reg);
+//	}
 	else
 		return(0);
 }
 
 int matchtempkonst(FILE *f,int k)
 {
-//	return(0); // Temporarily disable matching
+	return(0); // Temporarily disable matching
 	struct obj o;
 	o.flags=KONST;
 	o.val.vlong=k;
@@ -1217,6 +1216,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		if (c == LABEL) {
 			int i;
 			emit(f, "%s%d: # \n", labprefix, t);
+			cleartempobj(f,tmp);	// Can't carry temporary context past a label
+			cleartempobj(f,t1);
 			continue;
 		}
 

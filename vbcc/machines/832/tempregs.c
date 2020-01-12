@@ -297,7 +297,7 @@ static int emit_objtotemp(FILE * f, struct obj *p, int t)
 {
 	int result=0;
 	int matchreg;
-	emit(f, "\t\t\t\t\t// (objtotemp) ");
+	emit(f, "\t\t\t\t\t// (objtotemp) flags %x ",p->flags);
 	matchreg=matchtempobj(f,p);
 	if(matchreg==tmp)
 	{
@@ -308,12 +308,6 @@ static int emit_objtotemp(FILE * f, struct obj *p, int t)
 	{
 		emit(f,"\n// required value found in %s\n",regnames[t1]);
 		emit(f,"\tmt\t%s\n",regnames[t1]);
-		return(result);
-	}
-	else if(matchreg==t2)
-	{
-		emit(f,"\n// required value found in %s\n",regnames[t2]);
-		emit(f,"\tmt\t%s\n",regnames[t2]);
 		return(result);
 	}
 
