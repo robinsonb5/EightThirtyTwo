@@ -4,7 +4,7 @@
 
 /* build-time configurable options: */
 #define NUM_GPRS 9
-#define SCRATCH_GPRS 1
+#define SCRATCH_GPRS 2
 #define NUM_FPRS 0
 #define NUM_CCRS 0
 #define FIXED_SP 0

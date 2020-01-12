@@ -713,7 +713,7 @@ static void function_bottom(FILE * f, struct Var *v, long offset,int firsttail)
 		{
 			int i;
 			for (i = g_flags_val[FLAG_PCRELREACH].l - 1; i >= 0; --i)
-				emit(f,"\tli\tIMW%d(PCREL(.functiontail)+%d)\n",i,(4-regcount)*2-i);
+				emit(f,"\tli\tIMW%d(PCREL(.functiontail)+%d)\n",i,((5-SCRATCH_GPRS)-regcount)*2-i);
 			emit(f,"\tadd\t%s\n",regnames[pc]);
 		}
 		if(firsttail)
@@ -833,8 +833,8 @@ int init_cg(void)
 	regsa[pc] = 1;
 	regsa[tmp] = 1;
 	regscratch[FIRST_GPR] = 0;
-	regscratch[t2] = 0;	// T2 is now available for general use, but as a scratch reg.
-//  regscratch[t2+1]=1;
+	regscratch[t2] = 1;	// T2 is now available for general use, but as a scratch reg.
+    regscratch[t2+1]=1;
 	regscratch[sp] = 0;
 	regscratch[pc] = 0;
 
@@ -1492,6 +1492,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				if(((p->q1.flags&(REG|DREFOBJ))==REG) && !(p->z.flags&REG))	// Use stmpdec if q1 is already in a register...
 				{
 					emit_prepobj(f, &p->z, t, tmp, 4); // Need an offset
+					emit_sizemod(f,t);
 					emit(f,"\tstmpdec\t%s\n",regnames[q1reg]);
 					cleartempobj(f,tmp);
 				}
