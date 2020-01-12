@@ -355,7 +355,7 @@ int matchobj(FILE *f,struct obj *o1,struct obj *o2)
 // Check the tempobj records to see if the value we're interested in can be found in either.
 int matchtempobj(FILE *f,struct obj *o)
 {
-	return(0); // Temporarily disable matching
+//	return(0); // Temporarily disable matching
 	if(tempobjs[0].reg && matchobj(f,o,&tempobjs[0].o))
 	{
 //		emit(f,"//match found - tmp\n");
@@ -374,7 +374,7 @@ int matchtempobj(FILE *f,struct obj *o)
 
 int matchtempkonst(FILE *f,int k)
 {
-	return(0); // Temporarily disable matching
+//	return(0); // Temporarily disable matching
 	struct obj o;
 	o.flags=KONST;
 	o.val.vlong=k;
@@ -625,6 +625,10 @@ static void function_top(FILE * f, struct Var *v, long offset)
 {
 	int i;
 	int regcount = 0;
+
+	cleartempobj(f,tmp);
+	cleartempobj(f,t1);
+
 	emit(f, "\t//registers used:\n");
 	for (i = FIRST_GPR+SCRATCH_GPRS; i <= LAST_GPR; ++i) {
 		emit(f, "\t\t//%s: %s\n", regnames[i], regused[i] ? "yes" : "no");
@@ -1191,9 +1195,6 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 	function_top(f, v, localsize);
 //      printf("%s:\n",v->identifier);
 
-	cleartempobj(f,tmp);
-	cleartempobj(f,t1);
-
 	for (; p; p = p->next) {
 //		printic(stdout,p);
 		c = p->code;
@@ -1336,23 +1337,25 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					break;
 				case CHAR:
 					if (!optsize) {
-						cleartempobj(f,tmp);
 						emit_constanttotemp(f, 0x1000000);
 						emit(f, "\tmul\t%s\n", regnames[zreg]);
+						cleartempobj(f,tmp);
 						emit_constanttotemp(f, 0x100);
 						emit(f, "\tsgn\n\tmul\t%s\n", regnames[zreg]);
 						emit(f, "\tmr\t%s\n", regnames[zreg]);
+						cleartempobj(f,tmp);
 					}
 					shamt = 24;
 					break;
 				case SHORT:
 					if (!optsize) {
-						cleartempobj(f,tmp);
 						emit_constanttotemp(f, 0x10000);
 						emit(f, "\tmul\t%s\n", regnames[zreg]);
+						cleartempobj(f,tmp);
 						emit_constanttotemp(f, 0x10000);
 						emit(f, "\tsgn\n\tmul\t%s\n", regnames[zreg]);
 						emit(f, "\tmr\t%s\n", regnames[zreg]);
+						cleartempobj(f,tmp);
 					}
 					shamt = 16;
 					break;
