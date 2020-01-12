@@ -1373,9 +1373,25 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				emit(f, "\t\t\t\t\t// (convert -> assign)\n");
 				if(((p->q1.flags&(REG|DREFOBJ))==REG) && !(p->z.flags&REG))	// Use stmpdec if q1 is already in a register...
 				{
-					emit_prepobj(f, &p->z, t, tmp, 4); // Need an offset
-					settempobj(f,tmp,&p->z,-4);
-					emit(f,"\tstmpdec\t%s\n",regnames[q1reg]);
+					if(p->z.flags&DREFOBJ)	// Can't use stmpdec for dereferenced objects
+					{
+						emit_prepobj(f, &p->z, t, tmp, 0); // Need an offset
+						emit(f, "\texg\t%s\n", regnames[q1reg]);
+						emit_sizemod(f,t);
+						emit(f, "\tst\t%s\n", regnames[q1reg]);
+						if(p->z.am && p->z.am->disposable)
+							emit(f, "// Object is disposable, not bothering to undo exg\n");
+						else
+							emit(f, "\texg\t%s\n", regnames[q1reg]);
+						cleartempobj(f,tmp);
+					}
+					else
+					{
+						emit_prepobj(f, &p->z, t, tmp, 4); // Need an offset
+						settempobj(f,tmp,&p->z,-4);
+						emit_sizemod(f,t);
+						emit(f,"\tstmpdec\t%s\n",regnames[q1reg]);
+					}
 				}
 				else
 				{
@@ -1491,10 +1507,25 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			} else {
 				if(((p->q1.flags&(REG|DREFOBJ))==REG) && !(p->z.flags&REG))	// Use stmpdec if q1 is already in a register...
 				{
-					emit_prepobj(f, &p->z, t, tmp, 4); // Need an offset
-					emit_sizemod(f,t);
-					emit(f,"\tstmpdec\t%s\n",regnames[q1reg]);
-					cleartempobj(f,tmp);
+					if(p->z.flags&DREFOBJ)	// Can't use stmpdec for dereferenced objects
+					{
+						emit_prepobj(f, &p->z, t, tmp, 0); // Need an offset
+						emit(f, "\texg\t%s\n", regnames[q1reg]);
+						emit_sizemod(f,t);
+						emit(f, "\tst\t%s\n", regnames[q1reg]);
+						if(p->z.am && p->z.am->disposable)
+							emit(f, "// Object is disposable, not bothering to undo exg\n");
+						else
+							emit(f, "\texg\t%s\n", regnames[q1reg]);
+						cleartempobj(f,tmp);
+					}
+					else
+					{
+						emit_prepobj(f, &p->z, t, tmp, 4); // Need an offset
+						emit_sizemod(f,t);
+						emit(f,"\tstmpdec\t%s\n",regnames[q1reg]);
+						cleartempobj(f,tmp);
+					}
 				}
 				else
 				{

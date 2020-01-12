@@ -213,11 +213,12 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 			emit(f, "\t\t\t\t// var FIXME - deref?");
 			if(offset)
 			{
+				emit(f,"//ERROR\n");
 				printf("emit_prepobj: Offset supplied but object is being dereferenced!\n");
 				ierror(0);
 			}
 			if (isauto(p->v->storage_class)) {
-				emit(f, " reg \n");
+				emit(f, "// reg \n");
 				emit_stackvartotemp(f, real_offset(p) + offset, 1);
 				if (reg != tmp)
 				{

@@ -12,7 +12,6 @@ void emit_inlinememcpy(FILE *f,struct IC *p, int t)
 	int unrollbytes=0;
 
 	// Can we create larger code in the interests of speed?  If so, partially unroll the copy.
-	// FIXME - this is broken
 	wordcopy = copysize & ~3;
 	bytecopy = copysize - wordcopy;
 
