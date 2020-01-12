@@ -18,6 +18,7 @@ _start:
 	stmpdec	r0	// Store r0 first since we need a register for decrementing the return address
 	stmpdec	r6	// Now save the return address
 	stmpdec	r1	// Save r1
+	stmpdec	r2	// R2 is now a scratch register, so save that too.
 	exg	r6
 
 	ldinc	r7
@@ -28,6 +29,8 @@ _InterruptVector:
 
 	exg	r7
 
+	ldinc	r6
+	mr	r2
 	ldinc	r6
 	mr	r1
 	ldinc	r6
