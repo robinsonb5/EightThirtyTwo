@@ -265,21 +265,19 @@ static int ctor_dtor(FILE * f, struct Var *v)
 
 
 #define TEMP_T1 0
-#define TEMP_T2 0
 #define TEMP_TMP 0
 struct tempobj
 {
 	struct obj o;
 	int reg;
 };
-struct tempobj tempobjs[3];
+struct tempobj tempobjs[2];
 
 void cleartempobj(FILE *f, int reg)
 {
 	int i;
 	if(reg==tmp) i=TEMP_TMP;
 	else if(reg==t1) i=TEMP_T1;
-	else if(reg==t2) i=TEMP_T2;
 	else return;
 	emit(f,"// clearing %s\n",regnames[reg]);
 
@@ -291,7 +289,6 @@ void settempkonst(FILE *f,int reg,int v)
 	int i;
 	if(reg==tmp) i=TEMP_TMP;
 	else if(reg==t1) i=TEMP_T1;
-	else if(reg==t2) i=TEMP_T2;
 	else return;
 	tempobjs[i].reg=reg;
 	tempobjs[i].o.flags=KONST;
@@ -305,7 +302,6 @@ void settempobj(FILE *f,int reg,struct obj *o,int offset)
 	int i;
 	if(reg==tmp) i=TEMP_TMP;
 	else if(reg==t1) i=TEMP_T1;
-	else if(reg==t2) i=TEMP_T2;
 	else return;
 //	emit(f,"// Setting %s to %x (%x)\n",regnames[reg],o,o->v);
 	tempobjs[i].reg=reg;
@@ -318,7 +314,7 @@ void settempobj(FILE *f,int reg,struct obj *o,int offset)
 int matchobj(FILE *f,struct obj *o1,struct obj *o2)
 {
 	int result=1;
-	emit(f,"//Comparing flags %x, %x\n",o1->flags,o2->flags);
+//	emit(f,"//Comparing flags %x, %x\n",o1->flags,o2->flags);
 	if(o1->flags!=o2->flags)
 		return(0);
 
@@ -360,24 +356,18 @@ int matchobj(FILE *f,struct obj *o1,struct obj *o2)
 // Check the tempobj records to see if the value we're interested in can be found in either.
 int matchtempobj(FILE *f,struct obj *o)
 {
-	return(0); // Temporarily disable matching
+//	return(0); // Temporarily disable matching
 	if(tempobjs[0].reg && matchobj(f,o,&tempobjs[0].o))
 	{
-		emit(f,"//match found - tmp\n");
+//		emit(f,"//match found - tmp\n");
 		printf("//match found - tmp\n");
 		return(tempobjs[0].reg);
 	}
 	else if(tempobjs[1].reg && matchobj(f,o,&tempobjs[1].o))
 	{
-		emit(f,"//match found - t1\n");
+//		emit(f,"//match found - t1\n");
 		printf("//match found - t1\n");
 		return(tempobjs[1].reg);
-	}
-	else if(tempobjs[2].reg && matchobj(f,o,&tempobjs[2].o))
-	{
-		emit(f,"//match found - t2\n");
-		printf("//match found - t2\n");
-		return(tempobjs[2].reg);
 	}
 	else
 		return(0);
@@ -385,7 +375,7 @@ int matchtempobj(FILE *f,struct obj *o)
 
 int matchtempkonst(FILE *f,int k)
 {
-	return(0); // Temporarily disable matching
+//	return(0); // Temporarily disable matching
 	struct obj o;
 	o.flags=KONST;
 	o.val.vlong=k;
@@ -453,6 +443,7 @@ static void store_reg(FILE * f, int r, struct obj *o, int type)
 			else {
 				emit_prepobj(f, o, type & NQ, tmp, 4);	// FIXME - stmpdec predecrements, so need to add 4!
 				emit(f, "\tstmpdec\t%s\n // WARNING - check that 4 has been added.\n", regnames[r]);
+				cleartempobj(f,tmp);
 			}
 		}
 		break;
@@ -1200,6 +1191,10 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 
 	function_top(f, v, localsize);
 //      printf("%s:\n",v->identifier);
+
+	cleartempobj(f,tmp);
+	cleartempobj(f,t1);
+
 	for (; p; p = p->next) {
 //		printic(stdout,p);
 		c = p->code;
@@ -1652,6 +1647,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				if (!isreg(q1) || q1reg != zreg) {
 					emit_objtotemp(f, &p->q1, t);
 					emit(f, "\tmr\t%s\n", regnames[zreg]);	// FIXME - what happens if zreg and q1/2 are the same?
+					settempobj(f,tmp,&p->q1,0);
 				}
 				emit_objtotemp(f, &p->q2, t);
 				if (c >= OR && c <= AND)
@@ -1683,6 +1679,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				}
 
 				emit_objtotemp(f, &p->q1, t);
+				settempobj(f,tmp,&p->q1,0);
 				// Need to make sure we're not about to overwrite the other operand!
 				if(isreg(q2) && q2reg==t2)
 				{
@@ -1706,28 +1703,28 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 
 				if (c == MOD)
 				{
-					cleartempobj(f,t1);
-					settempobj(f,t2,&p->z,0);
 					if(zreg!=t2)
 						emit(f, "\tmt\t%s\n\tmr\t%s\n", regnames[t2], regnames[zreg]);
 				}
 				else
 				{
-					settempobj(f,t1,&p->z,0);
-					cleartempobj(f,t2);
 					if(zreg!=t1)
 						emit(f, "\tmt\t%s\n\tmr\t%s\n", regnames[t1], regnames[zreg]);
 				}
+				cleartempobj(f,t1);
+				settempobj(f,tmp,&p->z,0);
 
 				if(zreg!=(t2+1))
 				{
 					emit(f, "\tldinc\t%s\n\tmr\t%s\n", regnames[sp], regnames[t2+1]);
 					pushed -= 4;
+					cleartempobj(f,tmp);
 				}
 				if(zreg!=t2)
 				{
 					emit(f, "\tldinc\t%s\n\tmr\t%s\n", regnames[sp], regnames[t2]);
 					pushed -= 4;
+					cleartempobj(f,tmp);
 				}
 
 				// Target not guaranteed to be a register.
