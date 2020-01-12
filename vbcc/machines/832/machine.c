@@ -598,7 +598,7 @@ void save_result(FILE * f, struct IC *p)
 	else
 		store_reg(f,zreg,&p->z,ztyp(p));
 	return;
-
+#if 0
 	if ((p->z.flags & (REG | DREFOBJ)) == DREFOBJ && !p->z.am) {
 		emit(f, "// deref\n");
 		p->z.flags &= ~DREFOBJ;
@@ -622,6 +622,7 @@ void save_result(FILE * f, struct IC *p)
 		emit(f, "// store reg\n");
 		store_reg(f, zreg, &p->z, ztyp(p));
 	}
+#endif
 }
 
 #include "addressingmodes.c"
@@ -1636,11 +1637,21 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			} else if ((c == MOD) || (c == DIV)) {
 				// FIXME - do we need to use switch_IC here?
 				emit(f, "\t//Call division routine\n");
+
+				// determine here whether R1 and R2 really need saving - may not be in use, or may be the target register.
+				if(zreg!=t2)
+				{
+					emit(f, "\tmt\t%s\n\tstdec\t%s\n", regnames[t2], regnames[sp]);
+					pushed+=4;
+				}
+				if(zreg!=(t2+1))
+				{
+					emit(f, "\tmt\t%s\n\tstdec\t%s\n", regnames[t2 + 1], regnames[sp]);
+					pushed += 4;
+				}
 				emit_objtotemp(f, &p->q1, t);
 				emit(f, "\tmr\t%s\n", regnames[t2]);
 				// FIXME - determine here whether R2 really needs saving - may not be in use, or may be the target register.
-				emit(f, "\tmt\t%s\n\tstdec\t%s\n", regnames[t2 + 1], regnames[sp]);
-				pushed += 4;
 
 				emit_objtotemp(f, &p->q2, t);
 				emit(f, "\tmr\t%s\n", regnames[t2 + 1]);
@@ -1651,9 +1662,6 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				else
 					emit(f, "\t.int\t_div_u32byu32\n");
 				emit(f, "\texg\t%s\n", regnames[pc]);
-
-				emit(f, "\tldinc\t%s\n\tmr\t%s\n", regnames[sp], regnames[t2 + 1]);
-				pushed -= 4;
 
 				if (c == MOD)
 				{
@@ -1667,6 +1675,18 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					cleartempobj(f,t2);
 					emit(f, "\tmt\t%s\n\tmr\t%s\n", regnames[t1], regnames[zreg]);
 				}
+
+				if(zreg!=(t2+1))
+				{
+					emit(f, "\tldinc\t%s\n\tmr\t%s\n", regnames[sp], regnames[t2+1]);
+					pushed -= 4;
+				}
+				if(zreg!=t2)
+				{
+					emit(f, "\tldinc\t%s\n\tmr\t%s\n", regnames[sp], regnames[t2]);
+					pushed -= 4;
+				}
+
 				// Target not guaranteed to be a register.
 				save_result(f, p);
 				continue;

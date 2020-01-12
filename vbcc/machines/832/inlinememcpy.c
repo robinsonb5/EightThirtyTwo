@@ -34,6 +34,7 @@ void emit_inlinememcpy(FILE *f,struct IC *p, int t)
 		dstr=t1+1;
 		emit(f,"\tmt\t%s\n",regnames[dstr]);
 		emit(f,"\tstdec\t%s\n",regnames[sp]);
+		pushed+=4;
 	}
 	emit(f,"//using reg %s for dst pointer\n",regnames[dstr]);
 
@@ -51,6 +52,7 @@ void emit_inlinememcpy(FILE *f,struct IC *p, int t)
 		cntr=t1+2;
 		emit(f,"\tmt\t%s\n",regnames[cntr]);
 		emit(f,"\tstdec\t%s\n",regnames[sp]);
+		pushed+=4;
 	}
 	emit(f,"//using reg %s for counter\n",regnames[cntr]);
 
@@ -139,11 +141,13 @@ void emit_inlinememcpy(FILE *f,struct IC *p, int t)
 	{
 		emit(f,"\tldinc\t%s\n",regnames[sp]);
 		emit(f,"\tmr\t%s\n",regnames[cntr]);
+		pushed-=4;
 	}
 	if(saved)
 	{
 		emit(f,"\tldinc\t%s\n",regnames[sp]);
 		emit(f,"\tmr\t%s\n",regnames[dstr]);
+		pushed-=4;
 	}
 	loopid++;
 }
