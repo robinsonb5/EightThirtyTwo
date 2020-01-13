@@ -23,7 +23,7 @@ _start:
 
 	ldinc	r7
 
-	.global _InterruptVector	// This word can be written to install an int handler.  Location 12.
+	.global _InterruptVector	// This word can be written to install an int handler.  Location 13.
 _InterruptVector:
 	.int	_interrupt
 

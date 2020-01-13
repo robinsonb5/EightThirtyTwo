@@ -1337,25 +1337,39 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					break;
 				case CHAR:
 					if (!optsize) {
-						emit_constanttotemp(f, 0x1000000);
-						emit(f, "\tmul\t%s\n", regnames[zreg]);
-						cleartempobj(f,tmp);
-						emit_constanttotemp(f, 0x100);
-						emit(f, "\tsgn\n\tmul\t%s\n", regnames[zreg]);
-						emit(f, "\tmr\t%s\n", regnames[zreg]);
-						cleartempobj(f,tmp);
+						emit_constanttotemp(f,0xffffff80);
+						emit(f,"\tadd\t%s\n",regnames[zreg]);
+						emit(f,"\tcond\tGE\n");  // Carry will be clear if old register's contents are less than 0x80
+						emit(f,"\t\tor\t%s\n",regnames[zreg]);
+						emit(f,"\tcond\tSLT\n");
+						emit(f,"\t\txor\t%s\n",regnames[zreg]);
+						emit(f,"\tcond\tEX\n");
+//						emit_constanttotemp(f, 0x1000000);
+//						emit(f, "\tmul\t%s\n", regnames[zreg]);
+//						cleartempobj(f,tmp);
+//						emit_constanttotemp(f, 0x100);
+//						emit(f, "\tsgn\n\tmul\t%s\n", regnames[zreg]);
+//						emit(f, "\tmr\t%s\n", regnames[zreg]);
+//						cleartempobj(f,tmp);
 					}
 					shamt = 24;
 					break;
 				case SHORT:
 					if (!optsize) {
-						emit_constanttotemp(f, 0x10000);
-						emit(f, "\tmul\t%s\n", regnames[zreg]);
-						cleartempobj(f,tmp);
-						emit_constanttotemp(f, 0x10000);
-						emit(f, "\tsgn\n\tmul\t%s\n", regnames[zreg]);
-						emit(f, "\tmr\t%s\n", regnames[zreg]);
-						cleartempobj(f,tmp);
+						emit_constanttotemp(f,0xffff8000);
+						emit(f,"\tadd\t%s\n",regnames[zreg]);
+						emit(f,"\tcond\tGE\n");  // Carry will be clear if old register's contents are less than 0x8000
+						emit(f,"\t\tor\t%s\n",regnames[zreg]);
+						emit(f,"\tcond\tSLT\n");
+						emit(f,"\t\txor\t%s\n",regnames[zreg]);
+						emit(f,"\tcond\tEX\n");
+//						emit_constanttotemp(f, 0x10000);
+//						emit(f, "\tmul\t%s\n", regnames[zreg]);
+//						cleartempobj(f,tmp);
+//						emit_constanttotemp(f, 0x10000);
+//						emit(f, "\tsgn\n\tmul\t%s\n", regnames[zreg]);
+//						emit(f, "\tmr\t%s\n", regnames[zreg]);
+//						cleartempobj(f,tmp);
 					}
 					shamt = 16;
 					break;
