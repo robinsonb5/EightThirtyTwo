@@ -1304,7 +1304,6 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 //		if(p->prev && matchobj(f,&p->q1,&p->prev->q1))
 //			emit(f, "// Matching objs found\n", p->prev->code,&p->prev->q1.v);
 
-		// Sign extension of a register involves moving to temp, extb or exth, move to dest
 		if (c == CONVERT) {
 			emit(f, "\t\t\t\t\t//FIXME convert\n");
 			if (ISFLOAT(q1typ(p)) || ISFLOAT(ztyp(p))) {
@@ -1319,6 +1318,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					preextended=0;
 				switch (q1typ(p) & NU) {
 					// Potential optimisation here - track which ops could have caused a value to require truncation.
+					// Also figure out what's happening next to the value.  If it's only being added, anded, ored, xored
+					// and then truncated by a write to memory we don't need to worry.
 				case CHAR | UNSIGNED:
 					if(!preextended)
 					{
@@ -1339,18 +1340,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					if (!optsize) {
 						emit_constanttotemp(f,0xffffff80);
 						emit(f,"\tadd\t%s\n",regnames[zreg]);
-						emit(f,"\tcond\tGE\n");  // Carry will be clear if old register's contents are less than 0x80
-						emit(f,"\t\tor\t%s\n",regnames[zreg]);
-						emit(f,"\tcond\tSLT\n");
 						emit(f,"\t\txor\t%s\n",regnames[zreg]);
-						emit(f,"\tcond\tEX\n");
-//						emit_constanttotemp(f, 0x1000000);
-//						emit(f, "\tmul\t%s\n", regnames[zreg]);
-//						cleartempobj(f,tmp);
-//						emit_constanttotemp(f, 0x100);
-//						emit(f, "\tsgn\n\tmul\t%s\n", regnames[zreg]);
-//						emit(f, "\tmr\t%s\n", regnames[zreg]);
-//						cleartempobj(f,tmp);
 					}
 					shamt = 24;
 					break;
@@ -1358,18 +1348,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					if (!optsize) {
 						emit_constanttotemp(f,0xffff8000);
 						emit(f,"\tadd\t%s\n",regnames[zreg]);
-						emit(f,"\tcond\tGE\n");  // Carry will be clear if old register's contents are less than 0x8000
-						emit(f,"\t\tor\t%s\n",regnames[zreg]);
-						emit(f,"\tcond\tSLT\n");
 						emit(f,"\t\txor\t%s\n",regnames[zreg]);
-						emit(f,"\tcond\tEX\n");
-//						emit_constanttotemp(f, 0x10000);
-//						emit(f, "\tmul\t%s\n", regnames[zreg]);
-//						cleartempobj(f,tmp);
-//						emit_constanttotemp(f, 0x10000);
-//						emit(f, "\tsgn\n\tmul\t%s\n", regnames[zreg]);
-//						emit(f, "\tmr\t%s\n", regnames[zreg]);
-//						cleartempobj(f,tmp);
 					}
 					shamt = 16;
 					break;
@@ -1410,7 +1389,6 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				{
 					emit_prepobj(f, &p->z, t, t1, 0);
 					settempobj(f,t1,&p->z,0);
-//					load_temp(f, zreg, &p->q1, t);
 					emit_objtotemp(f, &p->q1, t);
 					save_temp(f, p, t1);
 				}
