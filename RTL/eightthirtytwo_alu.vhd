@@ -82,8 +82,8 @@ sublsb<='1' when op=e32_alu_sub else '0';
 ack <= shiftack or busyflag;
 
 -- FIXME - signed/unsigned comparisons aren't working correctly
-d1_sgn<=d1(31);
-d2_sgn<=d2_2(31);
+d1_sgn<=d1(31) when op=e32_alu_sub else '0';
+d2_sgn<=d2_2(31) when op=e32_alu_sub else '0';
 
 addresult <= unsigned(d1_sgn&d1&sublsb) + unsigned(d2_sgn&d2_2&sublsb);
 

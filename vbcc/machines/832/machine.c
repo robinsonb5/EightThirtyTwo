@@ -405,15 +405,11 @@ static void store_reg(FILE * f, int r, struct obj *o, int type)
 
 	switch (type) {
 	case CHAR:
-		cleartempobj(f,tmp);
-		cleartempobj(f,r);
 		emit_prepobj(f, o, type & NQ, tmp, 0);
 		emit(f, "\texg\t%s\n", regnames[r]);
 		emit(f, "\tstbinc\t%s\t//WARNING - pointer / reg not restored, might cause trouble!\n", regnames[r]);
 		break;
 	case SHORT:
-		cleartempobj(f,tmp);
-		cleartempobj(f,r);
 		emit_prepobj(f, o, type & NQ, tmp, 0);
 		emit(f, "\texg\t%s\n", regnames[r]);
 		emit(f, "\thlf\n\tst\t%s\n", regnames[r]);
@@ -428,8 +424,6 @@ static void store_reg(FILE * f, int r, struct obj *o, int type)
 			settempobj(f,r,o,0);
 			settempobj(f,tmp,o,0);
 		} else {
-			cleartempobj(f,tmp);
-			cleartempobj(f,r);
 			if(o->flags & DREFOBJ) {  // Can't use the offset / stmpdec trick for dereferenced objects.
 				emit_prepobj(f, o, type & NQ, tmp, 0);
 				emit(f, "\texg\t%s\n", regnames[r]);
@@ -438,6 +432,8 @@ static void store_reg(FILE * f, int r, struct obj *o, int type)
 					emit(f, "// Object is disposable, not bothering to undo exg\n");
 				else
 					emit(f, "\texg\t%s\n", regnames[r]);
+				cleartempobj(f,tmp);
+				cleartempobj(f,r);
 			}
 			else {
 				emit_prepobj(f, o, type & NQ, tmp, 4);	// FIXME - stmpdec predecrements, so need to add 4!
@@ -588,31 +584,6 @@ void save_result(FILE * f, struct IC *p)
 	else
 		store_reg(f,zreg,&p->z,ztyp(p));
 	return;
-#if 0
-	if ((p->z.flags & (REG | DREFOBJ)) == DREFOBJ && !p->z.am) {
-		emit(f, "// deref\n");
-		p->z.flags &= ~DREFOBJ;
-		emit_objtotemp(f, &p->z, ztyp(p));
-		emit(f,"\tmr\t%s\n",regnames[t2]);
-		p->z.reg = t2;
-		p->z.flags |= (REG | DREFOBJ);
-		emit(f, "\t\t\t\t// ");
-		cleartempobj(f,tmp);
-		cleartempobj(f,t2);
-	}
-	if (isreg(z)) {
-		emit(f, "// isreg\n");
-		if (p->z.reg != zreg)
-		{
-			settempobj(f,tmp,&p->z,0);
-			settempobj(f,zreg,&p->z,0);
-			emit(f, "\tmt\t%s\n\tmr\t%s\n", regnames[zreg], regnames[p->z.reg]);
-		}
-	} else {
-		emit(f, "// store reg\n");
-		store_reg(f, zreg, &p->z, ztyp(p));
-	}
-#endif
 }
 
 #include "addressingmodes.c"
@@ -1312,35 +1283,19 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			}
 			if (sizetab[q1typ(p) & NQ] < sizetab[ztyp(p) & NQ]) {
 				int shamt = 0;
-				int preextended;
-				preextended=load_reg(f, zreg, &p->q1, q1typ(p));
+				load_reg(f, zreg, &p->q1, q1typ(p));
 				if((p->q1.flags&(REG|DREFOBJ))==REG)
 					preextended=0;
 				switch (q1typ(p) & NU) {
-					// Potential optimisation here - track which ops could have caused a value to require truncation.
-					// Also figure out what's happening next to the value.  If it's only being added, anded, ored, xored
-					// and then truncated by a write to memory we don't need to worry.
 				case CHAR | UNSIGNED:
-					if(!preextended)
-					{
-						cleartempobj(f,tmp);
-						emit_constanttotemp(f, 0xff);
-						emit(f, "\tand\t%s\n", regnames[zreg]);
-					}
 					break;
 				case SHORT | UNSIGNED:
-					if(!preextended)
-					{
-						cleartempobj(f,tmp);
-						emit_constanttotemp(f, 0xffff);
-						emit(f, "\tand\t%s\n", regnames[zreg]);
-					}
 					break;
 				case CHAR:
 					if (!optsize) {
 						emit_constanttotemp(f,0xffffff80);
 						emit(f,"\tadd\t%s\n",regnames[zreg]);
-						emit(f,"\t\txor\t%s\n",regnames[zreg]);
+						emit(f,"\txor\t%s\n",regnames[zreg]);
 					}
 					shamt = 24;
 					break;
@@ -1348,7 +1303,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					if (!optsize) {
 						emit_constanttotemp(f,0xffff8000);
 						emit(f,"\tadd\t%s\n",regnames[zreg]);
-						emit(f,"\t\txor\t%s\n",regnames[zreg]);
+						emit(f,"\txor\t%s\n",regnames[zreg]);
 					}
 					shamt = 16;
 					break;
@@ -1361,12 +1316,12 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					emit(f, "\tshr\t%s\n", regnames[zreg]);
 				}
 				save_result(f, p);
-			} else {	// If the size is the same then this is effectively just an assign.
-				emit(f, "\t\t\t\t\t// (convert -> assign)\n");
-				if(((p->q1.flags&(REG|DREFOBJ))==REG) && !(p->z.flags&REG))	// Use stmpdec if q1 is already in a register...
-				{
-					if(p->z.flags&DREFOBJ)	// Can't use stmpdec for dereferenced objects
-					{
+			} else if(sizetab[q1typ(p) & NQ] >= sizetab[ztyp(p) & NQ]) {	// Reducing the size, must mask off excess bits...
+				emit(f,"\t\t\t\t\t// (convert - reducing type %x to %x\n",q1typ(p),ztyp(p));
+
+				// If Z is not a register then we're storing a halfword or byte, and thus don't need to mask...
+				if(((p->q1.flags&(REG|DREFOBJ))==REG) && !(p->z.flags&REG)) {	// Use stmpdec if q1 is already in a register...
+					if(p->z.flags&DREFOBJ) {	// Can't use stmpdec for dereferenced objects
 						emit_prepobj(f, &p->z, t, tmp, 0); // Need an offset
 						emit(f, "\texg\t%s\n", regnames[q1reg]);
 						emit_sizemod(f,t);
@@ -1377,20 +1332,37 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 							emit(f, "\texg\t%s\n", regnames[q1reg]);
 						cleartempobj(f,tmp);
 					}
-					else
-					{
+					else {
 						emit_prepobj(f, &p->z, t, tmp, 4); // Need an offset
 						settempobj(f,tmp,&p->z,-4);
 						emit_sizemod(f,t);
 						emit(f,"\tstmpdec\t%s\n",regnames[q1reg]);
 					}
 				}
-				else
-				{
-					emit_prepobj(f, &p->z, t, t1, 0);
-					settempobj(f,t1,&p->z,0);
-					emit_objtotemp(f, &p->q1, t);
-					save_temp(f, p, t1);
+				else { // Destination is a register - we must mask...
+					// Potential optimisation here - track which ops could have caused a value to require truncation.
+					// Also figure out what's happening next to the value.  If it's only being added, anded, ored, xored
+					// and then truncated by a write to memory we don't need to worry.
+					if(!isreg(q1) || !isreg(z) || q1reg!=zreg) // Do we just need to mask in place, or move the value first?
+					{
+						emit_prepobj(f, &p->z, t, t1, 0);
+						settempobj(f,t1,&p->z,0);
+						emit_objtotemp(f, &p->q1, t);
+						save_temp(f, p, t1);
+					}
+					switch(ztyp(p)&NQ) {
+						case SHORT:
+							emit_constanttotemp(f, 0xffff);
+							emit(f, "\tand\t%s\n", regnames[zreg]);
+							break;
+						case CHAR:
+							emit_constanttotemp(f, 0xff);
+							emit(f, "\tand\t%s\n", regnames[zreg]);
+							break;
+						default:
+							emit(f,"\t\t\t\t\t//No need to mask - same size\n");
+							break;
+					}
 				}
 			}
 			continue;
