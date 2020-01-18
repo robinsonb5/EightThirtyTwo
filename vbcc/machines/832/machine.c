@@ -1670,12 +1670,14 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			if (c >= OR && c <= AND)
 				emit(f, "\t%s\t%s\n", logicals[c - OR], regnames[zreg]);
 			else {
-				if (c == RSHIFT)	// Modify right shift operations with appropriate signedness...
+				if (c == RSHIFT || c==MULT)	// Modify right shift operations with appropriate signedness...
 				{
 					if (!(t & UNSIGNED))
 						emit(f, "\tsgn\n");
 				}
 				emit(f, "\t%s\t%s\n", arithmetics[c - LSHIFT], regnames[zreg]);
+				if(c==MULT)
+					cleartempobj(f,tmp);
 			}
 			save_result(f, p);
 			continue;
