@@ -3,11 +3,10 @@
  
 */
 
-// Reduce use of t1 so that we can let the compiler use an extra register.
-// save_result currently uses t2 - can we use stmpdec and tmp, or exg instead?
+// DONE - T2 no longer used at all - frees up a register for the main code generator
 
-// Update the memcpy code to save/allocate registers if needed.
-// Update the div code likewise.
+// DONE Update the memcpy code to save/allocate registers if needed.
+// DONE Update the div code likewise.
 
 // Complete the work on object tracking.  In particular take care of tracking an object vs
 // its address.
@@ -726,6 +725,7 @@ int init_cg(void)
 	for (i = 0; i <= MAX_TYPE; i++) {
 		sizetab[i] = l2zm(msizetab[i]);
 		align[i] = optsize ? 1 : l2zm(malign[i]);
+		align[i] = l2zm(malign[i]);
 	}
 
 	regnames[0] = "noreg";
@@ -798,8 +798,8 @@ int init_cg(void)
 	regsa[pc] = 1;
 	regsa[tmp] = 1;
 	regscratch[FIRST_GPR] = 0;
-	regscratch[t2] = 1;	// T2 is now available for general use, but as a scratch reg.
-    regscratch[t2+1]=1;
+	for(i=FIRST_GPR+1;i<=(FIRST_GPR+SCRATCH_GPRS);++i)
+		regscratch[i] = 1;
 	regscratch[sp] = 0;
 	regscratch[pc] = 0;
 
@@ -1282,38 +1282,26 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				ierror(0);
 			}
 			if (sizetab[q1typ(p) & NQ] < sizetab[ztyp(p) & NQ]) {
+				emit(f,"\t//Converting to wider type...\n");
 				int shamt = 0;
 				load_reg(f, zreg, &p->q1, q1typ(p));
-				if((p->q1.flags&(REG|DREFOBJ))==REG)
-					preextended=0;
 				switch (q1typ(p) & NU) {
-				case CHAR | UNSIGNED:
-					break;
-				case SHORT | UNSIGNED:
-					break;
-				case CHAR:
-					if (!optsize) {
+					case CHAR | UNSIGNED:
+						emit(f,"\t//But unsigned, so no need to extend\n");
+						break;
+					case SHORT | UNSIGNED:
+						emit(f,"\t//But unsigned, so no need to extend\n");
+						break;
+					case CHAR:
 						emit_constanttotemp(f,0xffffff80);
 						emit(f,"\tadd\t%s\n",regnames[zreg]);
 						emit(f,"\txor\t%s\n",regnames[zreg]);
-					}
-					shamt = 24;
-					break;
-				case SHORT:
-					if (!optsize) {
+						break;
+					case SHORT:
 						emit_constanttotemp(f,0xffff8000);
 						emit(f,"\tadd\t%s\n",regnames[zreg]);
 						emit(f,"\txor\t%s\n",regnames[zreg]);
-					}
-					shamt = 16;
-					break;
-				}
-				if (shamt && optsize) {
-					cleartempobj(f,tmp);
-					emit(f, "\tli\t%d\n", shamt);
-					emit(f, "\tshl\t%s\n", regnames[zreg]);
-					emit(f, "\tsgn\n");
-					emit(f, "\tshr\t%s\n", regnames[zreg]);
+						break;
 				}
 				save_result(f, p);
 			} else if(sizetab[q1typ(p) & NQ] >= sizetab[ztyp(p) & NQ]) {	// Reducing the size, must mask off excess bits...
@@ -1522,7 +1510,9 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		if (c == MINUS) {
 			emit(f, "\t\t\t\t\t// (minus)\n");
 			load_reg(f, zreg, &p->q1, t);
-			emit(f, "\tli\t0\n\texg %s\n\tsub %s\n", regnames[zreg], regnames[zreg]);
+			emit_constanttotemp(f,0);
+			emit(f, "\texg %s\n\tsub %s\n", regnames[zreg], regnames[zreg]);
+			cleartempobj(f,tmp);
 			save_result(f, p);
 			continue;
 		}
@@ -1532,8 +1522,6 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			emit(f, "\t\t\t\t\t// (test)\n");
 			if(!emit_objtotemp(f, &p->q1, t))	// Only need Z flag - did emit_objtotemp set it?
 			{
-				settempobj(f,tmp,&p->q1,0);
-				settempobj(f,t1,&p->q1,0);
 				if (p->q1.flags & REG) {
 					if (p->q1.flags & DREFOBJ)
 						emit(f, "\tmr\t%s\n\tand\t%s\n", regnames[t1], regnames[t1]);
@@ -1545,7 +1533,6 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		}
 		// Compare
 		// Revisit
-		// (Guaranteed not to touch t1)
 		if (c == COMPARE) {
 			emit(f, "\t\t\t\t\t// (compare)");
 			if (q1typ(p) & UNSIGNED)
@@ -1561,15 +1548,11 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			// the subsequent conditional branch.
 
 			if (!isreg(q1)) {
-				if(isreg(q2))
-				{
-					// Reverse the test.
+				if(isreg(q2)) {	// Reverse the test.
 					emit_objtotemp(f, &p->q1, t);
 					q1reg=q2reg;
 					reversecmp=1;
-				}
-				else
-				{
+				} else { // Neither object is in a register, so load q1 into t1 and q2 into tmp.
 					emit_objtotemp(f, &p->q1, t);
 					emit(f, "\tmr\t%s\n", regnames[t1]);
 					q1reg = t1;
@@ -1578,8 +1561,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			}
 			else
 				emit_objtotemp(f, &p->q2, t);
-			if ((!(q1typ(p) & UNSIGNED)) && (!(q2typ(p) & UNSIGNED)))	// If we have a mismatch of signedness we treat as unsigned.
-			{
+			if ((!(q1typ(p) & UNSIGNED)) && (!(q2typ(p) & UNSIGNED))) {	// If we have a mismatch of signedness we treat as unsigned.
 				int nextop=p->next->code;	// Does the sign matter for the branch being done?
 				if(nextop==FREEREG)
 					nextop=p->next->next->code;
@@ -1589,120 +1571,118 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			emit(f, "\tcmp\t%s\n", regnames[q1reg]);
 			continue;
 		}
-		// Bitwise operations - again check on operand marshalling
-		if ((c >= OR && c <= AND) || (c >= LSHIFT && c <= MOD)) {
-			// FIXME - need to deal with loading both operands here.
-			emit(f, "\t\t\t\t\t// (bitwise) ");
-			emit(f, "loadreg\n");
-			emit(f, "\t//ops: %d, %d, %d\n", q1reg, q2reg, zreg);
 
-			// FIXME - have a collision here if the second operand is already in the target register
-			if ((c >= OR && c <= AND) || (c < DIV)) {
-				if (involvesreg(q2) && q2reg == zreg) {
-//                      printf("Target register and q2 are the same!  Attempting a switch...\n");
-					if (switch_IC(p)) {
-						preload(f,p);	// refresh q1reg, etc after switching the IC
-					} else {
-						emit(f,
-						     "\t\t// WARNING - evading q2 and target collision - check code for correctness.\n");
-						zreg = t1;
-					}
-				}
-				if (involvesreg(q1) && q1reg == zreg)
-					emit(f,
-					     "\t\t// WARNING - q1 and target collision - check code for correctness.\n");
+		// Division and modulo
+		if ((c == MOD) || (c == DIV)) {
+			// FIXME - do we need to use switch_IC here?
+			emit(f, "\t//Call division routine\n");
 
-				if (!isreg(q1) || q1reg != zreg) {
-					emit_objtotemp(f, &p->q1, t);
-					emit(f, "\tmr\t%s\n", regnames[zreg]);	// FIXME - what happens if zreg and q1/2 are the same?
-					settempobj(f,tmp,&p->q1,0);
-				}
-				emit_objtotemp(f, &p->q2, t);
-				if (c >= OR && c <= AND)
-					emit(f, "\t%s\t%s\n", logicals[c - OR], regnames[zreg]);
-				else {
-					if (c == RSHIFT)	// Modify right shift operations with appropriate signedness...
-					{
-						if (!(t & UNSIGNED))
-							emit(f, "\tsgn\n");
-					}
-					emit(f, "\t%s\t%s\n", arithmetics[c - LSHIFT], regnames[zreg]);
-				}
-				save_result(f, p);
-				continue;
-			} else if ((c == MOD) || (c == DIV)) {
-				// FIXME - do we need to use switch_IC here?
-				emit(f, "\t//Call division routine\n");
-
-				// determine here whether R1 and R2 really need saving - may not be in use, or may be the target register.
-				if(zreg!=t2)
-				{
-					emit(f, "\tmt\t%s\n\tstdec\t%s\n", regnames[t2], regnames[sp]);
-					pushed+=4;
-				}
-				if(zreg!=(t2+1))
-				{
-					emit(f, "\tmt\t%s\n\tstdec\t%s\n", regnames[t2 + 1], regnames[sp]);
-					pushed += 4;
-				}
-
-				emit_objtotemp(f, &p->q1, t);
-				settempobj(f,tmp,&p->q1,0);
-				// Need to make sure we're not about to overwrite the other operand!
-				if(isreg(q2) && q2reg==t2)
-				{
-					emit(f,"\texg\t%s\n",regnames[t2]);
-					emit(f,"\tmr\t%s\n",regnames[t2+1]);
-				}
-				else
-				{
-					emit(f, "\tmr\t%s\n", regnames[t2]);
-
-					emit_objtotemp(f, &p->q2, t);
-					emit(f, "\tmr\t%s\n", regnames[t2 + 1]);
-				}
-
-				emit(f, "\tldinc\t%s\n", regnames[pc]);
-				if ((!(q1typ(p) & UNSIGNED)) && (!(q2typ(p) & UNSIGNED)))	// If we have a mismatch of signedness we treat as unsigned.
-					emit(f, "\t.int\t_div_s32bys32\n");
-				else
-					emit(f, "\t.int\t_div_u32byu32\n");
-				emit(f, "\texg\t%s\n", regnames[pc]);
-
-				if (c == MOD)
-				{
-					if(zreg!=t2)
-						emit(f, "\tmt\t%s\n\tmr\t%s\n", regnames[t2], regnames[zreg]);
-				}
-				else
-				{
-					if(zreg!=t1)
-						emit(f, "\tmt\t%s\n\tmr\t%s\n", regnames[t1], regnames[zreg]);
-				}
-				cleartempobj(f,t1);
-				settempobj(f,tmp,&p->z,0);
-
-				if(zreg!=(t2+1))
-				{
-					emit(f, "\tldinc\t%s\n\tmr\t%s\n", regnames[sp], regnames[t2+1]);
-					pushed -= 4;
-					cleartempobj(f,tmp);
-				}
-				if(zreg!=t2)
-				{
-					emit(f, "\tldinc\t%s\n\tmr\t%s\n", regnames[sp], regnames[t2]);
-					pushed -= 4;
-					cleartempobj(f,tmp);
-				}
-
-				// Target not guaranteed to be a register.
-				save_result(f, p);
-				continue;
+			// determine here whether R1 and R2 really need saving - may not be in use, or may be the target register.
+			if(zreg!=t2)
+			{
+				emit(f, "\tmt\t%s\n\tstdec\t%s\n", regnames[t2], regnames[sp]);
+				pushed+=4;
 			}
-			printf("Unhandled IC\n");
-			pric2(stdout, p);
-			ierror(0);
+			if(zreg!=(t2+1))
+			{
+				emit(f, "\tmt\t%s\n\tstdec\t%s\n", regnames[t2 + 1], regnames[sp]);
+				pushed += 4;
+			}
+
+			emit_objtotemp(f, &p->q1, t);
+			settempobj(f,tmp,&p->q1,0);
+			// Need to make sure we're not about to overwrite the other operand!
+			if(isreg(q2) && q2reg==t2)
+			{
+				emit(f,"\texg\t%s\n",regnames[t2]);
+				emit(f,"\tmr\t%s\n",regnames[t2+1]);
+			}
+			else
+			{
+				emit(f, "\tmr\t%s\n", regnames[t2]);
+
+				emit_objtotemp(f, &p->q2, t);
+				emit(f, "\tmr\t%s\n", regnames[t2 + 1]);
+			}
+
+			emit(f, "\tldinc\t%s\n", regnames[pc]);
+			if ((!(q1typ(p) & UNSIGNED)) && (!(q2typ(p) & UNSIGNED)))	// If we have a mismatch of signedness we treat as unsigned.
+				emit(f, "\t.int\t_div_s32bys32\n");
+			else
+				emit(f, "\t.int\t_div_u32byu32\n");
+			emit(f, "\texg\t%s\n", regnames[pc]);
+
+			if (c == MOD)
+			{
+				if(zreg!=t2)
+					emit(f, "\tmt\t%s\n\tmr\t%s\n", regnames[t2], regnames[zreg]);
+			}
+			else
+			{
+				if(zreg!=t1)
+					emit(f, "\tmt\t%s\n\tmr\t%s\n", regnames[t1], regnames[zreg]);
+			}
+			cleartempobj(f,t1);
+			settempobj(f,tmp,&p->z,0);
+
+			if(zreg!=(t2+1))
+			{
+				emit(f, "\tldinc\t%s\n\tmr\t%s\n", regnames[sp], regnames[t2+1]);
+				pushed -= 4;
+				cleartempobj(f,tmp);
+			}
+			if(zreg!=t2)
+			{
+				emit(f, "\tldinc\t%s\n\tmr\t%s\n", regnames[sp], regnames[t2]);
+				pushed -= 4;
+				cleartempobj(f,tmp);
+			}
+
+			// Target not guaranteed to be a register.
+			save_result(f, p);
+			continue;
 		}
+
+		// Remaining arithmetic and bitwise operations
+
+		if ((c >= OR && c <= AND) || (c >= LSHIFT && c <= MULT)) {
+			emit(f, "\t\t\t\t\t// (bitwise/arithmetic) ");
+			emit(f, "\t//ops: %d, %d, %d\n", q1reg, q2reg, zreg);
+			if (involvesreg(q2) && q2reg == zreg) {
+//                      printf("Target register and q2 are the same!  Attempting a switch...\n");
+				if (switch_IC(p)) {
+					preload(f,p);	// refresh q1reg, etc after switching the IC
+				} else {
+					emit(f,
+					     "\t\t// WARNING - evading q2 and target collision - check code for correctness.\n");
+					zreg = t1;
+				}
+			}
+			if (involvesreg(q1) && q1reg == zreg)
+				emit(f,"\t\t// WARNING - q1 and target collision - check code for correctness.\n");
+
+			if (!isreg(q1) || q1reg != zreg) {
+				emit_objtotemp(f, &p->q1, t);
+				emit(f, "\tmr\t%s\n", regnames[zreg]);	// FIXME - what happens if zreg and q1/2 are the same?
+				settempobj(f,tmp,&p->q1,0);
+			}
+			emit_objtotemp(f, &p->q2, t);
+			if (c >= OR && c <= AND)
+				emit(f, "\t%s\t%s\n", logicals[c - OR], regnames[zreg]);
+			else {
+				if (c == RSHIFT)	// Modify right shift operations with appropriate signedness...
+				{
+					if (!(t & UNSIGNED))
+						emit(f, "\tsgn\n");
+				}
+				emit(f, "\t%s\t%s\n", arithmetics[c - LSHIFT], regnames[zreg]);
+			}
+			save_result(f, p);
+			continue;
+		}
+		printf("Unhandled IC\n");
+		pric2(stdout, p);
+		ierror(0);
 	}
 	function_bottom(f, v, localsize,firsttail);
 	firsttail=0;

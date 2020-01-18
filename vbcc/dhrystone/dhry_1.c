@@ -76,7 +76,7 @@ long            Microseconds,
                 
 /* end of variables for time measurement */
 
-int             Number_Of_Runs = 2;
+int             Number_Of_Runs = 4;
 
 
 long _readMilliseconds()
@@ -216,7 +216,6 @@ int main ()
       /* Int_1_Loc == 1, Int_2_Loc == 13, Int_3_Loc == 7 */
     Proc_2 (&Int_1_Loc);
       /* Int_1_Loc == 5 */
-
   } /* loop "for Run_Index" */
 
   /**************/

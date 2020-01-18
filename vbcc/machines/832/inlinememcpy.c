@@ -2,7 +2,6 @@ void emit_inlinememcpy(FILE *f,struct IC *p, int t)
 {
 	int srcr = t1;
 	int dstr=0;
-	int saved=1;
 	int cntr=0;
 	int savec=1;
 	int wordcopy;
@@ -23,42 +22,24 @@ void emit_inlinememcpy(FILE *f,struct IC *p, int t)
 	cleartempobj(f,t1);
 	cleartempobj(f,tmp);
 
-	printf("Getting regs\n");
-
-	if(dstr=availreg())
-	{
-		regs[dstr]=1;
-		saved=0;
-	}
-	else
-	{
-		dstr=t1+1;
-		emit(f,"\tmt\t%s\n",regnames[dstr]);
-		emit(f,"\tstdec\t%s\n",regnames[sp]);
-		pushed+=4;
-	}
-	emit(f,"//using reg %s for dst pointer\n",regnames[dstr]);
+	// Even if a register is available we still have to save it because the current function wouldn't
+	// but the parent function may be using it.  Therefore we might as well use a hardcoded register.
+	dstr=t1+1;
+	emit(f,"\tmt\t%s\n",regnames[dstr]);
+	emit(f,"\tstdec\t%s\n",regnames[sp]);
+	pushed+=4;
 
 	// FIXME - don't necessarily need the counter register if the copy is small...
 
 	if(unrollwords && unrollbytes)
 		savec=0;
-	else if(cntr=availreg())
-	{
-		regs[cntr]=1;
-		savec=0;
-	}
 	else
 	{
-		if(dstr==t1+2)	// Make sure we don't collide!
-			cntr=t1+3;
-		else
-			cntr=t1+2;
+		cntr=t1+2;
 		emit(f,"\tmt\t%s\n",regnames[cntr]);
 		emit(f,"\tstdec\t%s\n",regnames[sp]);
 		pushed+=4;
 	}
-	emit(f,"//using reg %s for counter\n",regnames[cntr]);
 
 	emit_prepobj(f, &p->z, t, dstr, 0);
 	if ((t & NQ) == CHAR && (opsize(p) != 1)) {
@@ -146,16 +127,9 @@ void emit_inlinememcpy(FILE *f,struct IC *p, int t)
 		emit(f,"\tmr\t%s\n",regnames[cntr]);
 		pushed-=4;
 	}
-	else if(cntr)
-		regs[cntr]=0;
-	if(saved)
-	{
-		emit(f,"\tldinc\t%s\n",regnames[sp]);
-		emit(f,"\tmr\t%s\n",regnames[dstr]);
-		pushed-=4;
-	}
-	else if(dstr)
-		regs[dstr]=0;
+	emit(f,"\tldinc\t%s\n",regnames[sp]);
+	emit(f,"\tmr\t%s\n",regnames[dstr]);
+	pushed-=4;
 	loopid++;
 }
 
