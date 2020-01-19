@@ -171,6 +171,10 @@ static long pushed;
 
 static long localsize, rsavesize, argsize;
 
+static void emit_constanttotemp(FILE * f, zmax v);
+static void emit_statictotemp(FILE * f, char *lab, int suffix, int offset);
+static void emit_externtotemp(FILE * f, char *lab, int offset);
+
 static void emit_obj(FILE * f, struct obj *p, int t);
 static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset);
 static int emit_objtotemp(FILE * f, struct obj *p, int t);
@@ -278,7 +282,7 @@ void cleartempobj(FILE *f, int reg)
 	if(reg==tmp) i=TEMP_TMP;
 	else if(reg==t1) i=TEMP_T1;
 	else return;
-	emit(f,"// clearing %s\n",regnames[reg]);
+//	emit(f,"// clearing %s\n",regnames[reg]);
 
 	tempobjs[i].reg=0;
 }
@@ -296,6 +300,7 @@ void settempkonst(FILE *f,int reg,int v)
 }
 
 // Store any passing value in tempobj records for optimisation.
+// FIXME - need to figure out VARADR semantics for stored objects.
 void settempobj(FILE *f,int reg,struct obj *o,int offset)
 {
 	int i;
@@ -313,9 +318,13 @@ void settempobj(FILE *f,int reg,struct obj *o,int offset)
 int matchobj(FILE *f,struct obj *o1,struct obj *o2)
 {
 	int result=1;
-	if(o1->flags!=o2->flags)
+//	emit(f,"// comparing flags %x with %x\n",o1->flags, o2->flags);
+//	if((o1->flags&~VARADR)!=(o2->flags&~VARADR))
+	// FIXME - need to figure out VARADR semantics for stored objects.
+	if((o1->flags)!=(o2->flags))
 		return(0);
 
+//	emit(f,"// comparing regs %d with %d\n",o1->reg, o2->reg);
 	if((o1->flags&REG) && (o1->reg==o2->reg))
 		return(1);
 
@@ -333,20 +342,34 @@ int matchobj(FILE *f,struct obj *o1,struct obj *o2)
 
 	if(isauto(o1->v->storage_class) && isauto(o2->v->storage_class))
 	{
+		emit(f,"//auto: comparing %d, %d with %d, %d\n",o1->v->offset,o1->val.vlong, o2->v->offset,o2->val.vlong);
 		if(o1->v->offset!=o2->v->offset)
-			return(0);
-		if(o1->val.vlong==o2->val.vlong)
-			return(1);
+			return(2);
+		if(o1->val.vlong!=o2->val.vlong)
+			return(2);
+		return(1);
 	}
 
 	if(isextern(o1->v->storage_class) && isextern(o2->v->storage_class))
 	{
+		emit(f,"//extern: comparing %d with %d\n",o1->val.vlong, o2->val.vlong);
 		if(strcmp(o1->v->identifier,o2->v->identifier))
 			return(0);
-		if(o1->val.vlong==o2->val.vlong)
-			return(1);
+		if(o1->val.vlong!=o2->val.vlong)
+			return(2);
+		return(1);
 	}
 
+	return(0);
+}
+
+
+int matchoffset(struct obj *o,struct obj *o2)
+{
+	if(isextern(o->v->storage_class))
+		return(o->val.vlong-o2->val.vlong);
+	if(isauto(o->v->storage_class))
+		return((o->val.vlong+o->v->offset)-(o2->val.vlong+o2->v->offset));
 	return(0);
 }
 
@@ -354,19 +377,32 @@ int matchobj(FILE *f,struct obj *o1,struct obj *o2)
 // Check the tempobj records to see if the value we're interested in can be found in either.
 int matchtempobj(FILE *f,struct obj *o)
 {
+	int hit=0;	// Hit will be 1 for an exact match, 2 for a near miss.
 //	return(0); // Temporarily disable matching
-	if(tempobjs[0].reg && matchobj(f,o,&tempobjs[0].o))
+	if(tempobjs[0].reg && (hit=matchobj(f,o,&tempobjs[0].o)))
 	{
 //		emit(f,"//match found - tmp\n");
 //		printf("//match found - tmp\n");
-		return(tempobjs[0].reg);
+		if(hit==1)
+			return(tempobjs[0].reg);
 	}
-//	else if(tempobjs[1].reg && matchobj(f,o,&tempobjs[1].o))
-//	{
+	else if(tempobjs[1].reg && (hit=matchobj(f,o,&tempobjs[1].o)))
+	{
+		// Temporarily disable t1 matching.  FIXME - keep t1 records more up-to-date.
+		return(0);
 //		emit(f,"//match found - t1\n");
 //		printf("//match found - t1\n");
-//		return(tempobjs[1].reg);
-//	}
+		if(hit==1)
+			return(tempobjs[1].reg);
+		else if(hit==2)
+		{
+			int offset=matchoffset(o,&tempobjs[1].o);
+			emit_constanttotemp(f,offset);
+			emit(f,"\taddt\t%s\n",regnames[tempobjs[1].reg]);
+			cleartempobj(f,tmp);
+			return(tmp);
+		}
+	}
 	else
 		return(0);
 }
@@ -600,7 +636,7 @@ static void function_top(FILE * f, struct Var *v, long offset)
 	cleartempobj(f,t1);
 
 	emit(f, "\t//registers used:\n");
-	for (i = FIRST_GPR+SCRATCH_GPRS; i <= LAST_GPR; ++i) {
+	for (i = FIRST_GPR+SCRATCH_GPRS-1; i <= LAST_GPR; ++i) {
 		emit(f, "\t\t//%s: %s\n", regnames[i], regused[i] ? "yes" : "no");
 		if (regused[i] && (i > FIRST_GPR) && (i <= LAST_GPR - 2))
 			++regcount;

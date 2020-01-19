@@ -24,8 +24,9 @@ DONE C backend - get signed-ness, composite types and halfword / byte operations
 
 * Look at the instruction set again.
 DONE  stinc
-	* Can we adjust pre/postinc based on byt/hlf directives?  Potentially - would need to bring in the
-	  increment value through the imm channel?  Might be a worthwhile simplification anyway.
+
+* Can we adjust pre/postinc based on byt/hlf directives?  Potentially - would need to bring in the
+  increment value through the imm channel?  Might be a worthwhile simplification anyway.
 
 * Look at integrating tmp register in the ALU itself.  (Might be tricky due to dual-threading.)
 
@@ -56,4 +57,18 @@ struct e32op
 When generating the code for a function, generate one of these for each opcode.
 
 Need to model the register set and stack, keeping track of which object (and offset) is held in each.
+
+Code generator improvements:
+
+  * If a function is trivial enough not to touch r2, use it to hold the return address instead of the stack.
+
+  * Improve assignment and detection of objects in tmp.
+
+  * Match against r1 as well as tmp.
+
+  * Match near misses where the only difference between two objects is an offset.
+
+  DONE inline memcpy doesn't need to save r1.  If r2 is not allocated then don't need to save that either.
+
+  * Peephole - hunt for ldinc r6, mr rn <> mt rn stdec r6
 

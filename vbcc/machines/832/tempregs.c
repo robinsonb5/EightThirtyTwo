@@ -188,7 +188,26 @@ static void emit_stackvartotemp(FILE * f, zmax offset, int deref)
 
 static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 {
-	emit(f, "\t\t\t\t\t// (prepobj %s)", regnames[reg]);
+	int matchreg;
+
+	emit(f, "\t\t\t\t\t// (prepobj %s)\n ", regnames[reg]);
+
+	matchreg=matchtempobj(f,p);
+	if(matchreg==tmp)
+	{
+		emit(f,"\n// required value found in tmp\n");
+		if(reg!=tmp)
+			emit(f,"\tmr\t%s\n",regnames[reg]);
+		return;
+	}
+	else if(matchreg==t1)
+	{
+		emit(f,"\n// required value found in %s\n",regnames[t1]);
+		emit(f,"\tmt\t%s\n",regnames[t1]);
+		if(reg!=tmp)
+			emit(f,"\tmr\t%s\n",regnames[reg]);
+		return;
+	}
 
 	if (p->flags & DREFOBJ) {
 		if (p->flags & VARADR)
@@ -241,7 +260,7 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 				if (reg != tmp)
 					emit(f, "\tmr\t%s\n", regnames[reg]);
 			} else {
-				printf("emit_prepobj (deref): - unknown storage class!\n");
+				printf("// emit_prepobj (deref): - unknown storage class!\n");
 				ierror(0);
 			}
 //                              if(!zmeqto(l2zm(0L),p->val.vmax)){
@@ -255,24 +274,24 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 		}
 	} else {
 		if (p->flags & REG) {
-			emit(f, " reg %s - no need to prep\n", regnames[p->reg]);
+			emit(f, "// reg %s - no need to prep\n", regnames[p->reg]);
 		} else if (p->flags & VAR) {
 			if (isauto(p->v->storage_class)) {
 				/* Set a register to point to a stack-base variable. */
-				emit(f, " var, auto|reg\n");
+				emit(f, "// var, auto|reg\n");
 				if (p->v->storage_class == REGISTER)
 					emit(f, "\t\t\t// (is actually REGISTER)\n");
 				emit_stackvartotemp(f, real_offset(p) + offset, 0);
 				if (reg != tmp)
 					emit(f, "\tmr\t%s\n\n", regnames[reg]);
 			} else if (isextern(p->v->storage_class)) {
-				emit(f, " extern (offset %d)\n", p->val.vmax);
+				emit(f, "// extern (offset %d)\n", p->val.vmax);
 				emit_externtotemp(f, p->v->identifier, p->val.vmax + offset);
 				emit(f, "// extern pe %s varadr\n", p->flags & VARADR ? "is" : "not");
 				if (reg != tmp)
 					emit(f, "\tmr\t%s\n", regnames[reg]);
 			} else if (isstatic(p->v->storage_class)) {
-				emit(f, " static\n");
+				emit(f, "// static\n");
 				emit(f, "\tldinc\tr7\n\t.int\t%s%d+%d\n",
 				     labprefix, zm2l(p->v->offset), offset + p->val.vmax);
 				emit(f, "// static pe %s varadr\n", p->flags & VARADR ? "is" : "not");
@@ -297,7 +316,7 @@ static int emit_objtotemp(FILE * f, struct obj *p, int t)
 {
 	int result=0;
 	int matchreg;
-	emit(f, "\t\t\t\t\t// (objtotemp) flags %x ",p->flags);
+	emit(f, "\t\t\t\t\t// (objtotemp) flags %x \n",p->flags);
 	matchreg=matchtempobj(f,p);
 	if(matchreg==tmp)
 	{
