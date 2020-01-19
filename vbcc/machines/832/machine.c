@@ -343,6 +343,8 @@ int matchobj(FILE *f,struct obj *o1,struct obj *o2)
 	if(isauto(o1->v->storage_class) && isauto(o2->v->storage_class))
 	{
 		emit(f,"//auto: comparing %d, %d with %d, %d\n",o1->v->offset,o1->val.vlong, o2->v->offset,o2->val.vlong);
+		if((o1->v->offset<0 && o2->v->offset>0) || (o1->v->offset>0 && o2->v->offset<0))
+			return(0);
 		if(o1->v->offset!=o2->v->offset)
 			return(2);
 		if(o1->val.vlong!=o2->val.vlong)
@@ -369,7 +371,9 @@ int matchoffset(struct obj *o,struct obj *o2)
 	if(isextern(o->v->storage_class))
 		return(o->val.vlong-o2->val.vlong);
 	if(isauto(o->v->storage_class))
+	{
 		return((o->val.vlong+o->v->offset)-(o2->val.vlong+o2->v->offset));
+	}
 	return(0);
 }
 
@@ -385,11 +389,13 @@ int matchtempobj(FILE *f,struct obj *o)
 //		printf("//match found - tmp\n");
 		if(hit==1)
 			return(tempobjs[0].reg);
+		else
+			return(0);
 	}
 	else if(tempobjs[1].reg && (hit=matchobj(f,o,&tempobjs[1].o)))
 	{
 		// Temporarily disable t1 matching.  FIXME - keep t1 records more up-to-date.
-		return(0);
+//		return(0);
 //		emit(f,"//match found - t1\n");
 //		printf("//match found - t1\n");
 		if(hit==1)
@@ -397,11 +403,13 @@ int matchtempobj(FILE *f,struct obj *o)
 		else if(hit==2)
 		{
 			int offset=matchoffset(o,&tempobjs[1].o);
+			emit(f,"//Fuzzy match found, offset: %d\n",offset);
 			emit_constanttotemp(f,offset);
-			emit(f,"\taddt\t%s\n",regnames[tempobjs[1].reg]);
-			cleartempobj(f,tmp);
-			return(tmp);
+			emit(f,"\tadd\t%s\n",regnames[tempobjs[1].reg]);
+			settempobj(f,tempobjs[1].reg,o,0);
+			return(tempobjs[1].reg);
 		}
+		return(0);
 	}
 	else
 		return(0);
@@ -413,7 +421,7 @@ int matchtempkonst(FILE *f,int k)
 	struct obj o;
 	o.flags=KONST;
 	o.val.vlong=k;
-	return(matchtempobj(f,&o));
+	return(matchtempobj(f,&o)==1);
 }
 
 
@@ -1519,18 +1527,18 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					int matchreg;
 					emit_prepobj(f, &p->z, t, t1, 0);
 					// FIXME - check that prepobj didn't mess up tmp.
-					matchreg=matchtempobj(f,&p->q1);
-					if(0)
-					{
+//					matchreg=matchtempobj(f,&p->q1);
+//					if(matchreg0)
+//					{
 //						emit(f,"// Found match with %s\n",regnames[matchreg]);
 //						if(matchreg==tmp)
 //							save_temp(f,p,t2);
-					}
-					else {
+//					}
+//					else {
 						emit_objtotemp(f, &p->q1, t);
 						save_temp(f, p, t1);
 						settempobj(f,tmp,&p->q1,0);
-					}
+//					}
 				}
 			}
 			continue;

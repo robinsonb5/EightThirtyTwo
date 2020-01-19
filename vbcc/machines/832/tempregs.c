@@ -193,20 +193,20 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 	emit(f, "\t\t\t\t\t// (prepobj %s)\n ", regnames[reg]);
 
 	matchreg=matchtempobj(f,p);
-	if(matchreg==tmp)
+	if(matchreg)
 	{
-		emit(f,"\n// required value found in tmp\n");
-		if(reg!=tmp)
+		emit(f,"\n// required value found in %s\n",regnames[matchreg]);
+		if(matchreg==reg)
+			return;
+		else if(matchreg==tmp) {
 			emit(f,"\tmr\t%s\n",regnames[reg]);
-		return;
-	}
-	else if(matchreg==t1)
-	{
-		emit(f,"\n// required value found in %s\n",regnames[t1]);
-		emit(f,"\tmt\t%s\n",regnames[t1]);
-		if(reg!=tmp)
-			emit(f,"\tmr\t%s\n",regnames[reg]);
-		return;
+			return;
+		} else {
+			emit(f,"\tmt\t%s\n",regnames[matchreg]);
+			if(reg!=tmp)
+				emit(f,"\tmr\t%s\n",regnames[reg]);
+			return;
+		}
 	}
 
 	if (p->flags & DREFOBJ) {
@@ -317,17 +317,17 @@ static int emit_objtotemp(FILE * f, struct obj *p, int t)
 	int result=0;
 	int matchreg;
 	emit(f, "\t\t\t\t\t// (objtotemp) flags %x \n",p->flags);
+
 	matchreg=matchtempobj(f,p);
-	if(matchreg==tmp)
+	if(matchreg)
 	{
-		emit(f,"\n// required value found in tmp\n");
-		return(result);
-	}
-	else if(matchreg==t1)
-	{
-		emit(f,"\n// required value found in %s\n",regnames[t1]);
-		emit(f,"\tmt\t%s\n",regnames[t1]);
-		return(result);
+		emit(f,"\n// required value found in %s\n",regnames[matchreg]);
+		if(matchreg==tmp)
+			return;
+		else {
+			emit(f,"\tmt\t%s\n",regnames[matchreg]);
+			return;
+		}
 	}
 
 	// FIXME - does this have implications for structs, unions, fptrs, etc?

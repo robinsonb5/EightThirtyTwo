@@ -61,14 +61,19 @@ Need to model the register set and stack, keeping track of which object (and off
 Code generator improvements:
 
   * If a function is trivial enough not to touch r2, use it to hold the return address instead of the stack.
+    (Terrible idea - would need to save r2's contents every time the function uses CALL - can't save it on the stack
+    because the stack has already been loaded with params at that point!)
 
   * Improve assignment and detection of objects in tmp.
 
-  * Match against r1 as well as tmp.
+  * Match against t1 as well as tmp.
 
   * Match near misses where the only difference between two objects is an offset.
+	(Only helpful when matching against t1 since it's easy to adjust.)
 
   DONE inline memcpy doesn't need to save r1.  If r2 is not allocated then don't need to save that either.
 
   * Peephole - hunt for ldinc r6, mr rn <> mt rn stdec r6
+
+  * objtotmp needs to be replaced by objtoreg, to avoid constructs like "mt r0, mr r0".
 
