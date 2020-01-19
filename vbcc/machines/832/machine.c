@@ -307,7 +307,8 @@ void settempobj(FILE *f,int reg,struct obj *o,int offset)
 	if(reg==tmp) i=TEMP_TMP;
 	else if(reg==t1) i=TEMP_T1;
 	else return;
-//	emit(f,"// Setting %s to %x (%x)\n",regnames[reg],o,o->v);
+	if(reg==t1)
+		emit(f,"// Setting %s to %x (%x)\n",regnames[reg],o,o->v);
 	tempobjs[i].reg=reg;
 	tempobjs[i].o=*o;
 	tempobjs[i].o.val.vlong+=offset;	// Account for any postinc / predec
@@ -395,7 +396,7 @@ int matchtempobj(FILE *f,struct obj *o)
 	else if(tempobjs[1].reg && (hit=matchobj(f,o,&tempobjs[1].o)))
 	{
 		// Temporarily disable t1 matching.  FIXME - keep t1 records more up-to-date.
-//		return(0);
+		return(0);
 //		emit(f,"//match found - t1\n");
 //		printf("//match found - t1\n");
 		if(hit==1)
@@ -1378,7 +1379,9 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					if(!isreg(q1) || !isreg(z) || q1reg!=zreg) // Do we just need to mask in place, or move the value first?
 					{
 						emit_prepobj(f, &p->z, t, t1, 0);
-						settempobj(f,t1,&p->z,0);
+						// FIXME - tempobj tracking should be handled within prepobj.
+						if(!p->z.flags&REG)
+							settempobj(f,t1,&p->z,0);
 						emit_objtotemp(f, &p->q1, t);
 						save_temp(f, p, t1);
 					}
@@ -1461,6 +1464,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				emit(f, "\n");
 				pushed -= pushedargsize(p);
 				cleartempobj(f,tmp);
+				cleartempobj(f,t1);
 			}
 			 /*FIXME*/ if ((p->q1.flags & (VAR | DREFOBJ)) == VAR && p->q1.v->fi
 				       && (p->q1.v->fi->flags & ALL_REGS)) {
