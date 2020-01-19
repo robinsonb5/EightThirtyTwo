@@ -192,7 +192,20 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 
 	emit(f, "\t\t\t\t\t// (prepobj %s)\n ", regnames[reg]);
 
-	matchreg=matchtempobj(f,p);
+	if (p->flags & REG) {
+		emit(f, "// reg %s - no need to prep\n", regnames[p->reg]);
+		if(p->flags & DREFOBJ)
+		{
+			if (reg == tmp)
+			{
+				emit(f, "\tmt\t%s\n", regnames[p->reg]);
+				cleartempobj(f,tmp);
+			}
+		}
+		return;
+	}
+
+	matchreg=0;// matchtempobj(f,p);  // FIXME - we're hunting for varadr here.
 	if(matchreg)
 	{
 		emit(f,"\n// required value found in %s\n",regnames[matchreg]);
@@ -323,10 +336,10 @@ static int emit_objtotemp(FILE * f, struct obj *p, int t)
 	{
 		emit(f,"\n// required value found in %s\n",regnames[matchreg]);
 		if(matchreg==tmp)
-			return;
+			return(0);
 		else {
 			emit(f,"\tmt\t%s\n",regnames[matchreg]);
-			return;
+			return(0);
 		}
 	}
 
