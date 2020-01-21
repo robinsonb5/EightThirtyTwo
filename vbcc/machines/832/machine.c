@@ -301,7 +301,7 @@ void settempkonst(FILE *f,int reg,int v)
 
 // Store any passing value in tempobj records for optimisation.
 // FIXME - need to figure out VARADR semantics for stored objects.
-void settempobj(FILE *f,int reg,struct obj *o,int offset)
+void settempobj(FILE *f,int reg,struct obj *o,int offset,int varadr)
 {
 	int i;
 	if(reg==tmp) i=TEMP_TMP;
@@ -312,21 +312,30 @@ void settempobj(FILE *f,int reg,struct obj *o,int offset)
 	tempobjs[i].reg=reg;
 	tempobjs[i].o=*o;
 	tempobjs[i].o.val.vlong+=offset;	// Account for any postinc / predec
+	if(varadr)
+		tempobjs[i].o.flags|=VARADR;
 }
 
 
 // Compare a pair of struct obj* for equivalence.
-int matchobj(FILE *f,struct obj *o1,struct obj *o2)
+// The first object should be the "live" object, the second one the cached object."
+int matchobj(FILE *f,struct obj *o1,struct obj *o2,int varadr)
 {
 	int result=1;
+	int flg=o1->flags;
+	if(varadr)
+		flg|=VARADR;
 //	emit(f,"// comparing flags %x with %x\n",o1->flags, o2->flags);
 //	if((o1->flags&~VARADR)!=(o2->flags&~VARADR))
 	// FIXME - need to figure out VARADR semantics for stored objects.
-	if((o1->flags)!=(o2->flags))
+	if(flg!=(o2->flags))
 		return(0);
 
 //	emit(f,"// comparing regs %d with %d\n",o1->reg, o2->reg);
-	if((o1->flags&REG) && (o1->reg==o2->reg))
+	// If the register-based value is being dereferenced we would have to track
+	// the register itself being updated.  Unless the value's in tmp using a cached
+	// version isn't a win anyway.
+	if((o1->flags&(REG|DREFOBJ)==REG) && (o1->reg==o2->reg))
 		return(1);
 
 	if((o1->flags&KONST) && (o1->val.vlong == o2->val.vlong))
@@ -346,11 +355,11 @@ int matchobj(FILE *f,struct obj *o1,struct obj *o2)
 		emit(f,"//auto: comparing %d, %d with %d, %d\n",o1->v->offset,o1->val.vlong, o2->v->offset,o2->val.vlong);
 		if((o1->v->offset<0 && o2->v->offset>0) || (o1->v->offset>0 && o2->v->offset<0))
 			return(0);
-		if(o1->v->offset!=o2->v->offset)
-			return(2);
-		if(o1->val.vlong!=o2->val.vlong)
-			return(2);
-		return(1);
+		if(o1->v->offset==o2->v->offset && o1->val.vlong==o2->val.vlong)
+			return(1);
+		if((o1->flags&DREFOBJ) || (o2->flags&DREFOBJ))	// Can't fuzzy match if we're dereferencing.
+			return(0);
+		return(2);
 	}
 
 	if(isextern(o1->v->storage_class) && isextern(o2->v->storage_class))
@@ -358,9 +367,11 @@ int matchobj(FILE *f,struct obj *o1,struct obj *o2)
 		emit(f,"//extern: comparing %d with %d\n",o1->val.vlong, o2->val.vlong);
 		if(strcmp(o1->v->identifier,o2->v->identifier))
 			return(0);
-		if(o1->val.vlong!=o2->val.vlong)
-			return(2);
-		return(1);
+		if(o1->val.vlong==o2->val.vlong)
+			return(1);
+		if((o1->flags&DREFOBJ) || (o2->flags&DREFOBJ))	// Can't fuzzy match if we're dereferencing.
+			return(0);
+		return(2);
 	}
 
 	return(0);
@@ -380,11 +391,11 @@ int matchoffset(struct obj *o,struct obj *o2)
 
 
 // Check the tempobj records to see if the value we're interested in can be found in either.
-int matchtempobj(FILE *f,struct obj *o)
+int matchtempobj(FILE *f,struct obj *o,int varadr)
 {
 	int hit=0;	// Hit will be 1 for an exact match, 2 for a near miss.
 //	return(0); // Temporarily disable matching
-	if(tempobjs[0].reg && (hit=matchobj(f,o,&tempobjs[0].o)))
+	if(tempobjs[0].reg && (hit=matchobj(f,o,&tempobjs[0].o,varadr)))
 	{
 //		emit(f,"//match found - tmp\n");
 //		printf("//match found - tmp\n");
@@ -393,10 +404,10 @@ int matchtempobj(FILE *f,struct obj *o)
 		else
 			return(0);
 	}
-	else if(tempobjs[1].reg && (hit=matchobj(f,o,&tempobjs[1].o)))
+	else if(tempobjs[1].reg && (hit=matchobj(f,o,&tempobjs[1].o,varadr)))
 	{
 		// Temporarily disable t1 matching.  FIXME - keep t1 records more up-to-date.
-		return(0);
+//		return(0);
 //		emit(f,"//match found - t1\n");
 //		printf("//match found - t1\n");
 		if(hit==1)
@@ -407,7 +418,7 @@ int matchtempobj(FILE *f,struct obj *o)
 			emit(f,"//Fuzzy match found, offset: %d\n",offset);
 			emit_constanttotemp(f,offset);
 			emit(f,"\tadd\t%s\n",regnames[tempobjs[1].reg]);
-			settempobj(f,tempobjs[1].reg,o,0);
+			settempobj(f,tempobjs[1].reg,o,0,0);
 			return(tempobjs[1].reg);
 		}
 		return(0);
@@ -422,7 +433,7 @@ int matchtempkonst(FILE *f,int k)
 	struct obj o;
 	o.flags=KONST;
 	o.val.vlong=k;
-	return(matchtempobj(f,&o)==1);
+	return(matchtempobj(f,&o,0)==1);
 }
 
 
@@ -452,11 +463,15 @@ static void store_reg(FILE * f, int r, struct obj *o, int type)
 		emit_prepobj(f, o, type & NQ, tmp, 0);
 		emit(f, "\texg\t%s\n", regnames[r]);
 		emit(f, "\tstbinc\t%s\t//WARNING - pointer / reg not restored, might cause trouble!\n", regnames[r]);
+		cleartempobj(f,tmp);
+		cleartempobj(f,r);
 		break;
 	case SHORT:
 		emit_prepobj(f, o, type & NQ, tmp, 0);
 		emit(f, "\texg\t%s\n", regnames[r]);
 		emit(f, "\thlf\n\tst\t%s\n", regnames[r]);
+		cleartempobj(f,tmp);
+		cleartempobj(f,r);
 		break;
 	case INT:
 	case LONG:
@@ -465,8 +480,8 @@ static void store_reg(FILE * f, int r, struct obj *o, int type)
 		if ((o->flags & (REG | DREFOBJ)) == (REG | DREFOBJ)) {
 			emit(f, "\tmt\t%s\n", regnames[r]);
 			emit(f, "\tst\t%s\n", regnames[o->reg]);
-			settempobj(f,r,o,0);
-			settempobj(f,tmp,o,0);
+			settempobj(f,r,o,0,0);
+			settempobj(f,tmp,o,0,0);
 		} else {
 			if(o->flags & DREFOBJ) {  // Can't use the offset / stmpdec trick for dereferenced objects.
 				emit_prepobj(f, o, type & NQ, tmp, 0);
@@ -620,9 +635,9 @@ void save_result(FILE * f, struct IC *p)
 		emit(f, "// isreg\n");
 		if (p->z.reg != zreg)
 		{
-			settempobj(f,tmp,&p->z,0);
-			settempobj(f,zreg,&p->z,0);
 			emit(f, "\tmt\t%s\n\tmr\t%s\n", regnames[zreg], regnames[p->z.reg]);
+			cleartempobj(f,tmp);
+			cleartempobj(f,p->z.reg);	// Almost certainly not cached, but can't hurt.
 		}
 	}
 	else
@@ -1283,7 +1298,6 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		if (c == MOVETOREG) {
 			emit(f, "\t\t\t\t\t//CHECKME movetoreg\n");
 			emit_objtotemp(f, &p->q1, ztyp(p));
-			settempobj(f,zreg,&p->q1,0);
 			emit(f,"\tmr\t%s\n",regnames[zreg]);
 			continue;
 		}
@@ -1367,7 +1381,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					}
 					else {
 						emit_prepobj(f, &p->z, t, tmp, 4); // Need an offset
-						settempobj(f,tmp,&p->z,-4);
+//						settempobj(f,tmp,&p->z,0,0);
 						emit_sizemod(f,t);
 						emit(f,"\tstmpdec\t%s\n",regnames[q1reg]);
 					}
@@ -1380,8 +1394,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					{
 						emit_prepobj(f, &p->z, t, t1, 0);
 						// FIXME - tempobj tracking should be handled within prepobj.
-						if(!p->z.flags&REG)
-							settempobj(f,t1,&p->z,0);
+//						if(!p->z.flags&REG)
+//							settempobj(f,t1,&p->z,0,0);
 						emit_objtotemp(f, &p->q1, t);
 						save_temp(f, p, t1);
 					}
@@ -1466,7 +1480,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				cleartempobj(f,tmp);
 				cleartempobj(f,t1);
 			}
-			 /*FIXME*/ if ((p->q1.flags & (VAR | DREFOBJ)) == VAR && p->q1.v->fi
+			 /*FIXME*/
+			if ((p->q1.flags & (VAR | DREFOBJ)) == VAR && p->q1.v->fi
 				       && (p->q1.v->fi->flags & ALL_REGS)) {
 				bvunite(regs_modified, p->q1.v->fi->regs_modified, RSIZE);
 			} else {
@@ -1492,7 +1507,6 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			// FIXME - need to handle pushing composite types */
 			emit(f, "\t\t\t\t\t// a: pushed %ld, regnames[sp] %s\n", pushed, regnames[sp]);
 			emit_objtotemp(f, &p->q1, t);
-			settempobj(f,tmp,&p->q1,0);
 			emit(f, "\tstdec\t%s\n", regnames[sp]);
 			pushed += zm2l(p->q2.val.vmax);
 			continue;
@@ -1530,19 +1544,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				{
 					int matchreg;
 					emit_prepobj(f, &p->z, t, t1, 0);
-					// FIXME - check that prepobj didn't mess up tmp.
-//					matchreg=matchtempobj(f,&p->q1);
-//					if(matchreg0)
-//					{
-//						emit(f,"// Found match with %s\n",regnames[matchreg]);
-//						if(matchreg==tmp)
-//							save_temp(f,p,t2);
-//					}
-//					else {
-						emit_objtotemp(f, &p->q1, t);
-						save_temp(f, p, t1);
-						settempobj(f,tmp,&p->q1,0);
-//					}
+					emit_objtotemp(f, &p->q1, t);
+					save_temp(f, p, t1);
 				}
 			}
 			continue;
@@ -1576,6 +1579,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					else
 						emit(f, "\tand\t%s\n", regnames[p->q1.reg]);
 				}
+				cleartempobj(f,t1);
 			}
 			continue;
 		}
@@ -1603,6 +1607,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				} else { // Neither object is in a register, so load q1 into t1 and q2 into tmp.
 					emit_objtotemp(f, &p->q1, t);
 					emit(f, "\tmr\t%s\n", regnames[t1]);
+					cleartempobj(f,t1);
 					q1reg = t1;
 					emit_objtotemp(f, &p->q2, t);
 				}
@@ -1636,9 +1641,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				emit(f, "\tmt\t%s\n\tstdec\t%s\n", regnames[t2 + 1], regnames[sp]);
 				pushed += 4;
 			}
-
+			cleartempobj(f,t1);
 			emit_objtotemp(f, &p->q1, t);
-			settempobj(f,tmp,&p->q1,0);
 			// Need to make sure we're not about to overwrite the other operand!
 			if(isreg(q2) && q2reg==t2)
 			{
@@ -1652,6 +1656,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				emit_objtotemp(f, &p->q2, t);
 				emit(f, "\tmr\t%s\n", regnames[t2 + 1]);
 			}
+			cleartempobj(f,t2);
 
 			emit(f, "\tldinc\t%s\n", regnames[pc]);
 			if ((!(q1typ(p) & UNSIGNED)) && (!(q2typ(p) & UNSIGNED)))	// If we have a mismatch of signedness we treat as unsigned.
@@ -1670,21 +1675,20 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				if(zreg!=t1)
 					emit(f, "\tmt\t%s\n\tmr\t%s\n", regnames[t1], regnames[zreg]);
 			}
-			cleartempobj(f,t1);
-			settempobj(f,tmp,&p->z,0);
 
 			if(zreg!=(t2+1))
 			{
 				emit(f, "\tldinc\t%s\n\tmr\t%s\n", regnames[sp], regnames[t2+1]);
 				pushed -= 4;
-				cleartempobj(f,tmp);
 			}
 			if(zreg!=t2)
 			{
 				emit(f, "\tldinc\t%s\n\tmr\t%s\n", regnames[sp], regnames[t2]);
 				pushed -= 4;
-				cleartempobj(f,tmp);
 			}
+
+			cleartempobj(f,tmp);
+			cleartempobj(f,t1);
 
 			// Target not guaranteed to be a register.
 			save_result(f, p);
@@ -1712,7 +1716,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			if (!isreg(q1) || q1reg != zreg) {
 				emit_objtotemp(f, &p->q1, t);
 				emit(f, "\tmr\t%s\n", regnames[zreg]);	// FIXME - what happens if zreg and q1/2 are the same?
-				settempobj(f,tmp,&p->q1,0);
+				cleartempobj(f,zreg);
 			}
 			emit_objtotemp(f, &p->q2, t);
 			if (c >= OR && c <= AND)

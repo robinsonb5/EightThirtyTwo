@@ -188,7 +188,7 @@ static void emit_stackvartotemp(FILE * f, zmax offset, int deref)
 
 static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 {
-	int matchreg;
+	int matchreg=0;
 
 	emit(f, "\t\t\t\t\t// (prepobj %s)\n ", regnames[reg]);
 
@@ -205,7 +205,7 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 		return;
 	}
 
-	matchreg=0;// matchtempobj(f,p);  // FIXME - we're hunting for varadr here.
+	matchreg=matchtempobj(f,p,1);  // FIXME - we're hunting for varadr here.
 	if(matchreg)
 	{
 		emit(f,"\n// required value found in %s\n",regnames[matchreg]);
@@ -314,8 +314,8 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 				printf("emit_prepobj: - unknown storage class!\n");
 				ierror(0);
 			}
-			settempobj(f,tmp,p,0);
-			settempobj(f,reg,p,0);
+			settempobj(f,tmp,p,0,1);
+			settempobj(f,reg,p,0,1);
 		}
 	}
 }
@@ -331,7 +331,7 @@ static int emit_objtotemp(FILE * f, struct obj *p, int t)
 	int matchreg;
 	emit(f, "\t\t\t\t\t// (objtotemp) flags %x \n",p->flags);
 
-	matchreg=matchtempobj(f,p);
+	matchreg=matchtempobj(f,p,0);
 	if(matchreg)
 	{
 		emit(f,"\n// required value found in %s\n",regnames[matchreg]);
@@ -355,7 +355,7 @@ static int emit_objtotemp(FILE * f, struct obj *p, int t)
 		emit_prepobj(f, p, t, tmp, 0);
 		emit_sizemod(f, t);
 		emit(f, "\tldt\n");
-		settempobj(f,tmp,p,0);
+		settempobj(f,tmp,p,0,0);
 		return(1);
 	}
 
@@ -455,6 +455,6 @@ static int emit_objtotemp(FILE * f, struct obj *p, int t)
 			ierror(0);
 		}
 	}
-	settempobj(f,tmp,p,0);
+	settempobj(f,tmp,p,0,0);
 	return(result);
 }
