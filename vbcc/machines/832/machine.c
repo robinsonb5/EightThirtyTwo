@@ -308,8 +308,8 @@ void settempobj(FILE *f,int reg,struct obj *o,int offset,int varadr)
 	if(reg==tmp) i=TEMP_TMP;
 	else if(reg==t1) i=TEMP_T1;
 	else return;
-	if(reg==t1)
-		emit(f,"// Setting %s to %x (%x)\n",regnames[reg],o,o->v);
+//	if(reg==t1)
+//		emit(f,"// Setting %s to %x (%x)\n",regnames[reg],o,o->v);
 	tempobjs[i].reg=reg;
 	tempobjs[i].o=*o;
 	tempobjs[i].o.val.vlong+=offset;	// Account for any postinc / predec
