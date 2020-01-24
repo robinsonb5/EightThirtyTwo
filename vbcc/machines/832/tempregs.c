@@ -213,11 +213,16 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 			return;
 		else if(matchreg==tmp) {
 			emit(f,"\tmr\t%s\n",regnames[reg]);
+			settempobj(f,reg,p,0,0);
 			return;
 		} else {
 			emit(f,"\tmt\t%s\n",regnames[matchreg]);
+			settempobj(f,tmp,p,0,0);
 			if(reg!=tmp)
+			{
 				emit(f,"\tmr\t%s\n",regnames[reg]);
+				settempobj(f,reg,p,0,0);
+			}
 			return;
 		}
 	}
@@ -325,6 +330,7 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 // Guaranteed not to modify t1 or t2.
 // tempobj logic should be correct.
 
+#if 0
 static int emit_objtotemp(FILE * f, struct obj *p, int t)
 {
 	int result=0;
@@ -458,13 +464,25 @@ static int emit_objtotemp(FILE * f, struct obj *p, int t)
 	settempobj(f,tmp,p,0,0);
 	return(result);
 }
-
+#endif
 
 static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 {
 	int result=0;
 	int matchreg;
-	emit(f, "\t\t\t\t\t// (objtoreg) flags %x \n",p->flags);
+	emit(f, "\t\t\t\t\t// (objtotemp) flags %x \n",p->flags);
+
+	if ((p->flags & (REG|DREFOBJ)) == REG) {
+		settempobj(f,reg,p,0,0);
+		emit(f, "// reg %s - don't bother matching\n", regnames[p->reg]);
+		if (reg == p->reg)
+			return(0);
+		emit(f,"\tmt\t%s\n",regnames[p->reg]);
+		settempobj(f,tmp,p,0,0);
+		if(reg!=tmp)
+			emit(f, "\tmr\t%s\n", regnames[reg]);
+		return(0);
+	}
 
 	matchreg=matchtempobj(f,p,0);
 	if(matchreg)
@@ -474,9 +492,11 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 			return(0);
 		else if(matchreg==tmp) {
 			emit(f,"\tmr\t%s\n",regnames[reg]);
+			settempobj(f,reg,p,0,0);
 			return(0);
 		} else {
 			emit(f,"\tmt\t%s\n",regnames[matchreg]);
+			settempobj(f,tmp,p,0,0);
 			return(0);
 		}
 	}
@@ -547,6 +567,7 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 		}
 	} else {
 		if (p->flags & REG) {
+			// Already handled in the preamble.
 			emit(f, "// reg %s\n", regnames[p->reg]);
 			emit(f, "\tmt\t%s\n", regnames[p->reg]);
 		} else if (p->flags & VAR) {

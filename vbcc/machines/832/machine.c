@@ -1293,7 +1293,6 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			reversecmp=0;
 			emit_pcreltotemp(f, labprefix, t);	// FIXME - double-check that we shouldn't include an offset here.
 			emit(f, "\t\tadd\tr7\n");
-			cleartempobj(f,tmp);
 			continue;
 		}
 		// Investigate - but not currently seeing it used.
@@ -1365,6 +1364,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 						emit(f,"\txor\t%s\n",regnames[zreg]);
 						break;
 				}
+				cleartempobj(f,zreg);
 				save_result(f, p);
 			} else if(sizetab[q1typ(p) & NQ] >= sizetab[ztyp(p) & NQ]) {	// Reducing the size, must mask off excess bits...
 				emit(f,"\t\t\t\t\t// (convert - reducing type %x to %x\n",q1typ(p),ztyp(p));
@@ -1380,13 +1380,13 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 							emit(f, "// Object is disposable, not bothering to undo exg\n");
 						else
 							emit(f, "\texg\t%s\n", regnames[q1reg]);
-						cleartempobj(f,tmp);
 					}
 					else {
 						emit_prepobj(f, &p->z, t, tmp, 4); // Need an offset
 //						settempobj(f,tmp,&p->z,0,0);
 						emit_sizemod(f,t);
 						emit(f,"\tstmpdec\t%s\n",regnames[q1reg]);
+//						cleartempobj(f,tmp);
 					}
 				}
 				else { // Destination is a register - we must mask...
@@ -1415,6 +1415,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 							emit(f,"\t\t\t\t\t//No need to mask - same size\n");
 							break;
 					}
+					cleartempobj(f,zreg);
 				}
 			}
 			continue;
@@ -1425,6 +1426,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			load_reg(f, zreg, &p->q1, t);
 			emit_constanttotemp(f,-1);
 			emit(f, "\txor\t%s\n", regnames[zreg]);
+			cleartempobj(f,zreg);
 			save_result(f, p);
 			continue;
 		}
@@ -1719,7 +1721,6 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			if (!isreg(q1) || q1reg != zreg) {
 				emit_objtoreg(f, &p->q1, t,zreg);
 //				emit(f, "\tmr\t%s\n", regnames[zreg]);	// FIXME - what happens if zreg and q1/2 are the same?
-				cleartempobj(f,zreg);
 			}
 			emit_objtoreg(f, &p->q2, t,tmp);
 			if (c >= OR && c <= AND)
@@ -1734,6 +1735,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				if(c==MULT)
 					cleartempobj(f,tmp);
 			}
+			settempobj(f,zreg,&p->z,0,0);
+			cleartempobj(f,zreg);
 			save_result(f, p);
 			continue;
 		}
