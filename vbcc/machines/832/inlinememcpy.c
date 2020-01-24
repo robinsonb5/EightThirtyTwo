@@ -126,6 +126,8 @@ void emit_inlinememcpy(FILE *f,struct IC *p, int t)
 		emit(f,"\tmr\t%s\n",regnames[dstr]);
 		pushed-=4;
 	}
+	cleartempobj(f,t1);
+	cleartempobj(f,tmp);
 	loopid++;
 }
 

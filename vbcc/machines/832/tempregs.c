@@ -466,6 +466,9 @@ static int emit_objtotemp(FILE * f, struct obj *p, int t)
 }
 #endif
 
+// Returns 1 if the Z flag can has been set (i.e. a load has occurred)
+// Guaranteed not to modify t1 or t2.
+
 static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 {
 	int result=0;
@@ -480,7 +483,10 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 		emit(f,"\tmt\t%s\n",regnames[p->reg]);
 		settempobj(f,tmp,p,0,0);
 		if(reg!=tmp)
+		{
 			emit(f, "\tmr\t%s\n", regnames[reg]);
+			settempobj(f,reg,p,0,0);
+		}
 		return(0);
 	}
 
@@ -490,15 +496,17 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 		emit(f,"\n// required value found in %s\n",regnames[matchreg]);
 		if(matchreg==reg)
 			return(0);
-		else if(matchreg==tmp) {
-			emit(f,"\tmr\t%s\n",regnames[reg]);
-			settempobj(f,reg,p,0,0);
-			return(0);
-		} else {
+		if(matchreg!=tmp)
+		{
 			emit(f,"\tmt\t%s\n",regnames[matchreg]);
 			settempobj(f,tmp,p,0,0);
-			return(0);
 		}
+		if(reg!=tmp)
+		{
+			emit(f,"\tmr\t%s\n",regnames[reg]);
+			settempobj(f,reg,p,0,0);
+		}
+		return(0);
 	}
 
 	// FIXME - does this have implications for structs, unions, fptrs, etc?

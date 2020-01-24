@@ -438,20 +438,6 @@ int matchtempkonst(FILE *f,int k)
 }
 
 
-/* Generates code to load a memory object into register r.  Returns 1 if code was emitted, 0 if there was no need */
-
-static int load_reg(FILE * f, int r, struct obj *o, int type)
-{
-	int result;
-	if ((o->flags & (REG | DREFOBJ)) == REG && o->reg == r)
-		return (0);
-	emit_objtoreg(f, o, type,r);
-//	emit_objtotemp(f, o, type);
-//	emit(f, "\tmr\t%s\n", regnames[r]);
-	return(1);
-}
-
-
 /*  Generates code to store register r into memory object o. */
 static void store_reg(FILE * f, int r, struct obj *o, int type)
 {
@@ -629,7 +615,6 @@ void save_temp(FILE * f, struct IC *p, int treg)
 }
 
 /* save the result (in zreg) into p->z */
-// FIXME - eliminate usage of t2.
 void save_result(FILE * f, struct IC *p)
 {
 	emit(f, "\t\t\t\t\t// (save result) ");
@@ -1299,8 +1284,6 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		if (c == MOVETOREG) {
 			emit(f, "\t\t\t\t\t//CHECKME movetoreg\n");
 			emit_objtoreg(f, &p->q1, ztyp(p),zreg);
-//			emit_objtotemp(f, &p->q1, ztyp(p));
-//			emit(f,"\tmr\t%s\n",regnames[zreg]);
 			continue;
 		}
 		// Investigate - but not currently seeing it used.
@@ -1345,7 +1328,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			if (sizetab[q1typ(p) & NQ] < sizetab[ztyp(p) & NQ]) {
 				emit(f,"\t//Converting to wider type...\n");
 				int shamt = 0;
-				load_reg(f, zreg, &p->q1, q1typ(p));
+				emit_objtoreg(f, &p->q1, q1typ(p), zreg);
 				switch (q1typ(p) & NU) {
 					case CHAR | UNSIGNED:
 						emit(f,"\t//But unsigned, so no need to extend\n");
@@ -1383,7 +1366,6 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					}
 					else {
 						emit_prepobj(f, &p->z, t, tmp, 4); // Need an offset
-//						settempobj(f,tmp,&p->z,0,0);
 						emit_sizemod(f,t);
 						emit(f,"\tstmpdec\t%s\n",regnames[q1reg]);
 //						cleartempobj(f,tmp);
@@ -1396,9 +1378,6 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					if(!isreg(q1) || !isreg(z) || q1reg!=zreg) // Do we just need to mask in place, or move the value first?
 					{
 						emit_prepobj(f, &p->z, t, t1, 0);
-						// FIXME - tempobj tracking should be handled within prepobj.
-//						if(!p->z.flags&REG)
-//							settempobj(f,t1,&p->z,0,0);
 						emit_objtoreg(f, &p->q1, t,tmp);
 						save_temp(f, p, t1);
 					}
@@ -1423,7 +1402,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 
 		if (c == KOMPLEMENT) {
 			emit(f, "\t\t\t\t\t//comp\n");
-			load_reg(f, zreg, &p->q1, t);
+			emit_objtoreg(f, &p->q1, q1typ(p), zreg);
 			emit_constanttotemp(f,-1);
 			emit(f, "\txor\t%s\n", regnames[zreg]);
 			cleartempobj(f,zreg);
@@ -1433,7 +1412,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		// May not need to actually load the register here - certainly check before emitting code.
 		if (c == SETRETURN) {
 			emit(f, "\t\t\t\t\t//setreturn\n");
-			load_reg(f, p->z.reg, &p->q1, t);
+			emit_objtoreg(f, &p->q1, q1typ(p), zreg);
 			BSET(regs_modified, p->z.reg);
 			continue;
 		}
@@ -1565,7 +1544,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		// OK
 		if (c == MINUS) {
 			emit(f, "\t\t\t\t\t// (minus)\n");
-			load_reg(f, zreg, &p->q1, t);
+			emit_objtoreg(f, &p->q1, q1typ(p), zreg);
 			emit_constanttotemp(f,0);
 			emit(f, "\texg %s\n\tsub %s\n", regnames[zreg], regnames[zreg]);
 			cleartempobj(f,tmp);
@@ -1611,7 +1590,6 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					reversecmp=1;
 				} else { // Neither object is in a register, so load q1 into t1 and q2 into tmp.
 					emit_objtoreg(f, &p->q1, t,t1);
-//					emit(f, "\tmr\t%s\n", regnames[t1]);
 					cleartempobj(f,t1);
 					q1reg = t1;
 					emit_objtoreg(f, &p->q2, t,tmp);
@@ -1750,11 +1728,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 
 int shortcut(int code, int typ)
 {
-	// FIXME - always return 1 here, and attend to any requisite conversion in the backend,
-	// since we can use tmp and the scratch registers and the compiler core can't.
-
-	// So far have seen shortcut requests for
 	// Only RSHIFT and AND are safe on 832.
+	// So far have seen shortcut requests for
 	// DIV
 	// ADD
 	// RSHIFT
