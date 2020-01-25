@@ -50,15 +50,15 @@ clean :
 	gcc -Wl,--build-id=none -Wl,--gc-sections -nostartfiles -nostdlib -Tldscript.ld -o $@ $+
 
 %.o : %.S Makefile ldscript.ld $(LIBDIR)/start.S force
-	gcc -I. -I$(LIBDIR) -c $*.S -o $*.o
+	gcc -I. -I$(LIBDIR) -c $*.S -include assembler.pp -o $*.o
 
 %.o : %.c Makefile ldscript.ld $(LIBDIR)/start.S $(CC) force
 	../bin/vbcc832 $(CFLAGS) $(COPT) $*.c
 	mv $*.asm $*.S
-	gcc -I. -I$(LIBDIR) -I$(832DIR)/include -c $*.S -o $*.o
+	gcc -I. -I$(LIBDIR) -I$(832DIR)/include -include assembler.pp -c $*.S -o $*.o
 
 %.o : $(LIBDIR)/%.S Makefile ldscript.ld $(832DIR)/Lib/assembler.pp $(LIBDIR)/start.S force
-	gcc -c $(LIBDIR)/$*.S -I$(832DIR)/Lib -o $*.o
+	gcc -c $(LIBDIR)/$*.S -I$(832DIR)/Lib -include assembler.pp -o $*.o
 
 %.S : %.c Makefile ../bin/vbcc832 $(CC) force
 	../bin/vbcc832 $(CFLAGS) $(COPT) -I$(832DIR) $*.c

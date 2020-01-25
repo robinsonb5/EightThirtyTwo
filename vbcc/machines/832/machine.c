@@ -351,9 +351,12 @@ int matchobj(FILE *f,struct obj *o1,struct obj *o2,int varadr)
 	if(o1->v == o2->v && o1->val.vlong == o2->val.vlong)
 		return(1);
 
+	if(!(flg&VARADR))
+		return(0); // Can only attempt fuzzy matching if this is a varadr
+
 	if(isauto(o1->v->storage_class) && isauto(o2->v->storage_class))
 	{
-		emit(f,"//auto: comparing %d, %d with %d, %d\n",o1->v->offset,o1->val.vlong, o2->v->offset,o2->val.vlong);
+		emit(f,"//auto: flags: %x, comparing %d, %d with %d, %d\n",flg,o1->v->offset,o1->val.vlong, o2->v->offset,o2->val.vlong);
 		if((o1->v->offset<0 && o2->v->offset>0) || (o1->v->offset>0 && o2->v->offset<0))
 			return(0);
 		if(o1->v->offset==o2->v->offset && o1->val.vlong==o2->val.vlong)
@@ -416,7 +419,7 @@ int matchtempobj(FILE *f,struct obj *o,int varadr)
 		else if(hit==2)
 		{
 			int offset=matchoffset(o,&tempobjs[1].o);
-			emit(f,"//Fuzzy match found, offset: %d\n",offset);
+			emit(f,"//Fuzzy match found, offset: %d (varadr: %d)\n",offset,varadr);
 			emit_constanttotemp(f,offset);
 			emit(f,"\tadd\t%s\n",regnames[tempobjs[1].reg]);
 			settempobj(f,tempobjs[1].reg,o,0,0);
