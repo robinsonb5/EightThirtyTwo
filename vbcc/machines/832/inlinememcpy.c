@@ -72,8 +72,7 @@ void emit_inlinememcpy(FILE *f,struct IC *p, int t)
 	// Prepare the copy
 	// FIXME - we don't necessarily have a valid z->v!  If not, where does the target come from?
 	// Stack based variable?
-	emit_objtotemp(f, &p->q1, t);
-	emit(f, "\tmr\t%s\n", regnames[srcr]);
+	emit_objtoreg(f, &p->q1, t,srcr);
 
 	if (unrollwords) {
 		wordcopy >>= 2;
@@ -127,6 +126,8 @@ void emit_inlinememcpy(FILE *f,struct IC *p, int t)
 		emit(f,"\tmr\t%s\n",regnames[dstr]);
 		pushed-=4;
 	}
+	cleartempobj(f,t1);
+	cleartempobj(f,tmp);
 	loopid++;
 }
 

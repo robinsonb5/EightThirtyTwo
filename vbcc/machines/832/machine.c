@@ -178,6 +178,7 @@ static void emit_externtotemp(FILE * f, char *lab, int offset);
 static void emit_obj(FILE * f, struct obj *p, int t);
 static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset);
 static int emit_objtotemp(FILE * f, struct obj *p, int t);
+static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg);
 
 /* calculate the actual current offset of an object relativ to the
    stack-pointer; we use a layout like this:
@@ -437,19 +438,6 @@ int matchtempkonst(FILE *f,int k)
 }
 
 
-/* Generates code to load a memory object into register r.  Returns 1 if code was emitted, 0 if there was no need */
-
-static int load_reg(FILE * f, int r, struct obj *o, int type)
-{
-	int result;
-	if ((o->flags & (REG | DREFOBJ)) == REG && o->reg == r)
-		return (0);
-	emit_objtotemp(f, o, type);
-	emit(f, "\tmr\t%s\n", regnames[r]);
-	return(1);
-}
-
-
 /*  Generates code to store register r into memory object o. */
 static void store_reg(FILE * f, int r, struct obj *o, int type)
 {
@@ -627,7 +615,6 @@ void save_temp(FILE * f, struct IC *p, int treg)
 }
 
 /* save the result (in zreg) into p->z */
-// FIXME - eliminate usage of t2.
 void save_result(FILE * f, struct IC *p)
 {
 	emit(f, "\t\t\t\t\t// (save result) ");
@@ -1291,14 +1278,12 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			reversecmp=0;
 			emit_pcreltotemp(f, labprefix, t);	// FIXME - double-check that we shouldn't include an offset here.
 			emit(f, "\t\tadd\tr7\n");
-			cleartempobj(f,tmp);
 			continue;
 		}
 		// Investigate - but not currently seeing it used.
 		if (c == MOVETOREG) {
 			emit(f, "\t\t\t\t\t//CHECKME movetoreg\n");
-			emit_objtotemp(f, &p->q1, ztyp(p));
-			emit(f,"\tmr\t%s\n",regnames[zreg]);
+			emit_objtoreg(f, &p->q1, ztyp(p),zreg);
 			continue;
 		}
 		// Investigate - but not currently seeing it used.
@@ -1343,7 +1328,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			if (sizetab[q1typ(p) & NQ] < sizetab[ztyp(p) & NQ]) {
 				emit(f,"\t//Converting to wider type...\n");
 				int shamt = 0;
-				load_reg(f, zreg, &p->q1, q1typ(p));
+				emit_objtoreg(f, &p->q1, q1typ(p), zreg);
 				switch (q1typ(p) & NU) {
 					case CHAR | UNSIGNED:
 						emit(f,"\t//But unsigned, so no need to extend\n");
@@ -1362,6 +1347,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 						emit(f,"\txor\t%s\n",regnames[zreg]);
 						break;
 				}
+				cleartempobj(f,zreg);
 				save_result(f, p);
 			} else if(sizetab[q1typ(p) & NQ] >= sizetab[ztyp(p) & NQ]) {	// Reducing the size, must mask off excess bits...
 				emit(f,"\t\t\t\t\t// (convert - reducing type %x to %x\n",q1typ(p),ztyp(p));
@@ -1377,13 +1363,12 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 							emit(f, "// Object is disposable, not bothering to undo exg\n");
 						else
 							emit(f, "\texg\t%s\n", regnames[q1reg]);
-						cleartempobj(f,tmp);
 					}
 					else {
 						emit_prepobj(f, &p->z, t, tmp, 4); // Need an offset
-//						settempobj(f,tmp,&p->z,0,0);
 						emit_sizemod(f,t);
 						emit(f,"\tstmpdec\t%s\n",regnames[q1reg]);
+//						cleartempobj(f,tmp);
 					}
 				}
 				else { // Destination is a register - we must mask...
@@ -1393,10 +1378,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					if(!isreg(q1) || !isreg(z) || q1reg!=zreg) // Do we just need to mask in place, or move the value first?
 					{
 						emit_prepobj(f, &p->z, t, t1, 0);
-						// FIXME - tempobj tracking should be handled within prepobj.
-//						if(!p->z.flags&REG)
-//							settempobj(f,t1,&p->z,0,0);
-						emit_objtotemp(f, &p->q1, t);
+						emit_objtoreg(f, &p->q1, t,tmp);
 						save_temp(f, p, t1);
 					}
 					switch(ztyp(p)&NQ) {
@@ -1412,6 +1394,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 							emit(f,"\t\t\t\t\t//No need to mask - same size\n");
 							break;
 					}
+					cleartempobj(f,zreg);
 				}
 			}
 			continue;
@@ -1419,16 +1402,17 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 
 		if (c == KOMPLEMENT) {
 			emit(f, "\t\t\t\t\t//comp\n");
-			load_reg(f, zreg, &p->q1, t);
+			emit_objtoreg(f, &p->q1, q1typ(p), zreg);
 			emit_constanttotemp(f,-1);
 			emit(f, "\txor\t%s\n", regnames[zreg]);
+			cleartempobj(f,zreg);
 			save_result(f, p);
 			continue;
 		}
 		// May not need to actually load the register here - certainly check before emitting code.
 		if (c == SETRETURN) {
 			emit(f, "\t\t\t\t\t//setreturn\n");
-			load_reg(f, p->z.reg, &p->q1, t);
+			emit_objtoreg(f, &p->q1, q1typ(p), zreg);
 			BSET(regs_modified, p->z.reg);
 			continue;
 		}
@@ -1468,7 +1452,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 						emit(f, "\tldt\t// deref function ptr\n");
 					emit(f, "\texg\t%s\n", regnames[pc]);
 				} else {
-					emit_objtotemp(f, &p->q1, t);
+					emit_objtoreg(f, &p->q1, t, tmp);
 					emit(f, "\texg\t%s\n", regnames[pc]);
 				}
 				if (pushedargsize(p)) {
@@ -1506,7 +1490,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			/* FIXME - need to take dt into account */
 			// FIXME - need to handle pushing composite types */
 			emit(f, "\t\t\t\t\t// a: pushed %ld, regnames[sp] %s\n", pushed, regnames[sp]);
-			emit_objtotemp(f, &p->q1, t);
+			emit_objtoreg(f, &p->q1, t, tmp);
 			emit(f, "\tstdec\t%s\n", regnames[sp]);
 			pushed += zm2l(p->q2.val.vmax);
 			continue;
@@ -1544,7 +1528,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				{
 					int matchreg;
 					emit_prepobj(f, &p->z, t, t1, 0);
-					emit_objtotemp(f, &p->q1, t);
+					emit_objtoreg(f, &p->q1, t, tmp);
 					save_temp(f, p, t1);
 				}
 			}
@@ -1560,7 +1544,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		// OK
 		if (c == MINUS) {
 			emit(f, "\t\t\t\t\t// (minus)\n");
-			load_reg(f, zreg, &p->q1, t);
+			emit_objtoreg(f, &p->q1, q1typ(p), zreg);
 			emit_constanttotemp(f,0);
 			emit(f, "\texg %s\n\tsub %s\n", regnames[zreg], regnames[zreg]);
 			cleartempobj(f,tmp);
@@ -1571,7 +1555,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		// Revisit
 		if (c == TEST) {
 			emit(f, "\t\t\t\t\t// (test)\n");
-			if(!emit_objtotemp(f, &p->q1, t))	// Only need Z flag - did emit_objtotemp set it?
+			if(!emit_objtoreg(f, &p->q1, t, tmp))	// Only need Z flag - did emit_objtotemp set it?
 			{
 				if (p->q1.flags & REG) {
 					if (p->q1.flags & DREFOBJ)
@@ -1601,19 +1585,18 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 
 			if (!isreg(q1)) {
 				if(isreg(q2)) {	// Reverse the test.
-					emit_objtotemp(f, &p->q1, t);
+					emit_objtoreg(f, &p->q1, t,tmp);
 					q1reg=q2reg;
 					reversecmp=1;
 				} else { // Neither object is in a register, so load q1 into t1 and q2 into tmp.
-					emit_objtotemp(f, &p->q1, t);
-					emit(f, "\tmr\t%s\n", regnames[t1]);
+					emit_objtoreg(f, &p->q1, t,t1);
 					cleartempobj(f,t1);
 					q1reg = t1;
-					emit_objtotemp(f, &p->q2, t);
+					emit_objtoreg(f, &p->q2, t,tmp);
 				}
 			}
 			else
-				emit_objtotemp(f, &p->q2, t);
+				emit_objtoreg(f, &p->q2, t,tmp);
 			if ((!(q1typ(p) & UNSIGNED)) && (!(q2typ(p) & UNSIGNED))) {	// If we have a mismatch of signedness we treat as unsigned.
 				int nextop=p->next->code;	// Does the sign matter for the branch being done?
 				if(nextop==FREEREG)
@@ -1642,7 +1625,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				pushed += 4;
 			}
 			cleartempobj(f,t1);
-			emit_objtotemp(f, &p->q1, t);
+			emit_objtoreg(f, &p->q1, t,tmp);
 			// Need to make sure we're not about to overwrite the other operand!
 			if(isreg(q2) && q2reg==t2)
 			{
@@ -1653,7 +1636,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			{
 				emit(f, "\tmr\t%s\n", regnames[t2]);
 
-				emit_objtotemp(f, &p->q2, t);
+				emit_objtoreg(f, &p->q2, t,tmp);
 				emit(f, "\tmr\t%s\n", regnames[t2 + 1]);
 			}
 			cleartempobj(f,t2);
@@ -1714,11 +1697,10 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				emit(f,"\t\t// WARNING - q1 and target collision - check code for correctness.\n");
 
 			if (!isreg(q1) || q1reg != zreg) {
-				emit_objtotemp(f, &p->q1, t);
-				emit(f, "\tmr\t%s\n", regnames[zreg]);	// FIXME - what happens if zreg and q1/2 are the same?
-				cleartempobj(f,zreg);
+				emit_objtoreg(f, &p->q1, t,zreg);
+//				emit(f, "\tmr\t%s\n", regnames[zreg]);	// FIXME - what happens if zreg and q1/2 are the same?
 			}
-			emit_objtotemp(f, &p->q2, t);
+			emit_objtoreg(f, &p->q2, t,tmp);
 			if (c >= OR && c <= AND)
 				emit(f, "\t%s\t%s\n", logicals[c - OR], regnames[zreg]);
 			else {
@@ -1731,6 +1713,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				if(c==MULT)
 					cleartempobj(f,tmp);
 			}
+			settempobj(f,zreg,&p->z,0,0);
+			cleartempobj(f,zreg);
 			save_result(f, p);
 			continue;
 		}
@@ -1744,11 +1728,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 
 int shortcut(int code, int typ)
 {
-	// FIXME - always return 1 here, and attend to any requisite conversion in the backend,
-	// since we can use tmp and the scratch registers and the compiler core can't.
-
-	// So far have seen shortcut requests for
 	// Only RSHIFT and AND are safe on 832.
+	// So far have seen shortcut requests for
 	// DIV
 	// ADD
 	// RSHIFT
