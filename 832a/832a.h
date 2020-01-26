@@ -1,15 +1,6 @@
 #ifndef EIGHTTHIRTYTWOASSEMBLER_H
 #define EIGHTTHIRTYTWOASSEMBLER_H
 
-#define CODEBUFFERSIZE 1024
-
-struct codebuffer
-{
-	struct codebuffer *next;
-	char *buf;
-	int size;
-};
-
 struct opcode
 {
 	const char *mnem;

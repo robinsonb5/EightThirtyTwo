@@ -16,10 +16,12 @@ struct section *section_new(const char *name)
 		sect->symbols=0;
 		sect->lastsymbol=0;
 		sect->codebuffers=0;
-		sect->relocations=0;
-		sect->lastreloc=0;
+		sect->refs=0;
+		sect->lastref=0;
 		sect->address=0;
 		sect->cursor=0;
+		sect->align=0;
+		sect->bss=0;
 	}
 	return(sect);
 }
@@ -37,8 +39,36 @@ void section_delete(struct section *sect)
 {
 	if(sect)
 	{
+		struct symbol *sym,*nextsym;
+		struct codebuffer *buf,*nextbuf;
+
 		if(sect->identifier)
 			free(sect->identifier);
+
+		nextsym=sect->symbols;
+		while(nextsym)
+		{
+			sym=nextsym;
+			nextsym=sym->next;
+			symbol_delete(sym);
+		}
+
+		nextsym=sect->refs;
+		while(nextsym)
+		{
+			sym=nextsym;
+			nextsym=sym->next;
+			symbol_delete(sym);
+		}
+
+		nextbuf=sect->codebuffers;
+		while(nextbuf)
+		{
+			buf=nextbuf;
+			nextbuf=buf->next;
+			codebuffer_delete(buf);
+		}
+
 		free(sect);
 	}
 }
@@ -59,29 +89,72 @@ struct symbol *section_findsymbol(struct section *sect,const char *symname)
 }
 
 
-void section_addsymbol(struct section *sect, const char *name)
+/*	Hunts for an existing symbol; creates it if not found,
+	with a cursor position of -1 to indicate that it's not
+    been declared, only referenced.  */
+
+struct symbol *section_getsymbol(struct section *sect, const char *name)
 {
 	struct symbol *sym;
 	if(sect && name)
 	{
-		sym=section_findsymbol(sect,name);
-		if(sym)
+		if(!(sym=section_findsymbol(sect,name)))
 		{
-			if(sym->cursor!=-1)
-				asmerror("Symbol redefined\n");
-			else
-				sym->cursor=sect->cursor;
-		}
-		else
-		{
-			sym=symbol_new(name,sect->cursor,0);
+			sym=symbol_new(name,-1,0);
 			if(sect->lastsymbol)
 				sect->lastsymbol->next=sym;
 			else
 				sect->symbols=sym;
 			sect->lastsymbol=sym;
 		}
+		return(sym);
 	}
+}
+
+
+/*	Hunts for an existing symbol; if it has been referenced but not
+	declared, declares it, otherwise creates a new symbol.
+	If it's been declared already throw an error.
+	The most recently specified alignment is applied to the new symbol
+	and the section's alignment value is cleared. */
+ 
+void section_declaresymbol(struct section *sect, const char *name,int flags)
+{
+	struct symbol *sym;
+	if(sect && name)
+	{
+		sym=section_getsymbol(sect,name);
+		if(sym)
+		{
+			if(sym->cursor!=-1)
+				asmerror("Symbol redefined\n");
+			else
+			{
+				sym->flags|=flags;
+				sym->cursor=sect->cursor;
+				sym->align=sect->align;
+				sect->align=0;
+			}
+		}
+	}
+}
+
+
+void section_declarecommon(struct section *sect,const char *lab,int size,int global)
+{
+	int flags=global ? 0 : SYMBOLFLAG_LOCAL;
+	if(sect->cursor && sect->bss==0)
+		asmerror("Can't mix BSS and code/initialised data in a section.");
+	section_declaresymbol(sect,lab,flags);
+	sect->bss=1;
+	sect->cursor+=size;
+}
+
+
+void section_align(struct section *sect,int align)
+{
+	if(sect)
+		sect->align=align;
 }
 
 
@@ -89,17 +162,30 @@ void section_emitbyte(struct section *sect,unsigned char byte)
 {
 	if(sect)
 	{
-		/* Write a byte to the buffer here. */
+		if(sect->bss)
+			asmerror("Can't mix BSS and code/initialised data in a section.");
+
+		// Do we need to start a new buffer?
+		if(!codebuffer_write(sect->lastcodebuffer,byte))
+		{
+			struct codebuffer *buf=codebuffer_new();
+			if(sect->lastcodebuffer)
+				sect->lastcodebuffer->next=buf;
+			else
+				sect->codebuffers=buf;
+			sect->lastcodebuffer=buf;
+			codebuffer_write(sect->lastcodebuffer,byte);
+		}
 		++sect->cursor;
 	}
 }
-
 
 
 void section_dump(struct section *sect)
 {
 	if(sect)
 	{
+		struct codebuffer *buf;
 		struct symbol *sym;
 		printf("\nSection: %s\n",sect->identifier);
 		printf("  address: %x, cursor: %x\n",sect->address, sect->cursor);
@@ -113,11 +199,19 @@ void section_dump(struct section *sect)
 		}
 
 		printf("\nRelocations:\n");
-		sym=sect->relocations;
+		sym=sect->refs;
 		while(sym)
 		{
 			symbol_dump(sym);
 			sym=sym->next;
+		}
+
+		printf("\nBinary data:\n");
+		buf=sect->codebuffers;
+		while(buf)
+		{
+			codebuffer_dump(buf);
+			buf=buf->next;
 		}
 	}
 }

@@ -3,14 +3,16 @@
 
 #define SYMBOLFLAG_ABS 1
 #define SYMBOLFLAG_PCREL 2
-#define SYMBOLFLAG_EXTERN 4
+#define SYMBOLFLAG_GLOBAL 4
 #define SYMBOLFLAG_LOCAL 8
-#define SYMBOLFLAG_WEAK 16
+#define SYMBOLFLAG_EXTERN 16
+#define SYMBOLFLAG_WEAK 32
 
 struct symbol
 {
 	struct symbol *next;
 	char *identifier;
+	int align;
 	int cursor;
 	int flags;
 };

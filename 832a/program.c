@@ -79,13 +79,17 @@ void program_emitbyte(struct program *prog,unsigned char byte)
 void program_delete(struct program *prog)
 {
 	struct section *sect,*next;
-	next=prog->sections;
-	while(next)
+	if(prog)
 	{
-		sect=next;
-		next=next->next;
-		section_delete(sect);
-	}
+		next=prog->sections;
+		while(next)
+		{
+			sect=next;
+			next=next->next;
+			section_delete(sect);
+		}
+		free(prog);
+	}	
 }
 
 void program_dump(struct program *prog)
