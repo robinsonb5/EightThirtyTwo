@@ -22,6 +22,8 @@ void symbol_delete(struct symbol *sym);
 
 int symbol_matchname(struct symbol *sym,const char *name);
 
+void symbol_output(struct symbol *sym,FILE *f);
+
 void symbol_dump(struct symbol *sym);
 
 #endif

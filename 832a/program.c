@@ -22,9 +22,10 @@ struct program *program_new()
 
 struct section *program_findsection(struct program *prog,const char *sectionname)
 {
+	struct section *sect;
 	if(!prog)
 		return(0);
-	struct section *sect=prog->sections;
+	sect=prog->sections;
 	while(sect)
 	{
 		if(section_matchname(sect,sectionname))
@@ -100,6 +101,26 @@ void program_dump(struct program *prog)
 	{
 		section_dump(sect);
 		sect=sect->next;
+	}
+}
+
+
+void program_output(struct program *prog,const char *filename)
+{
+	if(prog)
+	{
+		struct section *sect=prog->sections;
+
+		FILE *f=fopen(filename,"wb");
+		fputc(0x83,f);
+		fputc(0x2a,f);
+
+		while(sect)
+		{
+			section_output(sect,f);
+			sect=sect->next;
+		}
+		fclose(f);
 	}
 }
 

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "832util.h"
 #include "symbol.h"
 
 struct symbol *symbol_new(const char *id,int cursor,int flags)
@@ -33,6 +34,18 @@ int symbol_matchname(struct symbol *sym,const char *name)
 	if(sym && name)
 		return(strcmp(sym->identifier,name)==0);
 	return(0);
+}
+
+
+void symbol_output(struct symbol *sym,FILE *f)
+{
+	if(sym)
+	{
+		fputc(sym->align,f);
+		fputc(sym->flags,f);
+		write_int_le(sym->cursor,f);
+		write_lstr(sym->identifier,f);
+	}
 }
 
 

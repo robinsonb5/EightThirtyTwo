@@ -41,6 +41,12 @@ int codebuffer_write(struct codebuffer *buf,int val)
 }
 
 
+void codebuffer_output(struct codebuffer *buf,FILE *f)
+{
+	fwrite(buf->buffer,buf->cursor,1,f);
+}
+
+
 void codebuffer_dump(struct codebuffer *buf)
 {
 	if(buf)

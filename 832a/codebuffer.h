@@ -18,5 +18,7 @@ int codebuffer_write(struct codebuffer *buf,int val);
 
 void codebuffer_dump(struct codebuffer *buf);
 
+void codebuffer_output(struct codebuffer *buf,FILE *f);
+
 #endif
 

@@ -45,6 +45,7 @@ void directive_section(struct program *prog,const char *tok,const char *tok2)
 	program_setsection(prog,tok);
 }
 
+
 /* Emit literal values in little-endian form */
 void directive_int(struct program *prog,const char *tok,const char *tok2)
 {
@@ -91,8 +92,13 @@ void directive_lipcrel(struct program *prog,const char *tok,const char *tok2)
 	struct section *sect=program_getsection(prog);
 	if(sect)
 	{
-
-
+		section_addreference(sect,tok,SYMBOLFLAG_PCREL);
+		section_emitbyte(sect,0xc0);	/* Allow space for the worst-case of 6 bytes */
+		section_emitbyte(sect,0xc0);	/* Will relax this at link-time */
+		section_emitbyte(sect,0xc0);
+		section_emitbyte(sect,0xc0);
+		section_emitbyte(sect,0xc0);
+		section_emitbyte(sect,0xc0);
 	}
 }
 
@@ -102,10 +108,16 @@ void directive_liabs(struct program *prog,const char *tok,const char *tok2)
 	struct section *sect=program_getsection(prog);
 	if(sect)
 	{
-
-
+		section_addreference(sect,tok,SYMBOLFLAG_ABS);
+		section_emitbyte(sect,0xc0);	/* Allow space for the worst-case of 6 bytes */
+		section_emitbyte(sect,0xc0);	/* Will relax this at link-time */
+		section_emitbyte(sect,0xc0);
+		section_emitbyte(sect,0xc0);
+		section_emitbyte(sect,0xc0);
+		section_emitbyte(sect,0xc0);
 	}
 }
+
 
 static int count_constantchunks(long v)
 {
@@ -189,7 +201,7 @@ struct directive directives[]=
 
 
 /* Attempt to assemble the named file.  Calls exit() on failure. */
-int assemble(const char *fn)
+int assemble(const char *fn,const char *on)
 {
 	FILE *f;
 	struct program *prog;
@@ -285,11 +297,34 @@ int assemble(const char *fn)
 			free(linebuf);
 		fclose(f);
 	}
+	program_output(prog,on);
 	program_dump(prog);
 	program_delete(prog);
+	printf("Output file: %s\n",on);
+
 	return(0);
 }
 
+char *objname(const char *srcname)
+{
+	int l=strlen(srcname);
+	int i;
+	char *result=malloc(l+3);
+	strcpy(result,srcname);
+	for(i=l;i>0;--i)
+	{
+		if(result[i]=='.')
+		{
+			result[i+1]='o';
+			result[i+2]=0;
+			return(result);
+		}
+	}
+	result[l]='.';
+	result[l+1]='o';
+	result[l+2]=0;
+	return(result);
+}
 
 int main(int argc, char **argv)
 {
@@ -304,8 +339,9 @@ int main(int argc, char **argv)
 	{
 		for(i=1;i<argc;++i)
 		{
-			if(!assemble(argv[i]))
-				result=1;
+			char *on=objname(argv[i]);
+			assemble(argv[i],on);
+			free(on);
 		}
 	}
 	return(result);

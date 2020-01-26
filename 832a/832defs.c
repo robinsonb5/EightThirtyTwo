@@ -3,27 +3,6 @@
 
 #include "832a.h"
 
-
-static const char *error_file;
-static int error_line;
-
-void error_setfile(const char *fn)
-{
-	error_file=fn;
-}
-
-void error_setline(int line)
-{
-	error_line=line;
-}
-
-void asmerror(const char *err)
-{
-	fprintf(stderr,"Error in %s, line %d - %s\n",error_file,error_line,err);
-	exit(1);
-}
-
-
 struct opcode operands[]=
 {
 	/* Operand definitions - registers first */

@@ -30,10 +30,13 @@ struct symbol *section_findsymbol(struct section *sect,const char *symname);
 struct symbol *section_getsymbol(struct section *sect, const char *symname);
 void section_declaresymbol(struct section *sect, const char *name,int flags);
 
+void section_addreference(struct section *sect, const char *name,int flags);
+
 void section_declarecommon(struct section *sect,const char *lab,int size,int global);
 void section_emitbyte(struct section *sect,unsigned char byte);
 void section_align(struct section *sect,int align);
 
+void section_output(struct section *sect,FILE *f);
 void section_dump(struct section *sect);
 
 #endif

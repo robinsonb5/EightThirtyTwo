@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "832a.h"
+#include "832util.h"
 #include "section.h"
 
 struct section *section_new(const char *name)
@@ -151,6 +151,21 @@ void section_declarecommon(struct section *sect,const char *lab,int size,int glo
 }
 
 
+void section_addreference(struct section *sect, const char *name,int flags)
+{
+	struct symbol *sym;
+	if(sect && name)
+	{
+		sym=symbol_new(name,sect->cursor,flags);
+		if(sect->lastref)
+			sect->lastref->next=sym;
+		else
+			sect->refs=sym;
+		sect->lastref=sym;
+	}
+}
+
+
 void section_align(struct section *sect,int align)
 {
 	if(sect)
@@ -212,6 +227,53 @@ void section_dump(struct section *sect)
 		{
 			codebuffer_dump(buf);
 			buf=buf->next;
+		}
+	}
+}
+
+
+void section_output(struct section *sect,FILE *f)
+{
+	if(sect)
+	{
+		struct codebuffer *buf;
+		struct symbol *sym;
+		int l;
+		fputs("SECT",f);	
+		write_lstr(sect->identifier,f);
+
+		/* Output the binary data */
+		
+		buf=sect->codebuffers;
+		if(buf)
+		{
+			fputs("BNRY",f);
+			write_int_le(sect->cursor,f);
+		}
+		while(buf)
+		{
+			codebuffer_output(buf,f);
+			buf=buf->next;
+		}
+
+		/* Output declared symbols */
+		sym=sect->symbols;
+		if(sym)
+			fputs("SYMB",f);
+		while(sym)
+		{
+			symbol_output(sym,f);
+			sym=sym->next;
+		}
+
+		/* Output references */
+		sym=sect->refs;
+		if(sym)
+			fputs("REFS",f);
+		while(sym)
+		{
+			symbol_output(sym,f);
+			sym=sym->next;
 		}
 	}
 }
