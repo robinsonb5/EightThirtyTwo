@@ -44,3 +44,21 @@ void write_lstr(const char *str,FILE *f)
 }
 
 
+int read_int_le(FILE *f)
+{
+	int result;
+	unsigned char buf[4];
+	fread(buf,4,1,f);
+	result=(buf[3]<<24)|(buf[2]<<16)|(buf[1]<<8)|buf[0];
+	return(result);
+}
+
+int read_short_le(FILE *f)
+{
+	int result;
+	unsigned char buf[2];
+	fread(buf,2,1,f);
+	result=(buf[1]<<8)|buf[0];
+	return(result);
+}
+

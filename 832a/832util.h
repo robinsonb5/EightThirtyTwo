@@ -9,5 +9,8 @@ void write_int_le(int i,FILE *f);
 void write_short_le(int i,FILE *f);
 void write_lstr(const char *str,FILE *f);
 
+int read_int_le(FILE *f);
+int read_short_le(FILE *f);
+
 #endif
 

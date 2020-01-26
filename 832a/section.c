@@ -258,23 +258,23 @@ void section_output(struct section *sect,FILE *f)
 
 		/* Output declared symbols */
 		sym=sect->symbols;
-		if(sym)
-			fputs("SYMB",f);
+		fputs("SYMB",f);
 		while(sym)
 		{
 			symbol_output(sym,f);
 			sym=sym->next;
 		}
+		fputc(0xff,f);
 
 		/* Output references */
 		sym=sect->refs;
-		if(sym)
-			fputs("REFS",f);
+		fputs("REFS",f);
 		while(sym)
 		{
 			symbol_output(sym,f);
 			sym=sym->next;
 		}
+		fputc(0xff,f);
 	}
 }
 
