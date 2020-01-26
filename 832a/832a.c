@@ -6,19 +6,113 @@
 
 #include "832a.h"
 
+#include "program.h"
+#include "section.h"
+
+
 static char *delims=" \t:\n\r";
 
 
-void error(const char *fn,int line, const char *err)
+
+void directive_weak(struct program *prog,const char *tok)
 {
-	fprintf(stderr,"Syntax error in %s, line %d - %s\n",fn,line,err);
-	exit(1);
+	printf("weak: %s\n",tok);
 }
+
+
+void directive_global(struct program *prog,const char *tok)
+{
+	printf("global: %s\n",tok);
+}
+
+
+void directive_section(struct program *prog,const char *tok)
+{
+	program_setsection(prog,tok);
+}
+
+/* Emit literal values in little-endian form */
+void directive_int(struct program *prog,const char *tok)
+{
+	int v=strtoul(tok,0,0);
+	program_emitbyte(prog,(v&255));
+	program_emitbyte(prog,((v>>8)&255));
+	program_emitbyte(prog,((v>>16)&255));
+	program_emitbyte(prog,((v>>24)&255));
+//	printf(".int: %s\n",tok);
+}
+
+
+void directive_byte(struct program *prog,const char *tok)
+{
+	int v=strtol(tok,0,0);
+	program_emitbyte(prog,v&255);
+//	printf(".byte: 0x%x\n",v);
+}
+
+
+void directive_short(struct program *prog,const char *tok)
+{
+	int v=strtol(tok,0,0);
+	program_emitbyte(prog,(v&255));
+	program_emitbyte(prog,((v>>8)&255));
+//	printf(".short: %s\n",tok);
+}
+
+
+void directive_label(struct program *prog,const char *tok)
+{
+	struct section *sect=program_getsection(prog);
+	section_addsymbol(sect,tok);
+}
+
+
+void directive_reloc(struct program *prog,const char *tok)
+{
+	struct section *sect=program_getsection(prog);
+	
+	printf(".reloc: %s\n",tok);
+}
+
+
+void directive_pcrel(struct program *prog,const char *tok)
+{
+	struct section *sect=program_getsection(prog);
+	
+	printf(".pcrel: %s\n",tok);
+}
+
+
+struct directive
+{
+	char *mnem;
+	void (*handler)(struct program *prog,const char *token);
+};
+
+struct directive directives[]=
+{
+	{".weak",directive_weak},
+	{".global",directive_global},
+	{".section",directive_section},
+	{".int",directive_int},
+	{".short",directive_short},
+	{".byte",directive_byte},
+	{".reloc",directive_reloc},
+	{".pcrel",directive_pcrel},
+	{0,0}
+};
+
 
 /* Attempt to assemble the named file.  Calls exit() on failure. */
 int assemble(const char *fn)
 {
 	FILE *f;
+	struct program *prog;
+
+	prog=program_new();
+	if(!prog)
+		return(0);
+
 	printf("Opening file %s\n",fn);
 	
 	if(f=fopen(fn,"r"))
@@ -27,60 +121,67 @@ int assemble(const char *fn)
 		char *linebuf=0;
 		size_t len;
 		int c;
+		error_setfile(fn);
 		while(c=getline(&linebuf,&len,f)>0)
 		{
 			char *tok,*tok2;
 			++line;
+			error_setline(line);
 			if(tok=strtok(linebuf,delims))
 			{
+				int d;
 				tok2=strtok(0,delims);
-				if(tok[0]=='/' && tok[1]=='/')
+				/* comments */
+				if((tok[0]=='/' && tok[1]=='/') || tok[0]==';' || tok[0]=='#')
 					continue;
+				/* Labels starting at column zero */
 				if(linebuf[0]!=' ' && linebuf[0]!='\t' && linebuf[0]!='\n' && linebuf[0]!='\r')
 				{
-					printf("Label: %s\n",tok);
-				}
-				else if(strcasecmp(tok,".global")==0)
-				{
-					if(tok2)
-						printf("Global symbol: %s\n",tok2);
-					else
-						error(fn,line,".symbol");
-				}
-				else if(strcasecmp(tok,".weak")==0)
-				{
-					if(tok2)
-						printf("Symbol with weak linkage: %s\n",tok2);
-					else
-						error(fn,line,".weak");
+					directive_label(prog,tok);
 				}
 				else
 				{
-					int o=0;
-					while(opcodes[o].mnem)
+					/* Search the directives table */
+					d=0;
+					while(directives[d].mnem)
 					{
-						if(strcasecmp(tok,opcodes[o].mnem)==0)
+						if(strcasecmp(tok,directives[d].mnem)==0)
 						{
-							int opc=opcodes[o].opcode;
-							if(tok2 && opcodes[o].opbits==3)
-							{
-								int r=0;
-								while(operands[r].mnem)
-								{
-									if(strcasecmp(tok2,operands[r].mnem)==0)
-									{
-										opc+=operands[r].opcode;
-										break;
-									}
-									++r;
-								}
-								if(!operands[r].mnem)
-									error(fn,line,"bad register");
-							}
-							printf("%s\t%s -> 0x%x\n",tok, tok2 && opcodes[o].opbits ? tok2 : "", opc);
+							directives[d].handler(prog,tok2);
 							break;
 						}
-						++o;
+						++d;
+					}
+					/* Not a directive?  Interpret as an opcode... */
+					if(!directives[d].mnem)
+					{
+						int o=0;
+						while(opcodes[o].mnem)
+						{
+							if(strcasecmp(tok,opcodes[o].mnem)==0)
+							{
+								int opc=opcodes[o].opcode;
+								if(tok2 && opcodes[o].opbits==3)
+								{
+									int r=0;
+									while(operands[r].mnem)
+									{
+										if(strcasecmp(tok2,operands[r].mnem)==0)
+										{
+											opc+=operands[r].opcode;
+											break;
+										}
+										++r;
+									}
+									if(!operands[r].mnem)
+										asmerror("bad register");
+								}
+								printf("%s\t%s -> 0x%x\n",tok, tok2 && opcodes[o].opbits ? tok2 : "", opc);
+								program_emitbyte(prog,opc);
+								break;
+							}
+							++o;
+						}
 					}
 				}
 			}
@@ -89,8 +190,9 @@ int assemble(const char *fn)
 			free(linebuf);
 		fclose(f);
 	}
-	else
-		return(0);
+	program_dump(prog);
+	program_delete(prog);
+	return(0);
 }
 
 
