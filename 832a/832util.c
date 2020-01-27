@@ -15,6 +15,12 @@ void error_setline(int line)
 	error_line=line;
 }
 
+void linkerror(const char *err)
+{
+	fprintf(stderr,"Error in %s - %s\n",error_file,err);
+	exit(1);
+}
+
 void asmerror(const char *err)
 {
 	fprintf(stderr,"Error in %s, line %d - %s\n",error_file,error_line,err);
@@ -60,5 +66,14 @@ int read_short_le(FILE *f)
 	fread(buf,2,1,f);
 	result=(buf[1]<<8)|buf[0];
 	return(result);
+}
+
+void read_lstr(FILE *f,char *ptr)
+{
+	int l;
+	fread(ptr,1,1,f);
+	l=ptr[0];
+	fread(ptr,l,1,f);
+	ptr[l]=0;
 }
 

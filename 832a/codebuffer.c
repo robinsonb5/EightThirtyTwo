@@ -41,6 +41,12 @@ int codebuffer_write(struct codebuffer *buf,int val)
 }
 
 
+int codebuffer_loadchunk(struct codebuffer *buf,int bytes,FILE *f)
+{
+	buf->cursor=fread(buf->buffer,bytes,1,f);
+}
+
+
 void codebuffer_output(struct codebuffer *buf,FILE *f)
 {
 	fwrite(buf->buffer,buf->cursor,1,f);

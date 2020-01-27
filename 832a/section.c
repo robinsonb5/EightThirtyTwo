@@ -16,6 +16,7 @@ struct section *section_new(const char *name)
 		sect->symbols=0;
 		sect->lastsymbol=0;
 		sect->codebuffers=0;
+		sect->lastcodebuffer=0;
 		sect->refs=0;
 		sect->lastref=0;
 		sect->address=0;
@@ -196,6 +197,22 @@ void section_emitbyte(struct section *sect,unsigned char byte)
 }
 
 
+void section_loadchunk(struct section *sect,int bytes,FILE *f)
+{
+	if(sect)
+	{
+		struct codebuffer *buf=codebuffer_new();
+		if(sect->lastcodebuffer)
+			sect->lastcodebuffer->next=buf;
+		else
+			sect->codebuffers=buf;
+		sect->lastcodebuffer=buf;
+		codebuffer_loadchunk(sect->lastcodebuffer,bytes,f);
+		sect->cursor+=bytes;
+	}
+}
+
+
 void section_dump(struct section *sect)
 {
 	if(sect)
@@ -242,20 +259,6 @@ void section_output(struct section *sect,FILE *f)
 		fputs("SECT",f);	
 		write_lstr(sect->identifier,f);
 
-		/* Output the binary data */
-		
-		buf=sect->codebuffers;
-		if(buf)
-		{
-			fputs("BNRY",f);
-			write_int_le(sect->cursor,f);
-		}
-		while(buf)
-		{
-			codebuffer_output(buf,f);
-			buf=buf->next;
-		}
-
 		/* Output declared symbols */
 		sym=sect->symbols;
 		fputs("SYMB",f);
@@ -275,6 +278,19 @@ void section_output(struct section *sect,FILE *f)
 			sym=sym->next;
 		}
 		fputc(0xff,f);
+
+		/* Output the binary data */
+		buf=sect->codebuffers;
+		if(buf)
+		{
+			fputs("BNRY",f);
+			write_int_le(sect->cursor,f);
+		}
+		while(buf)
+		{
+			codebuffer_output(buf,f);
+			buf=buf->next;
+		}
 	}
 }
 

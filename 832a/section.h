@@ -36,6 +36,7 @@ void section_declarecommon(struct section *sect,const char *lab,int size,int glo
 void section_emitbyte(struct section *sect,unsigned char byte);
 void section_align(struct section *sect,int align);
 
+void section_loadchunk(struct section *sect,int bytes,FILE *f);
 void section_output(struct section *sect,FILE *f);
 void section_dump(struct section *sect);
 
