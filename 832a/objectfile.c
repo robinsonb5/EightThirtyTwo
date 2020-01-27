@@ -35,6 +35,7 @@ void objectfile_load(struct objectfile *obj,const char *fn)
 {
 	FILE *f=fopen(fn,"rb");
 	struct section *sect=0;
+	struct symbol *sym;
 	if(!f)
 		linkerror("Can't open file");
 	fread(tmp,2,1,f);
@@ -75,6 +76,12 @@ void objectfile_load(struct objectfile *obj,const char *fn)
 				cursor=read_int_le(f);
 				read_lstr(f,tmp);
 				printf("Symbol: %s, cursor %d, flags %x, align %d\n",tmp,cursor,flags,align);
+				sym=symbol_new(tmp,cursor,flags);
+				if(sect && sym)
+				{
+					sym->align=align;
+					section_addsymbol(sect,sym);
+				}
 				fread(tmp,1,1,f);
 			}
 		}
@@ -91,6 +98,13 @@ void objectfile_load(struct objectfile *obj,const char *fn)
 				cursor=read_int_le(f);
 				read_lstr(f,tmp);
 				printf("Ref: %s, cursor %d, flags %x, align %d\n",tmp,cursor,flags,align);
+				sym=symbol_new(tmp,cursor,flags);
+				if(sect && sym)
+				{
+					sym->align=align;
+					section_addreference(sect,sym);
+				}
+
 				fread(tmp,1,1,f);
 			}
 		}

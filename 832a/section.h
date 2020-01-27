@@ -29,8 +29,10 @@ int section_matchname(struct section *sect,const char *name);
 struct symbol *section_findsymbol(struct section *sect,const char *symname);
 struct symbol *section_getsymbol(struct section *sect, const char *symname);
 void section_declaresymbol(struct section *sect, const char *name,int flags);
+void section_addsymbol(struct section *sect, struct symbol *sym);
 
-void section_addreference(struct section *sect, const char *name,int flags);
+void section_addreference(struct section *sect, struct symbol *sym);
+void section_declarereference(struct section *sect, const char *name,int flags);
 
 void section_declarecommon(struct section *sect,const char *lab,int size,int global);
 void section_emitbyte(struct section *sect,unsigned char byte);

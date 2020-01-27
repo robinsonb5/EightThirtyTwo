@@ -92,7 +92,7 @@ void directive_lipcrel(struct program *prog,const char *tok,const char *tok2)
 	struct section *sect=program_getsection(prog);
 	if(sect)
 	{
-		section_addreference(sect,tok,SYMBOLFLAG_PCREL);
+		section_declarereference(sect,tok,SYMBOLFLAG_PCREL);
 		section_emitbyte(sect,0xc0);	/* Allow space for the worst-case of 6 bytes */
 		section_emitbyte(sect,0xc0);	/* Will relax this at link-time */
 		section_emitbyte(sect,0xc0);
@@ -108,7 +108,7 @@ void directive_liabs(struct program *prog,const char *tok,const char *tok2)
 	struct section *sect=program_getsection(prog);
 	if(sect)
 	{
-		section_addreference(sect,tok,SYMBOLFLAG_ABS);
+		section_declarereference(sect,tok,SYMBOLFLAG_ABS);
 		section_emitbyte(sect,0xc0);	/* Allow space for the worst-case of 6 bytes */
 		section_emitbyte(sect,0xc0);	/* Will relax this at link-time */
 		section_emitbyte(sect,0xc0);

@@ -75,6 +75,16 @@ void section_delete(struct section *sect)
 }
 
 
+void section_addsymbol(struct section *sect, struct symbol *sym)
+{
+	if(sect->lastsymbol)
+		sect->lastsymbol->next=sym;
+	else
+		sect->symbols=sym;
+	sect->lastsymbol=sym;
+}
+
+
 struct symbol *section_findsymbol(struct section *sect,const char *symname)
 {
 	if(!sect)
@@ -152,7 +162,16 @@ void section_declarecommon(struct section *sect,const char *lab,int size,int glo
 }
 
 
-void section_addreference(struct section *sect, const char *name,int flags)
+void section_addreference(struct section *sect, struct symbol *sym)
+{
+	if(sect->lastref)
+		sect->lastref->next=sym;
+	else
+		sect->refs=sym;
+	sect->lastref=sym;
+}
+
+void section_declarereference(struct section *sect, const char *name,int flags)
 {
 	struct symbol *sym;
 	if(sect && name)
@@ -207,8 +226,10 @@ void section_loadchunk(struct section *sect,int bytes,FILE *f)
 		else
 			sect->codebuffers=buf;
 		sect->lastcodebuffer=buf;
+		printf("Loading %d bytes\n",bytes);
 		codebuffer_loadchunk(sect->lastcodebuffer,bytes,f);
 		sect->cursor+=bytes;
+		printf("Cursor: %d bytes\n",sect->cursor);
 	}
 }
 
