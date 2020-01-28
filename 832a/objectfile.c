@@ -13,6 +13,7 @@ struct objectfile *objectfile_new()
 	obj=(struct objectfile *)malloc(sizeof(struct objectfile));
 	if(obj)
 	{
+		obj->filename=0;
 		obj->next=0;
 		obj->sections=0;
 		obj->lastsection=0;
@@ -33,6 +34,7 @@ struct objectfile *objectfile_new()
 
 void objectfile_load(struct objectfile *obj,const char *fn)
 {
+	obj->filename=strdup(fn);
 	FILE *f=fopen(fn,"rb");
 	struct section *sect=0;
 	struct symbol *sym;
@@ -151,6 +153,8 @@ void objectfile_delete(struct objectfile *obj)
 	struct section *sect,*next;
 	if(obj)
 	{
+		if(obj->filename)
+			free(obj->filename);
 		next=obj->sections;
 		while(next)
 		{

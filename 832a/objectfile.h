@@ -5,6 +5,7 @@
 
 struct objectfile
 {
+	char *filename;
 	struct objectfile *next;
 	struct section *sections;
 	struct section *lastsection;

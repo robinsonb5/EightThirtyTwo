@@ -23,8 +23,64 @@ struct section *section_new(const char *name)
 		sect->cursor=0;
 		sect->align=0;
 		sect->bss=0;
+		sect->touched=0;
 	}
 	return(sect);
+}
+
+
+void section_touch(struct section *sect)
+{
+	if(sect)
+		sect->touched=1;
+}
+
+
+void section_garbagecollect(struct section *sect)
+{
+	if(sect && sect->touched==0)
+	{
+		struct symbol *sym,*nextsym;
+		struct codebuffer *buf,*nextbuf;
+
+		if(sect->identifier)
+			free(sect->identifier);
+
+		nextsym=sect->symbols;
+		while(nextsym)
+		{
+			sym=nextsym;
+			nextsym=sym->next;
+			symbol_delete(sym);
+		}
+
+		nextsym=sect->refs;
+		while(nextsym)
+		{
+			sym=nextsym;
+			nextsym=sym->next;
+			symbol_delete(sym);
+		}
+
+		nextbuf=sect->codebuffers;
+		while(nextbuf)
+		{
+			buf=nextbuf;
+			nextbuf=buf->next;
+			codebuffer_delete(buf);
+		}
+		sect->symbols=0;
+		sect->lastsymbol=0;
+		sect->codebuffers=0;
+		sect->lastcodebuffer=0;
+		sect->refs=0;
+		sect->lastref=0;
+		sect->address=0;
+		sect->cursor=0;
+		sect->align=0;
+		sect->cursor=0;
+		sect->identifier=strdup("GCed");
+	}
 }
 
 

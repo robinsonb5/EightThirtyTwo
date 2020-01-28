@@ -4,6 +4,34 @@
 
 #include "executable.h"
 
+
+/*	Linked executable.  Linking procedure is as follows:
+	* Read object files one by one.
+	* Find duplicate symbols, find unresolvable references and garbage-collect unused sections:
+		* Start with the first section, take each reference in turn
+		* Find target symbols for all references, marking the section containing each reference as "touched".
+			* If any references can't be found, throw an error
+			* If we encounter a weak symbol at this stage, keep looking for a stronger one.
+			* If a strong symbol is declared more than once, throw an error.
+			* As each section is touched, recursively repeat the resolution process
+			* Store pointers to both the target section and target symbol for each reference.
+		* Remove any untouched sections.
+	* Sort sections:
+		* The first section must remain so
+		* BSS sections should come last
+		* Need to define virtual symbols at the start and end of the BSS sections
+	* Assign preliminary addresses to all sections.
+	* Calculate initial size of all sections, along with worst-case slack due to alignment
+	* Resolve references.  Reference size in bytes will depend upon the reach/absolute address, so need
+	  to support relaxation:
+		* Move all bytes beyond the reference in the current codebuffer
+		* Adjust the length of the codebuffer and the starting offset of subsequent buffers.
+		* Adjust the section offset all symbols in the current section beyond the reference.
+	* Assign final addresses to all symbols, taking alignment restrictions into account
+	* Re-resolve all references using the symbols' final addresses.  No further adjustment should be required.
+	* Save the linked executable
+*/
+
 struct executable *executable_new()
 {
 	struct executable *result=(struct executable *)malloc(sizeof(struct executable));
@@ -57,4 +85,101 @@ void executable_dump(struct executable *exe)
 	}
 }
 
+
+/* Hunt for a symbol, but exclude a particular section from the search.
+   If a weak symbol is found the search continues for a stronger one.
+   Need to return the current section as well.
+ */
+struct symbol *executable_findsymbol(struct executable *exe,const char *symname,struct section *excludesection)
+{
+	struct symbol *result=0;
+	if(exe)
+	{
+		struct objectfile *obj=exe->objects;
+		while(obj)
+		{
+			struct section *sect=obj->sections;
+			while(sect)
+			{
+				if(sect!=excludesection)
+				{
+					struct symbol *sym=section_findsymbol(sect,symname);
+					if(sym)
+					{
+						result=sym;
+						if(sym->flags&SYMBOLFLAG_WEAK)
+							printf("Weak symbol found - keep looking\n");
+						else
+							return(result);
+					}
+				}
+				sect=sect->next;
+			}
+
+			obj=obj->next;
+		}
+	}
+	/* Return either zero or the most recently found weak instance */
+	return(result);	
+}
+
+
+void executable_checkreferences(struct executable *exe)
+{
+	int result=1;
+	if(exe)
+	{
+		struct objectfile *obj=exe->objects;
+		while(obj)
+		{
+			struct section *sect=obj->sections;
+			while(sect)
+			{
+				struct symbol *ref=sect->refs;
+				while(ref)
+				{
+					struct symbol *sym=section_findsymbol(sect,ref->identifier);
+					struct symbol *sym2;
+					if(sym)
+					{
+						printf("Found symbol %s within the current section\n",sym->identifier);
+					}
+					if(!sym || (sym->flags&SYMBOLFLAG_WEAK))
+					{
+						printf("Symbol %s not found (or weak) - searching all sections...\n",ref->identifier);
+						sym2=executable_findsymbol(exe,ref->identifier,sect);
+					}
+					if(!sym && !sym2)
+					{
+						fprintf(stderr,"%s - unresolved symbol: %s\n",obj->filename,ref->identifier);
+						result=0;
+					}
+					ref=ref->next;
+				}
+				sect=sect->next;
+			}
+
+			obj=obj->next;
+		}
+		/* If we get this far all symbols were resolved so we can remove any unused sections */
+		obj=exe->objects;
+		while(obj)
+		{
+//			objectfile_garbagecollect(obj);
+			obj=obj->next;
+		}
+	}
+	if(!result)
+		exit(1);
+}
+/*
+	* Garbage-collect unused sections:
+		* Start with the first section, take each reference in turn
+		* Find target symbols for all references, marking the section containing each reference as "touched".
+			* If any references can't be found, throw an error
+			* If we encounter a weak symbol at this stage, keep looking for a stronger one.
+			* As each section is touched, recursively repeat the resolution process
+			* Store pointers to both the target section and target symbol for each reference.
+		* Remove any untouched sections.
+*/
 

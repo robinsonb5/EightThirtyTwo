@@ -82,8 +82,14 @@ void directive_label(struct program *prog,const char *tok,const char *tok2)
 void directive_reloc(struct program *prog,const char *tok,const char *tok2)
 {
 	struct section *sect=program_getsection(prog);
-	
-	printf(".reloc: %s\n",tok);
+	if(sect)
+	{
+		section_declarereference(sect,tok,SYMBOLFLAG_ABS);
+		section_emitbyte(sect,0x00);
+		section_emitbyte(sect,0x00);
+		section_emitbyte(sect,0x00);
+		section_emitbyte(sect,0x00);
+	}
 }
 
 

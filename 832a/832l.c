@@ -36,6 +36,7 @@ int main(int argc,char **argv)
 				}
 			}
 			executable_dump(exe);
+			executable_checkreferences(exe);
 			printf("Linking and saving to %s\n",outfn);
 			executable_delete(exe);
 		}

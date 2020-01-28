@@ -12,6 +12,7 @@ struct section
 	int cursor;
 	int align;
 	int bss;
+	int touched;
 	struct codebuffer *codebuffers;
 	struct codebuffer *lastcodebuffer;
 	struct symbol *symbols;
@@ -21,10 +22,12 @@ struct section
 };
 
 struct section *section_new(const char *name);
+void section_clear(struct section *sect);
 void section_delete(struct section *sect);
 
 /* Section names are case-sensitive */
 int section_matchname(struct section *sect,const char *name);
+void section_touch(struct section *sect);
 
 struct symbol *section_findsymbol(struct section *sect,const char *symname);
 struct symbol *section_getsymbol(struct section *sect, const char *symname);
