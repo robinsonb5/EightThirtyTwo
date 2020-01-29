@@ -172,6 +172,14 @@ void directive_comm(struct program *prog,const char *tok,const char *tok2)
 }
 
 
+void directive_absolute(struct program *prog,const char *tok,const char *tok2)
+{
+	unsigned int val=strtoul(tok2,0,0);
+	struct section *sect=program_getsection(prog);
+	section_declareabsolute(sect,tok,val,0);
+}
+
+
 void directive_lcomm(struct program *prog,const char *tok,const char *tok2)
 {
 	int size=atoi(tok2);
@@ -194,6 +202,7 @@ struct directive directives[]=
 	{".globl",directive_global},
 	{".section",directive_section},
 	{".comm",directive_comm},
+	{".abs",directive_absolute},
 	{".lcomm",directive_lcomm},
 	{".int",directive_int},
 	{".short",directive_short},

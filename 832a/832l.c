@@ -31,8 +31,8 @@ int main(int argc,char **argv)
 				}
 				else
 				{
-					error_setfile(argv[1]);
-					executable_loadobject(exe,argv[1]);
+					error_setfile(argv[i]);
+					executable_loadobject(exe,argv[i]);
 				}
 			}
 			executable_dump(exe);

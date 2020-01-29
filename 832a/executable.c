@@ -88,6 +88,7 @@ void executable_dump(struct executable *exe)
 
 /* Hunt for a symbol, but exclude a particular section from the search.
    If a weak symbol is found the search continues for a stronger one.
+   If no non-weak version is found, the last version declared will be used.
    Need to return the current section as well.
  */
 struct symbol *executable_findsymbol(struct executable *exe,const char *symname,struct section *excludesection)
@@ -106,11 +107,16 @@ struct symbol *executable_findsymbol(struct executable *exe,const char *symname,
 					struct symbol *sym=section_findsymbol(sect,symname);
 					if(sym)
 					{
-						result=sym;
+						printf("%s's flags: %x, %x\n",symname,sym->flags,sym->flags&SYMBOLFLAG_GLOBAL);
 						if(sym->flags&SYMBOLFLAG_WEAK)
+						{
 							printf("Weak symbol found - keep looking\n");
+							result=sym; /* Use this result if nothing better is found */
+						}
+						else if((sym->flags&SYMBOLFLAG_GLOBAL)==0)
+							printf("Symbol found but not globally declared - keep looking\n");
 						else
-							return(result);
+							return(sym);
 					}
 				}
 				sect=sect->next;
@@ -151,7 +157,7 @@ void executable_checkreferences(struct executable *exe)
 					}
 					if(!sym && !sym2)
 					{
-						fprintf(stderr,"%s - unresolved symbol: %s\n",obj->filename,ref->identifier);
+						fprintf(stderr,"\n*** %s - unresolved symbol: %s\n\n",obj->filename,ref->identifier);
 						result=0;
 					}
 					ref=ref->next;

@@ -170,6 +170,7 @@ void objectfile_dump(struct objectfile *obj)
 {
 	struct section *sect;
 	sect=obj->sections;
+	printf("\nObjectfile: %s\n",obj->filename);
 	while(sect)
 	{
 		section_dump(sect);

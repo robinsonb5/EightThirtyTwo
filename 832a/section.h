@@ -38,6 +38,7 @@ void section_addreference(struct section *sect, struct symbol *sym);
 void section_declarereference(struct section *sect, const char *name,int flags);
 
 void section_declarecommon(struct section *sect,const char *lab,int size,int global);
+void section_declareabsolute(struct section *sect,const char *lab,int size,int global);
 void section_emitbyte(struct section *sect,unsigned char byte);
 void section_align(struct section *sect,int align);
 

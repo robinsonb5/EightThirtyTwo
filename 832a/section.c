@@ -218,6 +218,18 @@ void section_declarecommon(struct section *sect,const char *lab,int size,int glo
 }
 
 
+void section_declareabsolute(struct section *sect,const char *lab,int value,int global)
+{
+	struct symbol *sym;
+	int flags=global ? SYMBOLFLAG_ABSOLUTE : SYMBOLFLAG_ABSOLUTE|SYMBOLFLAG_LOCAL;
+	if(sym=section_getsymbol(sect,lab))
+	{
+		sym->cursor=value;
+		sym->flags|=flags;
+	}
+}
+
+
 void section_addreference(struct section *sect, struct symbol *sym)
 {
 	if(sect->lastref)
@@ -226,6 +238,7 @@ void section_addreference(struct section *sect, struct symbol *sym)
 		sect->refs=sym;
 	sect->lastref=sym;
 }
+
 
 void section_declarereference(struct section *sect, const char *name,int flags)
 {

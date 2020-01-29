@@ -7,6 +7,7 @@
 #define SYMBOLFLAG_LOCAL 8
 #define SYMBOLFLAG_EXTERN 16
 #define SYMBOLFLAG_WEAK 32
+#define SYMBOLFLAG_ABSOLUTE 64
 
 struct symbol
 {
