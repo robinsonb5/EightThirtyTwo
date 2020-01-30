@@ -3,11 +3,23 @@
 
 #include "objectfile.h"
 
+struct executable_sectionmap
+{
+	struct section *sect;
+	int address;
+};
+
 struct executable
 {
 	struct objectfile *objects;
 	struct objectfile *lastobject;
+	struct executable_sectionmap *map;
+	int mapentries;
+	int firstbss;
+	int lastbss;
 };
+
+
 
 struct executable *executable_new();
 void executable_delete(struct executable *exe);

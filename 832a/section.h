@@ -5,6 +5,13 @@
 #include "symbol.h"
 #include "objectfile.h"
 
+/* External section flags */
+#define SECTIONFLAG_BSS 1
+#define SECTIONFLAG_CTOR 2
+#define SECTIONFLAG_DTOR 4
+/* Internal flags */
+#define SECTIONFLAG_TOUCHED 256
+
 struct section
 {
 	struct section *next;
@@ -12,8 +19,7 @@ struct section
 	int address;
 	int cursor;
 	int align;
-	int bss;
-	int touched;
+	int flags;
 	struct codebuffer *codebuffers;
 	struct codebuffer *lastcodebuffer;
 	struct symbol *symbols;

@@ -46,6 +46,22 @@ void directive_section(struct objectfile *obj,const char *tok,const char *tok2)
 }
 
 
+void directive_ctor(struct objectfile *obj,const char *tok,const char *tok2)
+{
+	struct section *sect;
+	if(sect=objectfile_setsection(obj,tok))
+		sect->flags|=SECTIONFLAG_CTOR;
+}
+
+
+void directive_dtor(struct objectfile *obj,const char *tok,const char *tok2)
+{
+	struct section *sect;
+	if(sect=objectfile_setsection(obj,tok))
+		sect->flags|=SECTIONFLAG_DTOR;
+}
+
+
 /* Emit literal values in little-endian form */
 void directive_int(struct objectfile *obj,const char *tok,const char *tok2)
 {
@@ -174,7 +190,10 @@ void directive_comm(struct objectfile *obj,const char *tok,const char *tok2)
 
 void directive_absolute(struct objectfile *obj,const char *tok,const char *tok2)
 {
-	unsigned int val=strtoul(tok2,0,0);
+	unsigned int val;
+	if(!tok2)
+		asmerror("Missing value for .abs");
+	val=strtoul(tok2,0,0);
 	struct section *sect=objectfile_getsection(obj);
 	section_declareabsolute(sect,tok,val,0);
 }
@@ -198,6 +217,8 @@ struct directive directives[]=
 {
 	{".align",directive_align},
 	{".weak",directive_weak},
+	{".ctor",directive_ctor},
+	{".dtor",directive_dtor},
 	{".global",directive_global},
 	{".globl",directive_global},
 	{".section",directive_section},

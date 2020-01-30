@@ -40,6 +40,7 @@ struct executable *executable_new()
 	{
 		result->objects=0;
 		result->lastobject=0;
+		result->map=0;
 	}
 	return(result);
 }
@@ -56,6 +57,8 @@ void executable_delete(struct executable *exe)
 			next=obj->next;
 			objectfile_delete(obj);
 		}
+		if(exe->map)
+			free(exe->map);
 		free(exe);
 	}
 }
@@ -143,9 +146,9 @@ int executable_resolvereferences(struct executable *exe,struct section *sect)
 	int result=1;
 	struct symbol *ref=sect->refs;
 	if(!sect)
-		return;
-	if(sect && sect->touched)
-		return;
+		return(0);
+	if(sect && (sect->flags&SECTIONFLAG_TOUCHED))
+		return(1);
 	section_touch(sect);
 
 	while(ref)
@@ -181,27 +184,78 @@ int executable_resolvereferences(struct executable *exe,struct section *sect)
 }
 
 
-void executable_checkreferences(struct executable *exe)
+/* Return a count of the number of sections that have been touched while resolving references. */
+static int countsections(struct executable *exe)
+{
+	int result=0;
+	if(exe)
+	{
+		struct objectfile *obj=exe->objects;
+		while(obj)
+		{
+			struct section *sect=obj->sections;
+			while(sect)
+			{
+				if(sect->flags&SECTIONFLAG_TOUCHED)
+					++result;
+				sect=sect->next;
+			}
+			obj=obj->next;
+		}
+	}
+	return(result);	
+}
+
+
+int executable_resolvecdtors(struct executable *exe)
 {
 	int result=1;
+	if(exe)
+	{
+		struct objectfile *obj=exe->objects;
+		while(obj)
+		{
+			struct section *sect=obj->sections;
+			while(sect)
+			{
+				if(!(sect->flags&SECTIONFLAG_TOUCHED))
+				{
+					if((sect->flags&SECTIONFLAG_CTOR) || (sect->flags&SECTIONFLAG_DTOR))
+						result&=executable_resolvereferences(exe,sect);
+				}
+				sect=sect->next;
+			}
+			obj=obj->next;
+		}
+	}
 
+	return(result);
+}
+
+
+
+void executable_checkreferences(struct executable *exe)
+{
+	/*	FIXME - Catch redefined global symbols */
+
+	int result=1;
+	int sectioncount;
 	/* Resolve references starting with the first section */
 	if(exe && exe->objects && exe->objects->sections)
-		result=executable_resolvereferences(exe,exe->objects->sections);
+		result&=executable_resolvereferences(exe,exe->objects->sections);
+	/* Resolve any ctor and dtor sections */
+	result&=executable_resolvecdtors(exe);
+
 	if(!result)
 		exit(1);
 
-	executable_dump(exe);
-	
+//	executable_dump(exe);
+
+	sectioncount=countsections(exe);
+	printf("%d sections touched\n",sectioncount);
+
+	/* Build a map by traversing the sections.  Need to create dummy entries for
+	   __bss_start__, __bss_end__, __ctors_start__, __ctors_end__, __dtors_start__ and __dtors_end__ */
+
 }
-/*
-	* Garbage-collect unused sections:
-		* Start with the first section, take each reference in turn
-		* Find target symbols for all references, marking the section containing each reference as "touched".
-			* If any references can't be found, throw an error
-			* If we encounter a weak symbol at this stage, keep looking for a stronger one.
-			* As each section is touched, recursively repeat the resolution process
-			* Store pointers to both the target section and target symbol for each reference.
-		* Remove any untouched sections.
-*/
 

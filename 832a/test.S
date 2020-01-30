@@ -20,6 +20,8 @@ label3:
 //	.int	0x12345678
 	.comm	MyVar,4
 	.lcomm	MyLocalHalfwordVar,2
+
+	.section .text.3
 	.comm	MyOtherVar,4
 //	and r5
 
@@ -38,4 +40,22 @@ _main:
 
 	ldinc	r6
 	mr	r7
+
+	.global init
+init:
+	stdec r6
+	li	0
+	mr	r0
+	ldinc r6
+	mr	r7
+
+	.global cleanup
+cleanup
+	mr	r7
+
+	.ctor .ctor.001
+	.reloc init
+
+	.dtor .dtor.001
+	.reloc cleanup
 

@@ -53,6 +53,7 @@ void objectfile_load(struct objectfile *obj,const char *fn)
 			read_lstr(f,tmp);
 			printf("Section %s :\n",tmp);
 			sect=objectfile_addsection(obj,tmp);
+			sect->flags=read_int_le(f);
 		}
 		else if(strncmp(tmp,"BNRY",4)==0)
 		{
@@ -148,13 +149,14 @@ struct section *objectfile_addsection(struct objectfile *obj, const char *sectio
 }
 
 
-void objectfile_setsection(struct objectfile *obj, const char *sectionname)
+struct section *objectfile_setsection(struct objectfile *obj, const char *sectionname)
 {
 	struct section *sect=objectfile_findsection(obj,sectionname);
 	if(sect)
 		obj->currentsection=sect;
 	else
 		obj->currentsection=objectfile_addsection(obj,sectionname);	
+	return(obj->currentsection);
 }
 
 

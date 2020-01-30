@@ -22,8 +22,7 @@ struct section *section_new(struct objectfile *obj,const char *name)
 		sect->address=0;
 		sect->cursor=0;
 		sect->align=0;
-		sect->bss=0;
-		sect->touched=0;
+		sect->flags=0;
 		sect->obj=obj;
 	}
 	return(sect);
@@ -33,10 +32,10 @@ struct section *section_new(struct objectfile *obj,const char *name)
 void section_touch(struct section *sect)
 {
 	if(sect)
-		sect->touched=1;
+		sect->flags|=SECTIONFLAG_TOUCHED;
 }
 
-
+#if 0
 void section_garbagecollect(struct section *sect)
 {
 	if(sect && sect->touched==0)
@@ -83,6 +82,7 @@ void section_garbagecollect(struct section *sect)
 		sect->identifier=strdup("GCed");
 	}
 }
+#endif
 
 
 int section_matchname(struct section *sect,const char *name)
@@ -211,10 +211,10 @@ void section_declaresymbol(struct section *sect, const char *name,int flags)
 void section_declarecommon(struct section *sect,const char *lab,int size,int global)
 {
 	int flags=global ? 0 : SYMBOLFLAG_LOCAL;
-	if(sect->cursor && sect->bss==0)
+	if(sect->cursor && !(sect->flags&SECTIONFLAG_BSS))
 		asmerror("Can't mix BSS and code/initialised data in a section.");
 	section_declaresymbol(sect,lab,flags);
-	sect->bss=1;
+	sect->flags|=SECTIONFLAG_BSS;
 	sect->cursor+=size;
 }
 
@@ -267,7 +267,7 @@ void section_emitbyte(struct section *sect,unsigned char byte)
 {
 	if(sect)
 	{
-		if(sect->bss)
+		if(sect->flags&SECTIONFLAG_BSS)
 			asmerror("Can't mix BSS and code/initialised data in a section.");
 
 		// Do we need to start a new buffer?
@@ -312,13 +312,14 @@ void section_dump(struct section *sect)
 		struct symbol *sym;
 		printf("\nSection: %s\n",sect->identifier);
 		printf("  address: %x, cursor: %x\n",sect->address, sect->cursor);
-		printf("  BSS? %s\n",sect->bss ? "yes" : "no");
-		printf("  touched? %s\n",sect->touched ? "yes" : "no");
+		printf("  BSS? %s\n",sect->flags & SECTIONFLAG_BSS ? "yes" : "no");
+		printf("  touched? %s\n",sect->flags & SECTIONFLAG_TOUCHED ? "yes" : "no");
 
 		printf("\nSymbols:\n");
 		sym=sect->symbols;
 		while(sym)
 		{
+			printf("  ");
 			symbol_dump(sym);
 			sym=sym->next;
 		}
@@ -327,6 +328,7 @@ void section_dump(struct section *sect)
 		sym=sect->refs;
 		while(sym)
 		{
+			printf("  ");
 			symbol_dump(sym);
 			sym=sym->next;
 		}
@@ -351,6 +353,7 @@ void section_output(struct section *sect,FILE *f)
 		int l;
 		fputs("SECT",f);	
 		write_lstr(sect->identifier,f);
+		write_int_le(sect->flags,f);
 
 		/* Output declared symbols */
 		sym=sect->symbols;

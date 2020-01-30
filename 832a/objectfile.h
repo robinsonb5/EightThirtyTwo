@@ -20,6 +20,7 @@ void objectfile_load(struct objectfile *obj,const char *fn);
 struct section *objectfile_getsection(struct objectfile *obj);
 struct section *objectfile_addsection(struct objectfile *obj, const char *sectionname);
 struct section *objectfile_findsection(struct objectfile *obj,const char *sectionname);
+struct section *objectfile_setsection(struct objectfile *obj, const char *sectionname);
 
 void objectfile_dump(struct objectfile *obj);
 
