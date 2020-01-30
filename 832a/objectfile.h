@@ -9,6 +9,7 @@ struct objectfile
 	struct objectfile *next;
 	struct section *sections;
 	struct section *lastsection;
+	struct section *currentsection;
 };
 
 struct objectfile *objectfile_new();

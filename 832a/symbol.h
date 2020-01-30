@@ -1,6 +1,8 @@
 #ifndef SYMBOL_H
 #define SYMBOL_H
 
+#include "section.h"
+
 #define SYMBOLFLAG_ABS 1
 #define SYMBOLFLAG_PCREL 2
 #define SYMBOLFLAG_GLOBAL 4
@@ -16,6 +18,9 @@ struct symbol
 	int align;
 	int cursor;
 	int flags;
+	/* Used by linker */
+	struct symbol *resolve;
+	struct section *sect;
 };
 
 struct symbol *symbol_new(const char *id,int cursor,int flags);

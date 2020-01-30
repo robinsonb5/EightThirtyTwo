@@ -6,7 +6,7 @@
 
 #include "832a.h"
 
-#include "program.h"
+#include "objectfile.h"
 #include "section.h"
 
 
@@ -14,9 +14,9 @@ static char *delims=" \t:\n\r,";
 
 
 
-void directive_weak(struct program *prog,const char *tok,const char *tok2)
+void directive_weak(struct objectfile *obj,const char *tok,const char *tok2)
 {
-	struct section *sect=program_getsection(prog);
+	struct section *sect=objectfile_getsection(obj);
 	struct symbol *sym;
 	if(sect)
 	{
@@ -27,9 +27,9 @@ void directive_weak(struct program *prog,const char *tok,const char *tok2)
 }
 
 
-void directive_global(struct program *prog,const char *tok,const char *tok2)
+void directive_global(struct objectfile *obj,const char *tok,const char *tok2)
 {
-	struct section *sect=program_getsection(prog);
+	struct section *sect=objectfile_getsection(obj);
 	struct symbol *sym;
 	if(sect)
 	{
@@ -40,48 +40,48 @@ void directive_global(struct program *prog,const char *tok,const char *tok2)
 }
 
 
-void directive_section(struct program *prog,const char *tok,const char *tok2)
+void directive_section(struct objectfile *obj,const char *tok,const char *tok2)
 {
-	program_setsection(prog,tok);
+	objectfile_setsection(obj,tok);
 }
 
 
 /* Emit literal values in little-endian form */
-void directive_int(struct program *prog,const char *tok,const char *tok2)
+void directive_int(struct objectfile *obj,const char *tok,const char *tok2)
 {
 	int v=strtoul(tok,0,0);
-	program_emitbyte(prog,(v&255));
-	program_emitbyte(prog,((v>>8)&255));
-	program_emitbyte(prog,((v>>16)&255));
-	program_emitbyte(prog,((v>>24)&255));
+	objectfile_emitbyte(obj,(v&255));
+	objectfile_emitbyte(obj,((v>>8)&255));
+	objectfile_emitbyte(obj,((v>>16)&255));
+	objectfile_emitbyte(obj,((v>>24)&255));
 }
 
 
-void directive_byte(struct program *prog,const char *tok,const char *tok2)
+void directive_byte(struct objectfile *obj,const char *tok,const char *tok2)
 {
 	int v=strtol(tok,0,0);
-	program_emitbyte(prog,v&255);
+	objectfile_emitbyte(obj,v&255);
 }
 
 
-void directive_short(struct program *prog,const char *tok,const char *tok2)
+void directive_short(struct objectfile *obj,const char *tok,const char *tok2)
 {
 	int v=strtol(tok,0,0);
-	program_emitbyte(prog,(v&255));
-	program_emitbyte(prog,((v>>8)&255));
+	objectfile_emitbyte(obj,(v&255));
+	objectfile_emitbyte(obj,((v>>8)&255));
 }
 
 
-void directive_label(struct program *prog,const char *tok,const char *tok2)
+void directive_label(struct objectfile *obj,const char *tok,const char *tok2)
 {
-	struct section *sect=program_getsection(prog);
+	struct section *sect=objectfile_getsection(obj);
 	section_declaresymbol(sect,tok,0);
 }
 
 
-void directive_reloc(struct program *prog,const char *tok,const char *tok2)
+void directive_reloc(struct objectfile *obj,const char *tok,const char *tok2)
 {
-	struct section *sect=program_getsection(prog);
+	struct section *sect=objectfile_getsection(obj);
 	if(sect)
 	{
 		section_declarereference(sect,tok,SYMBOLFLAG_ABS);
@@ -93,9 +93,9 @@ void directive_reloc(struct program *prog,const char *tok,const char *tok2)
 }
 
 
-void directive_lipcrel(struct program *prog,const char *tok,const char *tok2)
+void directive_lipcrel(struct objectfile *obj,const char *tok,const char *tok2)
 {
-	struct section *sect=program_getsection(prog);
+	struct section *sect=objectfile_getsection(obj);
 	if(sect)
 	{
 		section_declarereference(sect,tok,SYMBOLFLAG_PCREL);
@@ -109,9 +109,9 @@ void directive_lipcrel(struct program *prog,const char *tok,const char *tok2)
 }
 
 
-void directive_liabs(struct program *prog,const char *tok,const char *tok2)
+void directive_liabs(struct objectfile *obj,const char *tok,const char *tok2)
 {
-	struct section *sect=program_getsection(prog);
+	struct section *sect=objectfile_getsection(obj);
 	if(sect)
 	{
 		section_declarereference(sect,tok,SYMBOLFLAG_ABS);
@@ -141,7 +141,7 @@ static int count_constantchunks(long v)
 }
 
 
-void directive_liconst(struct program *prog,const char *tok,const char *tok2)
+void directive_liconst(struct objectfile *obj,const char *tok,const char *tok2)
 {
 	long v=strtol(tok,0,0);
 	int chunk=count_constantchunks(v);
@@ -151,39 +151,39 @@ void directive_liconst(struct program *prog,const char *tok,const char *tok2)
 		int c=(v>>(6*chunk))&0x3f;
 		c|=0xc0;
 		printf("Emitting chunk %d, %x\n",chunk,c);
-		program_emitbyte(prog,c);
+		objectfile_emitbyte(obj,c);
 	}
 }
 
 
-void directive_align(struct program *prog,const char *tok,const char *tok2)
+void directive_align(struct objectfile *obj,const char *tok,const char *tok2)
 {
 	int align=atoi(tok);
-	struct section *sect=program_getsection(prog);
+	struct section *sect=objectfile_getsection(obj);
 	section_align(sect,align);
 }
 
 
-void directive_comm(struct program *prog,const char *tok,const char *tok2)
+void directive_comm(struct objectfile *obj,const char *tok,const char *tok2)
 {
 	int size=atoi(tok2);
-	struct section *sect=program_getsection(prog);
+	struct section *sect=objectfile_getsection(obj);
 	section_declarecommon(sect,tok,size,1);
 }
 
 
-void directive_absolute(struct program *prog,const char *tok,const char *tok2)
+void directive_absolute(struct objectfile *obj,const char *tok,const char *tok2)
 {
 	unsigned int val=strtoul(tok2,0,0);
-	struct section *sect=program_getsection(prog);
+	struct section *sect=objectfile_getsection(obj);
 	section_declareabsolute(sect,tok,val,0);
 }
 
 
-void directive_lcomm(struct program *prog,const char *tok,const char *tok2)
+void directive_lcomm(struct objectfile *obj,const char *tok,const char *tok2)
 {
 	int size=atoi(tok2);
-	struct section *sect=program_getsection(prog);
+	struct section *sect=objectfile_getsection(obj);
 	section_declarecommon(sect,tok,size,0);
 }
 
@@ -191,7 +191,7 @@ void directive_lcomm(struct program *prog,const char *tok,const char *tok2)
 struct directive
 {
 	char *mnem;
-	void (*handler)(struct program *prog,const char *token,const char *token2);
+	void (*handler)(struct objectfile *obj,const char *token,const char *token2);
 };
 
 struct directive directives[]=
@@ -219,10 +219,10 @@ struct directive directives[]=
 int assemble(const char *fn,const char *on)
 {
 	FILE *f;
-	struct program *prog;
+	struct objectfile *obj;
 
-	prog=program_new();
-	if(!prog)
+	obj=objectfile_new();
+	if(!obj)
 		return(0);
 
 	printf("Opening file %s\n",fn);
@@ -251,7 +251,7 @@ int assemble(const char *fn,const char *on)
 				/* Labels starting at column zero */
 				if(linebuf[0]!=' ' && linebuf[0]!='\t' && linebuf[0]!='\n' && linebuf[0]!='\r')
 				{
-					directive_label(prog,tok,0);
+					directive_label(obj,tok,0);
 				}
 				else
 				{
@@ -261,7 +261,7 @@ int assemble(const char *fn,const char *on)
 					{
 						if(strcasecmp(tok,directives[d].mnem)==0)
 						{
-							directives[d].handler(prog,tok2,tok3);
+							directives[d].handler(obj,tok2,tok3);
 							break;
 						}
 						++d;
@@ -297,7 +297,7 @@ int assemble(const char *fn,const char *on)
 									opc|=v;
 								}
 								printf("%s\t%s -> 0x%x\n",tok, tok2 && opcodes[o].opbits ? tok2 : "", opc);
-								program_emitbyte(prog,opc);
+								objectfile_emitbyte(obj,opc);
 								break;
 							}
 							++o;
@@ -312,9 +312,9 @@ int assemble(const char *fn,const char *on)
 			free(linebuf);
 		fclose(f);
 	}
-	program_output(prog,on);
-	program_dump(prog);
-	program_delete(prog);
+	objectfile_output(obj,on);
+	objectfile_dump(obj);
+	objectfile_delete(obj);
 	printf("Output file: %s\n",on);
 
 	return(0);

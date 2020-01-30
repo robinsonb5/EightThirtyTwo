@@ -5,7 +5,7 @@
 #include "832util.h"
 #include "section.h"
 
-struct section *section_new(const char *name)
+struct section *section_new(struct objectfile *obj,const char *name)
 {
 	struct section *sect;
 	sect=(struct section *)malloc(sizeof(struct section));
@@ -24,6 +24,7 @@ struct section *section_new(const char *name)
 		sect->align=0;
 		sect->bss=0;
 		sect->touched=0;
+		sect->obj=obj;
 	}
 	return(sect);
 }
@@ -311,6 +312,8 @@ void section_dump(struct section *sect)
 		struct symbol *sym;
 		printf("\nSection: %s\n",sect->identifier);
 		printf("  address: %x, cursor: %x\n",sect->address, sect->cursor);
+		printf("  BSS? %s\n",sect->bss ? "yes" : "no");
+		printf("  touched? %s\n",sect->touched ? "yes" : "no");
 
 		printf("\nSymbols:\n");
 		sym=sect->symbols;

@@ -135,7 +135,7 @@ struct section *objectfile_findsection(struct objectfile *obj,const char *sectio
 
 struct section *objectfile_addsection(struct objectfile *obj, const char *sectionname)
 {
-	struct section *sect=section_new(sectionname);
+	struct section *sect=section_new(obj,sectionname);
 	if(sect)
 	{
 		if(obj->lastsection)
@@ -145,6 +145,32 @@ struct section *objectfile_addsection(struct objectfile *obj, const char *sectio
 		obj->lastsection=sect;
 	}
 	return(sect);
+}
+
+
+void objectfile_setsection(struct objectfile *obj, const char *sectionname)
+{
+	struct section *sect=objectfile_findsection(obj,sectionname);
+	if(sect)
+		obj->currentsection=sect;
+	else
+		obj->currentsection=objectfile_addsection(obj,sectionname);	
+}
+
+
+/* Return the current section.  If none has yet been defined, create one called ".text". */
+struct section *objectfile_getsection(struct objectfile *obj)
+{
+	if(!obj->currentsection)
+		objectfile_setsection(obj,".text");
+	return(obj->currentsection);
+}
+
+
+void objectfile_emitbyte(struct objectfile *obj,unsigned char byte)
+{
+	if(obj)
+		section_emitbyte(objectfile_getsection(obj),byte);
 }
 
 

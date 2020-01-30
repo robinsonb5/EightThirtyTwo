@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #include "executable.h"
+#include "832util.h"
 
 
 /*	Linked executable.  Linking procedure is as follows:
@@ -89,9 +90,8 @@ void executable_dump(struct executable *exe)
 /* Hunt for a symbol, but exclude a particular section from the search.
    If a weak symbol is found the search continues for a stronger one.
    If no non-weak version is found, the last version declared will be used.
-   Need to return the current section as well.
  */
-struct symbol *executable_findsymbol(struct executable *exe,const char *symname,struct section *excludesection)
+struct symbol *executable_resolvereference(struct executable *exe,struct symbol *ref,struct section *excludesection)
 {
 	struct symbol *result=0;
 	if(exe)
@@ -104,19 +104,25 @@ struct symbol *executable_findsymbol(struct executable *exe,const char *symname,
 			{
 				if(sect!=excludesection)
 				{
-					struct symbol *sym=section_findsymbol(sect,symname);
+					struct symbol *sym=section_findsymbol(sect,ref->identifier);
 					if(sym)
 					{
-						printf("%s's flags: %x, %x\n",symname,sym->flags,sym->flags&SYMBOLFLAG_GLOBAL);
+						printf("%s's flags: %x, %x\n",ref->identifier,sym->flags,sym->flags&SYMBOLFLAG_GLOBAL);
 						if(sym->flags&SYMBOLFLAG_WEAK)
 						{
 							printf("Weak symbol found - keep looking\n");
+							ref->sect=sect;
+							ref->resolve=sym;
 							result=sym; /* Use this result if nothing better is found */
 						}
 						else if((sym->flags&SYMBOLFLAG_GLOBAL)==0)
 							printf("Symbol found but not globally declared - keep looking\n");
 						else
+						{
+							ref->sect=sect;
+							ref->resolve=sym;
 							return(sym);
+						}
 					}
 				}
 				sect=sect->next;
@@ -130,53 +136,63 @@ struct symbol *executable_findsymbol(struct executable *exe,const char *symname,
 }
 
 
+/* Resolve each reference within a section, recursively repeating the
+   process for each section in which a reference was found. */
+int executable_resolvereferences(struct executable *exe,struct section *sect)
+{
+	int result=1;
+	struct symbol *ref=sect->refs;
+	if(!sect)
+		return;
+	if(sect && sect->touched)
+		return;
+	section_touch(sect);
+
+	while(ref)
+	{
+		struct symbol *sym=section_findsymbol(sect,ref->identifier);
+		struct symbol *sym2=0;
+		if(sym)
+		{
+			printf("Found symbol %s within the current section\n",sym->identifier);
+			ref->sect=sect;	/* will be overridden if a better match is found */
+		}
+		if(!sym || (sym->flags&SYMBOLFLAG_WEAK))
+		{
+			printf("Symbol %s not found (or weak) - searching all sections...\n",ref->identifier);
+			sym2=executable_resolvereference(exe,ref,sect);
+		}
+		if(sym2)
+			sym=sym2;
+		if(!sym)
+		{
+			fprintf(stderr,"\n*** %s - unresolved symbol: %s\n\n",sect->obj->filename,ref->identifier);
+			result=0;
+		}
+		ref->resolve=sym;
+
+		/* Recursively resolve references in the section containing the symbol just found. */
+		if(sym)
+			result&=executable_resolvereferences(exe,ref->sect);
+
+		ref=ref->next;
+	}
+	return(result);
+}
+
+
 void executable_checkreferences(struct executable *exe)
 {
 	int result=1;
-	if(exe)
-	{
-		struct objectfile *obj=exe->objects;
-		while(obj)
-		{
-			struct section *sect=obj->sections;
-			while(sect)
-			{
-				struct symbol *ref=sect->refs;
-				while(ref)
-				{
-					struct symbol *sym=section_findsymbol(sect,ref->identifier);
-					struct symbol *sym2;
-					if(sym)
-					{
-						printf("Found symbol %s within the current section\n",sym->identifier);
-					}
-					if(!sym || (sym->flags&SYMBOLFLAG_WEAK))
-					{
-						printf("Symbol %s not found (or weak) - searching all sections...\n",ref->identifier);
-						sym2=executable_findsymbol(exe,ref->identifier,sect);
-					}
-					if(!sym && !sym2)
-					{
-						fprintf(stderr,"\n*** %s - unresolved symbol: %s\n\n",obj->filename,ref->identifier);
-						result=0;
-					}
-					ref=ref->next;
-				}
-				sect=sect->next;
-			}
 
-			obj=obj->next;
-		}
-		/* If we get this far all symbols were resolved so we can remove any unused sections */
-		obj=exe->objects;
-		while(obj)
-		{
-//			objectfile_garbagecollect(obj);
-			obj=obj->next;
-		}
-	}
+	/* Resolve references starting with the first section */
+	if(exe && exe->objects && exe->objects->sections)
+		result=executable_resolvereferences(exe,exe->objects->sections);
 	if(!result)
 		exit(1);
+
+	executable_dump(exe);
+	
 }
 /*
 	* Garbage-collect unused sections:

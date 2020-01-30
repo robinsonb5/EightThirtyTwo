@@ -3,6 +3,7 @@
 
 #include "codebuffer.h"
 #include "symbol.h"
+#include "objectfile.h"
 
 struct section
 {
@@ -19,9 +20,10 @@ struct section
 	struct symbol *lastsymbol;
 	struct symbol *refs;
 	struct symbol *lastref;
+	struct objectfile *obj;
 };
 
-struct section *section_new(const char *name);
+struct section *section_new(struct objectfile *obj,const char *name);
 void section_clear(struct section *sect);
 void section_delete(struct section *sect);
 
