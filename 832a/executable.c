@@ -40,7 +40,7 @@ struct executable *executable_new()
 	{
 		result->objects=0;
 		result->lastobject=0;
-		result->map=0;
+		result->map=sectionmap_new();
 	}
 	return(result);
 }
@@ -58,7 +58,7 @@ void executable_delete(struct executable *exe)
 			objectfile_delete(obj);
 		}
 		if(exe->map)
-			free(exe->map);
+			sectionmap_delete(exe->map);
 		free(exe);
 	}
 }
@@ -247,7 +247,10 @@ void executable_checkreferences(struct executable *exe)
 	result&=executable_resolvecdtors(exe);
 
 	if(!result)
+	{
+		executable_delete(exe);
 		exit(1);
+	}
 
 //	executable_dump(exe);
 

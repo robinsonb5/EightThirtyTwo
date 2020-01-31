@@ -2,23 +2,16 @@
 #define EXECUTABLE_H
 
 #include "objectfile.h"
-
-struct executable_sectionmap
-{
-	struct section *sect;
-	int address;
-};
+#include "sectionmap.h"
 
 struct executable
 {
 	struct objectfile *objects;
 	struct objectfile *lastobject;
-	struct executable_sectionmap *map;
-	int mapentries;
+	struct sectionmap *map;
 	int firstbss;
 	int lastbss;
 };
-
 
 
 struct executable *executable_new();
