@@ -24,6 +24,9 @@ struct sectionmap
 	struct sectionmap_entry *entries;	/* Array, for speed and ease of sorting */
 	struct section *builtins;	/* start and end markers for ctor/dtor/bss */
 	struct section *lastbuiltin;
+	int firstctor,lastctor;
+	int firstdtor,lastdtor;
+	int firstbss,lastbss;
 };
 
 struct executable;

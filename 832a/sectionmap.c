@@ -58,11 +58,77 @@ void sectionmap_delete(struct sectionmap *map)
 	}
 }
 
+
+/* Return a count of the number of sections that have been touched while resolving references. */
+static int countsections(struct executable *exe)
+{
+	struct section *sect=0;
+	int result=0;
+	if(exe)
+	{
+		struct objectfile *obj=exe->objects;
+		sect=exe->map->builtins;
+		while(sect)
+		{
+			if(sect->flags&SECTIONFLAG_TOUCHED)
+				++result;
+			sect=sect->next;
+		}
+
+		while(obj)
+		{
+			sect=obj->sections;
+			while(sect)
+			{
+				if(sect->flags&SECTIONFLAG_TOUCHED)
+					++result;
+				sect=sect->next;
+			}
+			obj=obj->next;
+		}
+	}
+	return(result);	
+}
+
+
+/* Sort a subsection of the entry map */
+
+int sectionmap_sort(struct sectionmap *map,int first, int last)
+{
+
+}
+
+
 int sectionmap_populate(struct executable *exe)
 {
-	int result=1;
+	struct sectionmap *map=exe->map;
+	map->entrycount=countsections(exe);
+	printf("%d sections touched\n",map->entrycount);
 
-	return(result);
+	if(map->entries=malloc(sizeof(struct sectionmap_entry)*map->entrycount))
+	{
+		struct objectfile *obj=exe->objects;
+		int idx=0;
+
+		/* Collect together the non-ctor/dtor and non-bss sections first */
+		while(obj)
+		{
+			struct section *sect=obj->sections;
+			while(sect)
+			{
+				if((sect->flags&SECTIONFLAG_TOUCHED) &&
+								(sect->flags&(SECTIONFLAG_CTOR|SECTIONFLAG_DTOR|SECTIONFLAG_BSS)==0))
+					map->entries[idx++].sect=sect;
+				sect=sect->next;
+			}
+			obj=obj->next;
+		}
+
+		/* Sort the sections by name (sorting is only vital for ctors/dtors' priorities */
+
+		return(1);
+	}
+	return(0);
 }
 
 

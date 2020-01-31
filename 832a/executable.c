@@ -97,12 +97,27 @@ void executable_dump(struct executable *exe)
 struct symbol *executable_resolvereference(struct executable *exe,struct symbol *ref,struct section *excludesection)
 {
 	struct symbol *result=0;
+	struct section *sect;
 	if(exe)
 	{
+		/* Check builtin sections first */
+		sect=exe->map->builtins;
+		while(sect)
+		{
+			struct symbol *sym=section_findsymbol(sect,ref->identifier);
+			if(sym)
+			{
+				ref->sect=sect;
+				ref->resolve=sym;
+				return(sym);
+			}
+			sect=sect->next;
+		}
+
 		struct objectfile *obj=exe->objects;
 		while(obj)
 		{
-			struct section *sect=obj->sections;
+			sect=obj->sections;
 			while(sect)
 			{
 				if(sect!=excludesection)
@@ -184,29 +199,6 @@ int executable_resolvereferences(struct executable *exe,struct section *sect)
 }
 
 
-/* Return a count of the number of sections that have been touched while resolving references. */
-static int countsections(struct executable *exe)
-{
-	int result=0;
-	if(exe)
-	{
-		struct objectfile *obj=exe->objects;
-		while(obj)
-		{
-			struct section *sect=obj->sections;
-			while(sect)
-			{
-				if(sect->flags&SECTIONFLAG_TOUCHED)
-					++result;
-				sect=sect->next;
-			}
-			obj=obj->next;
-		}
-	}
-	return(result);	
-}
-
-
 int executable_resolvecdtors(struct executable *exe)
 {
 	int result=1;
@@ -254,8 +246,7 @@ void executable_checkreferences(struct executable *exe)
 
 //	executable_dump(exe);
 
-	sectioncount=countsections(exe);
-	printf("%d sections touched\n",sectioncount);
+	sectionmap_populate(exe);
 
 	/* Build a map by traversing the sections.  Need to create dummy entries for
 	   __bss_start__, __bss_end__, __ctors_start__, __ctors_end__, __dtors_start__ and __dtors_end__ */
