@@ -310,10 +310,12 @@ void section_dump(struct section *sect)
 	{
 		struct codebuffer *buf;
 		struct symbol *sym;
-		printf("\nSection: %s\n",sect->identifier);
-		printf("  address: %x, cursor: %x\n",sect->address, sect->cursor);
-		printf("  BSS? %s\n",sect->flags & SECTIONFLAG_BSS ? "yes" : "no");
-		printf("  touched? %s\n",sect->flags & SECTIONFLAG_TOUCHED ? "yes" : "no");
+		printf("\nSection: %s  :  ",sect->identifier);
+		printf("address: %x, cursor: %x",sect->address, sect->cursor);
+		printf("%s",sect->flags & SECTIONFLAG_BSS ? ", BSS" : "");
+		printf("%s",sect->flags & SECTIONFLAG_CTOR ? ", CTOR" : "");
+		printf("%s",sect->flags & SECTIONFLAG_DTOR ? ", DTOR" : "");
+		printf("%s\n",sect->flags & SECTIONFLAG_TOUCHED ? ", touched" : "");
 
 		printf("\nSymbols:\n");
 		sym=sect->symbols;

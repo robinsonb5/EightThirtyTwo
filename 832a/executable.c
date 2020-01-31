@@ -258,9 +258,11 @@ void executable_checkreferences(struct executable *exe)
 		exit(1);
 	}
 
+	sectionmap_populate(exe);
+
 //	executable_dump(exe);
 
-	sectionmap_populate(exe);
+	sectionmap_dump(exe->map);
 
 	/* Build a map by traversing the sections.  Need to create dummy entries for
 	   __bss_start__, __bss_end__, __ctors_start__, __ctors_end__, __dtors_start__ and __dtors_end__ */

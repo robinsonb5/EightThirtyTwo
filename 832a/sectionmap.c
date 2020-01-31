@@ -101,9 +101,16 @@ struct section *sectionmap_getbuiltin(struct sectionmap *map,int builtin)
 
 /* Sort a subsection of the entry map */
 
-int sectionmap_sort(struct sectionmap *map,int first, int last)
+static int sectionmap_sortcompare(const void *p1, const void *p2)
 {
-
+	struct sectionmap_entry *e1,*e2;
+	e1=(struct sectionmap_entry *)p1;
+	e2=(struct sectionmap_entry *)p2;
+	if(!e1 || !e1->sect)
+		return(1);
+	if(!e2 || !e2->sect)
+		return(-1);
+	return(strcmp(e1->sect->identifier,e2->sect->identifier));
 }
 
 
@@ -119,7 +126,7 @@ static int sectionmap_populate_inner(struct executable *exe,int idx,int flags)
 		while(sect)
 		{
 			if((sect->flags&SECTIONFLAG_TOUCHED) &&
-							(sect->flags&(SECTIONFLAG_CTOR|SECTIONFLAG_DTOR|SECTIONFLAG_BSS)==flags))
+							((sect->flags&(SECTIONFLAG_CTOR|SECTIONFLAG_DTOR|SECTIONFLAG_BSS))==flags))
 				map->entries[idx++].sect=sect;
 			sect=sect->next;
 		}
@@ -143,8 +150,10 @@ int sectionmap_populate(struct executable *exe)
 		int idxstart=0;
 		int idx=0;
 
+		memset(map->entries,0,sizeof(struct sectionmap_entry)*map->entrycount);
+
 		/* Collect together the non-ctor/dtor and non-bss sections first */
-		sectionmap_populate_inner(exe,idx,0);
+		idx=sectionmap_populate_inner(exe,idx,0);
 
 		sect=sectionmap_getbuiltin(map,BUILTIN_CTORS_START);
 		if(sect && sect->flags&SECTIONFLAG_TOUCHED)
@@ -155,9 +164,12 @@ int sectionmap_populate(struct executable *exe)
 			idx=sectionmap_populate_inner(exe,idx,SECTIONFLAG_CTOR);
 
 			/* Sort ctors */
+			printf("Sorting constructors %d to %d\n",idxstart,idx-1);
+			if(idx>idxstart)
+				qsort(map->entries+idxstart,idx-idxstart,sizeof(struct sectionmap_entry),sectionmap_sortcompare);
 
 			sect=sectionmap_getbuiltin(map,BUILTIN_CTORS_END);
-			map->entries[idx++].sect=sect;					
+			map->entries[idx++].sect=sect;				
 			sect=sectionmap_getbuiltin(map,BUILTIN_DTORS_START);
 			map->entries[idx++].sect=sect;
 
@@ -165,6 +177,9 @@ int sectionmap_populate(struct executable *exe)
 			idx=sectionmap_populate_inner(exe,idx,SECTIONFLAG_DTOR);
 
 			/* Sort dtors */
+			printf("Sorting destructors %d to %d\n",idxstart,idx-1);
+			if(idx>idxstart)
+				qsort(map->entries+idxstart,idx-idxstart,sizeof(struct sectionmap_entry),sectionmap_sortcompare);
 
 			sect=sectionmap_getbuiltin(map,BUILTIN_DTORS_END);
 			map->entries[idx++].sect=sect;					
@@ -175,7 +190,7 @@ int sectionmap_populate(struct executable *exe)
 		map->entries[idx++].sect=sect;
 
 		idxstart=idx;
-		idx=sectionmap_populate_inner(exe,idx,SECTIONFLAG_DTOR);
+		idx=sectionmap_populate_inner(exe,idx,SECTIONFLAG_BSS);
 
 		sect=sectionmap_getbuiltin(map,BUILTIN_BSS_END);
 		map->entries[idx++].sect=sect;					
@@ -183,6 +198,20 @@ int sectionmap_populate(struct executable *exe)
 		return(1);
 	}
 	return(0);
+}
+
+
+void sectionmap_dump(struct sectionmap *map)
+{
+	if(map->entries)
+	{
+		int i;
+		for(i=0;i<map->entrycount;++i)
+			printf("Section %s at offset %d\n",map->entries[i].sect ? map->entries[i].sect->identifier : "(none)",
+						map->entries[i].address);
+	}
+	else
+		printf("Section map is empty\n");
 }
 
 

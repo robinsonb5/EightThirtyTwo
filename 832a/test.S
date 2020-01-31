@@ -53,6 +53,9 @@ init:
 cleanup
 	mr	r7
 
+	.ctor .ctor.002
+	.reloc _main
+
 	.ctor .ctor.001
 	.reloc init
 

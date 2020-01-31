@@ -12,10 +12,10 @@ struct sectionmap_entry
 
 #define BUILTIN_CTORS_START 0
 #define BUILTIN_CTORS_END 1
-#define BUILTIN_DTORS_START 0
-#define BUILTIN_DTORS_END 1
-#define BUILTIN_BSS_START 0
-#define BUILTIN_BSS_END 1
+#define BUILTIN_DTORS_START 2
+#define BUILTIN_DTORS_END 3
+#define BUILTIN_BSS_START 4
+#define BUILTIN_BSS_END 5
 
 
 struct sectionmap
@@ -32,8 +32,11 @@ struct sectionmap
 struct executable;
 struct sectionmap *sectionmap_new();
 struct section *sectionmap_getbuiltin(struct sectionmap *map,int builtin);
-void sectionmap_delete(struct sectionmap *map);
 int sectionmap_populate(struct executable *exe);
+
+void sectionmap_delete(struct sectionmap *map);
+
+void sectionmap_dump(struct sectionmap *map);
 
 #endif
 
