@@ -31,6 +31,7 @@ struct sectionmap
 
 struct executable;
 struct sectionmap *sectionmap_new();
+struct section *sectionmap_getbuiltin(struct sectionmap *map,int builtin);
 void sectionmap_delete(struct sectionmap *map);
 int sectionmap_populate(struct executable *exe);
 

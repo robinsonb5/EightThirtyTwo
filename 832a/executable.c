@@ -202,18 +202,32 @@ int executable_resolvereferences(struct executable *exe,struct section *sect)
 int executable_resolvecdtors(struct executable *exe)
 {
 	int result=1;
+	int ctorwarn=0;
 	if(exe)
 	{
 		struct objectfile *obj=exe->objects;
+		struct section *sect=sectionmap_getbuiltin(exe->map,BUILTIN_CTORS_START);
+
+		/* Throw a warning if we have unreferenced ctors / dtors */
+		if(sect && !(sect->flags & SECTIONFLAG_TOUCHED))
+			ctorwarn=1;
+
 		while(obj)
 		{
-			struct section *sect=obj->sections;
+			sect=obj->sections;
 			while(sect)
 			{
 				if(!(sect->flags&SECTIONFLAG_TOUCHED))
 				{
 					if((sect->flags&SECTIONFLAG_CTOR) || (sect->flags&SECTIONFLAG_DTOR))
+					{
 						result&=executable_resolvereferences(exe,sect);
+						if(ctorwarn)
+						{
+							fprintf(stderr,"\nWARNING: ctors/dtors found but __ctors_start__ not referenced\n\n");
+							ctorwarn=0;
+						}
+					}
 				}
 				sect=sect->next;
 			}
