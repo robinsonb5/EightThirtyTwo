@@ -3,8 +3,8 @@
 
 #include "section.h"
 
-#define SYMBOLFLAG_ABS 1
-#define SYMBOLFLAG_PCREL 2
+#define SYMBOLFLAG_LDABS 1
+#define SYMBOLFLAG_LDPCREL 2
 #define SYMBOLFLAG_GLOBAL 4
 #define SYMBOLFLAG_LOCAL 8
 #define SYMBOLFLAG_EXTERN 16
@@ -22,6 +22,10 @@ struct symbol
 	/* Used by linker */
 	struct symbol *resolve;
 	struct section *sect;
+	int address_worstcase;
+	int address_bestcase;
+	int size_worstcase;
+	int size_bestcase;
 };
 
 struct symbol *symbol_new(const char *id,int cursor,int flags);

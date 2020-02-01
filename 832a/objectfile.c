@@ -30,6 +30,11 @@ struct objectfile *objectfile_new()
 	and add headroom for expansion.
 	Check references to make sure there isn't one beginning in the last
 	(6+alignment headroom) bytes, and if so, reduce the chunk size accordingly.
+
+	UPDATE:
+	Sidestepped this issue entirely by leaving out the placeholder bytes, so the
+	assembler now just emits the reference table and leaves the linker to insert
+	the correct number of bytes.
 */
 
 void objectfile_load(struct objectfile *obj,const char *fn)

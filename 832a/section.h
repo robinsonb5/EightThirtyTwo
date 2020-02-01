@@ -16,7 +16,6 @@ struct section
 {
 	struct section *next;
 	char *identifier;
-	int address;
 	int cursor;
 	int flags;
 	struct codebuffer *codebuffers;
@@ -26,6 +25,8 @@ struct section
 	struct symbol *refs;
 	struct symbol *lastref;
 	struct objectfile *obj;
+	int address_bestcase;
+	int address_worstcase;
 };
 
 struct section *section_new(struct objectfile *obj,const char *name);
@@ -48,6 +49,8 @@ void section_declarecommon(struct section *sect,const char *lab,int size,int glo
 void section_declareabsolute(struct section *sect,const char *lab,int size,int global);
 void section_emitbyte(struct section *sect,unsigned char byte);
 void section_align(struct section *sect,int align);
+
+void section_sizereferences(struct section *sect);
 
 void section_loadchunk(struct section *sect,int bytes,FILE *f);
 void section_output(struct section *sect,FILE *f);

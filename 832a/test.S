@@ -12,6 +12,8 @@ label2:
 	.lipcrel	label1
 label3:
 	mul	r0
+	.align 4
+	.int 0x12344321
 	.section .data
 	.int	0x12345678
 	.byte	0x10
@@ -35,6 +37,7 @@ label3:
 _main:
 	stdec	r6
 
+	.lipcrel label3
 	li	5
 	mr	r0
 	li	4

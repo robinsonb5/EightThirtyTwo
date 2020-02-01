@@ -74,22 +74,6 @@ void directive_reloc(struct objectfile *obj,const char *tok,const char *tok2,int
 }
 
 
-static int count_constantchunks(long v)
-{
-	int chunk = 1;
-	long v2 = v;
-	while (chunk<6 && ((v2 & 0xffffffe0) != 0) && ((v2 & 0xffffffe0) != 0xffffffe0))	// Are we looking at a sign-extended 6-bit value yet?
-	{
-		v2 >>= 6;
-		// Sign-extend
-		if(v2&0x02000000)
-			v2|=0xfc000000;
-		++chunk;
-	}
-	return (chunk);
-}
-
-
 void directive_liconst(struct objectfile *obj,const char *tok,const char *tok2,int key)
 {
 	long v=strtol(tok,0,0);
@@ -156,8 +140,8 @@ struct directive directives[]=
 	{".short",directive_literal,2},
 	{".byte",directive_literal,1},
 	{".reloc",directive_reloc,0},
-	{".liabs",directive_reloc,SYMBOLFLAG_ABS},
-	{".lipcrel",directive_reloc,SYMBOLFLAG_PCREL},
+	{".liabs",directive_reloc,SYMBOLFLAG_LDABS},
+	{".lipcrel",directive_reloc,SYMBOLFLAG_LDPCREL},
 	{".liconst",directive_liconst,0},
 	{0,0}
 };

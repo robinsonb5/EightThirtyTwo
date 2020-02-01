@@ -175,31 +175,33 @@ int executable_resolvereferences(struct executable *exe,struct section *sect)
 
 	while(ref)
 	{
-		struct symbol *sym=section_findsymbol(sect,ref->identifier);
-		struct symbol *sym2=0;
-		if(sym)
+		if(!(ref->flags&SYMBOLFLAG_ALIGN)) /* Don't try and resolve an alignment ref */
 		{
-			printf("Found symbol %s within the current section\n",sym->identifier);
-			ref->sect=sect;	/* will be overridden if a better match is found */
-		}
-		if(!sym || (sym->flags&SYMBOLFLAG_WEAK))
-		{
-			printf("Symbol %s not found (or weak) - searching all sections...\n",ref->identifier);
-			sym2=executable_resolvereference(exe,ref,sect);
-		}
-		if(sym2)
-			sym=sym2;
-		if(!sym)
-		{
-			fprintf(stderr,"\n*** %s - unresolved symbol: %s\n\n",sect->obj->filename,ref->identifier);
-			result=0;
-		}
-		ref->resolve=sym;
+			struct symbol *sym=section_findsymbol(sect,ref->identifier);
+			struct symbol *sym2=0;
+			if(sym)
+			{
+				printf("Found symbol %s within the current section\n",sym->identifier);
+				ref->sect=sect;	/* will be overridden if a better match is found */
+			}
+			if(!sym || (sym->flags&SYMBOLFLAG_WEAK))
+			{
+				printf("Symbol %s not found (or weak) - searching all sections...\n",ref->identifier);
+				sym2=executable_resolvereference(exe,ref,sect);
+			}
+			if(sym2)
+				sym=sym2;
+			if(!sym)
+			{
+				fprintf(stderr,"\n*** %s - unresolved symbol: %s\n\n",sect->obj->filename,ref->identifier);
+				result=0;
+			}
+			ref->resolve=sym;
 
-		/* Recursively resolve references in the section containing the symbol just found. */
-		if(sym)
-			result&=executable_resolvereferences(exe,ref->sect);
-
+			/* Recursively resolve references in the section containing the symbol just found. */
+			if(sym)
+				result&=executable_resolvereferences(exe,ref->sect);
+		}
 		ref=ref->next;
 	}
 	return(result);
@@ -246,6 +248,26 @@ int executable_resolvecdtors(struct executable *exe)
 }
 
 
+/* 
+	Assign an initial best-case and worst-case address to all symbols.
+*/
+
+void executable_initialaddresses(struct executable *exe)
+{
+	int i;
+	if(exe && exe->map)
+	{
+		struct sectionmap *map=exe->map;
+		for(i=0;i<map->entrycount;++i)
+		{
+			if(map->entries[i].sect)
+			{
+				section_sizereferences(map->entries[i].sect);
+			}
+		}
+	}
+}
+
 
 void executable_checkreferences(struct executable *exe)
 {
@@ -266,10 +288,10 @@ void executable_checkreferences(struct executable *exe)
 	}
 
 	sectionmap_populate(exe);
-
-//	executable_dump(exe);
-
 	sectionmap_dump(exe->map);
+
+	executable_initialaddresses(exe);
+	executable_dump(exe);
 
 	/* Build a map by traversing the sections.  Need to create dummy entries for
 	   __bss_start__, __bss_end__, __ctors_start__, __ctors_end__, __dtors_start__ and __dtors_end__ */

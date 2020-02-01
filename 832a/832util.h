@@ -14,5 +14,7 @@ int read_int_le(FILE *f);
 int read_short_le(FILE *f);
 void read_lstr(FILE *f,char *ptr);
 
+int count_constantchunks(long v);
+
 #endif
 

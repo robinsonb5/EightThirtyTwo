@@ -37,6 +37,53 @@ int symbol_matchname(struct symbol *sym,const char *name)
 }
 
 
+/* Calculate the best- and worst-case size for a reference.
+   The only variable-size reference types are LDABS, LDPCREL and ALIGN
+ */
+
+void reference_size(struct symbol *sym)
+{
+	if(sym)
+	{
+		if(sym->flags&SYMBOLFLAG_ALIGN)
+		{
+			sym->size_bestcase=0;
+			sym->size_worstcase=sym->align-1;
+		}
+		else if (sym->flags&SYMBOLFLAG_LDABS)
+		{
+			if(sym->resolve)
+			{
+				if(sym->resolve->address_bestcase)
+				{
+					/* Compute best- and worst-case sizes based on the distance to the target. */
+				}
+				else
+				{
+					sym->size_bestcase=1;
+					sym->size_worstcase=6;
+				}
+			}
+		}
+		else if (sym->flags&SYMBOLFLAG_LDPCREL)
+		{
+			if(sym->resolve)
+			{
+				if(sym->resolve->address_bestcase)
+				{
+					/* Compute best- and worst-case sizes based on the distance to the target. */
+				}
+				else
+				{
+					sym->size_bestcase=1;
+					sym->size_worstcase=6;
+				}
+			}
+		}
+	}
+}
+
+
 void symbol_output(struct symbol *sym,FILE *f)
 {
 	if(sym)
@@ -52,6 +99,10 @@ void symbol_output(struct symbol *sym,FILE *f)
 void symbol_dump(struct symbol *sym)
 {
 	if(sym)
+	{
 		printf("%s, cursor: %d, flags: %x, align: %d\n",sym->identifier, sym->cursor,sym->flags,sym->align);
+		printf("  resolves to %x\n",(int)sym->resolve);
+		printf("  size (best case) %d, size (worst case) %d\n",sym->size_bestcase, sym->size_worstcase);
+	}
 }
 

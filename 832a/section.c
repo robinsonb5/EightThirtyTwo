@@ -19,10 +19,11 @@ struct section *section_new(struct objectfile *obj,const char *name)
 		sect->lastcodebuffer=0;
 		sect->refs=0;
 		sect->lastref=0;
-		sect->address=0;
 		sect->cursor=0;
 		sect->flags=0;
 		sect->obj=obj;
+		sect->address_bestcase=0;
+		sect->address_worstcase=0;
 	}
 	return(sect);
 }
@@ -249,6 +250,20 @@ void section_loadchunk(struct section *sect,int bytes,FILE *f)
 }
 
 
+void section_sizereferences(struct section *sect)
+{
+	if(sect)
+	{
+		struct symbol *sym=sect->refs;
+		while(sym)
+		{
+			reference_size(sym);
+			sym=sym->next;
+		}
+	}
+}
+
+
 void section_dump(struct section *sect)
 {
 	if(sect)
@@ -256,7 +271,7 @@ void section_dump(struct section *sect)
 		struct codebuffer *buf;
 		struct symbol *sym;
 		printf("\nSection: %s  :  ",sect->identifier);
-		printf("address: %x, cursor: %x",sect->address, sect->cursor);
+		printf("cursor: %x",sect->cursor);
 		printf("%s",sect->flags & SECTIONFLAG_BSS ? ", BSS" : "");
 		printf("%s",sect->flags & SECTIONFLAG_CTOR ? ", CTOR" : "");
 		printf("%s",sect->flags & SECTIONFLAG_DTOR ? ", DTOR" : "");
@@ -271,7 +286,7 @@ void section_dump(struct section *sect)
 			sym=sym->next;
 		}
 
-		printf("\nRelocations:\n");
+		printf("\nReferences:\n");
 		sym=sect->refs;
 		while(sym)
 		{
