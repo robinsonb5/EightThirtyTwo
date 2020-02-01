@@ -15,10 +15,12 @@ label3:
 	.section .data
 	.int	0x12345678
 	.byte	0x10
+	.align	4
 	.byte	0x20
 	.section .text.2
 //	.int	0x12345678
 	.comm	MyVar,4
+	.align 8
 	.lcomm	MyLocalHalfwordVar,2
 
 	.section .text.3

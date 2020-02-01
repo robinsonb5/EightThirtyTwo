@@ -52,6 +52,6 @@ void symbol_output(struct symbol *sym,FILE *f)
 void symbol_dump(struct symbol *sym)
 {
 	if(sym)
-		printf("%s, cursor: %d, flags: %x\n",sym->identifier, sym->cursor,sym->flags);
+		printf("%s, cursor: %d, flags: %x, align: %d\n",sym->identifier, sym->cursor,sym->flags,sym->align);
 }
 

@@ -10,6 +10,7 @@
 #define SYMBOLFLAG_EXTERN 16
 #define SYMBOLFLAG_WEAK 32
 #define SYMBOLFLAG_ABSOLUTE 64
+#define SYMBOLFLAG_ALIGN 128
 
 struct symbol
 {

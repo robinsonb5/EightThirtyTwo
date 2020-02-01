@@ -18,7 +18,6 @@ struct section
 	char *identifier;
 	int address;
 	int cursor;
-	int align;
 	int flags;
 	struct codebuffer *codebuffers;
 	struct codebuffer *lastcodebuffer;

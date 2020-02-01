@@ -14,7 +14,7 @@ static char *delims=" \t:\n\r,";
 
 
 
-void directive_weak(struct objectfile *obj,const char *tok,const char *tok2)
+void directive_sectionflags(struct objectfile *obj,const char *tok,const char *tok2,int key)
 {
 	struct section *sect=objectfile_getsection(obj);
 	struct symbol *sym;
@@ -22,122 +22,55 @@ void directive_weak(struct objectfile *obj,const char *tok,const char *tok2)
 	{
 		sym=section_getsymbol(sect,tok);
 		if(sym)
-			sym->flags|=SYMBOLFLAG_WEAK;
+			sym->flags|=key;
 	}
 }
 
 
-void directive_global(struct objectfile *obj,const char *tok,const char *tok2)
-{
-	struct section *sect=objectfile_getsection(obj);
-	struct symbol *sym;
-	if(sect)
-	{
-		sym=section_getsymbol(sect,tok);
-		if(sym)
-			sym->flags|=SYMBOLFLAG_GLOBAL;
-	}
-}
-
-
-void directive_section(struct objectfile *obj,const char *tok,const char *tok2)
+void directive_section(struct objectfile *obj,const char *tok,const char *tok2,int key)
 {
 	objectfile_setsection(obj,tok);
 }
 
 
-void directive_ctor(struct objectfile *obj,const char *tok,const char *tok2)
+void directive_ctordtor(struct objectfile *obj,const char *tok,const char *tok2,int key)
 {
 	struct section *sect;
 	if(sect=objectfile_setsection(obj,tok))
-		sect->flags|=SECTIONFLAG_CTOR;
-}
-
-
-void directive_dtor(struct objectfile *obj,const char *tok,const char *tok2)
-{
-	struct section *sect;
-	if(sect=objectfile_setsection(obj,tok))
-		sect->flags|=SECTIONFLAG_DTOR;
+		sect->flags|=key;
 }
 
 
 /* Emit literal values in little-endian form */
-void directive_int(struct objectfile *obj,const char *tok,const char *tok2)
+void directive_literal(struct objectfile *obj,const char *tok,const char *tok2,int key)
 {
 	int v=strtoul(tok,0,0);
 	objectfile_emitbyte(obj,(v&255));
-	objectfile_emitbyte(obj,((v>>8)&255));
-	objectfile_emitbyte(obj,((v>>16)&255));
-	objectfile_emitbyte(obj,((v>>24)&255));
+	if(key>1)
+		objectfile_emitbyte(obj,((v>>8)&255));
+	if(key>2)
+	{
+		objectfile_emitbyte(obj,((v>>16)&255));
+		objectfile_emitbyte(obj,((v>>24)&255));
+	}
 }
 
 
-void directive_byte(struct objectfile *obj,const char *tok,const char *tok2)
-{
-	int v=strtol(tok,0,0);
-	objectfile_emitbyte(obj,v&255);
-}
-
-
-void directive_short(struct objectfile *obj,const char *tok,const char *tok2)
-{
-	int v=strtol(tok,0,0);
-	objectfile_emitbyte(obj,(v&255));
-	objectfile_emitbyte(obj,((v>>8)&255));
-}
-
-
-void directive_label(struct objectfile *obj,const char *tok,const char *tok2)
+void directive_label(struct objectfile *obj,const char *tok,const char *tok2,int key)
 {
 	struct section *sect=objectfile_getsection(obj);
 	section_declaresymbol(sect,tok,0);
 }
 
 
-void directive_reloc(struct objectfile *obj,const char *tok,const char *tok2)
+/* Add one of several types of reference to the current section.
+   The reference can be embedded-absolute, load-absolute or load-PC relative */
+
+void directive_reloc(struct objectfile *obj,const char *tok,const char *tok2,int key)
 {
 	struct section *sect=objectfile_getsection(obj);
 	if(sect)
-	{
-		section_declarereference(sect,tok,SYMBOLFLAG_ABS);
-		section_emitbyte(sect,0x00);
-		section_emitbyte(sect,0x00);
-		section_emitbyte(sect,0x00);
-		section_emitbyte(sect,0x00);
-	}
-}
-
-
-void directive_lipcrel(struct objectfile *obj,const char *tok,const char *tok2)
-{
-	struct section *sect=objectfile_getsection(obj);
-	if(sect)
-	{
-		section_declarereference(sect,tok,SYMBOLFLAG_PCREL);
-		section_emitbyte(sect,0xc0);	/* Allow space for the worst-case of 6 bytes */
-		section_emitbyte(sect,0xc0);	/* Will relax this at link-time */
-		section_emitbyte(sect,0xc0);
-		section_emitbyte(sect,0xc0);
-		section_emitbyte(sect,0xc0);
-		section_emitbyte(sect,0xc0);
-	}
-}
-
-
-void directive_liabs(struct objectfile *obj,const char *tok,const char *tok2)
-{
-	struct section *sect=objectfile_getsection(obj);
-	if(sect)
-	{
-		section_declarereference(sect,tok,SYMBOLFLAG_ABS);
-		section_emitbyte(sect,0xc0);	/* Allow space for the worst-case of 6 bytes */
-		section_emitbyte(sect,0xc0);	/* Will relax this at link-time */
-		section_emitbyte(sect,0xc0);
-		section_emitbyte(sect,0xc0);
-		section_emitbyte(sect,0xc0);
-		section_emitbyte(sect,0xc0);
-	}
+		section_declarereference(sect,tok,key);
 }
 
 
@@ -157,7 +90,7 @@ static int count_constantchunks(long v)
 }
 
 
-void directive_liconst(struct objectfile *obj,const char *tok,const char *tok2)
+void directive_liconst(struct objectfile *obj,const char *tok,const char *tok2,int key)
 {
 	long v=strtol(tok,0,0);
 	int chunk=count_constantchunks(v);
@@ -172,23 +105,7 @@ void directive_liconst(struct objectfile *obj,const char *tok,const char *tok2)
 }
 
 
-void directive_align(struct objectfile *obj,const char *tok,const char *tok2)
-{
-	int align=atoi(tok);
-	struct section *sect=objectfile_getsection(obj);
-	section_align(sect,align);
-}
-
-
-void directive_comm(struct objectfile *obj,const char *tok,const char *tok2)
-{
-	int size=atoi(tok2);
-	struct section *sect=objectfile_getsection(obj);
-	section_declarecommon(sect,tok,size,1);
-}
-
-
-void directive_absolute(struct objectfile *obj,const char *tok,const char *tok2)
+void directive_absolute(struct objectfile *obj,const char *tok,const char *tok2,int key)
 {
 	unsigned int val;
 	if(!tok2)
@@ -199,39 +116,49 @@ void directive_absolute(struct objectfile *obj,const char *tok,const char *tok2)
 }
 
 
-void directive_lcomm(struct objectfile *obj,const char *tok,const char *tok2)
+void directive_align(struct objectfile *obj,const char *tok,const char *tok2,int key)
+{
+	int align=atoi(tok);
+	struct section *sect=objectfile_getsection(obj);
+	section_align(sect,align);
+}
+
+
+void directive_common(struct objectfile *obj,const char *tok,const char *tok2,int key)
 {
 	int size=atoi(tok2);
 	struct section *sect=objectfile_getsection(obj);
-	section_declarecommon(sect,tok,size,0);
+	section_declarecommon(sect,tok,size,key);
 }
 
 
 struct directive
 {
 	char *mnem;
-	void (*handler)(struct objectfile *obj,const char *token,const char *token2);
+	void (*handler)(struct objectfile *obj,const char *token,const char *token2,int key);
+	int key;
 };
+
 
 struct directive directives[]=
 {
-	{".align",directive_align},
-	{".weak",directive_weak},
-	{".ctor",directive_ctor},
-	{".dtor",directive_dtor},
-	{".global",directive_global},
-	{".globl",directive_global},
-	{".section",directive_section},
-	{".comm",directive_comm},
-	{".abs",directive_absolute},
-	{".lcomm",directive_lcomm},
-	{".int",directive_int},
-	{".short",directive_short},
-	{".byte",directive_byte},
-	{".reloc",directive_reloc},
-	{".liconst",directive_liconst},
-	{".liabs",directive_liabs},
-	{".lipcrel",directive_lipcrel},
+	{".ctor",directive_ctordtor,SECTIONFLAG_CTOR},
+	{".dtor",directive_ctordtor,SECTIONFLAG_DTOR},
+	{".global",directive_sectionflags,SYMBOLFLAG_GLOBAL},
+	{".globl",directive_sectionflags,SYMBOLFLAG_GLOBAL},
+	{".weak",directive_sectionflags,SYMBOLFLAG_WEAK},
+	{".section",directive_section,0},
+	{".abs",directive_absolute,0},
+	{".align",directive_align,0},
+	{".comm",directive_common,1},
+	{".lcomm",directive_common,0},
+	{".int",directive_literal,4},
+	{".short",directive_literal,2},
+	{".byte",directive_literal,1},
+	{".reloc",directive_reloc,0},
+	{".liabs",directive_reloc,SYMBOLFLAG_ABS},
+	{".lipcrel",directive_reloc,SYMBOLFLAG_PCREL},
+	{".liconst",directive_liconst,0},
 	{0,0}
 };
 
@@ -272,7 +199,7 @@ int assemble(const char *fn,const char *on)
 				/* Labels starting at column zero */
 				if(linebuf[0]!=' ' && linebuf[0]!='\t' && linebuf[0]!='\n' && linebuf[0]!='\r')
 				{
-					directive_label(obj,tok,0);
+					directive_label(obj,tok,0,0);
 				}
 				else
 				{
@@ -282,7 +209,7 @@ int assemble(const char *fn,const char *on)
 					{
 						if(strcasecmp(tok,directives[d].mnem)==0)
 						{
-							directives[d].handler(obj,tok2,tok3);
+							directives[d].handler(obj,tok2,tok3,directives[d].key);
 							break;
 						}
 						++d;

@@ -21,7 +21,6 @@ struct section *section_new(struct objectfile *obj,const char *name)
 		sect->lastref=0;
 		sect->address=0;
 		sect->cursor=0;
-		sect->align=0;
 		sect->flags=0;
 		sect->obj=obj;
 	}
@@ -34,55 +33,6 @@ void section_touch(struct section *sect)
 	if(sect)
 		sect->flags|=SECTIONFLAG_TOUCHED;
 }
-
-#if 0
-void section_garbagecollect(struct section *sect)
-{
-	if(sect && sect->touched==0)
-	{
-		struct symbol *sym,*nextsym;
-		struct codebuffer *buf,*nextbuf;
-
-		if(sect->identifier)
-			free(sect->identifier);
-
-		nextsym=sect->symbols;
-		while(nextsym)
-		{
-			sym=nextsym;
-			nextsym=sym->next;
-			symbol_delete(sym);
-		}
-
-		nextsym=sect->refs;
-		while(nextsym)
-		{
-			sym=nextsym;
-			nextsym=sym->next;
-			symbol_delete(sym);
-		}
-
-		nextbuf=sect->codebuffers;
-		while(nextbuf)
-		{
-			buf=nextbuf;
-			nextbuf=buf->next;
-			codebuffer_delete(buf);
-		}
-		sect->symbols=0;
-		sect->lastsymbol=0;
-		sect->codebuffers=0;
-		sect->lastcodebuffer=0;
-		sect->refs=0;
-		sect->lastref=0;
-		sect->address=0;
-		sect->cursor=0;
-		sect->align=0;
-		sect->cursor=0;
-		sect->identifier=strdup("GCed");
-	}
-}
-#endif
 
 
 int section_matchname(struct section *sect,const char *name)
@@ -169,11 +119,7 @@ struct symbol *section_getsymbol(struct section *sect, const char *name)
 		if(!(sym=section_findsymbol(sect,name)))
 		{
 			sym=symbol_new(name,-1,0);
-			if(sect->lastsymbol)
-				sect->lastsymbol->next=sym;
-			else
-				sect->symbols=sym;
-			sect->lastsymbol=sym;
+			section_addsymbol(sect,sym);
 		}
 		return(sym);
 	}
@@ -183,8 +129,7 @@ struct symbol *section_getsymbol(struct section *sect, const char *name)
 /*	Hunts for an existing symbol; if it has been referenced but not
 	declared, declares it, otherwise creates a new symbol.
 	If it's been declared already throw an error.
-	The most recently specified alignment is applied to the new symbol
-	and the section's alignment value is cleared. */
+*/
  
 void section_declaresymbol(struct section *sect, const char *name,int flags)
 {
@@ -200,8 +145,6 @@ void section_declaresymbol(struct section *sect, const char *name,int flags)
 			{
 				sym->flags|=flags;
 				sym->cursor=sect->cursor;
-				sym->align=sect->align;
-				sect->align=0;
 			}
 		}
 	}
@@ -247,19 +190,21 @@ void section_declarereference(struct section *sect, const char *name,int flags)
 	if(sect && name)
 	{
 		sym=symbol_new(name,sect->cursor,flags);
-		if(sect->lastref)
-			sect->lastref->next=sym;
-		else
-			sect->refs=sym;
-		sect->lastref=sym;
+		section_addreference(sect,sym);
 	}
 }
 
 
+/* Add an alignment ref to the section */
 void section_align(struct section *sect,int align)
 {
 	if(sect)
-		sect->align=align;
+	{
+		struct symbol *sym;
+		sym=symbol_new("algn",sect->cursor,SYMBOLFLAG_ALIGN);
+		sym->align=align;
+		section_addreference(sect,sym);
+	}
 }
 
 
