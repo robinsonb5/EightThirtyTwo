@@ -40,15 +40,17 @@ void objectfile_load(struct objectfile *obj,const char *fn)
 	struct symbol *sym;
 	if(!f)
 		linkerror("Can't open file");
-	fread(tmp,2,1,f);
-	if(tmp[0]!=0x83 || tmp[1]!=0x2a)
+	fread(tmp,4,1,f);
+	if(strncmp(tmp,"832\x01",4)!=0)
 		linkerror("Not an 832 object file");
 
 	while(fread(tmp,4,1,f))
 	{
 		int l;
 		printf("Chunk header: %s\n",tmp);
-		if(strncmp(tmp,"SECT",4)==0)
+		if(strncmp(tmp,"832\x01",4)==0)	/* Another header - probably means objects have been concatenated. */
+			;
+		else if(strncmp(tmp,"SECT",4)==0)
 		{
 			read_lstr(f,tmp);
 			printf("Section %s :\n",tmp);
@@ -214,8 +216,8 @@ void objectfile_output(struct objectfile *obj,const char *filename)
 		struct section *sect=obj->sections;
 
 		FILE *f=fopen(filename,"wb");
-		fputc(0x83,f);
-		fputc(0x2a,f);
+		fwrite("832",3,1,f);
+		fputc(0x01,f);
 
 		while(sect)
 		{

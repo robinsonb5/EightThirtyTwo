@@ -19,17 +19,24 @@
 		* Remove any untouched sections.
 	* Sort sections:
 		* The first section must remain so
+		* ctors and dtors must be collected and sorted
 		* BSS sections should come last
-		* Need to define virtual symbols at the start and end of the BSS sections
+		* Need to define virtual symbols at the start and end of the BSS sections, and the ctor/dtor lists
 	* Assign preliminary addresses to all sections.
 	* Calculate initial size of all sections, along with worst-case slack due to alignment
 	* Resolve references.  Reference size in bytes will depend upon the reach/absolute address, so need
 	  to support relaxation:
-		* Move all bytes beyond the reference in the current codebuffer
-		* Adjust the length of the codebuffer and the starting offset of subsequent buffers.
-		* Adjust the section offset all symbols in the current section beyond the reference.
+		* Assign an initial best-case and worst-case address to all symbols.
+			* For each section, take each symbol in turn, find all references with a cursor position
+			  before the symbol's cursor position, and calculate best- and worst-case sizes for them,
+         	  based on the general case.
+		* Assign initial best- and worst- case addresses to sections (just a convenience for symbol calcs.)
+		* Refine the best- and worst-case sizes for references based on the tentative symbol addresses.
+		* Re-assign addresses to symbols, using the refined reference sizes.
+		* If any references still have differences between best and worst case sizes, repeat the last two steps.
+		* (Must limit how many times we do this in case we end up with some kind of oscillation happening.)
 	* Assign final addresses to all symbols, taking alignment restrictions into account
-	* Re-resolve all references using the symbols' final addresses.  No further adjustment should be required.
+	* Re-resolve all references using the symbols' final addresses.
 	* Save the linked executable
 */
 
