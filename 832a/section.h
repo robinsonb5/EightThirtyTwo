@@ -26,10 +26,8 @@ struct section
 	struct symbol *lastref;
 	struct objectfile *obj;
 	/* Used for linking */
-	int address_bestcase;
-	int address_worstcase;
-	int offset_bestcase;	/* Total adjustment from references, aligns, etc. */
-	int offset_worstcase;
+	int address;
+	int offset;	/* Total adjustment from references, aligns, etc. */
 };
 
 

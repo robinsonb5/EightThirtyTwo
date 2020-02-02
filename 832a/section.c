@@ -22,10 +22,8 @@ struct section *section_new(struct objectfile *obj,const char *name)
 		sect->cursor=0;
 		sect->flags=0;
 		sect->obj=obj;
-		sect->address_bestcase=0;
-		sect->address_worstcase=0;
-		sect->offset_bestcase=0;
-		sect->offset_worstcase=0;
+		sect->address=0;
+		sect->offset=0;
 	}
 	return(sect);
 }
@@ -263,13 +261,11 @@ void section_sizereferences(struct section *sect)
 	if(sect)
 	{
 		struct symbol *sym=sect->refs;
-		sect->offset_bestcase=0;
-		sect->offset_worstcase=0;
+		sect->offset=0;
 		while(sym)
 		{
 			reference_size(sym);
-			sect->offset_bestcase+=sym->size_bestcase;
-			sect->offset_worstcase+=sym->size_worstcase;
+			sect->offset+=sym->size;
 			sym=sym->next;
 		}
 	}
@@ -281,25 +277,21 @@ void section_assignaddresses(struct section *sect,struct section *prev)
 	struct symbol *ref=sect->refs;
 	struct symbol *sym=sect->symbols;
 	int cursor=0;
-	int best=0;
-	int worst=0;
+	int addr=0;
 	if(!sect)
 		return;
 	if(prev)
 	{
-		best=prev->address_bestcase+prev->cursor+prev->offset_bestcase;
-		worst=prev->address_worstcase+prev->cursor+prev->offset_worstcase;
+		addr=prev->address+prev->cursor+prev->offset;
 	}
-	printf("Assign addresses %x, %x to %s\n",best,worst,sect->identifier);
-	sect->address_bestcase=best;
-	sect->address_worstcase=worst;
+	printf("Assign addresses %x to %s\n",addr,sect->identifier);
+	sect->address=addr;
 
-	best=0;
-	worst=0;
+	addr=0;
 
-	/* Step through symbols, assigning best and worst case addresses.
-	   For each symbol, incorporate best- and worst-case sizes into the
-	   section's offset values, and use these to compute the symbols' address. */	
+	/* Step through symbols, assigning addresses.
+	   For each symbol, incorporate sizes into the section's offset values,
+	   and use these to compute the symbols' address. */
 	
 	while(sym || ref)
 	{
@@ -312,27 +304,18 @@ void section_assignaddresses(struct section *sect,struct section *prev)
 		{
 			if(ref->flags&SYMBOLFLAG_ALIGN)
 			{
-				int alignaddr=sect->address_bestcase+ref->cursor+best+1;
-				/* If this is an alignment ref, apply it rather than using a theoretical bestcase */
+				int alignaddr=sect->address+ref->cursor+addr+1;
+				/* If this is an alignment ref, apply it rather than using a theoretical best/worst case */
 				printf("Best case: aligning %x to %d byte boundary\n",alignaddr,ref->align);
 				alignaddr+=ref->align-1;
 				alignaddr&=~(ref->align-1);
-				ref->size_bestcase=alignaddr-(sect->address_bestcase+ref->cursor+best+1);
-				printf("  -> %x (%d)\n",alignaddr,ref->size_bestcase);
-				best+=ref->size_bestcase;
-
-				alignaddr=sect->address_worstcase+ref->cursor+worst+1;
-				printf("Worst case: aligning %x to %d byte boundary\n",alignaddr,ref->align);
-				alignaddr+=ref->align-1;
-				alignaddr&=~(ref->align-1);
-				ref->size_worstcase=alignaddr-(sect->address_worstcase+ref->cursor+worst+1);
-				printf("  -> %x (%d)\n",alignaddr,ref->size_worstcase);
-				worst+=ref->size_worstcase;
+				ref->size=alignaddr-(sect->address+ref->cursor+addr+1);
+				printf("  -> %x (%d)\n",alignaddr,ref->size);
+				addr+=ref->size;
 			}
 			else
 			{
-				best+=ref->size_bestcase;
-				worst+=ref->size_worstcase;
+				addr+=ref->size;
 			}
 			ref=ref->next;
 		}
@@ -341,14 +324,12 @@ void section_assignaddresses(struct section *sect,struct section *prev)
 		{
 			if(!(sym->flags&SYMBOLFLAG_CONSTANT))
 			{
-				sym->address_bestcase=sect->address_bestcase+sym->cursor+best;
-				sym->address_worstcase=sect->address_worstcase+sym->cursor+worst;
+				sym->address=sect->address+sym->cursor+addr;
 			}
 			sym=sym->next;
 		}
 	}
-	sect->offset_bestcase=best;
-	sect->offset_worstcase=worst;
+	sect->offset=addr;
 }
 
 
@@ -366,7 +347,7 @@ void section_dump(struct section *sect,int untouched)
 			printf("%s",sect->flags & SECTIONFLAG_CTOR ? ", CTOR" : "");
 			printf("%s",sect->flags & SECTIONFLAG_DTOR ? ", DTOR" : "");
 			printf("%s\n",sect->flags & SECTIONFLAG_TOUCHED ? ", touched" : "");
-			printf("  Address (best case): %x, (worst case): %x\n",sect->address_bestcase,sect->address_worstcase);
+			printf("  Address: %x\n",sect->address);
 
 			printf("\nSymbols:\n");
 			sym=sect->symbols;
@@ -497,7 +478,7 @@ void section_outputexe(struct section *sect,FILE *f)
 		{
 			if(ref->flags&SYMBOLFLAG_ALIGN)
 			{
-				int align=ref->size_worstcase;
+				int align=ref->size;
 				offset+=align;
 				printf("Outputting alignment reference %s, %d bytes\n",ref->identifier,align);
 				while(align--)
@@ -506,37 +487,37 @@ void section_outputexe(struct section *sect,FILE *f)
 			else if(ref->flags&SYMBOLFLAG_LDPCREL)
 			{
 				int i;
-				int targetaddr=ref->resolve->address_worstcase;
-				int refaddr=sect->address_worstcase+ref->cursor+ref->size_worstcase+offset+1;
+				int targetaddr=ref->resolve->address;
+				int refaddr=sect->address+ref->cursor+ref->size+offset+1;
 				int d=targetaddr-refaddr;
-				printf("Outputting ldpcrel reference %s, %d bytes\n",ref->identifier,ref->size_worstcase);
+				printf("Outputting ldpcrel reference %s, %d bytes\n",ref->identifier,ref->size);
 				printf("Target address %x, reference address %x\n",targetaddr,refaddr);
-				for(i=ref->size_worstcase-1;i>=0;--i)
+				for(i=ref->size-1;i>=0;--i)
 				{
 					int c=((d>>(i*6))&0x3f)|0xc0;	/* Construct an 'li' opcode with six bits of data */
 					fputc(c,f);
 				}
-				offset+=ref->size_worstcase;
+				offset+=ref->size;
 			}
 			else if(ref->flags&SYMBOLFLAG_LDABS)
 			{
 				int i;
-				int targetaddr=ref->resolve->address_worstcase;
-				int refaddr=sect->address_worstcase+ref->cursor+ref->size_worstcase+offset;
+				int targetaddr=ref->resolve->address;
+				int refaddr=sect->address+ref->cursor+ref->size+offset;
 				int d=targetaddr;
-				printf("Outputting ldabs reference %s, %d bytes\n",ref->identifier,ref->size_worstcase);
+				printf("Outputting ldabs reference %s, %d bytes\n",ref->identifier,ref->size);
 				printf("Target address %x\n",targetaddr);
-				for(i=ref->size_worstcase-1;i>=0;--i)
+				for(i=ref->size-1;i>=0;--i)
 				{
 					int c=((d>>(i*6))&0x3f)|0xc0;	/* Construct an 'li' opcode with six bits of data */
 					fputc(c,f);
 				}
-				offset+=ref->size_worstcase;
+				offset+=ref->size;
 			}
 			else if(ref->flags&SYMBOLFLAG_REFERENCE)
 			{
 				printf("Outputting standard reference %s\n",ref->identifier);
-				write_int_le(ref->resolve->address_worstcase,f);
+				write_int_le(ref->resolve->address,f);
 				offset+=4;
 			}
 			ref=ref->next;

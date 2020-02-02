@@ -22,10 +22,8 @@ struct symbol
 	/* Used by linker */
 	struct symbol *resolve;
 	struct section *sect;
-	int address_worstcase;
-	int address_bestcase;
-	int size_worstcase;
-	int size_bestcase;
+	int address;
+	int size;
 };
 
 struct symbol *symbol_new(const char *id,int cursor,int flags);

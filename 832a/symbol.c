@@ -17,10 +17,8 @@ struct symbol *symbol_new(const char *id,int cursor,int flags)
 		result->align=0;
 		result->sect=0;
 		result->resolve=0;
-		result->address_worstcase=0;
-		result->address_bestcase=0;
-		result->size_worstcase=0;
-		result->size_bestcase=0;
+		result->address=0;
+		result->size=0;
 	}
 	return(result);
 }
@@ -44,7 +42,7 @@ int symbol_matchname(struct symbol *sym,const char *name)
 }
 
 
-/* Calculate the best- and worst-case size for a reference.
+/* Calculate the worst-case size for a reference.
    The only variable-size reference types are LDABS, LDPCREL and ALIGN
  */
 
@@ -68,32 +66,27 @@ void reference_size(struct symbol *sym)
 	{
 		if(sym->flags&SYMBOLFLAG_ALIGN)
 		{
-		/* The best-case size for an alignment will be calculated at the same time as
-		   object addresses */
-		/*	sym->size_bestcase=0;	 */
-	
-			sym->size_worstcase=sym->align-1;
+			/* Use the worst-case size initially */
+			sym->size=sym->align-1;
 		}
 		else if(sym->flags&SYMBOLFLAG_REFERENCE)
 		{
 			/* simple references are always four bytes */
-			sym->size_bestcase=4;
-			sym->size_worstcase=4;
+			sym->size=4;
 		}
 		else if (sym->flags&SYMBOLFLAG_LDABS)
 		{
 			if(sym->resolve)
 			{
-				if(sym->resolve->address_bestcase)
+				if(sym->resolve->address)
 				{
-					/* Compute best- and worst-case sizes based on the absolute address of the target. */
-					sym->size_bestcase=count_constantchunks(sym->resolve->address_bestcase);
-					sym->size_worstcase=count_constantchunks(sym->resolve->address_worstcase);
+					/* Compute sizes based on the absolute address of the target. */
+					sym->size=count_constantchunks(sym->resolve->address);
 				}
 				else
 				{
-					sym->size_bestcase=1;
-					sym->size_worstcase=6;
+					/* Worst case size */
+					sym->size=6;
 				}
 			}
 		}
@@ -101,21 +94,19 @@ void reference_size(struct symbol *sym)
 		{
 			if(sym->resolve)
 			{
-				if(sym->resolve->address_bestcase)
+				if(sym->resolve->address)
 				{
 					int i;
 					int reladr;
-					int best=sym->sect->address_bestcase+sym->cursor+sym->sect->offset_bestcase+1;
-					int worst=sym->sect->address_worstcase+sym->cursor+sym->sect->offset_worstcase+1;
-					printf("Reference %s, cursor %d, best %d, worst %d\n",sym->identifier,sym->cursor,best,worst);
-					sym->size_bestcase=count_pcrelchunks(best,sym->resolve->address_bestcase);
-					sym->size_worstcase=count_pcrelchunks(worst,sym->resolve->address_worstcase);
-					/* Compute best- and worst-case sizes based on the distance to the target. */
+					int addr=sym->sect->address+sym->cursor+sym->sect->offset+1;
+					/* Compute worst-case sizes based on the distance to the target. */
+					printf("Reference %s, cursor %d, adj %d\n",sym->identifier,sym->cursor,addr);
+					sym->size=count_pcrelchunks(addr,sym->resolve->address);
 				}
 				else
 				{
-					sym->size_bestcase=1;
-					sym->size_worstcase=6;
+					/* Worst case size */
+					sym->size=6;
 				}
 			}
 		}
@@ -140,8 +131,8 @@ void symbol_dump(struct symbol *sym)
 	if(sym)
 	{
 		printf("%s, cursor: %d, flags: %x, align: %d\n",sym->identifier, sym->cursor,sym->flags,sym->align);
-		printf("size (best case) %d, size (worst case) %d\n",sym->size_bestcase, sym->size_worstcase);
-		printf("    address (best case) %d, size (worst case) %d\n",sym->address_bestcase, sym->address_worstcase);
+		printf("size %d\n",sym->size);
+		printf("    address %d\n",sym->address);
 	}
 }
 
