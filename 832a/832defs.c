@@ -15,15 +15,15 @@ struct opcode operands[]=
 	{"r6",6,0},
 	{"r7",7,0},
 
-	{"NEX",0},	/* Match none. */
-	{"SGT",1},	/* Zero clear, carry clear */
-	{"EQ",2},	/* Zero set, carry don't care */
-	{"GE",3},	/* Zero set or carry clear */
-	{"SLT",4},	/* Zero clear, carry set */
-	{"NEQ",5},	/* Zero clear, carry don't care */
-	{"LE",6},	/* Zero set or carry set */
-	{"EX",7},	/* Zero don't care, carry don't care */
-	{0,0}	/* Null terminate */
+	{"NEX",0,0},	/* Match none. */
+	{"SGT",1,0},	/* Zero clear, carry clear */
+	{"EQ",2,0},	/* Zero set, carry don't care */
+	{"GE",3,0},	/* Zero set or carry clear */
+	{"SLT",4,0},	/* Zero clear, carry set */
+	{"NEQ",5,0},	/* Zero clear, carry don't care */
+	{"LE",6,0},	/* Zero set or carry set */
+	{"EX",7,0},	/* Zero don't care, carry don't care */
+	{0,0xff,0}	/* Null terminate */
 };
 
 struct opcode opcodes[]=
@@ -70,6 +70,6 @@ struct opcode opcodes[]=
 	{"ldt",0xbf,0}, /* Overloads xor */
 	{"byt",0x97,0}, /* Overloads mul */
 	{"hlf",0x9f,0}, /* Overloads and */
-	{0,0}	/* Null terminate */
+	{0,0xff,0}	/* Null terminate */
 };
 

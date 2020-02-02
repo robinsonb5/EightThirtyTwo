@@ -105,8 +105,8 @@ void reference_size(struct symbol *sym)
 				{
 					int i;
 					int reladr;
-					int best=sym->sect->address_bestcase+sym->cursor;
-					int worst=sym->sect->address_worstcase+sym->cursor;
+					int best=sym->sect->address_bestcase+sym->cursor+sym->sect->offset_bestcase+1;
+					int worst=sym->sect->address_worstcase+sym->cursor+sym->sect->offset_worstcase+1;
 					printf("Reference %s, cursor %d, best %d, worst %d\n",sym->identifier,sym->cursor,best,worst);
 					sym->size_bestcase=count_pcrelchunks(best,sym->resolve->address_bestcase);
 					sym->size_worstcase=count_pcrelchunks(worst,sym->resolve->address_worstcase);

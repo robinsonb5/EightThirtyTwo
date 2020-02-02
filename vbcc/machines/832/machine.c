@@ -1028,7 +1028,7 @@ void gen_var_head(FILE * f, struct Var *v)
 		newobj = 1;
 	}
 	if (v->storage_class == EXTERN) {
-		emit(f, "\t.globl\t%s%s\n", idprefix, v->identifier);
+//		emit(f, "\t.globl\t%s%s\n", idprefix, v->identifier);
 		if (v->flags & (DEFINED | TENTATIVE)) {
 			if (!special_section(f, v)) {
 				if (v->clist && (!constflag || (g_flags[2] & USEDFLAG))

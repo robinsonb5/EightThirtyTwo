@@ -8,8 +8,8 @@ struct opcode
 	int opbits;
 };
 
-struct opcode operands[17];
-struct opcode opcodes[30];
+extern struct opcode operands[17];
+extern struct opcode opcodes[30];
 
 #endif
 

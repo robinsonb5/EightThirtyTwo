@@ -263,9 +263,13 @@ void section_sizereferences(struct section *sect)
 	if(sect)
 	{
 		struct symbol *sym=sect->refs;
+		sect->offset_bestcase=0;
+		sect->offset_worstcase=0;
 		while(sym)
 		{
 			reference_size(sym);
+			sect->offset_bestcase+=sym->size_bestcase;
+			sect->offset_worstcase+=sym->size_worstcase;
 			sym=sym->next;
 		}
 	}
