@@ -114,7 +114,7 @@ struct symbol *executable_resolvereference(struct executable *exe,struct symbol 
 			struct symbol *sym=section_findsymbol(sect,ref->identifier);
 			if(sym)
 			{
-				ref->sect=sect;
+/*				ref->sect=sect;*/
 				ref->resolve=sym;
 				return(sym);
 			}
@@ -136,7 +136,7 @@ struct symbol *executable_resolvereference(struct executable *exe,struct symbol 
 						if(sym->flags&SYMBOLFLAG_WEAK)
 						{
 							printf("Weak symbol found - keep looking\n");
-							ref->sect=sect;
+/*							ref->sect=sect;*/
 							ref->resolve=sym;
 							result=sym; /* Use this result if nothing better is found */
 						}
@@ -145,7 +145,7 @@ struct symbol *executable_resolvereference(struct executable *exe,struct symbol 
 							if(excludesection && excludesection->obj == sect->obj)
 							{
 								printf("Symbol found without global scope, but within the same object file\n");
-								ref->sect=sect;
+/*								ref->sect=sect;*/
 								ref->resolve=sym;
 								return(sym);
 							}
@@ -154,7 +154,7 @@ struct symbol *executable_resolvereference(struct executable *exe,struct symbol 
 						}
 						else
 						{
-							ref->sect=sect;
+/*							ref->sect=sect;*/
 							ref->resolve=sym;
 							return(sym);
 						}
@@ -192,7 +192,7 @@ int executable_resolvereferences(struct executable *exe,struct section *sect)
 			if(sym)
 			{
 				printf("Found symbol %s within the current section\n",sym->identifier);
-				ref->sect=sect;	/* will be overridden if a better match is found */
+/*				ref->sect=sect;	*//* will be overridden if a better match is found */
 			}
 			if(!sym || (sym->flags&SYMBOLFLAG_WEAK))
 			{
@@ -210,7 +210,7 @@ int executable_resolvereferences(struct executable *exe,struct section *sect)
 
 			/* Recursively resolve references in the section containing the symbol just found. */
 			if(sym)
-				result&=executable_resolvereferences(exe,ref->sect);
+				result&=executable_resolvereferences(exe,ref->resolve->sect);
 		}
 		ref=ref->next;
 	}
@@ -269,27 +269,34 @@ void executable_initialaddresses(struct executable *exe)
 	{
 		struct sectionmap *map=exe->map;
 		struct section *sect,*prev;
+		int j;
 
-		/* First assign initial best- and worst-case sizes to all references.
-		   With no tentative addresses assigned, the worst-case sizes will be pessimistic */
-		for(i=0;i<map->entrycount;++i)
+		for(j=0;j<3;++j)
 		{
-			sect=map->entries[i].sect;
-			if(sect)
-				section_sizereferences(map->entries[i].sect);
-		}
+			/* Make several passes through the sectionmap.
+			   The first pass assigns initial best- and worst-case sizes to all references.
+			   With no tentative addresses assigned, the worst-case sizes will be pessimistic.
+			   Addresses are assigned to symbols based on the initial sizes, which are refined
+			   in subsequent passes.  */
+			for(i=0;i<map->entrycount;++i)
+			{
+				sect=map->entries[i].sect;
+				if(sect)
+					section_sizereferences(map->entries[i].sect);
+			}
 
-		/* Now assign initial addresses */
-		sect=map->entries[0].sect;
-		section_assignaddresses(sect,0);
-		for(i=1;i<map->entrycount;++i)
-		{
-			int best,worst;
-			if(sect)
-				prev=sect;
-			sect=map->entries[i].sect;
-			if(sect)
-				section_assignaddresses(sect,prev);
+			/* Now assign addresses */
+			sect=map->entries[0].sect;
+			section_assignaddresses(sect,0);
+			for(i=1;i<map->entrycount;++i)
+			{
+				int best,worst;
+				if(sect)
+					prev=sect;
+				sect=map->entries[i].sect;
+				if(sect)
+					section_assignaddresses(sect,prev);
+			}
 		}
 	}
 }

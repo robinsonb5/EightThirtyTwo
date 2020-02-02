@@ -92,6 +92,7 @@ void section_addsymbol(struct section *sect, struct symbol *sym)
 	else
 		sect->symbols=sym;
 	sect->lastsymbol=sym;
+	sym->sect=sect;
 }
 
 
@@ -184,6 +185,7 @@ void section_addreference(struct section *sect, struct symbol *sym)
 	else
 		sect->refs=sym;
 	sect->lastref=sym;
+	sym->sect=sect;
 }
 
 

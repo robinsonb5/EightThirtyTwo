@@ -14,6 +14,12 @@ struct symbol *symbol_new(const char *id,int cursor,int flags)
 		result->identifier=strdup(id);
 		result->cursor=cursor;
 		result->flags=flags;
+		result->sect=0;
+		result->resolve=0;
+		result->address_worstcase=0;
+		result->address_bestcase=0;
+		result->size_worstcase=0;
+		result->size_bestcase=0;
 	}
 	return(result);
 }
@@ -41,6 +47,20 @@ int symbol_matchname(struct symbol *sym,const char *name)
    The only variable-size reference types are LDABS, LDPCREL and ALIGN
  */
 
+static int count_pcrelchunks(unsigned int a1,unsigned int a2)
+{
+	int i;
+	printf("Counting displacement from %d to %d\n",a1,a2);
+	for(i=1;i<6;++i)
+	{
+		unsigned int d=a2-(a1+i);
+		d&=0xffffffff;
+		if(i>=count_constantchunks(d))
+			return(i);
+	}
+	return(6);
+}
+
 void reference_size(struct symbol *sym,int address_bestcase, int address_worstcase)
 {
 	if(sym)
@@ -52,7 +72,7 @@ void reference_size(struct symbol *sym,int address_bestcase, int address_worstca
 		}
 		else if(sym->flags&SYMBOLFLAG_REFERENCE)
 		{
-			/* simply references are always four bytes */
+			/* simple references are always four bytes */
 			sym->size_bestcase=4;
 			sym->size_worstcase=4;
 		}
@@ -62,7 +82,9 @@ void reference_size(struct symbol *sym,int address_bestcase, int address_worstca
 			{
 				if(sym->resolve->address_bestcase)
 				{
-					/* Compute best- and worst-case sizes based on the distance to the target. */
+					/* Compute best- and worst-case sizes based on the absolute address of the target. */
+					sym->size_bestcase=count_constantchunks(sym->resolve->address_bestcase);
+					sym->size_worstcase=count_constantchunks(sym->resolve->address_worstcase);
 				}
 				else
 				{
@@ -77,6 +99,13 @@ void reference_size(struct symbol *sym,int address_bestcase, int address_worstca
 			{
 				if(sym->resolve->address_bestcase)
 				{
+					int i;
+					int reladr;
+					int best=sym->sect->address_bestcase+sym->cursor;
+					int worst=sym->sect->address_worstcase+sym->cursor;
+					printf("Reference %s, cursor %d, best %d, worst %d\n",sym->identifier,sym->cursor,best,worst);
+					sym->size_bestcase=count_pcrelchunks(best,sym->resolve->address_bestcase);
+					sym->size_worstcase=count_pcrelchunks(worst,sym->resolve->address_worstcase);
 					/* Compute best- and worst-case sizes based on the distance to the target. */
 				}
 				else
