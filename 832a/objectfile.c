@@ -201,14 +201,14 @@ void objectfile_delete(struct objectfile *obj)
 	}	
 }
 
-void objectfile_dump(struct objectfile *obj)
+void objectfile_dump(struct objectfile *obj,int untouched)
 {
 	struct section *sect;
-	sect=obj->sections;
 	printf("\nObjectfile: %s\n",obj->filename);
+	sect=obj->sections;
 	while(sect)
 	{
-		section_dump(sect);
+		section_dump(sect,untouched);
 		sect=sect->next;
 	}
 }

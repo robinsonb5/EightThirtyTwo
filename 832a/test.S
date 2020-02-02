@@ -1,3 +1,17 @@
+	.section .text.init
+	.global initial
+initial:
+	stdec	r6
+	.lipcrel .localref1
+	add	r7
+.endloop
+	.lipcrel .endloop
+	add	r7
+.localref1:
+	stdec r6
+	ldinc	r6
+	mr	r7
+
 	.section .text.1
 	.global	label2
 	.global	label3
@@ -30,7 +44,7 @@ label3:
 //	and r5
 
 	.global	STACKTOP
-	.abs	STACKTOP,0x2000
+	.constant	STACKTOP,0x2000
 
 	.section .text.main
 	.global	_main
@@ -59,11 +73,11 @@ cleanup
 	mr	r7
 
 	.ctor .ctor.002
-	.reloc _main
+	.ref _main
 
 	.ctor .ctor.001
-	.reloc init
+	.ref init
 
 	.dtor .dtor.001
-	.reloc cleanup
+	.ref cleanup
 

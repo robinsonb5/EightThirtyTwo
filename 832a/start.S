@@ -25,7 +25,7 @@ _start:
 
 	.global _InterruptVector	// This word can be written to install an int handler.  Location 13.
 _InterruptVector:
-	.reloc	_interrupt
+	.ref	_interrupt
 
 	exg	r7
 
@@ -45,12 +45,12 @@ _InterruptVector:
 .start1:
 	// Set up the stack here
 	ldinc	r7
-	.reloc	_premain
+	.ref	_premain
 	mr	r7
 .start2:
 	// Set up the stack here
 	ldinc	r7
-	.reloc	_premain2
+	.ref	_premain2
 	mr	r7
 
 	.section	.text.premain
@@ -60,12 +60,12 @@ _premain:
 	// Setup the stack
 
 	ldinc	r7
-	.reloc	STACKTOP
+	.ref	STACKTOP
 	mr	r6
 
 	// Clear BSS here
 	ldinc	r7
-	.reloc	_main
+	.ref	_main
 	exg	r7
 .endloop:
 	cond NEX	// Pause until an interrupt is received

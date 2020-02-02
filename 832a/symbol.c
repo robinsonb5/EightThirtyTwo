@@ -41,7 +41,7 @@ int symbol_matchname(struct symbol *sym,const char *name)
    The only variable-size reference types are LDABS, LDPCREL and ALIGN
  */
 
-void reference_size(struct symbol *sym)
+void reference_size(struct symbol *sym,int address_bestcase, int address_worstcase)
 {
 	if(sym)
 	{
@@ -49,6 +49,12 @@ void reference_size(struct symbol *sym)
 		{
 			sym->size_bestcase=0;
 			sym->size_worstcase=sym->align-1;
+		}
+		else if(sym->flags&SYMBOLFLAG_REFERENCE)
+		{
+			/* simply references are always four bytes */
+			sym->size_bestcase=4;
+			sym->size_worstcase=4;
 		}
 		else if (sym->flags&SYMBOLFLAG_LDABS)
 		{
@@ -101,8 +107,9 @@ void symbol_dump(struct symbol *sym)
 	if(sym)
 	{
 		printf("%s, cursor: %d, flags: %x, align: %d\n",sym->identifier, sym->cursor,sym->flags,sym->align);
-		printf("  resolves to %x\n",(int)sym->resolve);
-		printf("  size (best case) %d, size (worst case) %d\n",sym->size_bestcase, sym->size_worstcase);
+		printf("    resolves to %x, ",(int)sym->resolve);
+		printf("size (best case) %d, size (worst case) %d\n",sym->size_bestcase, sym->size_worstcase);
+		printf("    address (best case) %d, size (worst case) %d\n",sym->address_bestcase, sym->address_worstcase);
 	}
 }
 

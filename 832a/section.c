@@ -24,6 +24,8 @@ struct section *section_new(struct objectfile *obj,const char *name)
 		sect->obj=obj;
 		sect->address_bestcase=0;
 		sect->address_worstcase=0;
+		sect->offset_bestcase=0;
+		sect->offset_worstcase=0;
 	}
 	return(sect);
 }
@@ -154,7 +156,7 @@ void section_declaresymbol(struct section *sect, const char *name,int flags)
 
 void section_declarecommon(struct section *sect,const char *lab,int size,int global)
 {
-	int flags=global ? 0 : SYMBOLFLAG_LOCAL;
+	int flags=global ? SYMBOLFLAG_GLOBAL : SYMBOLFLAG_LOCAL;
 	if(sect->cursor && !(sect->flags&SECTIONFLAG_BSS))
 		asmerror("Can't mix BSS and code/initialised data in a section.");
 	section_declaresymbol(sect,lab,flags);
@@ -163,10 +165,10 @@ void section_declarecommon(struct section *sect,const char *lab,int size,int glo
 }
 
 
-void section_declareabsolute(struct section *sect,const char *lab,int value,int global)
+void section_declareconstant(struct section *sect,const char *lab,int value,int global)
 {
 	struct symbol *sym;
-	int flags=global ? SYMBOLFLAG_ABSOLUTE : SYMBOLFLAG_ABSOLUTE|SYMBOLFLAG_LOCAL;
+	int flags=global ? SYMBOLFLAG_CONSTANT : SYMBOLFLAG_CONSTANT|SYMBOLFLAG_LOCAL;
 	if(sym=section_getsymbol(sect,lab))
 	{
 		sym->cursor=value;
@@ -257,50 +259,93 @@ void section_sizereferences(struct section *sect)
 		struct symbol *sym=sect->refs;
 		while(sym)
 		{
-			reference_size(sym);
+			reference_size(sym,0,0);
 			sym=sym->next;
 		}
 	}
 }
 
 
-void section_dump(struct section *sect)
+void section_assignaddresses(struct section *sect,struct section *prev)
+{
+	struct symbol *ref=sect->refs;
+	struct symbol *sym=sect->symbols;
+	int best=0;
+	int worst=0;
+	if(!sect)
+		return;
+	if(prev)
+	{
+		best=prev->address_bestcase+prev->cursor+prev->offset_bestcase;
+		worst=prev->address_worstcase+prev->cursor+prev->offset_worstcase;
+	}
+	sect->address_bestcase=0;
+	sect->address_worstcase=0;
+
+	/* Step through symbols, assigning best and worst case addresses.
+	   For each symbol, incorporate best- and worst-case sizes into the
+	   section's offset values, and use these to compute the symbols' address. */	
+	while(sym)
+	{
+		if(!(sym->flags&SYMBOLFLAG_CONSTANT))
+		{
+			while(ref && ref->cursor<sym->cursor)
+			{
+				best+=ref->size_bestcase;
+				worst+=ref->size_worstcase;
+				ref=ref->next;
+			}
+			sym->address_bestcase=sect->address_bestcase+sym->cursor+best;
+			sym->address_worstcase=sect->address_worstcase+sym->cursor+worst;
+		}
+
+		sym=sym->next;
+	}
+	sect->offset_bestcase=best;
+	sect->offset_worstcase=worst;
+}
+
+
+void section_dump(struct section *sect,int untouched)
 {
 	if(sect)
 	{
-		struct codebuffer *buf;
-		struct symbol *sym;
-		printf("\nSection: %s  :  ",sect->identifier);
-		printf("cursor: %x",sect->cursor);
-		printf("%s",sect->flags & SECTIONFLAG_BSS ? ", BSS" : "");
-		printf("%s",sect->flags & SECTIONFLAG_CTOR ? ", CTOR" : "");
-		printf("%s",sect->flags & SECTIONFLAG_DTOR ? ", DTOR" : "");
-		printf("%s\n",sect->flags & SECTIONFLAG_TOUCHED ? ", touched" : "");
-
-		printf("\nSymbols:\n");
-		sym=sect->symbols;
-		while(sym)
+		if(untouched || (sect->flags&SECTIONFLAG_TOUCHED))
 		{
-			printf("  ");
-			symbol_dump(sym);
-			sym=sym->next;
-		}
+			struct codebuffer *buf;
+			struct symbol *sym;
+			printf("\nSection: %s  :  ",sect->identifier);
+			printf("cursor: %x",sect->cursor);
+			printf("%s",sect->flags & SECTIONFLAG_BSS ? ", BSS" : "");
+			printf("%s",sect->flags & SECTIONFLAG_CTOR ? ", CTOR" : "");
+			printf("%s",sect->flags & SECTIONFLAG_DTOR ? ", DTOR" : "");
+			printf("%s\n",sect->flags & SECTIONFLAG_TOUCHED ? ", touched" : "");
 
-		printf("\nReferences:\n");
-		sym=sect->refs;
-		while(sym)
-		{
-			printf("  ");
-			symbol_dump(sym);
-			sym=sym->next;
-		}
+			printf("\nSymbols:\n");
+			sym=sect->symbols;
+			while(sym)
+			{
+				printf("  ");
+				symbol_dump(sym);
+				sym=sym->next;
+			}
 
-		printf("\nBinary data:\n");
-		buf=sect->codebuffers;
-		while(buf)
-		{
-			codebuffer_dump(buf);
-			buf=buf->next;
+			printf("\nReferences:\n");
+			sym=sect->refs;
+			while(sym)
+			{
+				printf("  ");
+				symbol_dump(sym);
+				sym=sym->next;
+			}
+
+			printf("\nBinary data:\n");
+			buf=sect->codebuffers;
+			while(buf)
+			{
+				codebuffer_dump(buf);
+				buf=buf->next;
+			}
 		}
 	}
 }

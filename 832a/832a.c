@@ -59,6 +59,16 @@ void directive_literal(struct objectfile *obj,const char *tok,const char *tok2,i
 void directive_label(struct objectfile *obj,const char *tok,const char *tok2,int key)
 {
 	struct section *sect=objectfile_getsection(obj);
+	struct section *sect2=obj->sections;
+	while(sect2)
+	{
+		if(sect!=sect2)
+		{
+			if(section_findsymbol(sect2,tok))
+				asmerror("Symbol redefined\n");
+		}
+		sect2=sect2->next;
+	}
 	section_declaresymbol(sect,tok,0);
 }
 
@@ -66,7 +76,7 @@ void directive_label(struct objectfile *obj,const char *tok,const char *tok2,int
 /* Add one of several types of reference to the current section.
    The reference can be embedded-absolute, load-absolute or load-PC relative */
 
-void directive_reloc(struct objectfile *obj,const char *tok,const char *tok2,int key)
+void directive_reference(struct objectfile *obj,const char *tok,const char *tok2,int key)
 {
 	struct section *sect=objectfile_getsection(obj);
 	if(sect)
@@ -89,14 +99,14 @@ void directive_liconst(struct objectfile *obj,const char *tok,const char *tok2,i
 }
 
 
-void directive_absolute(struct objectfile *obj,const char *tok,const char *tok2,int key)
+void directive_constant(struct objectfile *obj,const char *tok,const char *tok2,int key)
 {
 	unsigned int val;
 	if(!tok2)
 		asmerror("Missing value for .abs");
 	val=strtoul(tok2,0,0);
 	struct section *sect=objectfile_getsection(obj);
-	section_declareabsolute(sect,tok,val,0);
+	section_declareconstant(sect,tok,val,0);
 }
 
 
@@ -132,16 +142,16 @@ struct directive directives[]=
 	{".globl",directive_sectionflags,SYMBOLFLAG_GLOBAL},
 	{".weak",directive_sectionflags,SYMBOLFLAG_WEAK},
 	{".section",directive_section,0},
-	{".abs",directive_absolute,0},
+	{".constant",directive_constant,0},
 	{".align",directive_align,0},
 	{".comm",directive_common,1},
 	{".lcomm",directive_common,0},
 	{".int",directive_literal,4},
 	{".short",directive_literal,2},
 	{".byte",directive_literal,1},
-	{".reloc",directive_reloc,0},
-	{".liabs",directive_reloc,SYMBOLFLAG_LDABS},
-	{".lipcrel",directive_reloc,SYMBOLFLAG_LDPCREL},
+	{".ref",directive_reference,SYMBOLFLAG_REFERENCE},
+	{".liabs",directive_reference,SYMBOLFLAG_LDABS},
+	{".lipcrel",directive_reference,SYMBOLFLAG_LDPCREL},
 	{".liconst",directive_liconst,0},
 	{0,0}
 };
@@ -245,7 +255,7 @@ int assemble(const char *fn,const char *on)
 		fclose(f);
 	}
 	objectfile_output(obj,on);
-	objectfile_dump(obj);
+	objectfile_dump(obj,1);
 	objectfile_delete(obj);
 	printf("Output file: %s\n",on);
 

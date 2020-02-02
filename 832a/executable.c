@@ -85,13 +85,13 @@ void executable_loadobject(struct executable *exe,const char *fn)
 	}
 }
 
-void executable_dump(struct executable *exe)
+void executable_dump(struct executable *exe,int untouched)
 {
 	struct objectfile *obj;
 	obj=exe->objects;
 	while(obj)
 	{
-		objectfile_dump(obj);
+		objectfile_dump(obj,untouched);
 		obj=obj->next;
 	}
 }
@@ -141,7 +141,17 @@ struct symbol *executable_resolvereference(struct executable *exe,struct symbol 
 							result=sym; /* Use this result if nothing better is found */
 						}
 						else if((sym->flags&SYMBOLFLAG_GLOBAL)==0)
-							printf("Symbol found but not globally declared - keep looking\n");
+						{
+							if(excludesection && excludesection->obj == sect->obj)
+							{
+								printf("Symbol found without global scope, but within the same object file\n");
+								ref->sect=sect;
+								ref->resolve=sym;
+								return(sym);
+							}
+							else
+								printf("Symbol found but not globally declared - keep looking\n");
+						}
 						else
 						{
 							ref->sect=sect;
@@ -258,12 +268,28 @@ void executable_initialaddresses(struct executable *exe)
 	if(exe && exe->map)
 	{
 		struct sectionmap *map=exe->map;
+		struct section *sect,*prev;
+
+		/* First assign initial best- and worst-case sizes to all references.
+		   With no tentative addresses assigned, the worst-case sizes will be pessimistic */
 		for(i=0;i<map->entrycount;++i)
 		{
-			if(map->entries[i].sect)
-			{
+			sect=map->entries[i].sect;
+			if(sect)
 				section_sizereferences(map->entries[i].sect);
-			}
+		}
+
+		/* Now assign initial addresses */
+		sect=map->entries[0].sect;
+		section_assignaddresses(sect,0);
+		for(i=1;i<map->entrycount;++i)
+		{
+			int best,worst;
+			if(sect)
+				prev=sect;
+			sect=map->entries[i].sect;
+			if(sect)
+				section_assignaddresses(sect,prev);
 		}
 	}
 }
@@ -291,7 +317,7 @@ void executable_checkreferences(struct executable *exe)
 	sectionmap_dump(exe->map);
 
 	executable_initialaddresses(exe);
-	executable_dump(exe);
+	executable_dump(exe,0);
 
 	/* Build a map by traversing the sections.  Need to create dummy entries for
 	   __bss_start__, __bss_end__, __ctors_start__, __ctors_end__, __dtors_start__ and __dtors_end__ */

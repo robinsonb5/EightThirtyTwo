@@ -22,7 +22,7 @@ struct section *objectfile_addsection(struct objectfile *obj, const char *sectio
 struct section *objectfile_findsection(struct objectfile *obj,const char *sectionname);
 struct section *objectfile_setsection(struct objectfile *obj, const char *sectionname);
 
-void objectfile_dump(struct objectfile *obj);
+void objectfile_dump(struct objectfile *obj,int untouched);
 
 #endif
 
