@@ -14,7 +14,7 @@ static char *delims=" \t:\n\r,";
 
 
 
-void directive_sectionflags(struct objectfile *obj,const char *tok,const char *tok2,int key)
+void directive_symbolflags(struct objectfile *obj,const char *tok,const char *tok2,int key)
 {
 	struct section *sect=objectfile_getsection(obj);
 	struct symbol *sym;
@@ -33,7 +33,7 @@ void directive_section(struct objectfile *obj,const char *tok,const char *tok2,i
 }
 
 
-void directive_ctordtor(struct objectfile *obj,const char *tok,const char *tok2,int key)
+void directive_sectionflags(struct objectfile *obj,const char *tok,const char *tok2,int key)
 {
 	struct section *sect;
 	if(sect=objectfile_setsection(obj,tok))
@@ -136,11 +136,12 @@ struct directive
 
 struct directive directives[]=
 {
-	{".ctor",directive_ctordtor,SECTIONFLAG_CTOR},
-	{".dtor",directive_ctordtor,SECTIONFLAG_DTOR},
-	{".global",directive_sectionflags,SYMBOLFLAG_GLOBAL},
-	{".globl",directive_sectionflags,SYMBOLFLAG_GLOBAL},
-	{".weak",directive_sectionflags,SYMBOLFLAG_WEAK},
+	{".ctor",directive_sectionflags,SECTIONFLAG_CTOR},
+	{".dtor",directive_sectionflags,SECTIONFLAG_DTOR},
+	{".bss",directive_sectionflags,SECTIONFLAG_BSS},
+	{".global",directive_symbolflags,SYMBOLFLAG_GLOBAL},
+	{".globl",directive_symbolflags,SYMBOLFLAG_GLOBAL},
+	{".weak",directive_symbolflags,SYMBOLFLAG_WEAK},
 	{".section",directive_section,0},
 	{".constant",directive_constant,0},
 	{".align",directive_align,0},

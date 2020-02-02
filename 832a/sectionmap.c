@@ -70,7 +70,7 @@ static int countsections(struct executable *exe)
 		sect=exe->map->builtins;
 		while(sect)
 		{
-			if(sect->flags&SECTIONFLAG_TOUCHED)
+/*			if(sect->flags&SECTIONFLAG_TOUCHED) */
 				++result;
 			sect=sect->next;
 		}

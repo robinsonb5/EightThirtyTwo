@@ -62,6 +62,12 @@ void objectfile_load(struct objectfile *obj,const char *fn)
 			sect=objectfile_addsection(obj,tmp);
 			sect->flags=read_int_le(f);
 		}
+		else if(strncmp(tmp,"BSS ",4)==0)
+		{
+			l=read_int_le(f);
+			printf("%d bytes of binary\n",l);
+			sect->cursor=l;
+		}
 		else if(strncmp(tmp,"BNRY",4)==0)
 		{
 			l=read_int_le(f);

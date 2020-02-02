@@ -157,7 +157,7 @@ void section_declaresymbol(struct section *sect, const char *name,int flags)
 void section_declarecommon(struct section *sect,const char *lab,int size,int global)
 {
 	int flags=global ? SYMBOLFLAG_GLOBAL : SYMBOLFLAG_LOCAL;
-	if(sect->cursor && !(sect->flags&SECTIONFLAG_BSS))
+	if(sect->symbols && !(sect->flags&SECTIONFLAG_BSS))
 		asmerror("Can't mix BSS and code/initialised data in a section.");
 	section_declaresymbol(sect,lab,flags);
 	sect->flags|=SECTIONFLAG_BSS;
@@ -190,6 +190,8 @@ void section_addreference(struct section *sect, struct symbol *sym)
 void section_declarereference(struct section *sect, const char *name,int flags)
 {
 	struct symbol *sym;
+	if(sect && sect->flags&SECTIONFLAG_BSS)
+		asmerror("Can't mix BSS and code/initialised data in a section.");
 	if(sect && name)
 	{
 		sym=symbol_new(name,sect->cursor,flags);
@@ -204,7 +206,9 @@ void section_align(struct section *sect,int align)
 	if(sect)
 	{
 		struct symbol *sym;
-		sym=symbol_new("algn",sect->cursor,SYMBOLFLAG_ALIGN);
+		/* Reduce the cursor position by 1 so that it immediately precedes the
+		   object to be aligned */
+		sym=symbol_new("algn",sect->cursor-1,SYMBOLFLAG_ALIGN);
 		sym->align=align;
 		section_addreference(sect,sym);
 	}
@@ -279,8 +283,12 @@ void section_assignaddresses(struct section *sect,struct section *prev)
 		best=prev->address_bestcase+prev->cursor+prev->offset_bestcase;
 		worst=prev->address_worstcase+prev->cursor+prev->offset_worstcase;
 	}
-	sect->address_bestcase=0;
-	sect->address_worstcase=0;
+	printf("Assign addresses %x, %x to %s\n",best,worst,sect->identifier);
+	sect->address_bestcase=best;
+	sect->address_worstcase=worst;
+
+	best=0;
+	worst=0;
 
 	/* Step through symbols, assigning best and worst case addresses.
 	   For each symbol, incorporate best- and worst-case sizes into the
@@ -320,6 +328,7 @@ void section_dump(struct section *sect,int untouched)
 			printf("%s",sect->flags & SECTIONFLAG_CTOR ? ", CTOR" : "");
 			printf("%s",sect->flags & SECTIONFLAG_DTOR ? ", DTOR" : "");
 			printf("%s\n",sect->flags & SECTIONFLAG_TOUCHED ? ", touched" : "");
+			printf("  Address (best case): %x, (worst case): %x\n",sect->address_bestcase,sect->address_worstcase);
 
 			printf("\nSymbols:\n");
 			sym=sect->symbols;
@@ -388,11 +397,16 @@ void section_output(struct section *sect,FILE *f)
 		{
 			fputs("BNRY",f);
 			write_int_le(sect->cursor,f);
+			while(buf)
+			{
+				codebuffer_output(buf,f);
+				buf=buf->next;
+			}
 		}
-		while(buf)
+		else
 		{
-			codebuffer_output(buf,f);
-			buf=buf->next;
+			fputs("BSS ",f);
+			write_int_le(sect->cursor,f);
 		}
 	}
 }
