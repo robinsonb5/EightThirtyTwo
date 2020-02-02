@@ -503,7 +503,7 @@ void section_outputexe(struct section *sect,FILE *f)
 			{
 				int i;
 				int targetaddr=ref->resolve->address_worstcase;
-				int refaddr=sect->address_worstcase+ref->cursor+ref->size_worstcase+offset;
+				int refaddr=sect->address_worstcase+ref->cursor+ref->size_worstcase+offset+1;
 				int d=targetaddr-refaddr;
 				printf("Outputting ldpcrel reference %s, %d bytes\n",ref->identifier,ref->size_worstcase);
 				printf("Target address %x, reference address %x\n",targetaddr,refaddr);

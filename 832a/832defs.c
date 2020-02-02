@@ -40,7 +40,7 @@ struct opcode opcodes[]=
 	{"ror",0x38,3},
 
 	{"stinc",0x40,3},
-	{"mr",0x08,3},
+	{"mr",0x48,3},
 	{"stbinc",0x50,3},
 	{"stmpdec",0x58,3},
 
@@ -49,10 +49,10 @@ struct opcode opcodes[]=
 	{"mt",0x70,3},
 	{"st",0x78,3},
 
-	{"add",0x00,3},
-	{"sub",0x08,3},
-	{"mul",0x10,3},
-	{"and",0x18,3},
+	{"add",0x80,3},
+	{"sub",0x88,3},
+	{"mul",0x90,3},
+	{"and",0x98,3},
 
 	{"addt",0xa0,3},
 	{"cmp",0xa8,3},
