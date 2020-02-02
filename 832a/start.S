@@ -35,7 +35,7 @@ _InterruptVector:
 	mr	r1
 	ldinc	r6
 	mr	r0		// Return address temporarily into r0
-	li	IMW0(-1)
+	li	-1
 	add	r0		// Decrement return address
 	ldinc r6
 	exg	r0		// Restore r0
@@ -69,7 +69,7 @@ _premain:
 	exg	r7
 .endloop:
 	cond NEX	// Pause until an interrupt is received
-	li	IMW0(PCREL(.endloop))
+	.lipcrel	.endloop
 	add	r7
 
 	.section	.text.premain2
@@ -77,7 +77,7 @@ _premain:
 _premain2:
 .endloop2:
 	cond NEX	// Pause until an interrupt is received
-	li	IMW0(PCREL(.endloop2))
+	.lipcrel	.endloop2
 	add	r7
 
 	.section	.text.interrupt

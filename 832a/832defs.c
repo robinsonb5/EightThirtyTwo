@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 #include "832a.h"
+#include "832opcodes.h"
 
 struct opcode operands[]=
 {
@@ -29,47 +30,47 @@ struct opcode operands[]=
 struct opcode opcodes[]=
 {
 	/* Regular opcodes, each taking a 3-bit operand specifying the register number */
-	{"cond",0x00,3},
-	{"exg",0x08,3},
-	{"ldbinc",0x10,3},
-	{"stdec",0x18,3},
+	{"cond",opc_cond,3},
+	{"exg",opc_exg,3},
+	{"ldbinc",opc_ldbinc,3},
+	{"stdec",opc_stdec,3},
 
-	{"ldinc",0x20,3},
-	{"shr",0x28,3},
-	{"shl",0x30,3},
-	{"ror",0x38,3},
+	{"ldinc",opc_ldinc,3},
+	{"shr",opc_shr,3},
+	{"shl",opc_shl,3},
+	{"ror",opc_ror,3},
 
-	{"stinc",0x40,3},
-	{"mr",0x48,3},
-	{"stbinc",0x50,3},
-	{"stmpdec",0x58,3},
+	{"stinc",opc_stinc,3},
+	{"mr",opc_mr,3},
+	{"stbinc",opc_stbinc,3},
+	{"stmpdec",opc_stmpdec,3},
 
-	{"ldidx",0x60,3},
-	{"ld",0x68,3},
-	{"mt",0x70,3},
-	{"st",0x78,3},
+	{"ldidx",opc_ldidx,3},
+	{"ld",opc_ld,3},
+	{"mt",opc_mt,3},
+	{"st",opc_st,3},
 
-	{"add",0x80,3},
-	{"sub",0x88,3},
-	{"mul",0x90,3},
-	{"and",0x98,3},
+	{"add",opc_add,3},
+	{"sub",opc_sub,3},
+	{"mul",opc_mul,3},
+	{"and",opc_and,3},
 
-	{"addt",0xa0,3},
-	{"cmp",0xa8,3},
-	{"or",0xb0,3},
-	{"xor",0xb8,3},
+	{"addt",opc_addt,3},
+	{"cmp",opc_cmp,3},
+	{"or",opc_or,3},
+	{"xor",opc_xor,3},
 
 	/* Load immediate takes a six-bit operand */
 
-	{"li",0xc0,6},
+	{"li",opc_li,6},
 
 	/* Overloaded opcodes. Operands that make no sense when applied to r7, re-used.
 	   No operand for obvious reasons. */
 
-	{"sgn",0xb7,0}, /* Overloads or */
-	{"ldt",0xbf,0}, /* Overloads xor */
-	{"byt",0x97,0}, /* Overloads mul */
-	{"hlf",0x9f,0}, /* Overloads and */
+	{"sgn",ovl_sgn,0}, /* Overloads or */
+	{"ldt",ovl_ldt,0}, /* Overloads xor */
+	{"byt",ovl_byt,0}, /* Overloads mul */
+	{"hlf",ovl_hlf,0}, /* Overloads and */
 	{0,0xff,0}	/* Null terminate */
 };
 

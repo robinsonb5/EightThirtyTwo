@@ -503,7 +503,6 @@ void section_outputexe(struct section *sect,FILE *f)
 			{
 				int i;
 				int targetaddr=ref->resolve->address;
-				int refaddr=sect->address+ref->cursor+ref->size+offset;
 				int d=targetaddr;
 				printf("Outputting ldabs reference %s, %d bytes\n",ref->identifier,ref->size);
 				printf("Target address %x\n",targetaddr);
@@ -517,7 +516,10 @@ void section_outputexe(struct section *sect,FILE *f)
 			else if(ref->flags&SYMBOLFLAG_REFERENCE)
 			{
 				printf("Outputting standard reference %s\n",ref->identifier);
-				write_int_le(ref->resolve->address,f);
+				if(ref->resolve->flags&SYMBOLFLAG_CONSTANT)
+					write_int_le(ref->resolve->cursor,f);
+				else
+					write_int_le(ref->resolve->address,f);
 				offset+=4;
 			}
 			ref=ref->next;

@@ -110,8 +110,12 @@ void directive_reference(struct objectfile *obj,const char *tok,const char *tok2
 
 void directive_liconst(struct objectfile *obj,const char *tok,const char *tok2,int key)
 {
-	long v=strtol(tok,0,0);
-	int chunk=count_constantchunks(v);
+	char *endptr;
+	long v=strtol(tok,&endptr,0);
+	int chunk;
+	if(!v && endptr==tok)
+		asmerror("Invalid numeric constant");
+	chunk=count_constantchunks(v);
 	printf("%d chunks\n",chunk);
 	while(chunk--)
 	{
@@ -260,7 +264,10 @@ int assemble(const char *fn,const char *on)
 								}
 								else if(tok2 && opcodes[o].opbits==6) /* 6 bit literal - immediate value */
 								{
-									int v=strtoul(tok2,0,0);
+									char *endptr;
+									int v=strtoul(tok2,&endptr,0);
+									if(!v && endptr==tok2)
+										asmerror("Invalid constant value");
 									v&=0x3f;
 									opc|=v;
 								}
