@@ -37,7 +37,7 @@ void symbol_output(struct symbol *sym,FILE *f);
 
 void symbol_dump(struct symbol *sym);
 
-void reference_size(struct symbol *sym,int address_bestcase, int address_worstcase);
+void reference_size(struct symbol *sym);
 
 #endif
 

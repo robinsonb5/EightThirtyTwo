@@ -13,6 +13,8 @@
 static char *delims=" \t:\n\r,";
 
 
+/* FIXME - need a custom strtok-alike routine which supports escape characters and quotes for string literals */
+
 
 void directive_symbolflags(struct objectfile *obj,const char *tok,const char *tok2,int key)
 {
@@ -52,6 +54,28 @@ void directive_literal(struct objectfile *obj,const char *tok,const char *tok2,i
 	{
 		objectfile_emitbyte(obj,((v>>16)&255));
 		objectfile_emitbyte(obj,((v>>24)&255));
+	}
+}
+
+
+/* Emit literal string */
+void directive_ascii(struct objectfile *obj,const char *tok,const char *tok2,int key)
+{
+	int l;
+	if(tok)
+	{
+		l=strlen(tok);
+		printf("Ascii string: %s, length: %d\n",tok,l);
+		if(l && tok[0]=='\"' && tok[l-1]=='\"')
+		{
+			int i;
+			for(i=1;i<(l-1);++i)
+			{
+				objectfile_emitbyte(obj,tok[i]);
+			}
+		}
+		else
+			asmerror("Bad ASCII string");
 	}
 }
 
@@ -147,6 +171,7 @@ struct directive directives[]=
 	{".align",directive_align,0},
 	{".comm",directive_common,1},
 	{".lcomm",directive_common,0},
+	{".ascii",directive_ascii,0},
 	{".int",directive_literal,4},
 	{".short",directive_literal,2},
 	{".byte",directive_literal,1},

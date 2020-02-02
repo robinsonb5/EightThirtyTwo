@@ -14,6 +14,7 @@ struct symbol *symbol_new(const char *id,int cursor,int flags)
 		result->identifier=strdup(id);
 		result->cursor=cursor;
 		result->flags=flags;
+		result->align=0;
 		result->sect=0;
 		result->resolve=0;
 		result->address_worstcase=0;
@@ -61,13 +62,16 @@ static int count_pcrelchunks(unsigned int a1,unsigned int a2)
 	return(6);
 }
 
-void reference_size(struct symbol *sym,int address_bestcase, int address_worstcase)
+void reference_size(struct symbol *sym)
 {
 	if(sym)
 	{
 		if(sym->flags&SYMBOLFLAG_ALIGN)
 		{
-			sym->size_bestcase=0;
+		/* The best-case size for an alignment will be calculated at the same time as
+		   object addresses */
+		/*	sym->size_bestcase=0;	 */
+	
 			sym->size_worstcase=sym->align-1;
 		}
 		else if(sym->flags&SYMBOLFLAG_REFERENCE)
@@ -136,7 +140,6 @@ void symbol_dump(struct symbol *sym)
 	if(sym)
 	{
 		printf("%s, cursor: %d, flags: %x, align: %d\n",sym->identifier, sym->cursor,sym->flags,sym->align);
-		printf("    resolves to %x, ",(int)sym->resolve);
 		printf("size (best case) %d, size (worst case) %d\n",sym->size_bestcase, sym->size_worstcase);
 		printf("    address (best case) %d, size (worst case) %d\n",sym->address_bestcase, sym->address_worstcase);
 	}

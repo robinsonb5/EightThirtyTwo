@@ -17,6 +17,7 @@ struct objectfile *objectfile_new()
 		obj->next=0;
 		obj->sections=0;
 		obj->lastsection=0;
+		obj->currentsection=0;
 	}
 	return(obj);
 }
@@ -72,7 +73,6 @@ void objectfile_load(struct objectfile *obj,const char *fn)
 		{
 			l=read_int_le(f);
 			printf("%d bytes of binary\n",l);
-			/* FIXME - avoid splitting refs over ref boundaries */
 			while(l>0)
 			{
 				section_loadchunk(sect,l>CODEBUFFERSIZE ? CODEBUFFERSIZE : l,f);
@@ -210,7 +210,7 @@ void objectfile_delete(struct objectfile *obj)
 void objectfile_dump(struct objectfile *obj,int untouched)
 {
 	struct section *sect;
-	printf("\nObjectfile: %s\n",obj->filename);
+	printf("\nObjectfile: %s\n",obj->filename ? obj->filename : "not yet defined");
 	sect=obj->sections;
 	while(sect)
 	{
@@ -232,7 +232,7 @@ void objectfile_output(struct objectfile *obj,const char *filename)
 
 		while(sect)
 		{
-			section_output(sect,f);
+			section_outputobj(sect,f);
 			sect=sect->next;
 		}
 		fclose(f);

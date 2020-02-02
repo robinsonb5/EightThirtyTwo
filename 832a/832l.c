@@ -35,9 +35,11 @@ int main(int argc,char **argv)
 					executable_loadobject(exe,argv[i]);
 				}
 			}
-			executable_dump(exe,1);
-			executable_checkreferences(exe);
-			printf("Linking and saving to %s\n",outfn);
+			printf("Linking...\n");
+			executable_link(exe);
+			printf("Saving to %s\n",outfn);
+			executable_save(exe,outfn);
+
 			executable_delete(exe);
 		}
 	}

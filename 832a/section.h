@@ -58,7 +58,8 @@ void section_sizereferences(struct section *sect);
 void section_assignaddresses(struct section *sect,struct section *prev);
 
 void section_loadchunk(struct section *sect,int bytes,FILE *f);
-void section_output(struct section *sect,FILE *f);
+void section_outputobj(struct section *sect,FILE *f);
+void section_outputexe(struct section *sect,FILE *f);
 void section_dump(struct section *sect,int untouched);
 
 #endif

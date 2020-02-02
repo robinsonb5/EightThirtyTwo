@@ -262,7 +262,7 @@ int executable_resolvecdtors(struct executable *exe)
 	Assign an initial best-case and worst-case address to all symbols.
 */
 
-void executable_initialaddresses(struct executable *exe)
+void executable_assignaddresses(struct executable *exe)
 {
 	int i;
 	if(exe && exe->map)
@@ -276,7 +276,7 @@ void executable_initialaddresses(struct executable *exe)
 			/* Make several passes through the sectionmap.
 			   The first pass assigns initial best- and worst-case sizes to all references.
 			   With no tentative addresses assigned, the worst-case sizes will be pessimistic.
-			   Addresses are assigned to symbols based on the initial sizes, which are refined
+			   Addresses are then assigned to symbols based on the initial sizes; both are refined
 			   in subsequent passes.  */
 			for(i=0;i<map->entrycount;++i)
 			{
@@ -302,10 +302,31 @@ void executable_initialaddresses(struct executable *exe)
 }
 
 
-void executable_checkreferences(struct executable *exe)
+void executable_save(struct executable *exe,const char *fn)
+{
+	FILE *f;
+	f=fopen(fn,"wb");
+	if(f && exe && exe->map)
+	{
+		int i;
+		struct sectionmap *map=exe->map;
+		struct section *sect,*prev;
+
+		for(i=0;i<map->entrycount;++i)
+		{
+			sect=map->entries[i].sect;
+			if(sect)
+				section_outputexe(sect,f);
+		}
+
+		fclose(f);
+	}
+}
+
+
+void executable_link(struct executable *exe)
 {
 	/*	FIXME - Catch redefined global symbols */
-
 	int result=1;
 	int sectioncount;
 	/* Resolve references starting with the first section */
@@ -323,11 +344,8 @@ void executable_checkreferences(struct executable *exe)
 	sectionmap_populate(exe);
 	sectionmap_dump(exe->map);
 
-	executable_initialaddresses(exe);
+	executable_assignaddresses(exe);
+
 	executable_dump(exe,0);
-
-	/* Build a map by traversing the sections.  Need to create dummy entries for
-	   __bss_start__, __bss_end__, __ctors_start__, __ctors_end__, __dtors_start__ and __dtors_end__ */
-
 }
 
