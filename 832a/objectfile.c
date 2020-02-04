@@ -84,11 +84,10 @@ void objectfile_load(struct objectfile *obj,const char *fn)
 			fread(tmp,1,1,f);
 			while(tmp[0]!=0xff)
 			{
-				int offset=tmp[0];
-				int flags;
+				int offset;
+				int flags=tmp[0];
 				int cursor;
-				fread(tmp,1,1,f);
-				flags=tmp[0];
+				offset=read_int_le(f);
 				cursor=read_int_le(f);
 				read_lstr(f,tmp);
 				printf("Symbol: %s, cursor %d, flags %x, offset %d\n",tmp,cursor,flags,offset);
@@ -106,11 +105,10 @@ void objectfile_load(struct objectfile *obj,const char *fn)
 			fread(tmp,1,1,f);
 			while(tmp[0]!=0xff)
 			{
-				int offset=tmp[0];
-				int flags;
+				int offset;
+				int flags=tmp[0];
 				int cursor;
-				fread(tmp,1,1,f);
-				flags=tmp[0];
+				offset=read_int_le(f);
 				cursor=read_int_le(f);
 				read_lstr(f,tmp);
 				printf("Ref: %s, cursor %d, flags %x, offset %d\n",tmp,cursor,flags,offset);
