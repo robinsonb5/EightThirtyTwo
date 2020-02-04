@@ -9,6 +9,9 @@
 
 #include "832_opcodes.h"
 
+/* Note: Emulator is not currently useful since I'm using the CPU in little-endian mode and the
+   emulator only supports big-endian mode! */
+
 #define STACKSIZE 1024
 int STACKOFFSET=0;
 

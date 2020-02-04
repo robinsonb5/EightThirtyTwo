@@ -278,21 +278,26 @@ void section_assignaddresses(struct section *sect,struct section *prev)
 	struct symbol *sym=sect->symbols;
 	int cursor=0;
 	int addr=0;
+	int offset=0;
 	if(!sect)
 		return;
 	if(prev)
 	{
 		addr=prev->address+prev->cursor+prev->offset;
 	}
-	printf("Assign addresses %x to %s\n",addr,sect->identifier);
+	printf("Assign address %x to %s\n",addr,sect->identifier);
 	sect->address=addr;
 
-	addr=0;
+	offset=0;
 
 	/* Step through symbols, assigning addresses.
 	   For each symbol, incorporate sizes into the section's offset values,
 	   and use these to compute the symbols' address. */
 	
+	/* (Skip over any constant definitions.  FIXME - move the constant value to an "offset" field? */
+	while(sym && sym->flags&SYMBOLFLAG_CONSTANT)
+		sym=sym->next;
+
 	while(sym || ref)
 	{
 		if(sym)
@@ -300,22 +305,25 @@ void section_assignaddresses(struct section *sect,struct section *prev)
 		else
 			cursor=sect->cursor;
 
-		while(ref && ref->cursor<=cursor)
+		printf("sym: %s, cursor %d\n",sym ? sym->identifier : "none",cursor);
+
+		while(ref && ref->cursor<cursor)
 		{
 			if(ref->flags&SYMBOLFLAG_ALIGN)
 			{
-				int alignaddr=sect->address+ref->cursor+addr+1;
+				int alignaddr=sect->address+ref->cursor+offset+1;
 				/* If this is an alignment ref, apply it rather than using a theoretical best/worst case */
 				printf("Best case: aligning %x to %d byte boundary\n",alignaddr,ref->align);
 				alignaddr+=ref->align-1;
 				alignaddr&=~(ref->align-1);
-				ref->size=alignaddr-(sect->address+ref->cursor+addr+1);
+				ref->size=alignaddr-(sect->address+ref->cursor+offset+1);
 				printf("  -> %x (%d)\n",alignaddr,ref->size);
-				addr+=ref->size;
+				offset+=ref->size;
 			}
 			else
 			{
-				addr+=ref->size;
+				printf("  (adding ref %s [cursor %d], size %d to offset %d, making %d)\n",ref->identifier,ref->cursor,ref->size,offset,offset+ref->size);
+				offset+=ref->size;
 			}
 			ref=ref->next;
 		}
@@ -324,12 +332,17 @@ void section_assignaddresses(struct section *sect,struct section *prev)
 		{
 			if(!(sym->flags&SYMBOLFLAG_CONSTANT))
 			{
-				sym->address=sect->address+sym->cursor+addr;
+				sym->address=sect->address+sym->cursor+offset;
+				printf("  Assigning address %x to symbol %s\n",sym->address,sym->identifier);
 			}
 			sym=sym->next;
+
+			/* (Skip over any constant definitions.*/
+			while(sym && sym->flags&SYMBOLFLAG_CONSTANT)
+				sym=sym->next;
 		}
 	}
-	sect->offset=addr;
+	sect->offset=offset;
 }
 
 

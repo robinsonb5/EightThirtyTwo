@@ -49,7 +49,7 @@ int symbol_matchname(struct symbol *sym,const char *name)
 static int count_pcrelchunks(unsigned int a1,unsigned int a2)
 {
 	int i;
-	printf("Counting displacement from %d to %d\n",a1,a2);
+	printf("Counting displacement from %x to %x\n",a1,a2);
 	for(i=1;i<6;++i)
 	{
 		unsigned int d=a2-(a1+i);
@@ -100,7 +100,7 @@ void reference_size(struct symbol *sym)
 					int reladr;
 					int addr=sym->sect->address+sym->cursor+sym->sect->offset+1;
 					/* Compute worst-case sizes based on the distance to the target. */
-					printf("Reference %s, cursor %d, adj %d\n",sym->identifier,sym->cursor,addr);
+					printf("Reference %s, cursor %x, address %x\n",sym->identifier,sym->cursor,addr);
 					sym->size=count_pcrelchunks(addr,sym->resolve->address);
 				}
 				else
@@ -131,8 +131,7 @@ void symbol_dump(struct symbol *sym)
 	if(sym)
 	{
 		printf("%s, cursor: %d, flags: %x, align: %d\n",sym->identifier, sym->cursor,sym->flags,sym->align);
-		printf("size %d\n",sym->size);
-		printf("    address %d\n",sym->address);
+		printf("size %d, address %x\n",sym->size,sym->address);
 	}
 }
 
