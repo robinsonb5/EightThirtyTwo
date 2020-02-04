@@ -14,7 +14,7 @@ struct symbol *symbol_new(const char *id,int cursor,int flags)
 		result->identifier=strdup(id);
 		result->cursor=cursor;
 		result->flags=flags;
-		result->align=0;
+		result->offset=0;
 		result->sect=0;
 		result->resolve=0;
 		result->address=0;
@@ -67,7 +67,7 @@ void reference_size(struct symbol *sym)
 		if(sym->flags&SYMBOLFLAG_ALIGN)
 		{
 			/* Use the worst-case size initially */
-			sym->size=sym->align-1;
+			sym->size=sym->offset-1;
 		}
 		else if(sym->flags&SYMBOLFLAG_REFERENCE)
 		{
@@ -81,7 +81,7 @@ void reference_size(struct symbol *sym)
 				if(sym->resolve->address)
 				{
 					/* Compute sizes based on the absolute address of the target. */
-					sym->size=count_constantchunks(sym->resolve->address);
+					sym->size=count_constantchunks(sym->resolve->address+sym->offset);
 				}
 				else
 				{
@@ -101,7 +101,7 @@ void reference_size(struct symbol *sym)
 					int addr=sym->sect->address+sym->cursor+sym->sect->offset+1;
 					/* Compute worst-case sizes based on the distance to the target. */
 					printf("Reference %s, cursor %x, address %x\n",sym->identifier,sym->cursor,addr);
-					sym->size=count_pcrelchunks(addr,sym->resolve->address);
+					sym->size=count_pcrelchunks(addr,sym->resolve->address+sym->offset);
 				}
 				else
 				{
@@ -118,7 +118,7 @@ void symbol_output(struct symbol *sym,FILE *f)
 {
 	if(sym)
 	{
-		fputc(sym->align,f);
+		fputc(sym->offset,f);
 		fputc(sym->flags,f);
 		write_int_le(sym->cursor,f);
 		write_lstr(sym->identifier,f);
@@ -130,7 +130,7 @@ void symbol_dump(struct symbol *sym)
 {
 	if(sym)
 	{
-		printf("%s, cursor: %d, flags: %x, align: %d\n",sym->identifier, sym->cursor,sym->flags,sym->align);
+		printf("%s, cursor: %d, flags: %x, offset: %d\n",sym->identifier, sym->cursor,sym->flags,sym->offset);
 		printf("size %d, address %x\n",sym->size,sym->address);
 	}
 }

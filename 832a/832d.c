@@ -70,7 +70,7 @@ int main(int argc,char **argv)
 							{
 								if(opcodes[j].opcode==opc)
 								{
-									if(c==(opc_add+7) && immstreak)
+									if((c==(opc_add+7) || c==(opc_addt+7)) && immstreak)
 									{
 										printf("%05x\t%02x\t%s\t%s\t(%x)\n",
 											a,c,opcodes[j].mnem,operands[(c&7)|((c&0xf8)==0 ? 8 : 0)].mnem,a+1+signedimm);

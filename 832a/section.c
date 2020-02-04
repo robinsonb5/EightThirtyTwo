@@ -187,7 +187,7 @@ void section_addreference(struct section *sect, struct symbol *sym)
 }
 
 
-void section_declarereference(struct section *sect, const char *name,int flags)
+void section_declarereference(struct section *sect, const char *name,int flags,int offset)
 {
 	struct symbol *sym;
 	if(sect && sect->flags&SECTIONFLAG_BSS)
@@ -195,6 +195,7 @@ void section_declarereference(struct section *sect, const char *name,int flags)
 	if(sect && name)
 	{
 		sym=symbol_new(name,sect->cursor,flags);
+		sym->offset=offset;
 		section_addreference(sect,sym);
 	}
 }
@@ -209,7 +210,7 @@ void section_align(struct section *sect,int align)
 		/* Reduce the cursor position by 1 so that it immediately precedes the
 		   object to be aligned */
 		sym=symbol_new("algn",sect->cursor-1,SYMBOLFLAG_ALIGN);
-		sym->align=align;
+		sym->offset=align;
 		section_addreference(sect,sym);
 	}
 }
@@ -313,9 +314,9 @@ void section_assignaddresses(struct section *sect,struct section *prev)
 			{
 				int alignaddr=sect->address+ref->cursor+offset+1;
 				/* If this is an alignment ref, apply it rather than using a theoretical best/worst case */
-				printf("Best case: aligning %x to %d byte boundary\n",alignaddr,ref->align);
-				alignaddr+=ref->align-1;
-				alignaddr&=~(ref->align-1);
+				printf("Best case: aligning %x to %d byte boundary\n",alignaddr,ref->offset);
+				alignaddr+=ref->offset-1;
+				alignaddr&=~(ref->offset-1);
 				ref->size=alignaddr-(sect->address+ref->cursor+offset+1);
 				printf("  -> %x (%d)\n",alignaddr,ref->size);
 				offset+=ref->size;
@@ -500,7 +501,7 @@ void section_outputexe(struct section *sect,FILE *f)
 			else if(ref->flags&SYMBOLFLAG_LDPCREL)
 			{
 				int i;
-				int targetaddr=ref->resolve->address;
+				int targetaddr=ref->resolve->address+ref->offset;
 				int refaddr=sect->address+ref->cursor+ref->size+offset+1;
 				int d=targetaddr-refaddr;
 				printf("Outputting ldpcrel reference %s, %d bytes\n",ref->identifier,ref->size);
@@ -515,7 +516,7 @@ void section_outputexe(struct section *sect,FILE *f)
 			else if(ref->flags&SYMBOLFLAG_LDABS)
 			{
 				int i;
-				int targetaddr=ref->resolve->address;
+				int targetaddr=ref->resolve->address+ref->offset;
 				int d=targetaddr;
 				printf("Outputting ldabs reference %s, %d bytes\n",ref->identifier,ref->size);
 				printf("Target address %x\n",targetaddr);
@@ -532,7 +533,7 @@ void section_outputexe(struct section *sect,FILE *f)
 				if(ref->resolve->flags&SYMBOLFLAG_CONSTANT)
 					write_int_le(ref->resolve->cursor,f);
 				else
-					write_int_le(ref->resolve->address,f);
+					write_int_le(ref->resolve->address+ref->offset,f);
 				offset+=4;
 			}
 			ref=ref->next;

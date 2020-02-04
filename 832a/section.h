@@ -45,7 +45,7 @@ void section_declaresymbol(struct section *sect, const char *name,int flags);
 void section_addsymbol(struct section *sect, struct symbol *sym);
 
 void section_addreference(struct section *sect, struct symbol *sym);
-void section_declarereference(struct section *sect, const char *name,int flags);
+void section_declarereference(struct section *sect, const char *name,int flags,int offset);
 
 void section_declarecommon(struct section *sect,const char *lab,int size,int global);
 void section_declareconstant(struct section *sect,const char *lab,int size,int global);

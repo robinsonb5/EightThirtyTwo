@@ -9,8 +9,23 @@ initial:
 	add	r7
 .localref1:
 	stdec r6
+	.lipcrel .vars
+	addt	r7
+	mr	r0
+	.lipcrel .vars,4
+	addt	r7
+	mr	r1
+	.lipcrel .vars,8
+	addt	r7
+	mr	r2
+
 	ldinc	r6
 	mr	r7
+	.align	4
+.vars:
+	.int 1
+	.int 2
+	.int 3
 
 	.section .text.1
 	.global	label2

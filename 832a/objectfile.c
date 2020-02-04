@@ -84,18 +84,18 @@ void objectfile_load(struct objectfile *obj,const char *fn)
 			fread(tmp,1,1,f);
 			while(tmp[0]!=0xff)
 			{
-				int align=tmp[0];
+				int offset=tmp[0];
 				int flags;
 				int cursor;
 				fread(tmp,1,1,f);
 				flags=tmp[0];
 				cursor=read_int_le(f);
 				read_lstr(f,tmp);
-				printf("Symbol: %s, cursor %d, flags %x, align %d\n",tmp,cursor,flags,align);
+				printf("Symbol: %s, cursor %d, flags %x, offset %d\n",tmp,cursor,flags,offset);
 				sym=symbol_new(tmp,cursor,flags);
 				if(sect && sym)
 				{
-					sym->align=align;
+					sym->offset=offset;
 					section_addsymbol(sect,sym);
 				}
 				fread(tmp,1,1,f);
@@ -106,18 +106,18 @@ void objectfile_load(struct objectfile *obj,const char *fn)
 			fread(tmp,1,1,f);
 			while(tmp[0]!=0xff)
 			{
-				int align=tmp[0];
+				int offset=tmp[0];
 				int flags;
 				int cursor;
 				fread(tmp,1,1,f);
 				flags=tmp[0];
 				cursor=read_int_le(f);
 				read_lstr(f,tmp);
-				printf("Ref: %s, cursor %d, flags %x, align %d\n",tmp,cursor,flags,align);
+				printf("Ref: %s, cursor %d, flags %x, offset %d\n",tmp,cursor,flags,offset);
 				sym=symbol_new(tmp,cursor,flags);
 				if(sect && sym)
 				{
-					sym->align=align;
+					sym->offset=offset;
 					section_addreference(sect,sym);
 				}
 

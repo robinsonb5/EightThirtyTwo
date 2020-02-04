@@ -16,7 +16,7 @@ struct symbol
 {
 	struct symbol *next;
 	char *identifier;
-	int align;
+	int offset;
 	int cursor;
 	int flags;
 	/* Used by linker */

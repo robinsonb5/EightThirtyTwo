@@ -102,9 +102,12 @@ void directive_label(struct objectfile *obj,const char *tok,const char *tok2,int
 
 void directive_reference(struct objectfile *obj,const char *tok,const char *tok2,int key)
 {
+	long offset=0;
 	struct section *sect=objectfile_getsection(obj);
+	if(tok2)
+		offset=strtol(tok2,0,0);
 	if(sect)
-		section_declarereference(sect,tok,key);
+		section_declarereference(sect,tok,key,offset);
 }
 
 
