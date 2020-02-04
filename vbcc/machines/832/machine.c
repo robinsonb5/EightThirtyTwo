@@ -725,8 +725,7 @@ static void function_bottom(FILE * f, struct Var *v, long offset,int firsttail)
 	{
 		if(regcount<(5-SCRATCH_GPRS) || !firsttail)
 		{
-			int i;
-			emit(f,"\t.lipcrel\t.functiontail, %d\n",((5-SCRATCH_GPRS)-regcount)*2-i);
+			emit(f,"\t.lipcrel\t.functiontail, %d\n",((5-SCRATCH_GPRS)-regcount)*2);
 			emit(f,"\tadd\t%s\n",regnames[pc]);
 		}
 		if(firsttail)
