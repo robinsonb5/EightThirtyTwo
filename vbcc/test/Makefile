@@ -22,6 +22,7 @@ tests: helloworld.ghw helloworld_byte.ghw strcpytest.ghw fptrtest.ghw copytest.g
 clean :
 	rm *.bin
 	rm *.S
+	rm *.asm
 	rm *.o
 	rm *.elf
 
@@ -61,9 +62,8 @@ clean :
 %.o : $(LIBDIR)/%.S Makefile ldscript.ld $(832DIR)/Lib/assembler.pp $(LIBDIR)/start.S force
 	$(AS) $(LIBDIR)/$*.S
 
-%.S : %.c Makefile ../bin/vbcc832 $(CC) force
+%.asm : %.c Makefile ../bin/vbcc832 $(CC) force
 	../bin/vbcc832 $(CFLAGS) $(COPT) -I$(832DIR) $*.c
-	mv $*.asm $*.S
 
 $(ROMGEN): $(ROMGENDIR)/romgen.c
 	gcc -o $(ROMGENDIR)/romgen $(ROMGENDIR)/romgen.c

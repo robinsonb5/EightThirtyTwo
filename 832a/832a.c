@@ -47,13 +47,25 @@ void directive_sectionflags(struct objectfile *obj,const char *tok,const char *t
 void directive_literal(struct objectfile *obj,const char *tok,const char *tok2,int key)
 {
 	int v=strtoul(tok,0,0);
-	objectfile_emitbyte(obj,(v&255));
-	if(key>1)
-		objectfile_emitbyte(obj,((v>>8)&255));
-	if(key>2)
+	if(key)
 	{
-		objectfile_emitbyte(obj,((v>>16)&255));
-		objectfile_emitbyte(obj,((v>>24)&255));
+		objectfile_emitbyte(obj,(v&255));
+		if(key>1)
+			objectfile_emitbyte(obj,((v>>8)&255)); /* short */
+		if(key>2)
+		{
+			objectfile_emitbyte(obj,((v>>16)&255)); /* int */
+			objectfile_emitbyte(obj,((v>>24)&255));
+		}
+	}
+	else	/* .space directive */
+	{
+		int fill;
+		if(tok2)
+			fill=strtoul(tok2,0,0);	/* If this fails we just get a zero, which is fine. */
+		int i;
+		for(i=0;i<v;++i)
+			objectfile_emitbyte(obj,fill);
 	}
 }
 
@@ -182,6 +194,7 @@ struct directive directives[]=
 	{".int",directive_literal,4},
 	{".short",directive_literal,2},
 	{".byte",directive_literal,1},
+	{".space",directive_literal,0},
 	{".ref",directive_reference,SYMBOLFLAG_REFERENCE},
 	{".liabs",directive_reference,SYMBOLFLAG_LDABS},
 	{".lipcrel",directive_reference,SYMBOLFLAG_LDPCREL},

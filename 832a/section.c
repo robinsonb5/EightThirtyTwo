@@ -308,7 +308,7 @@ void section_assignaddresses(struct section *sect,struct section *prev)
 
 		printf("sym: %s, cursor %d\n",sym ? sym->identifier : "none",cursor);
 
-		while(ref && ref->cursor<cursor)
+		while(ref && ((ref->cursor<cursor) || (cursor==sect->cursor)))
 		{
 			if(ref->flags&SYMBOLFLAG_ALIGN)
 			{
@@ -463,7 +463,7 @@ void section_outputexe(struct section *sect,FILE *f)
 	/* Step through symbols and refs, outputting any binary code between refs,
 	   and inserting refs. */
 
-	while(cursor<sect->cursor)
+	while(ref || (cursor<sect->cursor))
 	{
 		if(ref)
 		{

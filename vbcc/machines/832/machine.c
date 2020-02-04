@@ -1053,10 +1053,10 @@ void gen_var_head(FILE * f, struct Var *v)
 			} else {
 				if (isweak(v))
 					emit(f, "\t.weak\t%s%s\n", idprefix, v->identifier);
-				else
-					emit(f,
-					     "\t.global\t%s%s\n\t.%scomm\t%s%s,", idprefix, v->identifier,
-					     (USE_COMMONS ? "" : "l"), idprefix, v->identifier);
+				else {
+					emit(f, "\t.comm\t%s%s,", idprefix, v->identifier);
+					emit(f, "\t.global\t%s%s\n", idprefix, v->identifier);
+				}
 			}
 			newobj = 1;
 		}
@@ -1642,12 +1642,19 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			}
 			cleartempobj(f,t2);
 
+#if 0
 			emit(f, "\tldinc\t%s\n", regnames[pc]);
 			if ((!(q1typ(p) & UNSIGNED)) && (!(q2typ(p) & UNSIGNED)))	// If we have a mismatch of signedness we treat as unsigned.
 				emit(f, "\t.ref\t_div_s32bys32\n");
 			else
 				emit(f, "\t.ref\t_div_u32byu32\n");
 			emit(f, "\texg\t%s\n", regnames[pc]);
+#endif
+			if ((!(q1typ(p) & UNSIGNED)) && (!(q2typ(p) & UNSIGNED)))	// If we have a mismatch of signedness we treat as unsigned.
+				emit(f, "\t.lipcrel\t_div_s32bys32\n");
+			else
+				emit(f, "\t.lipcrel\t_div_u32byu32\n");
+			emit(f, "\tadd\t%s\n", regnames[pc]);
 
 			if (c == MOD)
 			{
