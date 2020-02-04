@@ -10,9 +10,9 @@ _strncat:
 .finddst:
 	ldbinc	r2
 	cond	NEQ
-		li	IMW0(PCREL(.finddst))
+		.lipcrel .finddst
 		add	r7
-	li	IMW0(1)
+	li	1
 	sub	r2
 .cpy:
 	ldbinc	r1
@@ -20,12 +20,12 @@ _strncat:
 	cond	EQ	// Done?
 		ldinc	r6
 		mr	r7
-	li	IMW0(1)
+	li	1
 	sub	r3
 	cond	NEQ
-		li	IMW0(PCREL(.cpy))
+		.lipcrel .cpy
 		add	r7
-	li	IMW0(0)
+	li	0
 	stbinc	r2
 	ldinc	r6
 	mr	r7
@@ -41,15 +41,15 @@ _strcat:
 .finddst2:
 	ldbinc	r2
 	cond	NEQ
-		li	IMW0(PCREL(.finddst2))
+		.lipcrel .finddst2
 		add	r7
-	li	IMW0(1)
+	li	1)
 	sub	r2
 .cpy2:
 	ldbinc	r1
 	stbinc	r2
 	cond	NEQ
-		li	IMW0(PCREL(.cpy2))
+		.lipcrel .cpy2
 		add	r7
 	ldinc	r6
 	mr	r7
@@ -70,11 +70,11 @@ _strcmp:						// Parameters: char *s1, char *s2
 	mr	r0
 	ldbinc	r1
 	cond	EQ					// If null, we're done.  If S2 has also terminated, r0 will be 0; else a positive number.
-		li	IMW0(PCREL(.end))
+		.lipcrel .end
 		add	r7
 	sub	r0						// Otherwise subtract 
 	cond	EQ
-		li	IMW0(PCREL(.loopstrcmp))
+		.lipcrel .loopstrcmp
 		add	r7
 .end:
 	ldinc	r6
@@ -98,17 +98,17 @@ _strncmp:						// Parameters: char *s1, char *s2, int n
 	li	1
 	sub	r3
 	cond SLT
-		li	IMW0(PCREL(.endstrncmp))
+		.lipcrel .endstrncmp
 		add	r7
 	ldbinc	r2	// s2++
 	mr	r0
 	ldbinc	r1
 	cond	EQ					// If null, we're done.  If S2 has also terminated, r0 will be 0; else a positive number.
-		li	IMW0(PCREL(.endstrncmp))
+		.lipcrel .endstrncmp
 		add	r7
 	sub	r0						// Otherwise subtract 
 	cond	EQ
-		li	IMW0(PCREL(.loopstrncmp))
+		.lipcrel .loopstrncmp
 		add	r7
 .endstrncmp:
 	ldinc	r6
@@ -134,14 +134,14 @@ _memcmp:						// Parameters: char *s1, char *s2, int n
 	li	1
 	sub	r3
 	cond SLT
-		li	IMW0(PCREL(.endmemcmp))
+		.lipcrel .endmemcmp
 		add	r7
 	ldbinc	r2	// s2++
 	mr	r0
 	ldbinc	r1
 	sub	r0						// Perform comparison
 	cond	EQ
-		li	IMW0(PCREL(.loopmemcmp))
+		.lipcrel .loopmemcmp
 		add	r7
 .endmemcmp:
 	ldinc	r6
@@ -166,12 +166,12 @@ _strncpy:
 	mt	r3
 	cmp	r1
 	cond	EQ
-		li	IMW0(PCREL(.done))
+		.lipcrel .done
 		add	r7
 	ldbinc r2
 	stbinc	r3
 	cond	NEQ
-		li	IMW0(PCREL(.strnloop))
+		.lipcrel .strnloop
 		add	r7
 .done:
 	ldinc	r6
@@ -191,7 +191,7 @@ _strcpy:
 	ldbinc r1
 	stbinc	r2
 	cond	NEQ
-		li	IMW0(PCREL(.strcpyloop))
+		.lipcrel .strcpyloop
 		add	r7
 	ldinc	r6
 	mr	r7	// 10 bytes
@@ -215,7 +215,7 @@ _strlen:
 		sub	r0
 		ldinc	r6
 		mr	r7
-	li	IMW0(PCREL(.loopstrlen))
+	.lipcrel .loopstrlen
 	add	r7	// 12 bytes
 
 
@@ -230,17 +230,15 @@ _tolower:
 	mt	r1
 	mr	r0
 
-	li	IMW1('A')
-	li	IMW0('A')
+	.liconst 65 // 'A'
 	sub	r1
 	cond	SLT
 		ldinc	r6
 		mr	r7
-	li	IMW0(26)
+	li	26
 	cmp	r1
 	cond	SLT
-		li	IMW1(32)
-		li	IMW0(32)
+		.liconst 32
 		or	r0
 		cond EX
 	ldinc	r6
@@ -258,17 +256,15 @@ _toupper:
 	mt	r1
 	mr	r0
 
-	li	IMW1('a')
-	li	IMW0('a')
+	.liconst 97 ; 'a'
 	sub	r1
 	cond	SLT
 		ldinc	r6
 		mr	r7
-	li	IMW0(26)
+	li	26
 	cmp	r1
 	cond	SLT
-		li	IMW1(~32)
-		li	IMW0(~32)
+		.liconst 0xffffffdf ; ~32
 		and	r0
 		cond EX
 	ldinc	r6
@@ -291,7 +287,7 @@ _memset:
 	cond	NEQ
 		mt	r2
 		stbinc	r3
-		li	IMW0(PCREL(.loopmemset))
+		.lipcrel .loopmemset
 		add	r7
 	ldinc	r6
 	mr	r7	// 13 bytes

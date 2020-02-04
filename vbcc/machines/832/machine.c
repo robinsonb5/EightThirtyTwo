@@ -259,10 +259,10 @@ static int ctor_dtor(FILE * f, struct Var *v)
 	if (!sec)
 		return 0;
 	sec += strlen("ctor(");
-	emit(f, "\t.section\t%s.", dtor ? ".dtors" : ".ctors");
+	emit(f, "\t%s.", dtor ? ".dtor .dtor " : ".ctor .ctor ");
 	while (*sec && *sec != ')')
 		emit_char(f, *sec++);
-	emit(f, "\n\t.int\t%s%s\n", idprefix, v->identifier);
+	emit(f, "\n\t.ref\t%s%s\n", idprefix, v->identifier);
 
 	return 1;
 }
@@ -726,8 +726,7 @@ static void function_bottom(FILE * f, struct Var *v, long offset,int firsttail)
 		if(regcount<(5-SCRATCH_GPRS) || !firsttail)
 		{
 			int i;
-			for (i = g_flags_val[FLAG_PCRELREACH].l; i >= 0; --i)
-				emit(f,"\tli\tIMW%d(PCREL(.functiontail)+%d)\n",i,((5-SCRATCH_GPRS)-regcount)*2-i);
+			emit(f,"\t.lipcrel\t.functiontail, %d\n",((5-SCRATCH_GPRS)-regcount)*2-i);
 			emit(f,"\tadd\t%s\n",regnames[pc]);
 		}
 		if(firsttail)
@@ -1109,12 +1108,12 @@ void gen_dc(FILE * f, int t, struct const_list *p)
 		if (isextern(o->v->storage_class)) {
 			emit(f, "// extern (offset %d)\n", o->val.vmax);
 			if (o->val.vmax)
-				emit(f, "\t.int\t_%s + %d\n", o->v->identifier, o->val.vmax);
+				emit(f, "\t.ref\t_%s, %d\n", o->v->identifier, o->val.vmax);
 			else
-				emit(f, "\t.int\t_%s\n", o->v->identifier);
+				emit(f, "\t.ref\t_%s\n", o->v->identifier);
 		} else if (isstatic(o->v->storage_class)) {
 			emit(f, "// static\n");
-			emit(f, "\t.int\t%s%d\n", labprefix, zm2l(o->v->offset));
+			emit(f, "\t.ref\t%s%d\n", labprefix, zm2l(o->v->offset));
 		} else {
 			printf("error: GenDC (tree) - unknown storage class 0x%x!\n", o->v->storage_class);
 		}
@@ -1646,9 +1645,9 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 
 			emit(f, "\tldinc\t%s\n", regnames[pc]);
 			if ((!(q1typ(p) & UNSIGNED)) && (!(q2typ(p) & UNSIGNED)))	// If we have a mismatch of signedness we treat as unsigned.
-				emit(f, "\t.int\t_div_s32bys32\n");
+				emit(f, "\t.ref\t_div_s32bys32\n");
 			else
-				emit(f, "\t.int\t_div_u32byu32\n");
+				emit(f, "\t.ref\t_div_u32byu32\n");
 			emit(f, "\texg\t%s\n", regnames[pc]);
 
 			if (c == MOD)

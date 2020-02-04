@@ -82,11 +82,8 @@ static void emit_sizemod(FILE * f, int type)
 static void emit_pcreltotemp(FILE * f, char *lab, int suffix)
 {
 	int i;
-//      printf("Warning: PC Relative offsets are currently (arbitrarily) restricted to 12 bits.\n");
-	emit(f, "\t\t\t//pcreltotemp - reach of %d bits\n", 6 * g_flags_val[FLAG_PCRELREACH].l);
-	for (i = g_flags_val[FLAG_PCRELREACH].l - 1; i >= 0; --i) {
-		emit(f, "\tli\tIMW%d(PCREL(%s%d)-%d)\n", i, lab, suffix, i);
-	}
+	emit(f, "\t\t\t//pcreltotemp\n");
+	emit(f, "\t.lipcrel\t%s%d\n", lab, suffix);
 	cleartempobj(f,tmp);
 }
 
@@ -95,20 +92,11 @@ static void emit_pcreltotemp(FILE * f, char *lab, int suffix)
 
 static void emit_externtotemp(FILE * f, char *lab, int offset)	// FIXME - need to find a way to do this PC-relative.
 {
-	char *spec=".int";
-	if(g_flags[FLAG_SMALLADDR] & USEDFLAG)
-	{
-		spec=".short";
-		emit(f,"\thlf\n");
-	}
-
 	emit(f, "\tldinc\t%s\n", regnames[pc]);
 	if (offset)
-		emit(f, "\t%s\t_%s + %d\n",spec, lab, offset);
+		emit(f, "\t.ref\t_%s, %d\n",lab, offset);
 	else
-		emit(f, "\t%s\t_%s\n",spec, lab);
-	if(g_flags[FLAG_SMALLADDR] & USEDFLAG)
-		emit(f,"\t.short\t0\n");
+		emit(f, "\t.ref\t_%s\n",lab);
 	cleartempobj(f,tmp);
 }
 
@@ -119,7 +107,7 @@ static void emit_statictotemp(FILE * f, char *lab, int suffix, int offset)	// FI
 {
 	emit(f, "\t\t\t\t//statictotemp\n");
 	emit(f, "\tldinc\t%s\n", regnames[pc]);
-	emit(f, "\t.int\t%s%d+%d\n", lab, suffix, offset);
+	emit(f, "\t.ref\t%s%d,%d\n", lab, suffix, offset);
 	cleartempobj(f,tmp);
 }
 
@@ -141,19 +129,13 @@ static int count_constantchunks(zmax v)
 
 static void emit_constanttotemp(FILE * f, zmax v)
 {
-	int chunk = count_constantchunks(v);
 	int matchreg=matchtempkonst(f,v);
 	if(matchreg==tmp)
 		return;
 	else if(matchreg)
 		emit(f,"\t,mt\t%s\n",regnames[matchreg]);
 	else {
-		emit(f, "\t\t\t\t// constant: %x in %d chunks\n", v, chunk);
-
-		while (chunk--)		// Do we need to emit the top two bits?
-		{
-			emit(f, "\tli\tIMW%d(%d)\n", chunk, v);
-		}
+		emit(f, "\t.liconst\t%d\n", v);
 		settempkonst(f,tmp,v);
 	}
 }
@@ -266,7 +248,7 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 				cleartempobj(f,tmp);
 				cleartempobj(f,reg);
 				emit(f, "// static\n");
-				emit(f, "\tldinc\tr7\n\t.int\t%s%d+%d\n",
+				emit(f, "\tldinc\tr7\n\t.ref\t%s%d,%d\n",
 				     labprefix, zm2l(p->v->offset), offset + p->val.vmax);
 				emit(f, "\tldt\n");
 				if (reg != tmp)
@@ -310,7 +292,7 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 					emit(f, "\tmr\t%s\n", regnames[reg]);
 			} else if (isstatic(p->v->storage_class)) {
 				emit(f, "// static\n");
-				emit(f, "\tldinc\tr7\n\t.int\t%s%d+%d\n",
+				emit(f, "\tldinc\tr7\n\t.ref\t%s%d,%d\n",
 				     labprefix, zm2l(p->v->offset), offset + p->val.vmax);
 				emit(f, "// static pe %s varadr\n", p->flags & VARADR ? "is" : "not");
 				if (reg != tmp)

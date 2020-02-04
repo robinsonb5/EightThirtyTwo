@@ -3,6 +3,8 @@ LIBDIR = $(832DIR)/Lib
 ROMGENDIR = ../../romgen
 ROMGEN = $(ROMGENDIR)/romgen
 GHDL = ghdl
+AS=../../832a/832a
+LD=../../832a/832l
 CC=../bin/vbcc832
 CFLAGS = -+ -I$(832DIR)/include/ -I$(LIBDIR)
 COPT = -O=1311 -size
@@ -40,25 +42,24 @@ clean :
 	$(ROMGEN) -b $*.bin >>$*_ROM.vhd
 	cat >>$*_ROM.vhd $(ROMGENDIR)/rom_epilogue.vhd
 
-%.bin : %.elf Makefile force
-	objcopy -Obinary $< $@
-
 %.o : %.s Makefile
-	gcc -c $*.s
+	$(AS) $*.s
 
-%.elf : start.o uart.o small_printf.o division.o string.o hexdump.o %.o
-	gcc -Wl,--build-id=none -Wl,--gc-sections -nostartfiles -nostdlib -Tldscript.ld -o $@ $+
+%.bin : ../../Lib/start.o uart.o small_printf.o ../../Lib/division.o ../../Lib/string.o ../../Lib/hexdump.o %.o
+	$(LD) -o $@ $+
 
-%.o : %.S Makefile ldscript.ld $(LIBDIR)/start.S force
-	gcc -I. -I$(LIBDIR) -c $*.S -include assembler.pp -o $*.o
+%.o : %.S Makefile $(LIBDIR)/start.S force
+	$(AS) $*.S
+
+%.o : %.asm Makefile $(LIBDIR)/start.S force
+	$(AS) $*.asm
 
 %.o : %.c Makefile ldscript.ld $(LIBDIR)/start.S $(CC) force
 	../bin/vbcc832 $(CFLAGS) $(COPT) $*.c
-	mv $*.asm $*.S
-	gcc -I. -I$(LIBDIR) -I$(832DIR)/include -include assembler.pp -c $*.S -o $*.o
+	$(AS) $*.asm
 
 %.o : $(LIBDIR)/%.S Makefile ldscript.ld $(832DIR)/Lib/assembler.pp $(LIBDIR)/start.S force
-	gcc -c $(LIBDIR)/$*.S -I$(832DIR)/Lib -include assembler.pp -o $*.o
+	$(AS) $(LIBDIR)/$*.S
 
 %.S : %.c Makefile ../bin/vbcc832 $(CC) force
 	../bin/vbcc832 $(CFLAGS) $(COPT) -I$(832DIR) $*.c

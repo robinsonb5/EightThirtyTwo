@@ -92,7 +92,7 @@ void emit_inlinememcpy(FILE *f,struct IC *p, int t)
 		emit(f, "\tldinc\t%s\n\tstinc\t%s\n", regnames[srcr], regnames[dstr]);
 		emit(f, "\tmt\t%s\n\tcmp\t%s\n", regnames[dstr], regnames[cntr]);
 		emit(f, "\tcond\tNEQ\n");
-		emit(f, "\t\tli\tIMW0(PCREL(.cpy%swordloop%d))\n", p->z.v ? p->z.v->identifier : "null", loopid);
+		emit(f, "\t\t.lipcrel\t.cpy%swordloop%d\n", p->z.v ? p->z.v->identifier : "null", loopid);
 		emit(f, "\t\tadd\t%s\n", regnames[pc]);
 	}
 
@@ -111,7 +111,7 @@ void emit_inlinememcpy(FILE *f,struct IC *p, int t)
 		emit(f, "\tldbinc\t%s\n\tstbinc\t%s\n", regnames[srcr], regnames[dstr]);
 		emit(f, "\tmt\t%s\n\tcmp\t%s\n", regnames[dstr], regnames[cntr]);
 		emit(f, "\tcond\tNEQ\n");
-		emit(f, "\t\tli\tIMW0(PCREL(.cpy%sloop%d))\n", p->z.v ? p->z.v->identifier : "null", loopid);
+		emit(f, "\t\t.lipcrel\t.cpy%sloop%d\n", p->z.v ? p->z.v->identifier : "null", loopid);
 		emit(f, "\t\tadd\t%s\n", regnames[pc]);
 
 	}
