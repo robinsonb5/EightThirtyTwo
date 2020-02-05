@@ -319,7 +319,7 @@ void section_assignaddresses(struct section *sect,struct section *prev)
 			{
 				int alignaddr=sect->address+ref->cursor+offset+1;
 				/* If this is an alignment ref, apply it rather than using a theoretical best/worst case */
-				printf("Best case: aligning %x to %d byte boundary\n",alignaddr,ref->offset);
+				printf("Aligning %x to %d byte boundary\n",alignaddr,ref->offset);
 				alignaddr+=ref->offset-1;
 				alignaddr&=~(ref->offset-1);
 				ref->size=alignaddr-(sect->address+ref->cursor+offset+1);

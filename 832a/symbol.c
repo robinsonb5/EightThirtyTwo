@@ -69,8 +69,7 @@ int reference_size(struct symbol *sym)
 	{
 		if(sym->flags&SYMBOLFLAG_ALIGN)
 		{
-			/* Use the best-case size - actual size will be determined when assigning addresses */
-			sym->size=0;
+			/* Size will be determined when assigning addresses */
 		}
 		else if(sym->flags&SYMBOLFLAG_REFERENCE)
 		{
