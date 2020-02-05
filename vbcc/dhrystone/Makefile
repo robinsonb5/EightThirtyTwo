@@ -17,10 +17,9 @@ compiler:
 run: dhrystone.ghw
 
 clean :
-	rm *.S
-	rm *.o
-	rm *.bin
-	rm *.elf
+	-rm *.asm
+	-rm *.o
+	-rm *.bin
 
 a.out : dhry_1.c dhry_2.c ../../Lib/hexdump.c
 	gcc $+
@@ -37,7 +36,7 @@ a.out : dhry_1.c dhry_2.c ../../Lib/hexdump.c
 	$(ROMGEN) -b $*.bin >>$*_ROM.vhd
 	cat >>$*_ROM.vhd $(ROMGENDIR)/rom_epilogue.vhd
 
-%.bin : %.elf Makefile
+%.bin : Makefile $(CC)
 	objcopy -Obinary $< $@
 
 %.o : %.asm Makefile
@@ -46,17 +45,17 @@ a.out : dhry_1.c dhry_2.c ../../Lib/hexdump.c
 dhrystone.bin : $(LIBDIR)/start.o $(LIBDIR)/uart.o $(LIBDIR)/small_printf.o $(LIBDIR)/division.o $(LIBDIR)/string.o dhry_1.o dhry_2.o
 	$(LD) -o $@ $+
 
-%.o : %.S Makefile $(LIBDIR)/start.S force
+%.o : %.S Makefile $(LIBDIR)/start.S $(CC)
 	$(AS) $*.S
 
-%.o : %.asm Makefile $(LIBDIR)/start.S force
+%.o : %.asm Makefile $(LIBDIR)/start.S $(CC)
 	$(AS) $*.asm
 
-%.o : %.c Makefile ldscript.ld $(LIBDIR)/start.S $(CC) force
+%.o : %.c Makefile ldscript.ld $(LIBDIR)/start.S $(CC)
 	../bin/vbcc832 $(CFLAGS) $(COPT) $*.c
 	$(AS) $*.asm
 
-%.o : $(LIBDIR)/%.S Makefile ldscript.ld $(832DIR)/Lib/assembler.pp $(LIBDIR)/start.S force
+%.o : $(LIBDIR)/%.S Makefile ldscript.ld $(832DIR)/Lib/assembler.pp $(LIBDIR)/start.S $(CC)
 	$(AS) $(LIBDIR)/$*.S
 
 $(ROMGEN): $(ROMGENDIR)/romgen.c

@@ -92,11 +92,17 @@ static void emit_pcreltotemp(FILE * f, char *lab, int suffix)
 
 static void emit_externtotemp(FILE * f, char *lab, int offset)	// FIXME - need to find a way to do this PC-relative.
 {
+#if 0
 	emit(f, "\tldinc\t%s\n", regnames[pc]);
 	if (offset)
 		emit(f, "\t.ref\t_%s, %d\n",lab, offset);
 	else
 		emit(f, "\t.ref\t_%s\n",lab);
+#endif
+	if (offset)
+		emit(f, "\t.liabs\t_%s, %d\n",lab, offset);
+	else
+		emit(f, "\t.liabs\t_%s\n",lab);
 	cleartempobj(f,tmp);
 }
 
@@ -292,7 +298,9 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 					emit(f, "\tmr\t%s\n", regnames[reg]);
 			} else if (isstatic(p->v->storage_class)) {
 				emit(f, "// static\n");
-				emit(f, "\tldinc\tr7\n\t.ref\t%s%d,%d\n",
+//				emit(f, "\tldinc\tr7\n\t.ref\t%s%d,%d\n",
+//				     labprefix, zm2l(p->v->offset), offset + p->val.vmax);
+				emit(f, "\t.liabs\t%s%d,%d\n",
 				     labprefix, zm2l(p->v->offset), offset + p->val.vmax);
 				emit(f, "// static pe %s varadr\n", p->flags & VARADR ? "is" : "not");
 				if (reg != tmp)
