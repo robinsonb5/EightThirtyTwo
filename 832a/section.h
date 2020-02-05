@@ -52,7 +52,7 @@ void section_declareconstant(struct section *sect,const char *lab,int size,int g
 void section_emitbyte(struct section *sect,unsigned char byte);
 void section_align(struct section *sect,int align);
 
-void section_sizereferences(struct section *sect);
+int section_sizereferences(struct section *sect);
 void section_assignaddresses(struct section *sect,struct section *prev);
 
 void section_loadchunk(struct section *sect,int bytes,FILE *f);

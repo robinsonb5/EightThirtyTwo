@@ -269,22 +269,25 @@ void executable_assignaddresses(struct executable *exe)
 	{
 		struct sectionmap *map=exe->map;
 		struct section *sect,*prev;
-		int j;
+		int j=0;
+		int resolve;
 
-		for(j=0;j<3;++j)
+		/* Assign initial sizes to references */
+		for(i=0;i<map->entrycount;++i)
 		{
-			/* Make several passes through the sectionmap.
-			   The first pass assigns initial best- and worst-case sizes to all references.
-			   With no tentative addresses assigned, the worst-case sizes will be pessimistic.
-			   Addresses are then assigned to symbols based on the initial sizes; both are refined
-			   in subsequent passes.  */
-			for(i=0;i<map->entrycount;++i)
-			{
-				sect=map->entries[i].sect;
-				if(sect)
-					section_sizereferences(map->entries[i].sect);
-			}
+			sect=map->entries[i].sect;
+			if(sect)
+				section_sizereferences(map->entries[i].sect);
+		}
 
+		/* Make several passes through the sectionmap.
+		   Assign addresses based on initial best-case sizes,
+		   then recalculate reference sizes.  Repeat until
+		   the references stop getting bigger. */
+
+		while(resolve)
+		{
+			resolve=0;
 			/* Now assign addresses */
 			sect=map->entries[0].sect;
 			section_assignaddresses(sect,0);
@@ -297,7 +300,16 @@ void executable_assignaddresses(struct executable *exe)
 				if(sect)
 					section_assignaddresses(sect,prev);
 			}
+
+			for(i=0;i<map->entrycount;++i)
+			{
+				sect=map->entries[i].sect;
+				if(sect)
+					resolve|=section_sizereferences(map->entries[i].sect);
+			}
+			++j;
 		}
+		printf("Address resolution stabilised after %d passes\n",j);
 	}
 }
 

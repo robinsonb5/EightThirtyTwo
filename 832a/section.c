@@ -156,7 +156,7 @@ void section_declaresymbol(struct section *sect, const char *name,int flags)
 void section_declarecommon(struct section *sect,const char *lab,int size,int global)
 {
 	int flags=global ? SYMBOLFLAG_GLOBAL : SYMBOLFLAG_LOCAL;
-	if(sect->symbols && !(sect->flags&SECTIONFLAG_BSS))
+	if(sect->cursor && !(sect->flags&SECTIONFLAG_BSS))
 		asmerror("Can't mix BSS and code/initialised data in a section.");
 	section_declaresymbol(sect,lab,flags);
 	sect->flags|=SECTIONFLAG_BSS;
@@ -257,19 +257,24 @@ void section_loadchunk(struct section *sect,int bytes,FILE *f)
 }
 
 
-void section_sizereferences(struct section *sect)
+/* Calculate the size of all references.  Returns 1 if any have
+   grown in size since the last iteration, otherwise returns 0. */
+
+int section_sizereferences(struct section *sect)
 {
+	int result=0;
 	if(sect)
 	{
 		struct symbol *sym=sect->refs;
 		sect->offset=0;
 		while(sym)
 		{
-			reference_size(sym);
+			result|=reference_size(sym);
 			sect->offset+=sym->size;
 			sym=sym->next;
 		}
 	}
+	return(result);
 }
 
 

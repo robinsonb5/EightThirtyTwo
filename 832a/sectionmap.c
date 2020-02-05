@@ -114,6 +114,9 @@ static int sectionmap_sortcompare(const void *p1, const void *p2)
 }
 
 
+/* Scan the executable for sections matching a particular set of flags
+   (plain code, ctors/dtors, bss, etc) and add them to the sectionmap. */
+
 static int sectionmap_populate_inner(struct executable *exe,int idx,int flags)
 {
 	struct sectionmap *map=exe->map;
@@ -135,6 +138,8 @@ static int sectionmap_populate_inner(struct executable *exe,int idx,int flags)
 	return(idx);
 }
 
+
+/* Populate the section map and sort any ctors / dtors */
 
 int sectionmap_populate(struct executable *exe)
 {

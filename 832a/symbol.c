@@ -60,57 +60,57 @@ static int count_pcrelchunks(unsigned int a1,unsigned int a2)
 	return(6);
 }
 
-void reference_size(struct symbol *sym)
+/* Calculate the size of a reference, and compare against the previously-defined size.
+   If the reference has grown, returns 1, otherwise returns 0 */
+int reference_size(struct symbol *sym)
 {
+	int result=0;
 	if(sym)
 	{
 		if(sym->flags&SYMBOLFLAG_ALIGN)
 		{
-			/* Use the worst-case size initially */
-			sym->size=sym->offset-1;
+			/* Use the best-case size - actual size will be determined when assigning addresses */
+			sym->size=0;
 		}
 		else if(sym->flags&SYMBOLFLAG_REFERENCE)
 		{
 			/* simple references are always four bytes */
 			sym->size=4;
 		}
+		else if (sym->size==0)
+		{
+			sym->size=1; /* Apart from aligns, references are always at least 1 byte. */
+			result=1;
+		}
 		else if (sym->flags&SYMBOLFLAG_LDABS)
 		{
 			if(sym->resolve)
 			{
-				if(sym->resolve->address)
-				{
-					/* Compute sizes based on the absolute address of the target. */
-					sym->size=count_constantchunks(sym->resolve->address+sym->offset);
-				}
-				else
-				{
-					/* Worst case size */
-					sym->size=6;
-				}
+				int size;
+				/* Compute sizes based on the absolute address of the target. */
+				size=count_constantchunks(sym->resolve->address+sym->offset);
+				if(size>sym->size)
+					result=1;
+				sym->size=size;
 			}
 		}
 		else if (sym->flags&SYMBOLFLAG_LDPCREL)
 		{
 			if(sym->resolve)
 			{
-				if(sym->resolve->address)
-				{
-					int i;
-					int reladr;
-					int addr=sym->sect->address+sym->cursor+sym->sect->offset+1;
-					/* Compute worst-case sizes based on the distance to the target. */
-					printf("Reference %s, cursor %x, address %x\n",sym->identifier,sym->cursor,addr);
-					sym->size=count_pcrelchunks(addr,sym->resolve->address+sym->offset);
-				}
-				else
-				{
-					/* Worst case size */
-					sym->size=6;
-				}
+				int i;
+				int size;
+				int addr=sym->sect->address+sym->cursor+sym->sect->offset+1;
+				/* Compute worst-case sizes based on the distance to the target. */
+				printf("Reference %s, cursor %x, address %x\n",sym->identifier,sym->cursor,addr);
+				size=count_pcrelchunks(addr,sym->resolve->address+sym->offset);
+				if(size>sym->size)
+					result=1;
+				sym->size=size;
 			}
 		}
 	}
+	return(result);
 }
 
 
