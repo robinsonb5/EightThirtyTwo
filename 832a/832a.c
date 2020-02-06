@@ -77,7 +77,7 @@ void directive_ascii(struct objectfile *obj,const char *tok,const char *tok2,int
 	if(tok)
 	{
 		l=strlen(tok);
-		printf("Ascii string: %s, length: %d\n",tok,l);
+		debug(1,"Ascii string: %s, length: %d\n",tok,l);
 		if(l && tok[0]=='\"' && tok[l-1]=='\"')
 		{
 			int i;
@@ -131,12 +131,12 @@ void directive_liconst(struct objectfile *obj,const char *tok,const char *tok2,i
 	if(!v && endptr==tok)
 		asmerror("Invalid numeric constant");
 	chunk=count_constantchunks(v);
-	printf("%d chunks\n",chunk);
+	debug(1,"%d chunks\n",chunk);
 	while(chunk--)
 	{
 		int c=(v>>(6*chunk))&0x3f;
 		c|=0xc0;
-		printf("Emitting chunk %d, %x\n",chunk,c);
+		debug(1,"Emitting chunk %d, %x\n",chunk,c);
 		objectfile_emitbyte(obj,c);
 	}
 }
@@ -287,7 +287,7 @@ int assemble(const char *fn,const char *on)
 									v&=0x3f;
 									opc|=v;
 								}
-								printf("%s\t%s -> 0x%x\n",tok, tok2 && opcodes[o].opbits ? tok2 : "", opc);
+								debug(1,"%s\t%s -> 0x%x\n",tok, tok2 && opcodes[o].opbits ? tok2 : "", opc);
 								objectfile_emitbyte(obj,opc);
 								break;
 							}
@@ -338,16 +338,22 @@ int main(int argc, char **argv)
 	int result=0;
 	if(argc==1)
 	{
-		fprintf(stderr,"Usage: %s file.s <file2.s> ...\n",argv[0]);
+		fprintf(stderr,"Usage: %s [options] file.s <file2.s> ...\n",argv[0]);
+		fprintf(stderr,"Options:\n\t-d - enable debug messages\n");
 		result=1;
 	}
 	else
 	{
 		for(i=1;i<argc;++i)
 		{
-			char *on=objname(argv[i]);
-			assemble(argv[i],on);
-			free(on);
+			if(strcmp(argv[i],"-d")==0)
+					setdebuglevel(1);
+			else
+			{
+				char *on=objname(argv[i]);
+				assemble(argv[i],on);
+				free(on);
+			}
 		}
 	}
 	return(result);

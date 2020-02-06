@@ -10,7 +10,11 @@ int main(int argc,char **argv)
 {
 	if(argc==1)
 	{
-		fprintf(stderr,"Usage: %s obj1.o <obj2.o> ... <-o output.bin>\n",argv[0]);
+		fprintf(stderr,"Usage: %s [options] obj1.o <obj2.o> ... <-o output.bin>\n",argv[0]);
+		fprintf(stderr,"Options:\n");
+		fprintf(stderr,"\t-o <file>\t- specify output file\n");
+		fprintf(stderr,"\t-b <number>\t- specify base address\n");
+		fprintf(stderr,"\t-d\t\t- enable debug messages\n");
 	}
 	else
 	{
