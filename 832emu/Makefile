@@ -7,8 +7,8 @@ DUMP    = $(BASE)-objdump
 
 BUILD_DIR=.obj
 
-ZPUSIM_PRJ = 832sim
-ZPUSIM_SRC = 832sim.cpp pathsupport.cpp util.cpp debug.cpp
+ZPUSIM_PRJ = 832e
+ZPUSIM_SRC = 832e.cpp pathsupport.cpp util.cpp debug.cpp
 ZPUSIM_HEADERS = binaryblob.h hackstream.h pathsupport.h util.h debug.h config.h
 ZPUSIM_OBJ = $(patsubst %.cpp,$(BUILD_DIR)/%.o,$(ZPUSIM_SRC))
 

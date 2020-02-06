@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "hexdump.h"
+#include "832util.h"
 #include "codebuffer.h"
 
 struct codebuffer *codebuffer_new()
@@ -58,6 +58,6 @@ void codebuffer_dump(struct codebuffer *buf)
 {
 	if(buf)
 	{
-		hexdump(buf->buffer,buf->cursor);
+		hexdump(1,buf->buffer,buf->cursor);
 	}
 }

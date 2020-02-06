@@ -147,7 +147,7 @@ int sectionmap_populate(struct executable *exe)
 	struct section *sect;
 	struct sectionmap *map=exe->map;
 	map->entrycount=countsections(exe);
-	printf("%d sections touched\n",map->entrycount);
+	debug(1,"%d sections touched\n",map->entrycount);
 
 	if(map->entries=malloc(sizeof(struct sectionmap_entry)*map->entrycount))
 	{
@@ -169,7 +169,7 @@ int sectionmap_populate(struct executable *exe)
 			idx=sectionmap_populate_inner(exe,idx,SECTIONFLAG_CTOR);
 
 			/* Sort ctors */
-			printf("Sorting constructors %d to %d\n",idxstart,idx-1);
+			debug(1,"Sorting constructors %d to %d\n",idxstart,idx-1);
 			if(idx>idxstart)
 				qsort(map->entries+idxstart,idx-idxstart,sizeof(struct sectionmap_entry),sectionmap_sortcompare);
 
@@ -182,7 +182,7 @@ int sectionmap_populate(struct executable *exe)
 			idx=sectionmap_populate_inner(exe,idx,SECTIONFLAG_DTOR);
 
 			/* Sort dtors */
-			printf("Sorting destructors %d to %d\n",idxstart,idx-1);
+			debug(1,"Sorting destructors %d to %d\n",idxstart,idx-1);
 			if(idx>idxstart)
 				qsort(map->entries+idxstart,idx-idxstart,sizeof(struct sectionmap_entry),sectionmap_sortcompare);
 
@@ -212,11 +212,11 @@ void sectionmap_dump(struct sectionmap *map)
 	{
 		int i;
 		for(i=0;i<map->entrycount;++i)
-			printf("Section %s at offset %d\n",map->entries[i].sect ? map->entries[i].sect->identifier : "(none)",
+			debug(1,"Section %s at offset %d\n",map->entries[i].sect ? map->entries[i].sect->identifier : "(none)",
 						map->entries[i].address);
 	}
 	else
-		printf("Section map is empty\n");
+		debug(1,"Section map is empty\n");
 }
 
 

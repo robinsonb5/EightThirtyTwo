@@ -1,9 +1,51 @@
 #include <stdio.h>
+#include <stdarg.h>
 #include <string.h>
 #include <stdlib.h>
 
 static const char *error_file;
 static int error_line;
+static int debuglevel=0;
+
+void setdebuglevel(int level)
+{
+	debuglevel=level;
+}
+
+void debug(int level,const char *fmt,...)
+{
+    va_list ap;
+	va_start(ap,fmt);
+	if(level<=debuglevel)
+	{
+		vprintf(fmt,ap);
+	}
+	va_end(ap);
+}
+
+void hexdump(int level,char *p,int l)
+{
+	int i=0;
+	if(level<=debuglevel)
+	{
+		while(l--)
+		{
+			unsigned int t=*p++;
+			unsigned int t2=(t>>4)&15;
+			t2+='0'; if(t2>'9') t2+='@'-'9';
+			putchar(t2);
+			t2=t&15;
+			t2+='0'; if(t2>'9') t2+='@'-'9';
+			putchar(t2);
+			++i;
+			if((i&3)==0)
+				putchar(' ');
+			if((i&15)==0)
+				putchar('\n');
+		}
+		putchar('\n');
+	}
+}
 
 void error_setfile(const char *fn)
 {

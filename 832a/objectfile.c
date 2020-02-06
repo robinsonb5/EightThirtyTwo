@@ -53,26 +53,26 @@ void objectfile_load(struct objectfile *obj,const char *fn)
 	while(fread(tmp,4,1,f))
 	{
 		int l;
-		printf("Chunk header: %s\n",tmp);
+		debug(1,"Chunk header: %s\n",tmp);
 		if(strncmp(tmp,"832\x01",4)==0)	/* Another header - probably means objects have been concatenated. */
 			;
 		else if(strncmp(tmp,"SECT",4)==0)
 		{
 			read_lstr(f,tmp);
-			printf("Section %s :\n",tmp);
+			debug(1,"Section %s :\n",tmp);
 			sect=objectfile_addsection(obj,tmp);
 			sect->flags=read_int_le(f);
 		}
 		else if(strncmp(tmp,"BSS ",4)==0)
 		{
 			l=read_int_le(f);
-			printf("%d bytes of binary\n",l);
+			debug(1,"%d bytes of binary\n",l);
 			sect->cursor=l;
 		}
 		else if(strncmp(tmp,"BNRY",4)==0)
 		{
 			l=read_int_le(f);
-			printf("%d bytes of binary\n",l);
+			debug(1,"%d bytes of binary\n",l);
 			while(l>0)
 			{
 				section_loadchunk(sect,l>CODEBUFFERSIZE ? CODEBUFFERSIZE : l,f);
@@ -90,7 +90,7 @@ void objectfile_load(struct objectfile *obj,const char *fn)
 				offset=read_int_le(f);
 				cursor=read_int_le(f);
 				read_lstr(f,tmp);
-				printf("Symbol: %s, cursor %d, flags %x, offset %d\n",tmp,cursor,flags,offset);
+				debug(1,"Symbol: %s, cursor %d, flags %x, offset %d\n",tmp,cursor,flags,offset);
 				sym=symbol_new(tmp,cursor,flags);
 				if(sect && sym)
 				{
@@ -111,7 +111,7 @@ void objectfile_load(struct objectfile *obj,const char *fn)
 				offset=read_int_le(f);
 				cursor=read_int_le(f);
 				read_lstr(f,tmp);
-				printf("Ref: %s, cursor %d, flags %x, offset %d\n",tmp,cursor,flags,offset);
+				debug(1,"Ref: %s, cursor %d, flags %x, offset %d\n",tmp,cursor,flags,offset);
 				sym=symbol_new(tmp,cursor,flags);
 				if(sect && sym)
 				{
@@ -208,7 +208,7 @@ void objectfile_delete(struct objectfile *obj)
 void objectfile_dump(struct objectfile *obj,int untouched)
 {
 	struct section *sect;
-	printf("\nObjectfile: %s\n",obj->filename ? obj->filename : "not yet defined");
+	debug(1,"\nObjectfile: %s\n",obj->filename ? obj->filename : "not yet defined");
 	sect=obj->sections;
 	while(sect)
 	{

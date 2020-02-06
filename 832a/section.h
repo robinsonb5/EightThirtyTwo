@@ -53,7 +53,7 @@ void section_emitbyte(struct section *sect,unsigned char byte);
 void section_align(struct section *sect,int align);
 
 int section_sizereferences(struct section *sect);
-void section_assignaddresses(struct section *sect,struct section *prev);
+int section_assignaddresses(struct section *sect,int base);
 
 void section_loadchunk(struct section *sect,int bytes,FILE *f);
 void section_outputobj(struct section *sect,FILE *f);

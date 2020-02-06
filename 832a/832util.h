@@ -1,6 +1,10 @@
 #ifndef UTIL832_H
 #define UTIL832_H
 
+void setdebuglevel(int level);
+void debug(int level,const char *fmt,...);
+void hexdump(int level,char *p,int l);
+
 void error_setfile(const char *fn);
 void error_setline(int line);
 void asmerror(const char *err);

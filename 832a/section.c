@@ -249,10 +249,10 @@ void section_loadchunk(struct section *sect,int bytes,FILE *f)
 		else
 			sect->codebuffers=buf;
 		sect->lastcodebuffer=buf;
-		printf("Loading %d bytes\n",bytes);
+		debug(1,"Loading %d bytes\n",bytes);
 		codebuffer_loadchunk(sect->lastcodebuffer,bytes,f);
 		sect->cursor+=bytes;
-		printf("Cursor: %d bytes\n",sect->cursor);
+		debug(1,"Cursor: %d bytes\n",sect->cursor);
 	}
 }
 
@@ -278,7 +278,7 @@ int section_sizereferences(struct section *sect)
 }
 
 
-void section_assignaddresses(struct section *sect,struct section *prev)
+int section_assignaddresses(struct section *sect,int base)
 {
 	struct symbol *ref=sect->refs;
 	struct symbol *sym=sect->symbols;
@@ -287,12 +287,8 @@ void section_assignaddresses(struct section *sect,struct section *prev)
 	int offset=0;
 	if(!sect)
 		return;
-	if(prev)
-	{
-		addr=prev->address+prev->cursor+prev->offset;
-	}
-	printf("Assign address %x to %s\n",addr,sect->identifier);
-	sect->address=addr;
+	debug(1,"Assign address %x to %s\n",base,sect->identifier);
+	sect->address=base;
 
 	offset=0;
 
@@ -311,7 +307,7 @@ void section_assignaddresses(struct section *sect,struct section *prev)
 		else
 			cursor=sect->cursor;
 
-		printf("sym: %s, cursor %d\n",sym ? sym->identifier : "none",cursor);
+		debug(1,"sym: %s, cursor %d\n",sym ? sym->identifier : "none",cursor);
 
 		while(ref && ((ref->cursor<cursor) || (cursor==sect->cursor)))
 		{
@@ -319,16 +315,16 @@ void section_assignaddresses(struct section *sect,struct section *prev)
 			{
 				int alignaddr=sect->address+ref->cursor+offset+1;
 				/* If this is an alignment ref, apply it rather than using a theoretical best/worst case */
-				printf("Aligning %x to %d byte boundary\n",alignaddr,ref->offset);
+				debug(1,"Aligning %x to %d byte boundary\n",alignaddr,ref->offset);
 				alignaddr+=ref->offset-1;
 				alignaddr&=~(ref->offset-1);
 				ref->size=alignaddr-(sect->address+ref->cursor+offset+1);
-				printf("  -> %x (%d)\n",alignaddr,ref->size);
+				debug(1,"  -> %x (%d)\n",alignaddr,ref->size);
 				offset+=ref->size;
 			}
 			else
 			{
-				printf("  (adding ref %s [cursor %d], size %d to offset %d, making %d)\n",ref->identifier,ref->cursor,ref->size,offset,offset+ref->size);
+				debug(1,"  (adding ref %s [cursor %d], size %d to offset %d, making %d)\n",ref->identifier,ref->cursor,ref->size,offset,offset+ref->size);
 				offset+=ref->size;
 			}
 			ref=ref->next;
@@ -339,7 +335,7 @@ void section_assignaddresses(struct section *sect,struct section *prev)
 			if(!(sym->flags&SYMBOLFLAG_CONSTANT))
 			{
 				sym->address=sect->address+sym->cursor+offset;
-				printf("  Assigning address %x to symbol %s\n",sym->address,sym->identifier);
+				debug(1,"  Assigning address %x to symbol %s\n",sym->address,sym->identifier);
 			}
 			sym=sym->next;
 
@@ -349,6 +345,8 @@ void section_assignaddresses(struct section *sect,struct section *prev)
 		}
 	}
 	sect->offset=offset;
+
+	return(sect->address+sect->cursor+sect->offset);
 }
 
 
@@ -360,33 +358,33 @@ void section_dump(struct section *sect,int untouched)
 		{
 			struct codebuffer *buf;
 			struct symbol *sym;
-			printf("\nSection: %s  :  ",sect->identifier);
-			printf("cursor: %x",sect->cursor);
-			printf("%s",sect->flags & SECTIONFLAG_BSS ? ", BSS" : "");
-			printf("%s",sect->flags & SECTIONFLAG_CTOR ? ", CTOR" : "");
-			printf("%s",sect->flags & SECTIONFLAG_DTOR ? ", DTOR" : "");
-			printf("%s\n",sect->flags & SECTIONFLAG_TOUCHED ? ", touched" : "");
-			printf("  Address: %x\n",sect->address);
+			debug(1,"\nSection: %s  :  ",sect->identifier);
+			debug(1,"cursor: %x",sect->cursor);
+			debug(1,"%s",sect->flags & SECTIONFLAG_BSS ? ", BSS" : "");
+			debug(1,"%s",sect->flags & SECTIONFLAG_CTOR ? ", CTOR" : "");
+			debug(1,"%s",sect->flags & SECTIONFLAG_DTOR ? ", DTOR" : "");
+			debug(1,"%s\n",sect->flags & SECTIONFLAG_TOUCHED ? ", touched" : "");
+			debug(1,"  Address: %x\n",sect->address);
 
-			printf("\nSymbols:\n");
+			debug(1,"\nSymbols:\n");
 			sym=sect->symbols;
 			while(sym)
 			{
-				printf("  ");
+				debug(1,"  ");
 				symbol_dump(sym);
 				sym=sym->next;
 			}
 
-			printf("\nReferences:\n");
+			debug(1,"\nReferences:\n");
 			sym=sect->refs;
 			while(sym)
 			{
-				printf("  ");
+				debug(1,"  ");
 				symbol_dump(sym);
 				sym=sym->next;
 			}
 
-			printf("\nBinary data:\n");
+			debug(1,"\nBinary data:\n");
 			buf=sect->codebuffers;
 			while(buf)
 			{
@@ -479,7 +477,7 @@ void section_outputexe(struct section *sect,FILE *f)
 		else
 			newcursor=sect->cursor;
 
-		printf("writing %d bytes @ %x\n",newcursor-cursor,sect->address+cursor+offset);
+		debug(1,"writing %d bytes @ %x\n",newcursor-cursor,sect->address+cursor+offset);
 		newcbcursor=cbcursor+(newcursor-cursor);
 
 		while(newcbcursor>=CODEBUFFERSIZE)
@@ -500,7 +498,7 @@ void section_outputexe(struct section *sect,FILE *f)
 				int align=ref->size;
 				int refaddr=sect->address+ref->cursor+ref->size+offset;
 				offset+=align;
-				printf("Outputting alignment reference %s, %d bytes (refaddr %x)\n",ref->identifier,align,refaddr);
+				debug(1,"Outputting alignment reference %s, %d bytes (refaddr %x)\n",ref->identifier,align,refaddr);
 				while(align--)
 					fputc(0,f);
 			}
@@ -510,8 +508,8 @@ void section_outputexe(struct section *sect,FILE *f)
 				int targetaddr=ref->resolve->address+ref->offset;
 				int refaddr=sect->address+ref->cursor+ref->size+offset+1;
 				int d=targetaddr-refaddr;
-				printf("Outputting ldpcrel reference %s, %d bytes\n",ref->identifier,ref->size);
-				printf("Target address %x, reference address %x\n",targetaddr,refaddr);
+				debug(1,"Outputting ldpcrel reference %s, %d bytes\n",ref->identifier,ref->size);
+				debug(1,"Target address %x, reference address %x\n",targetaddr,refaddr);
 				for(i=ref->size-1;i>=0;--i)
 				{
 					int c=((d>>(i*6))&0x3f)|0xc0;	/* Construct an 'li' opcode with six bits of data */
@@ -525,8 +523,8 @@ void section_outputexe(struct section *sect,FILE *f)
 				int targetaddr=ref->resolve->address+ref->offset;
 				int d=targetaddr;
 				int refaddr=sect->address+ref->cursor+ref->size+offset+1;
-				printf("Outputting ldabs reference %s, %d bytes\n",ref->identifier,ref->size);
-				printf("Target address %x,refaddr %x\n",targetaddr,refaddr);
+				debug(1,"Outputting ldabs reference %s, %d bytes\n",ref->identifier,ref->size);
+				debug(1,"Target address %x,refaddr %x\n",targetaddr,refaddr);
 				for(i=ref->size-1;i>=0;--i)
 				{
 					int c=((d>>(i*6))&0x3f)|0xc0;	/* Construct an 'li' opcode with six bits of data */
@@ -536,7 +534,7 @@ void section_outputexe(struct section *sect,FILE *f)
 			}
 			else if(ref->flags&SYMBOLFLAG_REFERENCE)
 			{
-				printf("Outputting standard reference %s\n",ref->identifier);
+				debug(1,"Outputting standard reference %s\n",ref->identifier);
 				if(ref->resolve->flags&SYMBOLFLAG_CONSTANT)
 					write_int_le(ref->resolve->cursor,f);
 				else

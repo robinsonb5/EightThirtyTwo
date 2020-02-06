@@ -8,35 +8,24 @@
 
 /*	Linked executable.  Linking procedure is as follows:
 	* Read object files one by one.
-	* Find duplicate symbols, find unresolvable references and garbage-collect unused sections:
-		* Start with the first section, take each reference in turn
+    * Find unresolvable references
+	* Start with the first section, take each reference in turn
 		* Find target symbols for all references, marking the section containing each reference as "touched".
 			* If any references can't be found, throw an error
 			* If we encounter a weak symbol at this stage, keep looking for a stronger one.
-			* If a strong symbol is declared more than once, throw an error.
+			* FIXME - If a strong symbol is declared more than once, throw an error.
 			* As each section is touched, recursively repeat the resolution process
-			* Store pointers to both the target section and target symbol for each reference.
-		* Remove any untouched sections.
+			* Store pointers to the target symbol for each reference.
+	* Build a list of sections to be output, incorporating only sections that have been touched.
 	* Sort sections:
 		* The first section must remain so
 		* ctors and dtors must be collected and sorted
 		* BSS sections should come last
 		* Need to define virtual symbols at the start and end of the BSS sections, and the ctor/dtor lists
-	* Assign preliminary addresses to all sections.
-	* Calculate initial size of all sections, along with worst-case slack due to alignment
-	* Resolve references.  Reference size in bytes will depend upon the reach/absolute address, so need
-	  to support relaxation:
-		* Assign an initial best-case and worst-case address to all symbols.
-			* For each section, take each symbol in turn, find all references with a cursor position
-			  before the symbol's cursor position, and calculate best- and worst-case sizes for them,
-         	  based on the general case.
-		* Assign initial best- and worst- case addresses to sections (just a convenience for symbol calcs.)
-		* Refine the best- and worst-case sizes for references based on the tentative symbol addresses.
-		* Re-assign addresses to symbols, using the refined reference sizes.
-		* If any references still have differences between best and worst case sizes, repeat the last two steps.
-		* (Must limit how many times we do this in case we end up with some kind of oscillation happening.)
-	* Assign final addresses to all symbols, taking alignment restrictions into account
-	* Re-resolve all references using the symbols' final addresses.
+	* Give each reference an initial minimum size.
+	* Assign addresses to all sections, symbols and references.
+	* Recalculate the size of each reference
+	* Repeat the previous two steps until the references stop growing.
 	* Save the linked executable
 */
 
@@ -48,9 +37,18 @@ struct executable *executable_new()
 		result->objects=0;
 		result->lastobject=0;
 		result->map=sectionmap_new();
+		result->baseaddress=0;
 	}
 	return(result);
 }
+
+
+void executable_setbaseaddress(struct executable *exe,int baseaddress)
+{
+	if(exe)
+		exe->baseaddress=baseaddress;
+}
+
 
 void executable_delete(struct executable *exe)
 {
@@ -114,7 +112,6 @@ struct symbol *executable_resolvereference(struct executable *exe,struct symbol 
 			struct symbol *sym=section_findsymbol(sect,ref->identifier);
 			if(sym)
 			{
-/*				ref->sect=sect;*/
 				ref->resolve=sym;
 				return(sym);
 			}
@@ -132,11 +129,10 @@ struct symbol *executable_resolvereference(struct executable *exe,struct symbol 
 					struct symbol *sym=section_findsymbol(sect,ref->identifier);
 					if(sym)
 					{
-						printf("%s's flags: %x, %x\n",ref->identifier,sym->flags,sym->flags&SYMBOLFLAG_GLOBAL);
+						debug(1,"%s's flags: %x, %x\n",ref->identifier,sym->flags,sym->flags&SYMBOLFLAG_GLOBAL);
 						if(sym->flags&SYMBOLFLAG_WEAK)
 						{
-							printf("Weak symbol found - keep looking\n");
-/*							ref->sect=sect;*/
+							debug(1,"Weak symbol found - keep looking\n");
 							ref->resolve=sym;
 							result=sym; /* Use this result if nothing better is found */
 						}
@@ -144,17 +140,15 @@ struct symbol *executable_resolvereference(struct executable *exe,struct symbol 
 						{
 							if(excludesection && excludesection->obj == sect->obj)
 							{
-								printf("Symbol found without global scope, but within the same object file\n");
-/*								ref->sect=sect;*/
+								debug(1,"Symbol found without global scope, but within the same object file\n");
 								ref->resolve=sym;
 								return(sym);
 							}
 							else
-								printf("Symbol found but not globally declared - keep looking\n");
+								debug(1,"Symbol found but not globally declared - keep looking\n");
 						}
 						else
 						{
-/*							ref->sect=sect;*/
 							ref->resolve=sym;
 							return(sym);
 						}
@@ -191,12 +185,11 @@ int executable_resolvereferences(struct executable *exe,struct section *sect)
 			struct symbol *sym2=0;
 			if(sym)
 			{
-				printf("Found symbol %s within the current section\n",sym->identifier);
-/*				ref->sect=sect;	*//* will be overridden if a better match is found */
+				debug(1,"Found symbol %s within the current section\n",sym->identifier);
 			}
 			if(!sym || (sym->flags&SYMBOLFLAG_WEAK))
 			{
-				printf("Symbol %s not found (or weak) - searching all sections...\n",ref->identifier);
+				debug(1,"Symbol %s not found (or weak) - searching all sections...\n",ref->identifier);
 				sym2=executable_resolvereference(exe,ref,sect);
 			}
 			if(sym2)
@@ -287,20 +280,18 @@ void executable_assignaddresses(struct executable *exe)
 
 		while(resolve)
 		{
+			int sectionbase=exe->baseaddress;
 			resolve=0;
+
 			/* Now assign addresses */
-			sect=map->entries[0].sect;
-			section_assignaddresses(sect,0);
-			for(i=1;i<map->entrycount;++i)
+			for(i=0;i<map->entrycount;++i)
 			{
-				int best,worst;
-				if(sect)
-					prev=sect;
 				sect=map->entries[i].sect;
 				if(sect)
-					section_assignaddresses(sect,prev);
+					sectionbase=section_assignaddresses(sect,sectionbase);
 			}
 
+			/* Refine reference sizes based on new addresses */
 			for(i=0;i<map->entrycount;++i)
 			{
 				sect=map->entries[i].sect;
@@ -309,7 +300,7 @@ void executable_assignaddresses(struct executable *exe)
 			}
 			++j;
 		}
-		printf("Address resolution stabilised after %d passes\n",j);
+		debug(1,"Address resolution stabilised after %d passes\n",j);
 	}
 }
 
