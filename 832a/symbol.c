@@ -61,6 +61,7 @@ static int count_pcrelchunks(unsigned int a1,unsigned int a2)
 }
 
 /* Calculate the size of a reference, and compare against the previously-defined size.
+   References can only grow, not shrink.
    If the reference has grown, returns 1, otherwise returns 0 */
 int reference_size(struct symbol *sym)
 {
@@ -89,8 +90,10 @@ int reference_size(struct symbol *sym)
 				/* Compute sizes based on the absolute address of the target. */
 				size=count_constantchunks(sym->resolve->address+sym->offset);
 				if(size>sym->size)
+				{
 					result=1;
-				sym->size=size;
+					sym->size=size;
+				}
 			}
 		}
 		else if (sym->flags&SYMBOLFLAG_LDPCREL)
@@ -104,8 +107,10 @@ int reference_size(struct symbol *sym)
 				printf("Reference %s, cursor %x, address %x\n",sym->identifier,sym->cursor,addr);
 				size=count_pcrelchunks(addr,sym->resolve->address+sym->offset);
 				if(size>sym->size)
+				{
 					result=1;
-				sym->size=size;
+					sym->size=size;
+				}
 			}
 		}
 	}

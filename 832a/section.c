@@ -479,7 +479,7 @@ void section_outputexe(struct section *sect,FILE *f)
 		else
 			newcursor=sect->cursor;
 
-		printf("writing %d bytes\n",newcursor-cursor);
+		printf("writing %d bytes @ %x\n",newcursor-cursor,sect->address+cursor+offset);
 		newcbcursor=cbcursor+(newcursor-cursor);
 
 		while(newcbcursor>=CODEBUFFERSIZE)
@@ -489,7 +489,7 @@ void section_outputexe(struct section *sect,FILE *f)
 			newcbcursor-=CODEBUFFERSIZE;
 			buffer=buffer->next;
 		}
-		if(newcbcursor)
+		if(newcbcursor && (newcbcursor-cbcursor)>0)
 			fwrite(buffer->buffer+cbcursor,newcbcursor-cbcursor,1,f);
 		cbcursor=newcbcursor;
 
@@ -498,8 +498,9 @@ void section_outputexe(struct section *sect,FILE *f)
 			if(ref->flags&SYMBOLFLAG_ALIGN)
 			{
 				int align=ref->size;
+				int refaddr=sect->address+ref->cursor+ref->size+offset;
 				offset+=align;
-				printf("Outputting alignment reference %s, %d bytes\n",ref->identifier,align);
+				printf("Outputting alignment reference %s, %d bytes (refaddr %x)\n",ref->identifier,align,refaddr);
 				while(align--)
 					fputc(0,f);
 			}
@@ -523,8 +524,9 @@ void section_outputexe(struct section *sect,FILE *f)
 				int i;
 				int targetaddr=ref->resolve->address+ref->offset;
 				int d=targetaddr;
+				int refaddr=sect->address+ref->cursor+ref->size+offset+1;
 				printf("Outputting ldabs reference %s, %d bytes\n",ref->identifier,ref->size);
-				printf("Target address %x\n",targetaddr);
+				printf("Target address %x,refaddr %x\n",targetaddr,refaddr);
 				for(i=ref->size-1;i>=0;--i)
 				{
 					int c=((d>>(i*6))&0x3f)|0xc0;	/* Construct an 'li' opcode with six bits of data */

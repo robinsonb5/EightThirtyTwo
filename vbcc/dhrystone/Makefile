@@ -51,12 +51,18 @@ dhrystone.bin : $(LIBDIR)/start.o $(LIBDIR)/uart.o $(LIBDIR)/small_printf.o $(LI
 %.o : %.asm Makefile $(LIBDIR)/start.S $(CC)
 	$(AS) $*.asm
 
+%.asm : %.c Makefile ldscript.ld $(LIBDIR)/start.S $(CC)
+	../bin/vbcc832 $(CFLAGS) $(COPT) $*.c
+
 %.o : %.c Makefile ldscript.ld $(LIBDIR)/start.S $(CC)
 	../bin/vbcc832 $(CFLAGS) $(COPT) $*.c
 	$(AS) $*.asm
 
 %.o : $(LIBDIR)/%.S Makefile ldscript.ld $(832DIR)/Lib/assembler.pp $(LIBDIR)/start.S $(CC)
 	$(AS) $(LIBDIR)/$*.S
+
+%.o : $(LIBDIR)/%.asm Makefile ldscript.ld $(832DIR)/Lib/assembler.pp $(LIBDIR)/start.S $(CC)
+	$(AS) $(LIBDIR)/$*.asm
 
 $(ROMGEN): $(ROMGENDIR)/romgen.c
 	gcc -o $(ROMGENDIR)/romgen $(ROMGENDIR)/romgen.c

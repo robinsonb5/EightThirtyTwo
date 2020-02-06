@@ -98,11 +98,12 @@ static void emit_externtotemp(FILE * f, char *lab, int offset)	// FIXME - need t
 		emit(f, "\t.ref\t_%s, %d\n",lab, offset);
 	else
 		emit(f, "\t.ref\t_%s\n",lab);
-#endif
+#else
 	if (offset)
 		emit(f, "\t.liabs\t_%s, %d\n",lab, offset);
 	else
 		emit(f, "\t.liabs\t_%s\n",lab);
+#endif
 	cleartempobj(f,tmp);
 }
 
@@ -112,8 +113,12 @@ static void emit_externtotemp(FILE * f, char *lab, int offset)	// FIXME - need t
 static void emit_statictotemp(FILE * f, char *lab, int suffix, int offset)	// FIXME - need to find a way to do this PC relative
 {
 	emit(f, "\t\t\t\t//statictotemp\n");
+#if 0
 	emit(f, "\tldinc\t%s\n", regnames[pc]);
 	emit(f, "\t.ref\t%s%d,%d\n", lab, suffix, offset);
+#else
+	emit(f, "\t.liabs\t%s%d,%d\n", lab, suffix, offset);
+#endif
 	cleartempobj(f,tmp);
 }
 
