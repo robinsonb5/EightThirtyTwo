@@ -87,6 +87,20 @@ static void emit_pcreltotemp(FILE * f, char *lab, int suffix)
 	cleartempobj(f,tmp);
 }
 
+static void emit_pcreltotemp2(FILE *f,struct obj *p)
+{
+	emit(f, "\t\t\t//pcreltotemp\n");
+	if (p->v->storage_class == STATIC)
+		emit(f,"\t.lipcrel\t%s%d\n",labprefix, zm2l(p->v->offset));
+	else if(p->v->storage_class == EXTERN)
+	{
+		if(p->val.vmax)
+			emit(f,"\t.lipcrel\t_%s%d\n",p->v->identifier, p->val.vmax);
+		else
+			emit(f,"\t.lipcrel\t_%s\n",p->v->identifier);
+	}
+	cleartempobj(f,tmp);
+}
 
 // tempobj logic should be correct.
 

@@ -1,6 +1,12 @@
-#include "assembler.pp"
-
 	.section .text.startup
+
+// Define STACKTOP.  This will be used from within the minimal premain code
+// so will be ignored if you link in the more complete premain code which sets
+// the stack to a fixed position beyond the BSS section.
+// Declared with weak linkage so you can override it if you wish.
+
+	.constant STACKTOP,0x2000
+	.weak	STACKTOP
 
 _start:
 	cond	SGT	// Z flag and C flag both clear -> Thread 1
@@ -79,9 +85,6 @@ _premain2:
 	cond NEX	// Pause until an interrupt is received
 	.lipcrel	.endloop2
 	add	r7
-
-	.weak STACKTOP
-	.constant STACKTOP,0x8000
 
 	.section	.text.interrupt
 	.weak	_interrupt

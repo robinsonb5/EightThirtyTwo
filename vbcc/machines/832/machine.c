@@ -174,6 +174,7 @@ static long localsize, rsavesize, argsize;
 static void emit_constanttotemp(FILE * f, zmax v);
 static void emit_statictotemp(FILE * f, char *lab, int suffix, int offset);
 static void emit_externtotemp(FILE * f, char *lab, int offset);
+static void emit_pcreltotemp2(FILE *f,struct obj *p);
 
 static void emit_obj(FILE * f, struct obj *p, int t);
 static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset);
@@ -1250,7 +1251,6 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				function_bottom(f, v, localsize, 0);
 			else
 				emit_pcreltotemp(f, labprefix, t);
-			cleartempobj(f,tmp);
 			emit(f, "\tadd\t%s\n", regnames[pc]);
 			continue;
 		}
@@ -1441,17 +1441,22 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				/* FIXME - deal with different object types here */
 				if (p->q1.v->storage_class == STATIC) {
 					// FIXME - double-check that we shouldn't include an offset here.
-					emit_pcreltotemp(f, labprefix, zm2l(p->q1.v->offset));
+					emit_pcreltotemp2(f, &p->q1);
 					if (p->q1.flags & DREFOBJ) {
 						emit(f, "\taddt\t%s\t//Deref function pointer\n", regnames[pc]);
 						emit(f, "\tldt\n\texg\t%s\n", regnames[pc]);
 					} else
 						emit(f, "\tadd\t%s\n", regnames[pc]);
 				} else if (p->q1.v->storage_class == EXTERN) {
-					emit_externtotemp(f, p->q1.v->identifier, p->q1.val.vmax);
-					if (p->q1.flags & DREFOBJ)	// Is this a function pointer?
+					if (p->q1.flags & DREFOBJ) {	// Is this a function pointer?
+						emit_externtotemp(f, p->q1.v->identifier, p->q1.val.vmax);
 						emit(f, "\tldt\t// deref function ptr\n");
-					emit(f, "\texg\t%s\n", regnames[pc]);
+						emit(f, "\texg\t%s\n", regnames[pc]);
+					}
+					else {
+						emit_pcreltotemp2(f, &p->q1);
+						emit(f, "\tadd\t%s\n", regnames[pc]);
+					}
 				} else {
 					emit_objtoreg(f, &p->q1, t, tmp);
 					emit(f, "\texg\t%s\n", regnames[pc]);
