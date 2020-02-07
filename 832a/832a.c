@@ -146,7 +146,7 @@ void directive_constant(struct objectfile *obj,const char *tok,const char *tok2,
 {
 	unsigned int val;
 	if(!tok2)
-		asmerror("Missing value for .abs");
+		asmerror("Missing value for .constant");
 	val=strtoul(tok2,0,0);
 	struct section *sect=objectfile_getsection(obj);
 	section_declareconstant(sect,tok,val,0);

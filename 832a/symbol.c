@@ -88,7 +88,10 @@ int reference_size(struct symbol *sym)
 			{
 				int size;
 				/* Compute sizes based on the absolute address of the target. */
-				size=count_constantchunks(sym->resolve->address+sym->offset);
+				if(sym->resolve->flags&SYMBOLFLAG_CONSTANT)
+					size=count_constantchunks(sym->resolve->cursor);
+				else
+					size=count_constantchunks(sym->resolve->address+sym->offset);
 				if(size>sym->size)
 				{
 					result=1;
@@ -104,8 +107,14 @@ int reference_size(struct symbol *sym)
 				int size;
 				int addr=sym->sect->address+sym->cursor+sym->sect->offset+1;
 				/* Compute worst-case sizes based on the distance to the target. */
-				debug(1,"Reference %s, cursor %x, address %x\n",sym->identifier,sym->cursor,addr);
-				size=count_pcrelchunks(addr,sym->resolve->address+sym->offset);
+
+				if(sym->resolve->flags&SYMBOLFLAG_CONSTANT)
+					size=count_pcrelchunks(addr,sym->resolve->cursor);
+				else
+				{
+					debug(1,"Reference %s, cursor %x, address %x\n",sym->identifier,sym->cursor,addr);
+					size=count_pcrelchunks(addr,sym->resolve->address+sym->offset);
+				}
 				if(size>sym->size)
 				{
 					result=1;

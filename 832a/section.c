@@ -167,7 +167,7 @@ void section_declarecommon(struct section *sect,const char *lab,int size,int glo
 void section_declareconstant(struct section *sect,const char *lab,int value,int global)
 {
 	struct symbol *sym;
-	int flags=global ? SYMBOLFLAG_CONSTANT : SYMBOLFLAG_CONSTANT|SYMBOLFLAG_LOCAL;
+	int flags=global ? SYMBOLFLAG_CONSTANT|SYMBOLFLAG_GLOBAL : SYMBOLFLAG_CONSTANT|SYMBOLFLAG_LOCAL;
 	if(sym=section_getsymbol(sect,lab))
 	{
 		sym->cursor=value;
@@ -507,7 +507,15 @@ void section_outputexe(struct section *sect,FILE *f)
 				int i;
 				int targetaddr=ref->resolve->address+ref->offset;
 				int refaddr=sect->address+ref->cursor+ref->size+offset+1;
-				int d=targetaddr-refaddr;
+				int d;
+
+				/* Constant symbols' addresses are fixed, not relative to the section address */
+				if(ref->resolve->flags&SYMBOLFLAG_CONSTANT)
+				{
+					fprintf(stderr,"*** WARNING: PC-relative reference to a constant symbol.\n");
+					targetaddr=ref->resolve->cursor;
+				}
+				d=targetaddr-refaddr;
 				debug(1,"Outputting ldpcrel reference %s, %d bytes\n",ref->identifier,ref->size);
 				debug(1,"Target address %x, reference address %x\n",targetaddr,refaddr);
 				for(i=ref->size-1;i>=0;--i)
@@ -521,8 +529,15 @@ void section_outputexe(struct section *sect,FILE *f)
 			{
 				int i;
 				int targetaddr=ref->resolve->address+ref->offset;
-				int d=targetaddr;
+				int d;
 				int refaddr=sect->address+ref->cursor+ref->size+offset+1;
+
+				/* Constant symbols' addresses are fixed, not relative to the section address */
+				if(ref->resolve->flags&SYMBOLFLAG_CONSTANT)
+					targetaddr=ref->resolve->cursor;
+
+				d=targetaddr;
+
 				debug(1,"Outputting ldabs reference %s, %d bytes\n",ref->identifier,ref->size);
 				debug(1,"Target address %x,refaddr %x\n",targetaddr,refaddr);
 				for(i=ref->size-1;i>=0;--i)
