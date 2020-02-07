@@ -583,6 +583,7 @@ class EightThirtyTwoEmu
 							if(!temp)
 								zero=1;
 							carry=0;
+							sizemod=WORD;
 							mnem << ("ldbinc ") << operand;
 							break;
 
@@ -616,9 +617,16 @@ class EightThirtyTwoEmu
 						case opc_stbinc: // stbinc
 							prg[regfile[operand]]=temp&0xff;
 							regfile[operand]++;
+							sizemod=WORD;
 							mnem << ("stbinc ") << operand;
 							break;
 
+						case opc_stinc: // stinc
+							prg.Write(regfile[operand],temp,endian,sizemod); //&0xfffffffc,temp);
+							regfile[operand]+=4;
+							sizemod=WORD;
+							mnem << ("stinc ") << operand;
+							break;
 
 						// Arithmetic
 
