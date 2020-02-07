@@ -14,7 +14,7 @@
 #define	opc_shl	0x30
 #define	opc_shr	0x28
 #define	opc_ror	0x38
-#define	opc_sth	0x40
+#define	opc_stinc	0x40
 #define	opc_mul	0x90
 			
 #define	opc_exg	0x08
@@ -31,4 +31,6 @@
 			
 #define	ovl_sgn	0xb7
 #define	ovl_ldt	0xbf
+#define ovl_byt 0x97
+#define ovl_hlf 0x9f
 

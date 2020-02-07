@@ -215,13 +215,13 @@ int assemble(const char *fn,const char *on)
 
 	printf("Opening file %s\n",fn);
 	
+	error_setfile(fn);
 	if(f=fopen(fn,"r"))
 	{
 		int line=0;
 		char *linebuf=0;
 		size_t len;
 		int c;
-		error_setfile(fn);
 		while(c=getline(&linebuf,&len,f)>0)
 		{
 			char *tok,*tok2,*tok3;
@@ -303,6 +303,8 @@ int assemble(const char *fn,const char *on)
 			free(linebuf);
 		fclose(f);
 	}
+	else
+		asmerror("Can't open file\n");
 	objectfile_output(obj,on);
 	objectfile_dump(obj,1);
 	objectfile_delete(obj);
@@ -339,20 +341,34 @@ int main(int argc, char **argv)
 	if(argc==1)
 	{
 		fprintf(stderr,"Usage: %s [options] file.s <file2.s> ...\n",argv[0]);
+		fprintf(stderr,"\t-o <file>\t- specify output file\n");
 		fprintf(stderr,"Options:\n\t-d - enable debug messages\n");
 		result=1;
 	}
 	else
 	{
+		char *outfn=0;
+		int nextfn=0;
 		for(i=1;i<argc;++i)
 		{
 			if(strcmp(argv[i],"-d")==0)
 					setdebuglevel(1);
+			else if(strcmp(argv[i],"-o")==0)
+					nextfn=1;
+			else if(nextfn==1)
+			{
+				outfn=argv[i];
+				nextfn=0;
+			}
 			else
 			{
-				char *on=objname(argv[i]);
+				char *on;
+				if(!(on=outfn))
+					on=objname(argv[i]);
 				assemble(argv[i],on);
-				free(on);
+				if(!outfn)
+					free(on);
+				outfn=0;
 			}
 		}
 	}

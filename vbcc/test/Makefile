@@ -20,11 +20,11 @@ run: helloworld.ghw
 tests: helloworld.ghw helloworld_byte.ghw strcpytest.ghw fptrtest.ghw copytest.ghw comparisons.ghw vatest.ghw divtest.ghw
 
 clean :
-	rm *.bin
-	rm *.S
-	rm *.asm
-	rm *.o
-	rm *.elf
+	-rm *.bin
+	-rm *.S
+	-rm *.asm
+	-rm *.o
+	-rm *.elf
 
 .PRECIOUS : %.ghw
 
@@ -46,24 +46,27 @@ clean :
 %.o : %.s Makefile
 	$(AS) $*.s
 
-%.bin : ../../Lib/start.o uart.o small_printf.o ../../Lib/division.o ../../Lib/string.o ../../Lib/hexdump.o %.o
+%.bin : start.o uart.o small_printf.o division.o string.o hexdump.o %.o
 	$(LD) -o $@ $+
 
 %.o : %.S Makefile $(LIBDIR)/start.S force
-	$(AS) $*.S
+	$(AS) -o $*.o $*.S
 
 %.o : %.asm Makefile $(LIBDIR)/start.S force
-	$(AS) $*.asm
+	$(AS) -o $*.o $*.asm
 
 %.o : %.c Makefile ldscript.ld $(LIBDIR)/start.S $(CC) force
 	../bin/vbcc832 $(CFLAGS) $(COPT) $*.c
-	$(AS) $*.asm
+	$(AS) -o $*.o $*.asm
 
 %.o : $(LIBDIR)/%.S Makefile ldscript.ld $(832DIR)/Lib/assembler.pp $(LIBDIR)/start.S force
-	$(AS) $(LIBDIR)/$*.S
+	$(AS) -o $*.o $(LIBDIR)/$*.S
 
 %.asm : %.c Makefile ../bin/vbcc832 $(CC) force
 	../bin/vbcc832 $(CFLAGS) $(COPT) -I$(832DIR) $*.c
+
+%.asm : $(LIBDIR)/%.c Makefile ../bin/vbcc832 $(CC) force
+	../bin/vbcc832 $(CFLAGS) $(COPT) -I$(832DIR) $(LIBDIR)/$*.c -o=$@
 
 $(ROMGEN): $(ROMGENDIR)/romgen.c
 	gcc -o $(ROMGENDIR)/romgen $(ROMGENDIR)/romgen.c

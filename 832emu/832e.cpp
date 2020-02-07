@@ -7,7 +7,7 @@
 #include "binaryblob.h"
 #include "debug.h"
 
-#include "832_opcodes.h"
+#include "832opcodes.h"
 
 /* Note: Emulator is not currently useful since I'm using the CPU in little-endian mode and the
    emulator only supports big-endian mode! */
@@ -17,6 +17,7 @@ int STACKOFFSET=0;
 
 
 enum e32endian {BIGENDIAN,LITTLEENDIAN};
+enum e32size {WORD,HALFWORD,BYTE};
 
 
 class EightThirtyTwoMemory
@@ -38,7 +39,7 @@ class EightThirtyTwoMemory
 	virtual int ReadB(unsigned int addr)
 	{
 	}
-	virtual int Read(unsigned int addr,e32endian endian)
+	virtual int Read(unsigned int addr,e32endian endian,e32size opsize)
 	{
 		switch(addr)
 		{
@@ -80,28 +81,52 @@ class EightThirtyTwoMemory
 				break;
 			default:
 				Debug[TRACE] << std::endl << "Reading from RAM " << addr << std::endl;
-//				if(addr<ramsize)
 				if(endian==BIGENDIAN)
 				{
-					int r=(*this)[addr]<<24;
-					r|=(*this)[addr+1]<<16;
-					r|=(*this)[addr+2]<<8;
-					r|=(*this)[addr+3];
+					int r;
+					switch(opsize)
+					{
+						case WORD:
+							r=(*this)[addr]<<24;
+							r|=(*this)[addr+1]<<16;
+							r|=(*this)[addr+2]<<8;
+							r|=(*this)[addr+3];
+							break;
+						case HALFWORD:
+							r|=(*this)[addr]<<8;
+							r|=(*this)[addr+1];
+							break;
+						case BYTE:
+							r=(*this)[addr];
+							break;
+					}
 					return(r);
 				}
 				else
 				{
-					int r=(*this)[addr+3]<<24;
-					r|=(*this)[addr+2]<<16;
-					r|=(*this)[addr+1]<<8;
-					r|=(*this)[addr];
+					int r;
+					switch(opsize)
+					{
+						case WORD:
+							r=(*this)[addr+3]<<24;
+							r|=(*this)[addr+2]<<16;
+							r|=(*this)[addr+1]<<8;
+							r|=(*this)[addr];
+							return(r);
+						case HALFWORD:
+							r|=(*this)[addr+1]<<8;
+							r|=(*this)[addr];
+							break;
+						case BYTE:
+							r=(*this)[addr];
+							break;
+					}
 					return(r);
 				}
-//					return(ram[(addr&(ramsize-1))/4]);
 		}
 		return(0);
 	}
-	virtual void Write(unsigned int addr,int v,e32endian endian)
+	virtual void Write(unsigned int addr,int v,e32endian endian,e32size opsize)
 	{
 		switch(addr)
 		{
@@ -152,24 +177,42 @@ class EightThirtyTwoMemory
 			default:
 				if(endian=BIGENDIAN)
 				{
-					(*this)[addr]=(v>>24)&255;
-					(*this)[addr+1]=(v>>16)&255;
-					(*this)[addr+2]=(v>>8)&255;
-					(*this)[addr+3]=v&255;
+					switch(opsize)
+					{
+						case WORD:
+							(*this)[addr]=(v>>24)&255;
+							(*this)[addr+1]=(v>>16)&255;
+							(*this)[addr+2]=(v>>8)&255;
+							(*this)[addr+3]=v&255;
+							break;
+						case HALFWORD:
+							(*this)[addr]=(v>>24)&255;
+							(*this)[addr+1]=(v>>16)&255;
+							break;
+						case BYTE:
+							(*this)[addr]=(v>>24)&255;
+							break;
+					}
 				}
 				else
 				{
-					(*this)[addr+3]=(v>>24)&255;
-					(*this)[addr+2]=(v>>16)&255;
-					(*this)[addr+1]=(v>>8)&255;
-					(*this)[addr]=v&255;
+					switch(opsize)
+					{
+						case WORD:
+							(*this)[addr+3]=(v>>24)&255;
+							(*this)[addr+2]=(v>>16)&255;
+							(*this)[addr+1]=(v>>8)&255;
+							(*this)[addr]=v&255;
+							break;
+						case HALFWORD:
+							(*this)[addr+1]=(v>>8)&255;
+							(*this)[addr]=v&255;
+							break;
+						case BYTE:
+							(*this)[addr]=v&255;
+							break;
+					}
 				}
-
-//				if(addr<ramsize)
-//				{
-//					Debug[TRACE] << std::endl << "Writing " << v << " to RAM " << addr << std::endl;
-//					ram[(addr&(ramsize-1))/4]=v;
-//				}
 		}
 	}
 	virtual unsigned char &operator[](const int idx)
@@ -203,50 +246,100 @@ class EightThirtyTwoProgram : public BinaryBlob, public EightThirtyTwoMemory
 	~EightThirtyTwoProgram()
 	{
 	}
-	virtual int Read(unsigned int addr,e32endian endian)
+	virtual int Read(unsigned int addr,e32endian endian,e32size opsize)
 	{
 		if(((addr-base)>=0) && ((addr-base)<=(size&~3)))
 		{
 			if(endian==BIGENDIAN)
 			{
-				int r=(*this)[addr]<<24;
-				r|=(*this)[addr+1]<<16;
-				r|=(*this)[addr+2]<<8;
-				r|=(*this)[addr+3];
+				int r;
+				switch(opsize)
+				{
+					case WORD:
+						r=(*this)[addr]<<24;
+						r|=(*this)[addr+1]<<16;
+						r|=(*this)[addr+2]<<8;
+						r|=(*this)[addr+3];
+						break;
+					case HALFWORD:
+						r|=(*this)[addr]<<8;
+						r|=(*this)[addr+1];
+						break;
+					case BYTE:
+						r=(*this)[addr];
+						break;
+				}
 				return(r);
 			}
 			else
 			{
-				int r=(*this)[addr+3]<<24;
-				r|=(*this)[addr+2]<<16;
-				r|=(*this)[addr+1]<<8;
-				r|=(*this)[addr];
+				int r;
+				switch(opsize)
+				{
+					case WORD:
+						r=(*this)[addr+3]<<24;
+						r|=(*this)[addr+2]<<16;
+						r|=(*this)[addr+1]<<8;
+						r|=(*this)[addr];
+						return(r);
+					case HALFWORD:
+						r|=(*this)[addr+1]<<8;
+						r|=(*this)[addr];
+						break;
+					case BYTE:
+						r=(*this)[addr];
+						break;
+				}
 				return(r);
 			}
 		}
-		return(EightThirtyTwoMemory::Read(addr,endian));
+		return(EightThirtyTwoMemory::Read(addr,endian,opsize));
 	}
-	virtual void Write(unsigned int addr,int v,e32endian endian)
+	virtual void Write(unsigned int addr,int v,e32endian endian,e32size opsize)
 	{
 		if(((addr-base)>=0) && ((addr-base)<(size-3)))
 		{
 			if(endian==BIGENDIAN)
 			{
-				(*this)[addr]=(v>>24)&255;
-				(*this)[addr+1]=(v>>16)&255;
-				(*this)[addr+2]=(v>>8)&255;
-				(*this)[addr+3]=v&255;
+				switch(opsize)
+				{
+					case WORD:
+						(*this)[addr+3]=(v>>24)&255;
+						(*this)[addr+2]=(v>>16)&255;
+						(*this)[addr+1]=(v>>8)&255;
+						(*this)[addr]=v&255;
+						break;
+					case HALFWORD:
+						(*this)[addr+1]=(v>>8)&255;
+						(*this)[addr]=v&255;
+						break;
+					case BYTE:
+						(*this)[addr]=v&255;
+						break;
+				}
 			}
 			else
 			{
-				(*this)[addr+3]=(v>>24)&255;
-				(*this)[addr+2]=(v>>16)&255;
-				(*this)[addr+1]=(v>>8)&255;
-				(*this)[addr]=v&255;
+				switch(opsize)
+				{
+					case WORD:
+						(*this)[addr+3]=(v>>24)&255;
+						(*this)[addr+2]=(v>>16)&255;
+						(*this)[addr+1]=(v>>8)&255;
+						(*this)[addr]=v&255;
+						break;
+					case HALFWORD:
+						(*this)[addr+1]=(v>>8)&255;
+						(*this)[addr]=v&255;
+						break;
+					case BYTE:
+						(*this)[addr]=v&255;
+						break;
+				}
 			}
 		}
 		else
-			EightThirtyTwoMemory::Write(addr,v,endian);
+			EightThirtyTwoMemory::Write(addr,v,endian,opsize);
 	}
 	void SetBase(int base)
 	{
@@ -268,7 +361,15 @@ class EightThirtyTwoEmu
 {
 	public:
 	EightThirtyTwoEmu() : initpc(0), steps(-1), endian(LITTLEENDIAN)
-	{		
+	{
+		temp=0;
+		regfile[0]=0;
+		regfile[1]=0;
+		regfile[2]=0;
+		regfile[3]=0;
+		regfile[4]=0;
+		regfile[5]=0;
+		regfile[6]=0;
 	}
 
 	~EightThirtyTwoEmu()
@@ -349,6 +450,7 @@ class EightThirtyTwoEmu
 
 		bool run=true;
 		bool immediate_continuation=false;
+		enum e32size sizemod=WORD;
 		bool sign_mod=false;
 
 		while(run)
@@ -392,7 +494,19 @@ class EightThirtyTwoEmu
 						immediate_continuation=true;
 					}
 				}
-				else if((opcode|operand)==ovl_sgn)	// Evaluate overloaded (zero-operand) opcodes here
+				else if((opcode|operand)==ovl_hlf)	// Evaluate overloaded (zero-operand) opcodes here
+				{
+					sizemod=HALFWORD;
+					mnem << ("hlf ");
+					// Set the halfword modifier, cleared by the next instruction that could use it.
+				}
+				else if((opcode|operand)==ovl_byt)
+				{
+					sizemod=BYTE;
+					mnem << ("byt ");
+					// Set the byte modifier, cleared by the next instruction that could use it.
+				}
+				else if((opcode|operand)==ovl_sgn)
 				{
 					sign_mod=true;
 					mnem << ("sgn ");
@@ -400,7 +514,8 @@ class EightThirtyTwoEmu
 				}
 				else if((opcode|operand)==ovl_ldt)
 				{
-					temp=prg.Read(temp,endian);
+					temp=prg.Read(temp,endian,sizemod);
+					sizemod=WORD;
 					mnem << ("ldt ");
 				}
 				else	// Now having dealt with special cases, consider full opcodes
@@ -450,13 +565,15 @@ class EightThirtyTwoEmu
 
 
 						case opc_ld: // ld
-							temp=prg.Read(regfile[operand],endian); // &0xfffffffc);
+							temp=prg.Read(regfile[operand],endian,sizemod); // &0xfffffffc);
+							sizemod=WORD;
 							mnem << ("ld ") << operand;
 							break;
 
 						case opc_ldinc: // ldinc
-							temp=prg.Read(regfile[operand],endian); // &0xfffffffc);
+							temp=prg.Read(regfile[operand],endian,sizemod); // &0xfffffffc);
 							regfile[operand]+=4;
+							sizemod=WORD;
 							mnem << ("ldinc ") << operand;
 							break;
 
@@ -470,25 +587,29 @@ class EightThirtyTwoEmu
 							break;
 
 						case opc_ldidx: // ldidx
-							temp=prg.Read(temp+regfile[operand],endian);//&0xfffffffc);
+							temp=prg.Read(temp+regfile[operand],endian,sizemod);//&0xfffffffc);
+							sizemod=WORD;
 							mnem << ("ldidx ") << operand;
 							break;
 
 
 						case opc_st: // st
-							prg.Write(regfile[operand],temp,endian); // &0xfffffffc,temp);
+							prg.Write(regfile[operand],temp,endian,sizemod); // &0xfffffffc,temp);
+							sizemod=WORD;
 							mnem << ("st ") << operand;
 							break;
 
 						case opc_stdec: // stdec
 							regfile[operand]-=4;
-							prg.Write(regfile[operand],temp,endian); //&0xfffffffc,temp);
+							prg.Write(regfile[operand],temp,endian,sizemod); //&0xfffffffc,temp);
+							sizemod=WORD;
 							mnem << ("stdec ") << operand;
 							break;
 
 						case opc_stmpdec: // stmpdec
 							temp-=4;
-							prg.Write(temp,regfile[operand],endian);
+							prg.Write(temp,regfile[operand],endian,sizemod);
+							sizemod=WORD;
 							mnem << ("stmpdec ") << operand;
 							break;
 
