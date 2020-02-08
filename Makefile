@@ -15,7 +15,7 @@ test:
 	make -C vbcc/test emu
 
 vbcc/supp.h:
-	@echo "Extract the latest vbcc source archive into vbcc then try again."
+	$(error Extract the latest vbcc source archive into vbcc then try again.)
 
 vbcc/bin:
 	mkdir vbcc/bin
