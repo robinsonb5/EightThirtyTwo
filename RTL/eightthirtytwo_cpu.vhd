@@ -66,6 +66,8 @@ end record;
 signal regfile : e32_regfile;
 signal regfile2 : e32_regfile;
 
+signal debug_inscount : unsigned(15 downto 0) :=X"0000";
+
 -- Status flags.  Z and C are used for conditional execution.
 
 -- Load / store signals
@@ -581,6 +583,7 @@ begin
 				if thread.d_ex_op(e32_exb_postinc)='1' and regfile.flag_cond='0' then
 					e_continue<='1';
 				end if;
+				debug_inscount<=debug_inscount+1; -- Temporary debugging counter
 				thread.pc<=thread.nextpc;
 				alu_imm<=thread.d_imm;
 			

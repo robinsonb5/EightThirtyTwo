@@ -41,9 +41,11 @@ int main(int argc,char **argv)
 
 	st.c1=0x1c;
 	if(st.c1<st.c2) putchar('4'); else putchar('E');
-	
 
 	puts(st.end);
-	return(-1);
+
+	puts("(Should be: 0B234FG74.)\n");
+	
+	return(0);
 }
 

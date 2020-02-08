@@ -6,6 +6,7 @@ GHDL = ghdl
 AS=../../832a/832a
 LD=../../832a/832l
 CC=../bin/vbcc832
+EM=../../832emu/832e
 CFLAGS = -+ -I$(832DIR)/include/ -I$(LIBDIR)
 COPT = -O=1311 -size
 TIME=200us
@@ -15,9 +16,9 @@ all: compiler helloworld.bin
 compiler:
 	make -C .. TARGET=832
 
-run: helloworld.ghw
+sim: helloworld.ghw helloworld_byte.ghw strcpytest.ghw fptrtest.ghw copytest.ghw comparisons.ghw vatest.ghw divtest.ghw
 
-tests: helloworld.ghw helloworld_byte.ghw strcpytest.ghw fptrtest.ghw copytest.ghw comparisons.ghw vatest.ghw divtest.ghw
+emu: helloworld.emu helloworld_byte.emu strcpytest.emu fptrtest.emu copytest.emu comparisons.emu vatest.emu divtest.emu
 
 clean :
 	-rm *.bin
@@ -27,6 +28,9 @@ clean :
 	-rm *.elf
 
 .PRECIOUS : %.ghw
+
+%.emu : %.bin
+	$(EM) $*.bin
 
 %.gtkw : %.ghw
 	sed 's/cpu_tb/$*_tb/g' >$*.gtkw <tb.gtkw

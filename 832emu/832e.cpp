@@ -402,7 +402,7 @@ class EightThirtyTwoEmu
 					printf("Usage: %s [options] <UART input text>\n",argv[0]);
 					printf("    -h --help\t  display this message\n");
 					printf("    -e --endian\t  Set endian mode to \"l\" (default) or \"b\"\n");
-					printf("    -s --steps\t  Simulate a specific number of steps (default: indefinite)\n");
+					printf("    -s --steps\t  Emulate a specific number of steps (default: indefinite)\n");
 					printf("    -r --report\t  set reporting level - 0 for silent, 4 for verbose\n");
 					printf("    -o --offsetstack\t  specify base address for stack RAM. Zero by default,\n");
 					printf("\t\t  specified as a bit number, so 30=0x40000000, etc.\n");
@@ -439,7 +439,7 @@ class EightThirtyTwoEmu
 
 	void Run(EightThirtyTwoProgram &prg)
 	{
-		Debug[WARN] << "Starting simulation" << std::endl;
+		Debug[WARN] << "Starting emulation" << std::endl;
 		Debug[ERROR] << std::hex << std::endl;
 		for(int i=0;i<7;++i)
 			regfile[i]=0;
@@ -448,6 +448,7 @@ class EightThirtyTwoEmu
 		zero=0; carry=0;
 		cond=1;
 
+		int tick=0;
 		bool run=true;
 		bool immediate_continuation=false;
 		enum e32size sizemod=WORD;
@@ -469,6 +470,8 @@ class EightThirtyTwoEmu
 			operand=opcode&0x7;
 			operim=opcode&0x3f;
 			opcode&=0xf8;
+
+			Debug[TRACE] << std::dec << tick << ", r7: " << std::hex << regfile[7];
 
 			nextpc=regfile[7]+1;
 			regfile[7]=nextpc;			
@@ -566,6 +569,8 @@ class EightThirtyTwoEmu
 
 						case opc_ld: // ld
 							temp=prg.Read(regfile[operand],endian,sizemod); // &0xfffffffc);
+							zero=(temp==0);
+							carry=(temp&0x80000000)!=0;
 							sizemod=WORD;
 							mnem << ("ld ") << operand;
 							break;
@@ -573,6 +578,8 @@ class EightThirtyTwoEmu
 						case opc_ldinc: // ldinc
 							temp=prg.Read(regfile[operand],endian,sizemod); // &0xfffffffc);
 							regfile[operand]+=4;
+							zero=(temp==0);
+							carry=(temp&0x80000000)!=0;
 							sizemod=WORD;
 							mnem << ("ldinc ") << operand;
 							break;
@@ -580,8 +587,7 @@ class EightThirtyTwoEmu
 						case opc_ldbinc: // ldbinc
 							temp=prg[regfile[operand]];
 							regfile[operand]++;
-							if(!temp)
-								zero=1;
+							zero=(temp==0);
 							carry=0;
 							sizemod=WORD;
 							mnem << ("ldbinc ") << operand;
@@ -590,6 +596,8 @@ class EightThirtyTwoEmu
 						case opc_ldidx: // ldidx
 							temp=prg.Read(temp+regfile[operand],endian,sizemod);//&0xfffffffc);
 							sizemod=WORD;
+							zero=(temp==0);
+							carry=(temp&0x80000000)!=0;
 							mnem << ("ldidx ") << operand;
 							break;
 
@@ -659,18 +667,23 @@ class EightThirtyTwoEmu
 							break;
 
 						case opc_cmp: // cmp - FIXME - heed then clear sign modifier.
+							sign_mod=(sign_mod) and (((regfile[operand]>>31)&1) xor ((temp>>31)&1));
 							t2=regfile[operand];
 							t2-=temp;
-							Debug[TRACE] << "Compare result: " << t2 << std::endl;
 							carry=(t2>>32)&1;
+							carry^=sign_mod;
+							sign_mod=0;
 							zero=(t2&0xffffffff)==0;
 							mnem << ("cmp ") << operand;
 							break;
 
 						case opc_sub: // sub - FIXME - heed then clear sign modifier.
+							sign_mod=(not sign_mod) and (((regfile[operand]>>31)&1) xor ((temp>>31)&1));
 							t2=regfile[operand];
 							t2-=temp;
 							carry=(t2>>32)&1;
+							carry^=sign_mod;
+							sign_mod=0;
 							regfile[operand]=t2;
 							zero=(t2&0xffffffff)==0;
 							if(operand==7)
@@ -765,15 +778,16 @@ class EightThirtyTwoEmu
 				}
 				mnem << (")");
 			}
-			if(steps>0)
-				run=(--steps)!=0;
+			++tick;
+			if(steps>=0 && tick>=steps)
+				run=0;
 
-			Debug[TRACE] << "r7: " << regfile[7] << "\tOp: " << opcode << ", " << mnem.str() << "\n\t\t";
+			Debug[TRACE] << "\tOp: " << (opcode|operand) << ", " << mnem.str() << "\n\t\t";
 			DumpRegs();
 			Debug[TRACE] << std::endl;
 
 			if(!run)
-				Debug[TRACE] << "Simulation ended\n" << std::endl;
+				Debug[TRACE] << "Emulation ended\n" << std::endl;
 		}
 	}
 	void DumpRegs()
