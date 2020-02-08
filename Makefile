@@ -1,6 +1,6 @@
 # Makefile for toolchain and tests
 
-all: 832a/832a 832emu/832e vbcc/bin/vbcc832 hello test
+all: 832a/832a 832emu/832e hello vbcc/bin/vbcc832 test
 
 832a/832a:
 	make -C 832a
