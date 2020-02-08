@@ -1,4 +1,4 @@
-all: 832a 832l 832d
+all: 832a 832l 832d hello
 
 832a: 832a.c 832defs.c objectfile.c section.c symbol.c codebuffer.c 832util.c
 	gcc -o $@ $+
@@ -8,4 +8,8 @@ all: 832a 832l 832d
 
 832d: 832d.c 832defs.c 832util.c
 	gcc -o $@ $+
+
+hello: start.S premain.S hello.S uart.S
+	./832a $+
+	./832l -o $@ $(patsubst %.S,%.o,$+)
 

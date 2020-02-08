@@ -1,6 +1,6 @@
 # Makefile for toolchain and tests
 
-all: 832a/832a 832emu/832e vbcc/bin/vbcc832 test
+all: 832a/832a 832emu/832e vbcc/bin/vbcc832 hello test
 
 832a/832a:
 	make -C 832a
@@ -13,6 +13,9 @@ vbcc/bin/vbcc832: vbcc/supp.h vbcc/bin
 
 test:
 	make -C vbcc/test emu
+
+hello: 832emu/832e 832a/832a
+	832emu/832e 832a/hello
 
 vbcc/supp.h:
 	$(error Extract the latest vbcc source archive into vbcc then try again.)
