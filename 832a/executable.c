@@ -300,7 +300,7 @@ void executable_assignaddresses(struct executable *exe)
 			}
 			++j;
 		}
-		debug(1,"Address resolution stabilised after %d passes\n",j);
+		debug(0,"Address resolution stabilised after %d passes\n",j);
 	}
 }
 
