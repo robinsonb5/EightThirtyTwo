@@ -1,11 +1,11 @@
 # Makefile for toolchain and tests
 
-all: 832a 832e vbcc test
+all: 832a/832a 832emu/832e vbcc test
 
-832a:
+832a/832a:
 	make -C 832a
 
-832e:
+832emu/832e:
 	make -C 832emu
 
 vbcc: vbcc/supp.h vbcc/bin
