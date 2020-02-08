@@ -16,9 +16,9 @@ all: compiler helloworld.bin
 compiler:
 	make -C .. TARGET=832
 
-sim: helloworld.ghw helloworld_byte.ghw strcpytest.ghw fptrtest.ghw copytest.ghw comparisons.ghw vatest.ghw divtest.ghw
+sim: helloworld.ghw strcpytest.ghw fptrtest.ghw copytest.ghw comparisons.ghw vatest.ghw divtest.ghw
 
-emu: helloworld.emu helloworld_byte.emu strcpytest.emu fptrtest.emu copytest.emu comparisons.emu vatest.emu divtest.emu
+emu: helloworld.emu strcpytest.emu fptrtest.emu copytest.emu comparisons.emu vatest.emu divtest.emu
 
 clean :
 	-rm *.bin
