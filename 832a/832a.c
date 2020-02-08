@@ -76,6 +76,7 @@ void directive_ascii(struct objectfile *obj,const char *tok,const char *tok2,int
 	int l;
 	if(tok)
 	{
+		fprintf(stderr,"WARNING string literal support is incomplete\n");
 		l=strlen(tok);
 		debug(1,"Ascii string: %s, length: %d\n",tok,l);
 		if(l && tok[0]=='\"' && tok[l-1]=='\"')
