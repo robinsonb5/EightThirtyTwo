@@ -30,45 +30,21 @@ DONE  stinc
 
 * Look at integrating tmp register in the ALU itself.  (Might be tricky due to dual-threading.)
 
-Code generator needs a further intermediate format.
-
-struct e32obj
-{
-	struct e32obj *next,*prev;
-	int uid;
-	char *identifier;
-	int offset;
-	int type;	// Can use the existing extern / static / auto flags + maybe an immediate type too?  + function type
-	struct e32op *first;	// If a function, this is a string of instructions.
-};
-
-Create one of these for each function, static object, external object (and stack variable?)
-
-struct e32op
-{
-	struct e32op *next,*prev;
-	enum e32opcode op;
-	int reg;
-	char *identifier;
-	int offset;
-	struct e32obj *obj;
-};
-
-When generating the code for a function, generate one of these for each opcode.
-
-Need to model the register set and stack, keeping track of which object (and offset) is held in each.
 
 Code generator improvements:
 
+  * Remove unnecessary conversions - currently seeing byte -> int -> mask to byte -> int again.
+
   * If a function is trivial enough not to touch r2, use it to hold the return address instead of the stack.
     (Terrible idea - would need to save r2's contents every time the function uses CALL - can't save it on the stack
-    because the stack has already been loaded with params at that point!)
+    because the stack has already been loaded with params at that point!)  Could possibly still do it if there are no
+	calls?
 
   * Improve assignment and detection of objects in tmp.
 
-  * Match against t1 as well as tmp.
+  DONE Match against t1 as well as tmp.
 
-  * Match near misses where the only difference between two objects is an offset.
+  DONE Match near misses where the only difference between two objects is an offset.
 	(Only helpful when matching against t1 since it's easy to adjust.)
 
   DONE inline memcpy doesn't need to save r1.  If r2 is not allocated then don't need to save that either.

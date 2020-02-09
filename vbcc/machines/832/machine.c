@@ -54,19 +54,17 @@ char cg_copyright[] =
     STRINGFLAG: a string can be specified
     FUNCFLAG: a function will be called
     apart from FUNCFLAG, all other versions can only be specified once */
-int g_flags[MAXGF] = { 0, VALFLAG, 0 };
+int g_flags[MAXGF] = { };
 
 /* the flag-name, do not use names beginning with l, L, I, D or U, because
    they collide with the frontend */
 /* FIXME - 832-specific flags, such as perhaps the reach of PCREL immediates? */
-char *g_flags_name[MAXGF] = { "function-sections", "pcrel-reach", "small-addr" };
+char *g_flags_name[MAXGF] = { };
 
 #define FLAG_FUNCTIONSECTIONS 0
-#define FLAG_PCRELREACH 1
-#define FLAG_SMALLADDR 2	// FIXME - currently broken
 
 /* the results of parsing the command-line-flags will be stored here */
-union ppi g_flags_val[MAXGF] = { 0, 2, 0 };
+union ppi g_flags_val[MAXGF] = { };
 
 /*  Alignment-requirements for all types in bytes.              */
 zmax align[MAX_TYPE + 1];
@@ -764,11 +762,6 @@ int init_cg(void)
 	char_bit = l2zm(8L);
 	stackalign = l2zm(4);
 
-	printf("flags:\n");
-	printf("Function sections: %d\n", g_flags[FLAG_FUNCTIONSECTIONS] & USEDFLAG);
-	printf("PC Relative reach: %d\n", g_flags_val[FLAG_PCRELREACH]);
-	printf("Small address (program and data fits within 64k): %d\n", g_flags[FLAG_SMALLADDR] & USEDFLAG);
-
 	// We have full load-store align, so in size mode we can pack data more tightly...
 
 	for (i = 0; i <= MAX_TYPE; i++) {
@@ -1294,11 +1287,11 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			continue;
 		}
 		// Reject types we can't handle - anything beyond a pointer and chars with more than 1 byte.
-		if ((c == PUSH)
-		    && ((t & NQ) > POINTER || ((t & NQ) == CHAR && zm2l(p->q2.val.vmax) != 1))) {
-			printf("Pushing a type we don't yet handle: 0x%x\n", t);
-			ierror(0);
-		}
+//		if ((c == PUSH)
+//		    && ((t & NQ) > POINTER || ((t & NQ) == CHAR && zm2l(p->q2.val.vmax) != 1))) {
+//			printf("Pushing a type we don't yet handle: 0x%x\n", t);
+//			ierror(0);
+//		}
 
 		if ((c == ASSIGN) && ((t & NQ) > POINTER && (t & NQ) != STRUCT)) {
 			printf("Assignment of a type we don't yet handle: 0x%x\n", t);
@@ -1493,12 +1486,20 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			int matchreg;
 			emit(f, "\t\t\t\t\t// (a/p push)\n");
 
-			/* FIXME - need to take dt into account */
-			// FIXME - need to handle pushing composite types */
-			emit(f, "\t\t\t\t\t// a: pushed %ld, regnames[sp] %s\n", pushed, regnames[sp]);
-			emit_objtoreg(f, &p->q1, t, tmp);
-			emit(f, "\tstdec\t%s\n", regnames[sp]);
-			pushed += zm2l(p->q2.val.vmax);
+			/* Handle composite types */
+		    if((t & NQ) > POINTER || ((t & NQ) == CHAR && zm2l(p->q2.val.vmax) != 1)) {
+				emit(f,"\t\t\t\t// Pushing composite type - size %d, pushed size %d\n",opsize(p),pushsize(p));
+				emit_inlinepush(f,p,t);
+				pushed += pushsize(p);
+			}
+			else
+			{
+				/* FIXME - need to take dt into account */
+				emit(f, "\t\t\t\t\t// a: pushed %ld, regnames[sp] %s\n", pushed, regnames[sp]);
+				emit_objtoreg(f, &p->q1, t, tmp);
+				emit(f, "\tstdec\t%s\n", regnames[sp]);
+				pushed += pushsize(p);
+			}
 			continue;
 		}
 
