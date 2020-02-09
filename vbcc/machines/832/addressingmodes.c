@@ -69,7 +69,6 @@ void am_simplify(struct IC *p)
 		switch(c)
 		{
 			// Check for ADDRESS followed by push - can we merge?
-			// (Code 
 			case ADDRESS:
 				if((p->z.flags&(REG|DREFOBJ|SCRATCH))!=(REG|SCRATCH))
 					break;
@@ -166,7 +165,7 @@ void am_simplify(struct IC *p)
 				break;
 
 			// Just analyse conversions for now.  Loads cause automatic zero-extension so can avoid conversion
-			// in that case.  Arithmetic functions may require conversion - with the exception of AND and SHR,
+			// in that case.  Arithmetic functions may require conversion - with the exception of AND and (unsigned) SHR,
 			// since neither can result in extra set bits in the MSBs.
 			case CONVERT:
 //				printic(stdout,p);
@@ -387,254 +386,7 @@ static void find_addressingmodes(struct IC *p)
 
 	for (; p; p = p->next) {
 		c = p->code;
-#if 0
-		printf("Code %x\t", c);
-		switch (c) {
-		case KOMMA:
-			printf("Komma\n");
-			break;
-		case ASSIGN:
-//                              printic(stdout,p);
-			printf("Assign\n");
-			break;
-		case ASSIGNOP:
-			printf("AssignOP\n");
-			break;
-		case COND:
-			printf("Cond\n");
-			break;
-		case LOR:
-			printf("Lor\n");
-			break;
-		case LAND:
-			printf("Land\n");
-			break;
-		case OR:
-			printf("Or\n");
-			break;
-		case XOR:
-			printf("Xor\n");
-			break;
-		case AND:
-			printf("And\n");
-			break;
-		case EQUAL:
-			printf("Equal\n");
-			break;
-		case INEQUAL:
-			printf("Inequal\n");
-			break;
-		case LESS:
-			printf("Less\n");
-			break;
-		case LESSEQ:
-			printf("LessEq\n");
-			break;
-		case GREATER:
-			printf("Greater\n");
-			break;
-		case GREATEREQ:
-			printf("GreaterEq\n");
-			break;
-		case LSHIFT:
-			printf("LShift\n");
-			break;
-		case RSHIFT:
-			printf("RShift\n");
-			break;
-		case ADD:
-			printf("Add\n");
-			break;
-		case SUB:
-			printf("Add\n");
-			break;
-		case MULT:
-			printf("Mult\n");
-			break;
-		case DIV:
-			printf("Div\n");
-			break;
-		case MOD:
-			printf("Mod\n");
-			break;
-		case NEGATION:
-			printf("Neg\n");
-			break;
-		case KOMPLEMENT:
-			printf("Complement\n");
-			break;
-		case PREINC:
-			printf("PreInc\n");
-			break;
-		case POSTINC:
-			printf("PostInc\n");
-			break;
-		case PREDEC:
-			printf("PreDec\n");
-			break;
-		case POSTDEC:
-			printf("PostDec\n");
-			break;
-		case MINUS:
-			printf("Minus\n");
-			break;
-		case CONTENT:
-			printf("Content\n");
-			break;
-		case ADDRESS:
-			printf("Address\n");
-			break;
-		case CAST:
-			printf("Cast\n");
-			break;
-		case CALL:
-			printf("Call\n");
-			break;
-		case INDEX:
-			printf("Index\n");
-			break;
-		case DPSTRUCT:
-			printf("DPStruct\n");
-			break;
-		case DSTRUCT:
-			printf("DStruct\n");
-			break;
-		case IDENTIFIER:
-			printf("Identifier\n");
-			break;
-		case CEXPR:
-			printf("CExpr\n");
-			break;
-		case STRING:
-			printf("String\n");
-			break;
-		case MEMBER:
-			printf("Member\n");
-			break;
-		case CONVERT:
-			printf("Convert\n");
-			break;
-		case ADDRESSA:
-			printf("AddressA\n");
-			break;
-		case FIRSTELEMENT:
-			printf("FirstElement\n");
-			break;
-		case PMULT:
-			printf("PMult\n");
-			break;
-		case ALLOCREG:
-			printf("AllocReg %s\n", regnames[p->q1.reg]);
-			break;
-		case FREEREG:
-			printf("FreeReg %s\n", regnames[p->q1.reg]);
-			break;
-		case PCEXPR:
-			printf("PCExpr\n");
-			break;
-		case TEST:
-			printf("Test\n");
-			break;
-		case LABEL:
-			printf("Label\n");
-			break;
-		case BEQ:
-			printf("Beq\n");
-			break;
-		case BNE:
-			printf("Bne\n");
-			break;
-		case BLT:
-			printf("Blt\n");
-			break;
-		case BGE:
-			printf("Bge\n");
-			break;
-		case BLE:
-			printf("Ble\n");
-			break;
-		case BGT:
-			printf("Bgt\n");
-			break;
-		case BRA:
-			printf("Bra\n");
-			break;
-		case COMPARE:
-			printf("Compare\n");
-			break;
-		case PUSH:
-			printf("Push\n");
-			break;
-		case POP:
-			printf("Pop\n");
-			break;
-		case ADDRESSS:
-			printf("Address\n");
-			break;
-		case ADDI2P:
-			printf("Addi2p\n");
-			break;
-		case SUBIFP:
-			printf("Subifp\n");
-			break;
-		case SUBPFP:
-			printf("subpfp\n");
-			break;
-		case PUSHREG:
-			printf("Pushreg\n");
-			break;
-		case POPREG:
-			printf("Popreg\n");
-			break;
-		case POPARGS:
-			printf("Popargs\n");
-			break;
-		case SAVEREGS:
-			printf("Saveregs\n");
-			break;
-		case RESTOREREGS:
-			printf("Restoreregs\n");
-			break;
-		case ILABEL:
-			printf("Ilabel\n");
-			break;
-		case DC:
-			printf("DC\n");
-			break;
-		case ALIGN:
-			printf("Align\n");
-			break;
-		case COLON:
-			printf("Colon\n");
-			break;
-		case GETRETURN:
-			printf("GetReturn\n");
-			break;
-		case SETRETURN:
-			printf("SetReturn\n");
-			break;
-		case MOVEFROMREG:
-			printf("Movefromreg\n");
-			break;
-		case MOVETOREG:
-			printf("Movetoreg\n");
-			break;
-		case NOP:
-			printf("Nop\n");
-			break;
-		case BITFIELD:
-			printf("Bitfield\n");
-			break;
-		case LITERAL:
-			printf("Literal\n");
-			break;
-		case REINTERPRET:
-			printf("Reinterpret\n");
-			break;
-		default:
-			break;
-		}
-#endif
+
 		// Have to make sure that operands are different registers!
 		if ((getreg(p->q1) == getreg(p->q2))
 		    || (getreg(p->q1) == getreg(p->z))) {
@@ -664,3 +416,4 @@ static void find_addressingmodes(struct IC *p)
 		am_disposable(p, &p->z);
 	}
 }
+
