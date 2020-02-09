@@ -44,7 +44,7 @@ int main(int argc,char **argv)
 						}
 						else
 							signedimm=imm;
-						printf("%05x\t%02x\tim\t%x\t(0x%x, %d)\n",a,c,c&0x3f,imm,signedimm);
+						printf("%05x\t%02x\tli\t%x\t(0x%x, %d)\n",a,c,c&0x3f,imm,signedimm);
 						immstreak=1;
 					}
 					else
