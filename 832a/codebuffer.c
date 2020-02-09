@@ -31,7 +31,7 @@ int codebuffer_write(struct codebuffer *buf,int val)
 {
 	if(!buf)
 		return(0);
-	if(buf->cursor<CODEBUFFERSIZE);
+	if(buf->cursor<CODEBUFFERSIZE)
 	{
 		buf->buffer[buf->cursor]=val;
 		++buf->cursor;

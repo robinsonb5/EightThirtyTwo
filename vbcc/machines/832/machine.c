@@ -1133,13 +1133,18 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 	struct IC *m;
 	argsize = 0;
 	// if(DEBUG&1) 
-//  printf("gen_code() - stackframe %d bytes\n",offset);
+
+	if(!p)
+	{
+		printf("(gen_code called with null IC list?)\n");
+		return;
+	}
+
 	for (c = 1; c <= MAXR; c++)
 		regs[c] = regsa[c];
 	pushed = 0;
 
 	if (!idemp) {
-		emit(f, "#include \"assembler.pp\"\n\n");
 		sectionid = 0;
 		if (p->file) {
 			int v;
@@ -1151,7 +1156,6 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		}
 		idemp = 1;
 	}
-
 	for (m = p; m; m = m->next) {
 		c = m->code;
 		t = m->typf & NU;
@@ -1202,11 +1206,11 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 	}
 	localsize = (zm2l(offset) + 3) / 4 * 4;
 
-//      printf("\nSeeking addressing modes for function %s\n",v->identifier);
+//    printf("\nSeeking addressing modes for function %s\n",v->identifier);
 	find_addressingmodes(p);
 
 	function_top(f, v, localsize);
-//      printf("%s:\n",v->identifier);
+//    printf("%s:\n",v->identifier);
 
 	for (; p; p = p->next) {
 //		printic(stdout,p);
