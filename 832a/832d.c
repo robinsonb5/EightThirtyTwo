@@ -91,8 +91,10 @@ int main(int argc,char **argv)
 					}
 					++a;
 				}		
+				fclose(f);
 			}
-			fclose(f);
+			else
+				fprintf(stderr,"Can't open %s\n",argv[i]);
 		}
 	}
 	return(0);

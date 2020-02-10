@@ -1,5 +1,11 @@
 all: 832a 832l 832d hello
 
+clean:
+	-rm 832a
+	-rm 832l
+	-rm 832d
+	-rm hello
+
 832a: 832a.c 832defs.c objectfile.c section.c symbol.c codebuffer.c 832util.c
 	gcc -o $@ $+
 

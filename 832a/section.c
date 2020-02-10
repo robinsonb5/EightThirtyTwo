@@ -482,7 +482,7 @@ void section_outputexe(struct section *sect,FILE *f)
 
 		while(newcbcursor>=CODEBUFFERSIZE)
 		{
-			fwrite(buffer->buffer,CODEBUFFERSIZE-cbcursor,1,f);
+			fwrite(buffer->buffer+cbcursor,CODEBUFFERSIZE-cbcursor,1,f);
 			cbcursor=0;
 			newcbcursor-=CODEBUFFERSIZE;
 			buffer=buffer->next;
