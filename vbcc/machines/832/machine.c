@@ -729,6 +729,8 @@ static void function_bottom(FILE * f, struct Var *v, long offset,int firsttail)
 		}
 		if(firsttail)
 		{
+//			emit(f,"\t.global\t.functiontail\n");
+//			emit(f,"\t.weak\t.functiontail\n");
 			emit(f,".functiontail:\n");
 			for (i = LAST_GPR - 3; i >= FIRST_GPR + SCRATCH_GPRS; --i) {
 				if (!regscratch[i])
@@ -976,11 +978,16 @@ void gen_ds(FILE * f, zmax size, struct Typ *t)
 	newobj = 0;
 }
 
+
+/*  This function has to make sure the next data is
+    aligned to multiples of <align> bytes.
+    If the speed optimisation flag is set, always align
+    to four bytes. */
 void gen_align(FILE * f, zmax align)
-/*  This function has to make sure the next data is     */
-/*  aligned to multiples of <align> bytes.              */
 {
-	if (zm2l(align) > 1)
+	if(optspeed)
+		emit(f,"\t.align\t4\n");
+	else if (zm2l(align) > 1)
 		emit(f, "\t.align\t%d\n", align);
 }
 
@@ -1018,8 +1025,10 @@ void gen_var_head(FILE * f, struct Var *v)
 		if (v->clist || section == SPECIAL) {
 			gen_align(f, falign(v->vtyp));
 			emit(f, "%s%ld:\n", labprefix, zm2l(v->offset));
-		} else
+		} else {
+			gen_align(f, falign(v->vtyp));
 			emit(f, "\t.lcomm\t%s%ld,", labprefix, zm2l(v->offset));
+		}
 		newobj = 1;
 	}
 	if (v->storage_class == EXTERN) {
@@ -1048,6 +1057,7 @@ void gen_var_head(FILE * f, struct Var *v)
 				gen_align(f, falign(v->vtyp));
 				emit(f, "%s%s:\n", idprefix, v->identifier);
 			} else {
+				gen_align(f, falign(v->vtyp));
 				if (isweak(v))
 					emit(f, "\t.weak\t%s%s\n", idprefix, v->identifier);
 				else {
