@@ -5,12 +5,14 @@
 #include "sectionmap.h"
 #include "symbol.h"
 
-static struct section *sectionmap_addbuiltin(struct sectionmap *map,const char *id,int flags)
+static struct section *sectionmap_addbuiltin(struct sectionmap *map,const char *id,int flags,int align)
 {
 	struct section *sect=section_new(0,id);
 	if(sect)
 	{
 		sect->flags|=flags;
+		if(align)
+			section_align(sect,align);
 		section_declaresymbol(sect,id,0);
 		if(map->lastbuiltin)
 			map->lastbuiltin->next=sect;
@@ -31,12 +33,12 @@ struct sectionmap *sectionmap_new()
 		result->entries=0;
 		result->builtins=0;
 		result->lastbuiltin=0;
-		sectionmap_addbuiltin(result,"__ctors_start__",SECTIONFLAG_CTOR);
-		sectionmap_addbuiltin(result,"__ctors_end__",SECTIONFLAG_CTOR);
-		sectionmap_addbuiltin(result,"__dtors_start__",SECTIONFLAG_DTOR);
-		sectionmap_addbuiltin(result,"__dtors_end__",SECTIONFLAG_DTOR);
-		sectionmap_addbuiltin(result,"__bss_start__",SECTIONFLAG_BSS);
-		sectionmap_addbuiltin(result,"__bss_end__",SECTIONFLAG_BSS);
+		sectionmap_addbuiltin(result,"__ctors_start__",SECTIONFLAG_CTOR,0);
+		sectionmap_addbuiltin(result,"__ctors_end__",SECTIONFLAG_CTOR,0);
+		sectionmap_addbuiltin(result,"__dtors_start__",SECTIONFLAG_DTOR,0);
+		sectionmap_addbuiltin(result,"__dtors_end__",SECTIONFLAG_DTOR,0);
+		sectionmap_addbuiltin(result,"__bss_start__",SECTIONFLAG_BSS,4);
+		sectionmap_addbuiltin(result,"__bss_end__",SECTIONFLAG_BSS,4);
 	}
 	return(result);
 }

@@ -766,7 +766,10 @@ int init_cg(void)
 
 	for (i = 0; i <= MAX_TYPE; i++) {
 		sizetab[i] = l2zm(msizetab[i]);
-		align[i] = optspeed ? 4 : (optsize ? 1 : l2zm(malign[i]));
+		align[i] = optsize ? 1 : l2zm(malign[i]);
+
+// Can't align everything to 4 bytes for speed without messing up struct packing.  Is there a better way?
+//		align[i] = optspeed ? 4 : (optsize ? 1 : l2zm(malign[i]));
 //		align[i] = l2zm(malign[i]);
 	}
 

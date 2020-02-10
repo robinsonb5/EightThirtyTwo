@@ -9,13 +9,14 @@
 
 	.section	.text.premain
 	.global	_premain
-	.constant STACKSIZE,1024
-	.weak	STACKSIZE
+	.constant _STACKSIZE,1024
+	.global _STACKSIZE
+	.weak	_STACKSIZE
 _premain:
 	// Setup the stack
 	.liabs	__bss_end__
 	mr	r6
-	.liabs	STACKSIZE
+	.liabs	_STACKSIZE
 	add	r6
 
 	// Clear BSS data
