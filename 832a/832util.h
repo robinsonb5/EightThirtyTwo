@@ -20,5 +20,9 @@ void read_lstr(FILE *f,char *ptr);
 
 int count_constantchunks(long v);
 
+char *strtok_escaped(char *str);
+void parseescapes(char *str);
+
+
 #endif
 

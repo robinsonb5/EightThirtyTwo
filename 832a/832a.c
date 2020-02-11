@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #include "832a.h"
+#include "832util.h"
 
 #include "objectfile.h"
 #include "section.h"
@@ -13,10 +14,10 @@
 static char *delims=" \t:\n\r,";
 
 
-/* FIXME - need a custom strtok-alike routine which supports escape characters and quotes for string literals */
+/* FIXME - need a custom strtok_escaped-alike routine which supports escape characters and quotes for string literals */
 
 
-void directive_symbolflags(struct objectfile *obj,const char *tok,const char *tok2,int key)
+void directive_symbolflags(struct objectfile *obj,char *tok,char *tok2,int key)
 {
 	struct section *sect=objectfile_getsection(obj);
 	struct symbol *sym;
@@ -29,13 +30,13 @@ void directive_symbolflags(struct objectfile *obj,const char *tok,const char *to
 }
 
 
-void directive_section(struct objectfile *obj,const char *tok,const char *tok2,int key)
+void directive_section(struct objectfile *obj,char *tok,char *tok2,int key)
 {
 	objectfile_setsection(obj,tok);
 }
 
 
-void directive_sectionflags(struct objectfile *obj,const char *tok,const char *tok2,int key)
+void directive_sectionflags(struct objectfile *obj,char *tok,char *tok2,int key)
 {
 	struct section *sect;
 	if(sect=objectfile_setsection(obj,tok))
@@ -44,7 +45,7 @@ void directive_sectionflags(struct objectfile *obj,const char *tok,const char *t
 
 
 /* Emit literal values in little-endian form */
-void directive_literal(struct objectfile *obj,const char *tok,const char *tok2,int key)
+void directive_literal(struct objectfile *obj,char *tok,char *tok2,int key)
 {
 	int v=strtoul(tok,0,0);
 	if(key)
@@ -71,18 +72,18 @@ void directive_literal(struct objectfile *obj,const char *tok,const char *tok2,i
 
 
 /* Emit literal string */
-void directive_ascii(struct objectfile *obj,const char *tok,const char *tok2,int key)
+void directive_ascii(struct objectfile *obj,char *tok,char *tok2,int key)
 {
 	int l;
 	if(tok)
 	{
-		fprintf(stderr,"WARNING string literal support is incomplete\n");
+		parseescapes(tok);
 		l=strlen(tok);
 		debug(1,"Ascii string: %s, length: %d\n",tok,l);
-		if(l && tok[0]=='\"' && tok[l-1]=='\"')
+		if(l)
 		{
 			int i;
-			for(i=1;i<(l-1);++i)
+			for(i=0;i<l;++i)
 			{
 				objectfile_emitbyte(obj,tok[i]);
 			}
@@ -93,7 +94,7 @@ void directive_ascii(struct objectfile *obj,const char *tok,const char *tok2,int
 }
 
 
-void directive_label(struct objectfile *obj,const char *tok,const char *tok2,int key)
+void directive_label(struct objectfile *obj,char *tok,char *tok2,int key)
 {
 	struct section *sect=objectfile_getsection(obj);
 	struct section *sect2=obj->sections;
@@ -113,7 +114,7 @@ void directive_label(struct objectfile *obj,const char *tok,const char *tok2,int
 /* Add one of several types of reference to the current section.
    The reference can be embedded-absolute, load-absolute or load-PC relative */
 
-void directive_reference(struct objectfile *obj,const char *tok,const char *tok2,int key)
+void directive_reference(struct objectfile *obj,char *tok,char *tok2,int key)
 {
 	long offset=0;
 	struct section *sect=objectfile_getsection(obj);
@@ -124,7 +125,7 @@ void directive_reference(struct objectfile *obj,const char *tok,const char *tok2
 }
 
 
-void directive_liconst(struct objectfile *obj,const char *tok,const char *tok2,int key)
+void directive_liconst(struct objectfile *obj,char *tok,char *tok2,int key)
 {
 	char *endptr;
 	long v=strtol(tok,&endptr,0);
@@ -143,7 +144,7 @@ void directive_liconst(struct objectfile *obj,const char *tok,const char *tok2,i
 }
 
 
-void directive_constant(struct objectfile *obj,const char *tok,const char *tok2,int key)
+void directive_constant(struct objectfile *obj,char *tok,char *tok2,int key)
 {
 	unsigned int val;
 	if(!tok2)
@@ -154,7 +155,7 @@ void directive_constant(struct objectfile *obj,const char *tok,const char *tok2,
 }
 
 
-void directive_align(struct objectfile *obj,const char *tok,const char *tok2,int key)
+void directive_align(struct objectfile *obj,char *tok,char *tok2,int key)
 {
 	int align=atoi(tok);
 	struct section *sect=objectfile_getsection(obj);
@@ -162,7 +163,7 @@ void directive_align(struct objectfile *obj,const char *tok,const char *tok2,int
 }
 
 
-void directive_common(struct objectfile *obj,const char *tok,const char *tok2,int key)
+void directive_common(struct objectfile *obj,char *tok,char *tok2,int key)
 {
 	int size=atoi(tok2);
 	struct section *sect=objectfile_getsection(obj);
@@ -173,7 +174,7 @@ void directive_common(struct objectfile *obj,const char *tok,const char *tok2,in
 struct directive
 {
 	char *mnem;
-	void (*handler)(struct objectfile *obj,const char *token,const char *token2,int key);
+	void (*handler)(struct objectfile *obj,char *token,char *token2,int key);
 	int key;
 };
 
@@ -228,12 +229,12 @@ int assemble(const char *fn,const char *on)
 			char *tok,*tok2,*tok3;
 			++line;
 			error_setline(line);
-			if(tok=strtok(linebuf,delims))
+			if(tok=strtok_escaped(linebuf))
 			{
 				int d;
-				tok3=tok2=strtok(0,delims);
+				tok3=tok2=strtok_escaped(0);
 				if(tok2)
-					tok3=strtok(0,delims);
+					tok3=strtok_escaped(0);
 				/* comments */
 				if((tok[0]=='/' && tok[1]=='/') || tok[0]==';' || tok[0]=='#')
 					continue;

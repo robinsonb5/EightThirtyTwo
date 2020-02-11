@@ -1148,10 +1148,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 	// if(DEBUG&1) 
 
 	if(!p)
-	{
 		printf("(gen_code called with null IC list?)\n");
-		return;
-	}
 
 	for (c = 1; c <= MAXR; c++)
 		regs[c] = regsa[c];
@@ -1159,7 +1156,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 
 	if (!idemp) {
 		sectionid = 0;
-		if (p->file) {
+		if (p && p->file) {
 			int v;
 			char *c = p->file;
 			while (v = *c++) {

@@ -135,3 +135,139 @@ int count_constantchunks(long v)
 	return (chunk);
 }
 
+
+static int tooctal(char *str,int *count)
+{
+	int result=0;
+	int c,i;
+	i=0;
+	c=*str++;
+	while((c>='0')&&(c<='7'))
+	{
+		result<<=3;
+		result+=c-'0';
+		c=*str++;
+		++i;
+	}
+	if(count)
+		*count=i;
+	return(result);
+}
+
+void parseescapes(char *str)
+{
+	int escaped=0;
+	int i;
+	int trunc;
+	int l=strlen(str);
+	for(i=0;i<l;++i)
+	{
+		trunc=0;
+		if(escaped)
+		{
+			switch(str[i])
+			{
+				case '\\':
+					trunc=1;
+					break;
+				case '?':
+					trunc=1;
+					str[i-1]='?';
+					break;
+				case '%':
+					trunc=1;
+					str[i-1]='%';
+					break;
+				case '\"':
+					trunc=1;
+					str[i-1]='\"';
+					break;
+				case 'n':
+					trunc=1;
+					str[i-1]='\n';
+					break;
+				case 'r':
+					trunc=1;
+					str[i-1]='\r';
+					break;
+				case 't':
+					trunc=1;
+					str[i-1]='\t';
+					break;
+				case '0':
+					str[i-1]=(char)tooctal(&str[i],&trunc);
+					break;
+			}
+			escaped=0;
+		}
+		else if(str[i]=='\\')
+			escaped=1;
+		if(trunc)
+		{
+			int j;
+			for(j=i;j<(1+l-trunc);++j)
+				str[j]=str[j+trunc];
+			l-=trunc;
+		}
+	}
+}
+
+static char *delims=" \t:\n\r,";
+
+/* A strtok equivalent with awareness of that is aware of C-literal style escape sequences */
+char *strtok_escaped(char *str)
+{
+	static char *ptr;
+	char *result;
+	int dl=strlen(delims);
+	int i,j;
+	char c,pc;
+	int escaped=0;
+	int quoted=0;
+	if(str)
+		ptr=str;
+	/* Step over any leading delimiters */
+	for(i=0;i<dl;++i)
+	{
+		if(!*ptr)
+			return(0);
+		if(*ptr==delims[i])
+		{
+			++ptr;
+			i=-1;
+		}
+	}
+	if(*ptr=='\"')
+	{
+		quoted=1;
+		++ptr;
+	}
+	result=ptr;
+	while(c=*ptr)
+	{
+		if(c=='"' && !escaped)
+		{
+			*ptr++=0;
+			return(result);
+		}
+		else if(c=='\\' && pc!='\\')
+			escaped=1;
+		else
+			escaped=0;
+		if(!escaped && !quoted)
+		{
+			for(i=0;i<dl;++i)
+			{
+				if(c==delims[i])
+				{
+					*ptr++=0;
+					return(result);
+				}
+			}
+		}
+		pc=c;
+		++ptr;
+	}
+	return(result);
+}
+
