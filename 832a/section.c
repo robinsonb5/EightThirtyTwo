@@ -216,6 +216,40 @@ void section_align(struct section *sect,int align)
 }
 
 
+struct codebuffer *section_addbuffer(struct section *sect)
+{
+	struct codebuffer *buf=0;
+	if(sect)
+	{
+		buf=codebuffer_new();
+		if(sect->lastcodebuffer)
+			sect->lastcodebuffer->next=buf;
+		else
+			sect->codebuffers=buf;
+		sect->lastcodebuffer=buf;
+	}
+	return(buf);
+}
+
+
+void section_write(struct section *sect,const char *buf,int size)
+{
+	int l;
+	if(sect)
+	{
+		while(size)
+		{
+			l=codebuffer_write(sect->lastcodebuffer,buf,size);
+			buf+=l;
+			sect->cursor+=l;
+			size-=l;
+			if(size)
+				section_addbuffer(sect);
+		}
+	}
+}
+
+
 void section_emitbyte(struct section *sect,unsigned char byte)
 {
 	if(sect)
@@ -224,15 +258,10 @@ void section_emitbyte(struct section *sect,unsigned char byte)
 			asmerror("Can't mix BSS and code/initialised data in a section.");
 
 		// Do we need to start a new buffer?
-		if(!codebuffer_write(sect->lastcodebuffer,byte))
+		if(!codebuffer_put(sect->lastcodebuffer,byte))
 		{
-			struct codebuffer *buf=codebuffer_new();
-			if(sect->lastcodebuffer)
-				sect->lastcodebuffer->next=buf;
-			else
-				sect->codebuffers=buf;
-			sect->lastcodebuffer=buf;
-			codebuffer_write(sect->lastcodebuffer,byte);
+			section_addbuffer(sect);
+			codebuffer_put(sect->lastcodebuffer,byte);
 		}
 		++sect->cursor;
 	}

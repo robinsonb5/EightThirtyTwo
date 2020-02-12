@@ -14,8 +14,6 @@
 static char *delims=" \t:\n\r,";
 
 
-/* FIXME - need a custom strtok_escaped-alike routine which supports escape characters and quotes for string literals */
-
 
 void directive_symbolflags(struct objectfile *obj,char *tok,char *tok2,int key)
 {
@@ -171,6 +169,27 @@ void directive_common(struct objectfile *obj,char *tok,char *tok2,int key)
 }
 
 
+void directive_incbin(struct objectfile *obj,char *tok,char *tok2,int key)
+{
+	char buf[512];
+	if(tok)
+	{
+		int s;
+		struct section *sect=objectfile_getsection(obj);
+		printf("Opening file %s\n",tok);
+		FILE *f=fopen(tok,"rb");
+		if(!f)
+			asmerror(".incbin - can't open file\n");
+		while(s=fread(buf,1,512,f))
+		{
+			printf("Adding %d bytes to section\n",s);
+			section_write(sect,buf,s);
+		}
+		fclose(f);
+	}
+}
+
+
 struct directive
 {
 	char *mnem;
@@ -201,6 +220,7 @@ struct directive directives[]=
 	{".liabs",directive_reference,SYMBOLFLAG_LDABS},
 	{".lipcrel",directive_reference,SYMBOLFLAG_LDPCREL},
 	{".liconst",directive_liconst,0},
+	{".incbin",directive_incbin,0},
 	{0,0}
 };
 

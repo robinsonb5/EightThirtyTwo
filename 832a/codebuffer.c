@@ -27,7 +27,7 @@ void codebuffer_delete(struct codebuffer *buf)
 	}
 }
 
-int codebuffer_write(struct codebuffer *buf,int val)
+int codebuffer_put(struct codebuffer *buf,int val)
 {
 	if(!buf)
 		return(0);
@@ -40,6 +40,20 @@ int codebuffer_write(struct codebuffer *buf,int val)
 	return(0);
 }
 
+int codebuffer_write(struct codebuffer *buf,const char *data,int size)
+{
+	int i;
+	int s=CODEBUFFERSIZE-buf->cursor;
+	if(!buf)
+		return(0);
+	if(size<s)
+		s=size;
+	for(i=0;i<s;++i)
+	{
+		buf->buffer[buf->cursor++]=*data++;
+	}
+	return(s);
+}
 
 int codebuffer_loadchunk(struct codebuffer *buf,int bytes,FILE *f)
 {

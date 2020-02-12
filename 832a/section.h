@@ -50,6 +50,7 @@ void section_declarereference(struct section *sect, const char *name,int flags,i
 void section_declarecommon(struct section *sect,const char *lab,int size,int global);
 void section_declareconstant(struct section *sect,const char *lab,int size,int global);
 void section_emitbyte(struct section *sect,unsigned char byte);
+void section_write(struct section *sect,const char *buf,int size);
 void section_align(struct section *sect,int align);
 
 int section_sizereferences(struct section *sect);

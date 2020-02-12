@@ -14,7 +14,8 @@ struct codebuffer
 struct codebuffer *codebuffer_new();
 void codebuffer_delete(struct codebuffer *buf);
 
-int codebuffer_write(struct codebuffer *buf,int val);
+int codebuffer_put(struct codebuffer *buf,int val);
+int codebuffer_write(struct codebuffer *buf,const char *data,int size);
 
 void codebuffer_dump(struct codebuffer *buf);
 
