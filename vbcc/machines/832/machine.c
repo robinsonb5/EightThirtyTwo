@@ -587,10 +587,16 @@ void save_temp(FILE * f, struct IC *p, int treg)
 		switch (type) {
 		case CHAR:
 			if (p->z.am && p->z.am->type == AM_POSTINC)
+			{
 				emit(f, "\tstbinc\t%s\n", regnames[treg]);
+				cleartempobj(f,treg);
+			}
 			else if ((p->z.am && p->z.am->disposable)
 				 || (treg != p->z.reg))
+			{
 				emit(f, "\tstbinc\t%s\n//Disposable, postinc doesn't matter.\n", regnames[treg]);
+				cleartempobj(f,treg);
+			}
 			else
 				emit(f, "\tbyt\n\tst\t%s\n", regnames[treg]);
 			break;
