@@ -24,7 +24,8 @@ port(
 	q1 : out std_logic_vector(31 downto 0);
 	q2 : buffer std_logic_vector(31 downto 0);
 	carry : out std_logic;
-	ack : out std_logic
+	ack : out std_logic;
+	forward_q2tod1 : in std_logic := '0'
 );
 end entity;
 
@@ -33,6 +34,7 @@ architecture rtl of eightthirtytwo_alu is
 signal sgn_mod : std_logic;
 signal d1_sgn : std_logic;
 signal d2_sgn : std_logic;
+signal d1_2 : std_logic_vector(31 downto 0);
 signal d2_2 : std_logic_vector(31 downto 0);
 signal busyflag : std_logic;
 signal addresult : unsigned(33 downto 0);
@@ -77,15 +79,17 @@ with op select d2_2 <=
 	d2 xor X"FFFFFFFF" when e32_alu_sub,
 	d2 when others;
 
+d1_2 <= q2 when forward_q2tod1='1' else d1;
+
 sublsb<='1' when op=e32_alu_sub else '0';
 
 ack <= shiftack or busyflag;
 
 -- FIXME - signed/unsigned comparisons aren't working correctly
-d1_sgn<=d1(31) when op=e32_alu_sub else '0';
+d1_sgn<=d1_2(31) when op=e32_alu_sub else '0';
 d2_sgn<=d2_2(31) when op=e32_alu_sub else '0';
 
-addresult <= unsigned(d1_sgn&d1&sublsb) + unsigned(d2_sgn&d2_2&sublsb);
+addresult <= unsigned(d1_sgn&d1_2&sublsb) + unsigned(d2_sgn&d2_2&sublsb);
 
 process(clk,reset_n)
 begin
@@ -99,22 +103,22 @@ begin
 		busyflag<='0';
 
 		if multiplier=true then
-			mulresult <= signed((d1(31) and sgn)&d1) * signed((d2(31) and sgn)&d2);
+			mulresult <= signed((d1_2(31) and sgn)&d1_2) * signed((d2(31) and sgn)&d2);
 		end if;
 
 		case op is
 			when e32_alu_and =>
-				q1<=d1 and d2;
+				q1<=d1_2 and d2;
 --				carry<='-';
 				q2 <= d2;
 			
 			when e32_alu_or =>
-				q1<=d1 or d2;
+				q1<=d1_2 or d2;
 --				carry<='-';
 				q2 <= d2;
 					
 			when e32_alu_xor =>
-				q1<=d1 xor d2;
+				q1<=d1_2 xor d2;
 --				carry<='-';
 				q2 <= d2;
 					
@@ -136,7 +140,7 @@ begin
 			when e32_alu_incb =>
 				busyflag<=req;
 				if req='1' then
-					q1<=d1;
+					q1<=d1_2;
 				else
 					q1<=std_logic_vector(addresult(32 downto 1));
 				end if;
@@ -146,7 +150,7 @@ begin
 			when e32_alu_incw =>
 				busyflag<=req;
 				if req='1' then
-					q1<=d1;
+					q1<=d1_2;
 				else
 					q1<=std_logic_vector(addresult(32 downto 1));
 				end if;
@@ -195,7 +199,7 @@ begin
 
 			when others =>
 --				carry<='-';
-				q1<=d1;
+				q1<=d1_2;
 				q2<=d2;
 
 		end case;
@@ -208,7 +212,7 @@ shifter : entity work.eightthirtytwo_shifter
 port map(
 	clk => clk,
 	reset_n => reset_n,
-	d => d1,
+	d => d1_2,
 	q => shiftresult,
 	carry => shiftcarry,
 	shift => d2(4 downto 0),

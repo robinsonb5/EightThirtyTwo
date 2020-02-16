@@ -63,6 +63,7 @@ static void emit_sizemod(FILE * f, int type)
 		break;
 	case INT:
 	case LONG:
+	case LLONG:
 	case POINTER:
 	case FUNKT:		// Function pointers are dereferenced by calling them.
 	case STRUCT:

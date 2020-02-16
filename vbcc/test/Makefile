@@ -7,7 +7,7 @@ AS=../../832a/832a
 LD=../../832a/832l
 CC=../bin/vbcc832
 EM=../../832emu/832e
-CFLAGS = -+ -I$(832DIR)/include/ -I$(LIBDIR)
+CFLAGS = -+ -c99 -I$(832DIR)/include/ -I$(LIBDIR)
 COPT = -O=1311 -size
 TIME=200us
 

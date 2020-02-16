@@ -491,6 +491,20 @@ static void store_reg(FILE * f, int r, struct obj *o, int type)
 			}
 		}
 		break;
+	case LLONG:
+		if ((o->flags & (REG | DREFOBJ)) == (REG | DREFOBJ)) {
+			printf("store_reg: storing long long to dereferenced register\n");
+			ierror(0);
+		}
+		else {
+			printf("store_reg: storing long long in %s to reg\n",regnames[r]);
+			emit_prepobj(f, o, type & NQ, tmp, 0);
+			emit(f, "\texg\t%s\n", regnames[r]);
+			emit(f, "\tst\t%s\n", regnames[r]);
+			emit(f,"//FIXME - need to store 64-bits\n");
+			ierror(0);
+		}
+		break;		
 	default:
 		printf("store_reg: unhandled type 0x%x\n", type);
 		ierror(0);
@@ -615,7 +629,7 @@ void save_temp(FILE * f, struct IC *p, int treg)
 			break;
 		default:
 			printf("save_temp - type %d not yet handled\n", ztyp(p));
-			ierror(0);
+			emit(f,"// FIXME - save_temp doesn't support size\n");
 			break;
 		}
 	}
@@ -1093,6 +1107,11 @@ void gen_dc(FILE * f, int t, struct const_list *p)
 		case MAXINT:
 		case POINTER:
 			emit(f, "\t.int\t");
+			break;
+		case LLONG:
+			emit(f, "//FIXME - unsupported type\n");
+			emit(f, "\t.int\t");
+			ierror(0);
 			break;
 		default:
 			printf("gen_dc: unsupported type 0x%x\n", t);
