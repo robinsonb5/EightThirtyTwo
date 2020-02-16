@@ -9,6 +9,7 @@ entity eightthirtytwo_hazard is
 port(
 	valid : in std_logic;
 	pause : in std_logic;
+	forward_q2tod1 : in std_logic;
 	d_read_tmp : in std_logic;
 	d_read_reg : in std_logic;
 	d_ex_op : in e32_ex;
@@ -53,7 +54,7 @@ begin
 -- (If we don't implement ltmpinc or ltmp then nothing beyond M will write to the regfile.)
 
 hazard_tmp<='1' when
-	d_read_tmp='1' and (e_write_tmp='1' or m_write_tmp='1' or w_write_tmp='1')
+	d_read_tmp='1' and forward_q2tod1='0' and (e_write_tmp='1' or m_write_tmp='1' or w_write_tmp='1')
 	else '0';
 
 -- Load operations write to tmp at some inderminate point in the future.

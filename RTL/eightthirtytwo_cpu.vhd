@@ -13,7 +13,8 @@ generic(
 	interrupts : boolean := true;
 	multiplier : boolean := true;
 	prefetch : boolean := true;
-	dualthread : boolean := true
+	dualthread : boolean := true;
+	forwarding : boolean := true
 	);
 port(
 	clk : in std_logic;
@@ -145,6 +146,8 @@ signal alu_q2 : std_logic_vector(31 downto 0);
 signal alu_req : std_logic;
 signal alu_carry : std_logic;
 signal alu_ack : std_logic;
+signal alu_forward_q2tod1_d : std_logic;
+signal alu_forward_q2tod1 : std_logic;
 
 
 -- Memory stage signals
@@ -352,7 +355,8 @@ port map(
 	q1 => alu_q1,
 	q2 => alu_q2,
 	carry => alu_carry,
-	ack => alu_ack
+	ack => alu_ack,
+	forward_q2tod1 => alu_forward_q2tod1_d
 );
 
 
@@ -375,6 +379,7 @@ hazard1 : entity work.eightthirtytwo_hazard
 port map(
 	valid => thread.f_op_valid,
 	pause => thread.pause,
+	forward_q2tod1 => alu_forward_q2tod1,
 	d_read_tmp=>thread.d_read_tmp,
 	d_read_reg=>thread.d_read_reg,
 	d_ex_op=>thread.d_ex_op,
@@ -406,6 +411,7 @@ hazard2 : entity work.eightthirtytwo_hazard
 port map(
 	valid => thread2.f_op_valid,
 	pause => thread2.pause,
+	forward_q2tod1 => '0',
 	d_read_tmp=>thread2.d_read_tmp,
 	d_read_reg=>thread2.d_read_reg,
 	d_ex_op=>thread2.d_ex_op,
@@ -459,6 +465,8 @@ thread2.cond_minterms(0)<= (not regfile2.flag_z) and (not regfile2.flag_c);
 process(clk,reset_n,thread.f_op_valid)
 begin
 	if reset_n='0' then
+		alu_forward_q2tod1<='0';
+		alu_forward_q2tod1_d<='0';
 		-- Thread 1:
 		regfile.flag_cond<='0';
 		regfile.flag_sgn<='0';
@@ -586,7 +594,7 @@ begin
 				debug_inscount<=debug_inscount+1; -- Temporary debugging counter
 				thread.pc<=thread.nextpc;
 				alu_imm<=thread.d_imm;
-			
+
 				alu_op<=thread.d_alu_op;
 				if thread.d_alu_reg1(e32_regb_tmp)='1' then
 					alu_d1<=regfile.tmp;
@@ -608,7 +616,7 @@ begin
 
 				e_reg<=thread.d_reg(2 downto 0);
 				e_ex_op<=thread.d_ex_op;
-			
+
 				thread.e_write_tmp<=thread.d_ex_op(e32_exb_q1totmp)
 						or thread.d_ex_op(e32_exb_q2totmp) or thread.d_ex_op(e32_exb_load);
 				thread2.e_write_tmp<='0';
@@ -623,6 +631,12 @@ begin
 				thread.e_write_flags<=thread.d_ex_op(e32_exb_flags) or thread.d_ex_op(e32_exb_load);
 				thread2.e_write_flags<='0';
 				e_thread<='0';
+
+				alu_forward_q2tod1_d<=alu_forward_q2tod1;
+				alu_forward_q2tod1<='0';
+				if interrupt='0' and thread.d_ex_op(e32_exb_q2totmp)='1' and thread.f_alu_reg1(e32_regb_tmp)='1' then
+					alu_forward_q2tod1<='1';
+				end if;
 
 				-- Fetch to Decode
 
