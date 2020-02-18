@@ -144,6 +144,7 @@ signal alu_op : std_logic_vector(e32_alu_maxbit downto 0);
 signal alu_q1 : std_logic_vector(31 downto 0);
 signal alu_q2 : std_logic_vector(31 downto 0);
 signal alu_req : std_logic;
+signal alu_sgn : std_logic;
 signal alu_carry : std_logic;
 signal alu_ack : std_logic;
 signal alu_forward_q2tod1_d : std_logic;
@@ -349,7 +350,7 @@ port map(
 	d1 => alu_d1,
 	d2 => alu_d2,
 	op => alu_op,
-	sgn => regfile.flag_sgn,
+	sgn => alu_sgn,
 	req => alu_req,
 
 	q1 => alu_q1,
@@ -611,6 +612,8 @@ begin
 					alu_d2<=regfile.gpr_q;
 				end if;
 
+				alu_sgn<=regfile.flag_sgn;
+
 				alu_req<=regfile.gpr7_readflags or (not regfile.flag_cond);
 
 				if thread.d_ex_op(e32_exb_sgn)='1' then
@@ -722,6 +725,8 @@ begin
 				else
 					alu_d2<=regfile2.gpr_q;
 				end if;
+
+				alu_sgn<=regfile2.flag_sgn;
 
 				alu_req<=regfile2.gpr7_readflags or (not regfile2.flag_cond);
 
@@ -1038,6 +1043,7 @@ begin
 			if e_thread='1' and dualthread=true then
 				if e_reg="000" then
 					thread2.pause<='1';
+					alu_forward_q2tod1<='0'; -- Avoid problems with results forwarded between threads when pausing a thread.
 				elsif (e_reg(1)&e_reg and thread2.cond_minterms) = "0000" then
 					regfile2.flag_cond<='1';
 				else
@@ -1046,6 +1052,7 @@ begin
 			else
 				if e_reg="000" then
 					thread.pause<='1';
+					alu_forward_q2tod1<='0'; -- Avoid problems with results forwarded between threads when pausing a thread.
 				elsif (e_reg(1)&e_reg and thread.cond_minterms) = "0000" then
 					regfile.flag_cond<='1';
 				else
