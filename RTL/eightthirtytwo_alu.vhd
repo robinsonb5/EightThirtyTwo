@@ -103,7 +103,7 @@ begin
 		busyflag<='0';
 
 		if multiplier=true then
-			mulresult <= signed((d1_2(31) and sgn)&d1_2) * signed((d2(31) and sgn)&d2);
+			mulresult <= signed((d1(31) and sgn)&d1) * signed((d2(31) and sgn)&d2);
 		end if;
 
 		case op is

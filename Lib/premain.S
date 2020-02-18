@@ -9,7 +9,7 @@
 
 	.section	.text.premain
 	.global	_premain
-	.constant _STACKSIZE,1024
+	.constant _STACKSIZE,4096
 	.global _STACKSIZE
 	.weak	_STACKSIZE
 _premain:

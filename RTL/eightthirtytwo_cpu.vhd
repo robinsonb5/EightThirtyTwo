@@ -366,7 +366,10 @@ ls_req<=ls_req_r and not ls_ack;
 
 
 -- Hazard / stall logic.
--- We don't yet attempt any results forwarding or instruction fusing.
+-- We don't yet attempt any instruction fusing.
+-- We have rudimentary results forwarding, just for the specific case
+-- of forwarding the q2 ALU output to d1 ALU input.
+-- This covers the most common li / mr case.
 
 -- thread.f_op_valid:
 -- If the opcode supplied for the current PC is invalid, we must block D and the transfer
@@ -411,7 +414,7 @@ hazard2 : entity work.eightthirtytwo_hazard
 port map(
 	valid => thread2.f_op_valid,
 	pause => thread2.pause,
-	forward_q2tod1 => '0',
+	forward_q2tod1 => alu_forward_q2tod1,
 	d_read_tmp=>thread2.d_read_tmp,
 	d_read_reg=>thread2.d_read_reg,
 	d_ex_op=>thread2.d_ex_op,
@@ -587,7 +590,7 @@ begin
 
 			if thread.hazard='0' and
 					(dualthread=false or
-						(e_thread='0' or thread2.pause='1' or (thread2.hazard='1' and alu_op/=e32_alu_li))) then
+						(e_thread='0' or thread2.pause='1' or (thread2.hazard='1' and alu_op/=e32_alu_li and alu_forward_q2tod1='0'))) then
 				if thread.d_ex_op(e32_exb_postinc)='1' and regfile.flag_cond='0' then
 					e_continue<='1';
 				end if;
@@ -634,7 +637,7 @@ begin
 
 				alu_forward_q2tod1_d<=alu_forward_q2tod1;
 				alu_forward_q2tod1<='0';
-				if interrupt='0' and thread.d_ex_op(e32_exb_q2totmp)='1' and thread.f_alu_reg1(e32_regb_tmp)='1' then
+				if forwarding=true and interrupt='0' and thread.d_ex_op(e32_exb_q2totmp)='1' and thread.f_alu_reg1(e32_regb_tmp)='1' then
 					alu_forward_q2tod1<='1';
 				end if;
 
@@ -699,7 +702,7 @@ begin
 			-- If thread 1 is blocked, can we dispatch an instruction from thread 2?
 --			elsif thread2.hazard='0' and dualthread=true then
 			elsif dualthread=true and thread2.hazard='0' and
-					(e_thread='1' or thread.pause='1' or (thread.hazard='1' and alu_op/=e32_alu_li)) then
+					(e_thread='1' or thread.pause='1' or (thread.hazard='1' and alu_op/=e32_alu_li and alu_forward_q2tod1='0')) then
 			
 				if thread2.d_ex_op(e32_exb_postinc)='1' and regfile2.flag_cond='0' then
 					e_continue<='1';
@@ -745,6 +748,13 @@ begin
 				thread.e_write_flags<='0';
 
 				e_thread<='1';
+
+				alu_forward_q2tod1_d<=alu_forward_q2tod1;
+				alu_forward_q2tod1<='0';
+				if forwarding=true and interrupt='0' and
+							thread2.d_ex_op(e32_exb_q2totmp)='1' and thread2.f_alu_reg1(e32_regb_tmp)='1' then
+					alu_forward_q2tod1<='1';
+				end if;
 
 				-- Fetch to Decode
 
