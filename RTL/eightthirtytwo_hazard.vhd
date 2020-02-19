@@ -18,6 +18,7 @@ port(
 	e_write_gpr : in std_logic;
 	e_write_pc : in std_logic;
 	e_write_flags : in std_logic;
+	e_loadstore : in std_logic;
 	e_load : in std_logic;
 	e_store : in std_logic;
 	e_reg : in e32_reg;
@@ -25,11 +26,13 @@ port(
 	m_write_gpr : in std_logic;
 	m_write_pc : in std_logic;
 	m_write_flags : in std_logic;
+	m_loadstore : in std_logic;
 	m_load : in std_logic;
 	m_store : in std_logic;
 	m_reg : in e32_reg;
 	w_write_tmp : in std_logic;
 	w_write_flags : in std_logic;
+	w_loadstore : in std_logic;
 	w_load : in std_logic;
 	w_store : in std_logic;
 	hazard : out std_logic
@@ -87,7 +90,7 @@ hazard_pc<='1' when
 -- Load hazard - if a load or store is in the pipeline we have to delay further loads/stores
 
 hazard_load<='1' when (d_ex_op(e32_exb_store)='1' or d_ex_op(e32_exb_load)='1') and
-		(e_load='1' or m_load='1' or w_load='1' or e_store='1' or m_store='1' or w_store='1')
+		(e_loadstore='1' or m_loadstore='1' or w_loadstore='1')
 	else '0';
 
 --hazard_store<='1' when d_ex_op(e32_exb_store)='1' and 

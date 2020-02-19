@@ -1081,7 +1081,7 @@ void gen_var_head(FILE * f, struct Var *v)
 				if (isweak(v))
 					emit(f, "\t.weak\t%s%s\n", idprefix, v->identifier);
 				else {
-					emit(f, "\t.global\t%s%s\n", idprefix, v->identifier);
+//					emit(f, "\t.global\t%s%s\n", idprefix, v->identifier);
 					emit(f, "\t.comm\t%s%s,", idprefix, v->identifier);
 				}
 			}

@@ -136,6 +136,7 @@ signal e_continue : std_logic; -- Used to stretch postinc operations over two cy
 signal e_reg : e32_reg;
 signal e_ex_op : e32_ex;
 signal e_thread : std_logic;
+signal e_loadstore : std_logic;
 
 signal alu_imm : std_logic_vector(5 downto 0);
 signal alu_d1 : std_logic_vector(31 downto 0);
@@ -156,6 +157,7 @@ signal alu_forward_q2tod1 : std_logic;
 signal m_reg : e32_reg;
 signal m_ex_op : e32_ex;
 signal m_thread : std_logic;
+signal m_loadstore : std_logic;
 
 -- Writeback stage signals
 -- In fact writeback to registers is done at the M stage;
@@ -163,6 +165,7 @@ signal m_thread : std_logic;
 
 signal w_ex_op : e32_ex;
 signal w_thread : std_logic;
+signal w_loadstore : std_logic;
 
 -- hazard / stall signals
 
@@ -400,6 +403,9 @@ port map(
 	e_write_flags => thread.e_write_flags,
 	m_write_flags => thread.m_write_flags,
 	w_write_flags => thread.w_write_flags,
+	e_loadstore => e_loadstore,
+	m_loadstore => m_loadstore,
+	w_loadstore => w_loadstore,
 	e_load => e_ex_op(e32_exb_load),
 	m_load => m_ex_op(e32_exb_load),
 	w_load => w_ex_op(e32_exb_load),
@@ -432,6 +438,9 @@ port map(
 	e_write_flags => thread2.e_write_flags,
 	m_write_flags => thread2.m_write_flags,
 	w_write_flags => thread2.w_write_flags,
+	e_loadstore => e_loadstore,
+	m_loadstore => m_loadstore,
+	w_loadstore => w_loadstore,
 	e_load => e_ex_op(e32_exb_load),
 	m_load => m_ex_op(e32_exb_load),
 	w_load => w_ex_op(e32_exb_load),
@@ -529,6 +538,9 @@ begin
 		e_ex_op<=e32_ex_bubble;
 		m_ex_op<=e32_ex_bubble;
 		e_continue<='0';
+		e_loadstore<='0';
+		m_loadstore<='0';
+		w_loadstore<='0';
 
 	elsif rising_edge(clk) then
 
@@ -622,6 +634,7 @@ begin
 
 				e_reg<=thread.d_reg(2 downto 0);
 				e_ex_op<=thread.d_ex_op;
+				e_loadstore<=thread.d_ex_op(e32_exb_load) or thread.d_ex_op(e32_exb_store);
 
 				thread.e_write_tmp<=thread.d_ex_op(e32_exb_q1totmp)
 						or thread.d_ex_op(e32_exb_q2totmp) or thread.d_ex_op(e32_exb_load);
@@ -677,6 +690,7 @@ begin
 					thread.e_write_gpr<='0';
 					thread.e_write_pc<='0';
 					thread.e_write_flags<='0';
+					e_loadstore<='0';
 
 					if thread.hazard='0' and (thread.d_ex_op(e32_exb_cond)='1' or
 							(thread.d_ex_op(e32_exb_q1toreg)='1' and thread.d_reg="111")) then -- Writing to PC?
@@ -736,6 +750,7 @@ begin
 
 				e_reg<=thread2.d_reg(2 downto 0);
 				e_ex_op<=thread2.d_ex_op;
+				e_loadstore<=thread2.d_ex_op(e32_exb_load) or thread2.d_ex_op(e32_exb_store);
 
 				thread2.e_write_tmp<=thread2.d_ex_op(e32_exb_q1totmp)
 						or thread2.d_ex_op(e32_exb_q2totmp) or thread2.d_ex_op(e32_exb_load);
@@ -788,6 +803,7 @@ begin
 					thread2.e_write_gpr<='0';
 					thread2.e_write_pc<='0';
 					thread2.e_write_flags<='0';
+					e_loadstore<='0';
 
 					if thread2.hazard='0' and (thread2.d_ex_op(e32_exb_cond)='1' or
 							(thread2.d_ex_op(e32_exb_q1toreg)='1' and thread2.d_reg="111")) then -- Writing to PC?
@@ -825,6 +841,7 @@ begin
 				thread2.e_write_pc<='0';		
 				thread.e_write_flags<='0';
 				thread2.e_write_flags<='0';
+				e_loadstore<='0';
 			end if;
 		end if;
 
@@ -878,6 +895,7 @@ begin
 			thread2.m_write_flags<=thread2.e_write_flags;
 		end if;
 		m_thread<=e_thread;
+		m_loadstore<=e_loadstore;
 
 		-- Load / store operations.
 			
@@ -1025,12 +1043,14 @@ begin
 				thread2.w_write_tmp<=thread2.m_write_tmp;
 				thread.w_write_flags<=thread.m_write_flags;
 				thread2.w_write_flags<=thread2.m_write_flags;
+				w_loadstore<='1';
 			else
 				w_ex_op<=e32_ex_bubble;
 				thread.w_write_tmp<='0';
 				thread2.w_write_tmp<='0';
 				thread.w_write_flags<='0';
 				thread2.w_write_flags<='0';
+				w_loadstore<='0';
 			end if;
 		end if;
 

@@ -189,6 +189,7 @@ int executable_resolvereferences(struct executable *exe,struct section *sect)
 			}
 			if(!sym || (sym->flags&SYMBOLFLAG_WEAK))
 			{
+				/* FIXME - this needs to search the current object file, not just the current section. */
 				debug(1,"Symbol %s not found (or weak) - searching all sections...\n",ref->identifier);
 				sym2=executable_resolvereference(exe,ref,sect);
 			}
