@@ -68,8 +68,8 @@ extern long     time();
                 /* Measurements should last at least 2 seconds */
 #endif
 
-long           t2_Begin_Time,
-                t2_End_Time,
+long           Begin_Time,
+                End_Time,
                 User_Time;
 long            Microseconds,
                 Dhrystones_Per_Second,
@@ -175,7 +175,7 @@ int thread2main ()
   Begin_Time = time ( (long *) 0);
 #endif
 #else
-  t2_Begin_Time = _readMilliseconds();
+  Begin_Time = _readMilliseconds();
 #endif
   for (Run_Index = 1; Run_Index <= Number_Of_Runs; ++Run_Index)
   {
@@ -234,7 +234,7 @@ int thread2main ()
   End_Time = time ( (long *) 0);
 #endif
 #else
-  t2_End_Time = _readMilliseconds();
+  End_Time = _readMilliseconds();
 #endif
 
 #define checkparam(n,v,d) if(v!=d) printf("Error %s is %d but should be %d\n",n,v,d);
@@ -321,7 +321,7 @@ checksparam("Str_2_Loc",Str_2_Loc,"DHRYSTONE PROGRAM, 2'ND STRING");
   printf ("\n");
 #endif
 
-  User_Time = t2_End_Time - t2_Begin_Time;
+  User_Time = End_Time - Begin_Time;
   printf ("User time: %d\n", (int)User_Time);
   
   if (User_Time < Too_Small_Time)

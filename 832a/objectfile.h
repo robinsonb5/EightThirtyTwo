@@ -2,6 +2,7 @@
 #define OBJECTFILE_H
 
 #include "section.h"
+#include "symbol.h"
 
 struct objectfile
 {
@@ -21,6 +22,7 @@ struct section *objectfile_getsection(struct objectfile *obj);
 struct section *objectfile_addsection(struct objectfile *obj, const char *sectionname);
 struct section *objectfile_findsection(struct objectfile *obj,const char *sectionname);
 struct section *objectfile_setsection(struct objectfile *obj, const char *sectionname);
+struct symbol *objectfile_findsymbol(struct objectfile *obj, const char *symname);
 
 void objectfile_dump(struct objectfile *obj,int untouched);
 

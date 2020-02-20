@@ -181,7 +181,8 @@ int executable_resolvereferences(struct executable *exe,struct section *sect)
 	{
 		if(!(ref->flags&SYMBOLFLAG_ALIGN)) /* Don't try and resolve an alignment ref */
 		{
-			struct symbol *sym=section_findsymbol(sect,ref->identifier);
+			/* This needs to search the current object file, not just the current section. */
+			struct symbol *sym=objectfile_findsymbol(sect->obj,ref->identifier);
 			struct symbol *sym2=0;
 			if(sym)
 			{
@@ -189,8 +190,7 @@ int executable_resolvereferences(struct executable *exe,struct section *sect)
 			}
 			if(!sym || (sym->flags&SYMBOLFLAG_WEAK))
 			{
-				/* FIXME - this needs to search the current object file, not just the current section. */
-				debug(1,"Symbol %s not found (or weak) - searching all sections...\n",ref->identifier);
+				debug(1,"Symbol %s %s - searching all sections...\n",ref->identifier, sym ? "is weak" : "not found");
 				sym2=executable_resolvereference(exe,ref,sect);
 			}
 			if(sym2)

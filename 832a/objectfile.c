@@ -180,6 +180,22 @@ struct section *objectfile_getsection(struct objectfile *obj)
 }
 
 
+struct symbol *objectfile_findsymbol(struct objectfile *obj, const char *symname)
+{
+	struct symbol *result;
+	if(!obj)
+		return(0);
+	struct section *sect=obj->sections;
+	while(sect)
+	{
+		if(result=section_findsymbol(sect,symname))
+			return(result);
+		sect=sect->next;
+	}
+	return(0);
+}
+
+
 void objectfile_emitbyte(struct objectfile *obj,unsigned char byte)
 {
 	if(obj)
