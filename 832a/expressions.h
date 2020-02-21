@@ -27,7 +27,15 @@ struct expression
 	enum operator op;
 	struct expression *left, *right; /* for branches */
 	char *value; /* for leaves */
+	void *storage; /* Freed on destruction */
 };
+
+
+struct expression *expression_new();
+void expression_delete();
+
+struct expression *expression_parse(const char *str);
+
 
 
 #endif

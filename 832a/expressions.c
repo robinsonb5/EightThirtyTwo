@@ -30,15 +30,7 @@ struct operatordef {
 
 
 
-#if 0
-    .equ    symbolicname,value
-
-    .liconst    symbolicname
-    .int symbolicname*4+3*recordsize
-    .int symbolicname+4*3+recordsize
-    .short    symbolicname>>16
-    .short    symbolicname&15
-    .byte    (symbolicname>>8)&255
+/*
 
 Expression parsing
 Need to support the following binary operators:
@@ -56,74 +48,7 @@ If another operator was found, compare priorities:
 If priorty is higher than the first operator, set this as a leaf and return to caller.
 If no further operators are found, set this as a leaf and return to caller.
 If brackets are found, anything within the brackets should be evaluated as a separate expression.
-
- 
-
-    .liconst    symbolicname
-
-No operators -> leaf;
-
-    .int symbolicname*4+3*recordsize
-
-Symbolicname -> leaf
-Expression operator *, symbolicname ->left
-Next operator +, lower priority,
-   Set value to right leaf, (4)
-   return to caller
-Set operator to +
-New expression -> right
-   First value to left leaf (3)
-   Find operator (*) and set op
-   Scan for next operators (none found)
-   Next value to right leaf (recordsize)  
-
-
-                                 /  +   \
- Symbolicname * 4               3 * recordsize
-
-
-    .int symbolicname+4*3+recordsize
-
-Symbolicname -> left
-Operator: +
-Next operator: *
-Higher priority
-     4 -> left
-     Operator *
-     Next operator +
-     Lower priority, so…
-     3->right
-     Return completed node to parent
-Next operator +
-Equal or lower, so return completed node to parent
-Next operator - still +
-Create new node
-    Symbolicname + 4*3 -> left
-    Operator +
-    Next operator - none, so…
-    Recordsize -> right
-
-                                                  /  +  \
-      Symbolic name   +  / * \                 recordsize
-                                     4     3
-
-    .short    symbolicname>>16
-    .short    symbolicname&15
-    .byte    (symbolicname>>8)&255
-
-Struct expr *expr_scanvalue(struct scanexpr *se);
-Enum operator *expr_scanop(struct scanexpr *se);
-
-Need a list of equates
-Struct Equate
-{
-    Struct Equate *next;
-    Char *symbolicname;
-    Int value;
-};
-
-
-#endif
+*/
 
 struct linebuffer *linebuffer_new(char *buf)
 {
@@ -238,8 +163,24 @@ struct expression *expression_new()
 		result->left=result->right=0;
 		result->value=0;
 		result->op=OP_NONE;
+		result->storage=0;
 	}
 	return(result);
+}
+
+
+void expression_delete(struct expression *expr)
+{
+	if(expr)
+	{
+		if(expr->storage)
+			free(expr->storage);
+		if(expr->left)
+			expression_delete(expr->left);
+		if(expr->right)
+			expression_delete(expr->right);
+		free(expr);
+	}
 }
 
 
@@ -261,13 +202,14 @@ struct expression *expression_makeleaf(struct linebuffer *lb)
 		struct linebuffer *subexpr=linebuffer_extractsubexpr(lb);
 		result=expression_buildtree(subexpr);
 		linebuffer_delete(subexpr);
+		expression_findoperator(lb);
 	}
 	else if(result=expression_new())
 	{
 		result->value=&lb->buf[lb->cursor];
 		result->op=OP_VALUE;
-		printf("created leaf: %s\n",result->value);
 		expression_findoperator(lb);
+		printf("created leaf: %s\n",result->value);
 	}
 	return(result);
 }
@@ -345,18 +287,33 @@ void expression_dumptree(struct expression *expr,int indent)
 }
 
 
+struct expression *expression_parse(const char *str)
+{
+	struct expression *expr=0;
+	if(str)
+	{
+		char *buf=strdup(str);
+		struct linebuffer *lb=linebuffer_new(buf);
+		expr=expression_buildtree(lb);
+		if(expr)
+			expr->storage=buf;
+		linebuffer_delete(lb);
+	}
+	return(expr);
+}
+
+
 int main(int argc,char **argv)
 {
-	char *line="(3+4)+255*(4+7)&15";
+	char *line="(3+_label24)+255*(4+7)&15";
 	struct linebuffer *lb1,*lb2;
 	struct expression *expr;
 	enum operator op;
 	if(argc>1)
 		line=argv[1];
-	lb1=linebuffer_new(strdup(line));
-
-	expr=expression_buildtree(lb1);
+	expr=expression_parse(line);
 	expression_dumptree(expr,0);
+	expression_delete(expr);
 	return(0);
 }
 
