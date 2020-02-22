@@ -56,6 +56,7 @@ void am_simplify(struct IC *p)
 	int c;
 	struct IC *p2;
 	struct IC *p3;
+	struct IC *prev;
 	for (; p; p = p->next) {
 		c = p->code;
 
@@ -164,12 +165,60 @@ void am_simplify(struct IC *p)
 				}
 				break;
 
-			// Just analyse conversions for now.  Loads cause automatic zero-extension so can avoid conversion
+			// Loads cause automatic zero-extension so can avoid conversion
 			// in that case.  Arithmetic functions may require conversion - with the exception of AND and (unsigned) SHR,
 			// since neither can result in extra set bits in the MSBs.
 			case CONVERT:
+				if(p2->code==CONVERT)
+				{
+					printf("Found successive Convert ICs\n");
+					printf("p1: %x, %d, %x -> %x, p2: %x, %d, %x -> %x\n",p->z.flags,p->z.reg,q1typ(p),ztyp(p),
+						p2->q1.flags,p2->q1.reg,q1typ(p2),ztyp(p2));
+					if((p->z.flags&(REG|DREFOBJ))==REG && ((p2->q1.flags&(REG|DREFOBJ))==REG) && p->z.reg==p2->q1.reg)
+					{
+						printf("Register match\n");
+						if(((q1typ(p)&NQ)<(ztyp(p)&NQ)) && (q1typ(p)==ztyp(p2)))
+						{
+							printf("Sizes match - nullifying conversion to wider type.\n");
+							p->code=NOP;
+							p2->q1=p->q1;
+						}
+					}
+				}				
 //				printic(stdout,p);
 				break;
+
+			// Look for situations where an arithmetic operation will have set flags,
+			// rendering an explicit TEST unnecessary.
+			case TEST:
+				prev=p->prev;
+				if(prev)
+				{
+//					printf("TEST found, evaluating previous IC\n");
+					switch(prev->code)
+					{
+						case ADD:
+						case SUB:
+						case MULT:
+						case OR:
+						case XOR:
+						case AND:
+						case LSHIFT:
+						case RSHIFT:
+//							printf("Arithmetic / bitwise IC found\n");
+//							printf("%x, %d, %x, %d\n",prev->z.flags,prev->z.reg,p->q1.flags,p->q1.reg);
+							if((prev->z.flags&(REG|DREFOBJ))==REG && ((p->q1.flags&(REG|DREFOBJ))==REG) && prev->z.reg==p->q1.reg)
+							{
+//								printf("Register match\n");
+								p->code=NOP;
+							}
+							break;
+						default:
+							break;
+					}
+				}
+				break;
+
 			default:
 				break;
 		}

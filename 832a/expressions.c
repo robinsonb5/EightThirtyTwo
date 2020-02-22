@@ -48,6 +48,9 @@ If another operator was found, compare priorities:
 If priorty is higher than the first operator, set this as a leaf and return to caller.
 If no further operators are found, set this as a leaf and return to caller.
 If brackets are found, anything within the brackets should be evaluated as a separate expression.
+
+FIXME - need to deal with negation and inversion.
+
 */
 
 struct linebuffer *linebuffer_new(char *buf)
