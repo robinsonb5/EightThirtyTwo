@@ -66,7 +66,9 @@ int main(int argc,char **argv)
 				/* Dirty trick for when we have an option with no space before the parameter. */
 				if((*argv[i]=='-') && (strlen(argv[i])>2))
 				{
-					if(!nextsym)
+					if(nextsym)
+						nextsym=0;
+					else
 					{
 						argv[i]+=2;
 						--i;
