@@ -1052,7 +1052,7 @@ void gen_var_head(FILE * f, struct Var *v)
 		newobj = 1;
 	}
 	if (v->storage_class == EXTERN) {
-//		emit(f, "\t.globl\t%s%s\n", idprefix, v->identifier);
+//		emit(f, "\t.global\t%s%s\n", idprefix, v->identifier);
 		if (v->flags & (DEFINED | TENTATIVE)) {
 			if (!special_section(f, v)) {
 				if (v->clist && (!constflag || (g_flags[2] & USEDFLAG))
@@ -1075,13 +1075,14 @@ void gen_var_head(FILE * f, struct Var *v)
 			}
 			if (v->clist || section == SPECIAL) {
 				gen_align(f, falign(v->vtyp));
+				emit(f, "\t.global\t%s%s\n", idprefix, v->identifier);
 				emit(f, "%s%s:\n", idprefix, v->identifier);
 			} else {
 				gen_align(f, falign(v->vtyp));
 				if (isweak(v))
 					emit(f, "\t.weak\t%s%s\n", idprefix, v->identifier);
 				else {
-//					emit(f, "\t.global\t%s%s\n", idprefix, v->identifier);
+					emit(f, "\t.global\t%s%s\n", idprefix, v->identifier);
 					emit(f, "\t.comm\t%s%s,", idprefix, v->identifier);
 				}
 			}
