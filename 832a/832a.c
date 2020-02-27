@@ -362,9 +362,10 @@ int main(int argc, char **argv)
 	int result=0;
 	if(argc==1)
 	{
-		fprintf(stderr,"Usage: %s [options] file.s <file2.s> ...\n",argv[0]);
+		fprintf(stderr,"Usage: %s [options] file.asm <file2.asm> ...\n",argv[0]);
+		fprintf(stderr,"Options:\n");
 		fprintf(stderr,"\t-o <file>\t- specify output file\n");
-		fprintf(stderr,"Options:\n\t-d - enable debug messages\n");
+		fprintf(stderr,"\t-d - enable debug messages\n");
 		result=1;
 	}
 	else

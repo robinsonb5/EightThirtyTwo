@@ -1,6 +1,28 @@
 # EightThirtyTwo
 An experimental CPU core with 8-bit instruction words and 32-bit registers.
+Copyright (c) 2019, 2020 by Alastair M. Robinson
 
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+## Scope
+The project includes a synthesizable CPU core, an assembler, linker,
+disassembler and emulator and a backend for the vbcc C compiler.
+The authors and maintainers of vbcc have permission to include the vbcc C
+compiler backend in source and binary distributions of the vbcc C compiler
+without being bound by the terms of the GNU GPL.
+
+## Goals
 The main design goals are modest logic footprint and minimum possible use
 of BlockRAM - which is achieved by (a) aiming to maximise code density,
 and (b) having the register file implemented as logic rather than BlockRAM.
@@ -138,4 +160,42 @@ zeroes will be shifted in - otherwise the leftmost bit of r&lt;n&gt; will be cop
 
 Note: The shift and rotate instructions are slow - if you're shifting by a
 fixed amount the mul instruction will be faster.
+
+## Assembler
+The assembler is called "832a", and should be invoked like so:
+  832a (options) file.asm (file2.asm ...)
+Valid options are:
+* -o outputfile  -  specify the output file name.  Only valid if assembling a single file.
+If no output file is specified, "file.asm" will be assembled to "file.o".
+* -d - enable debug output.
+
+As well as the 832 opcodes listed above, the assembler recognises the following directives:
+* .liabs value - emit one or more 'li' instructions, however many are required to load value into tmp.
+* .lipcrel symbol - emit one or more 'li' instructions, loading the PC-relative address of symbol into tmp.
+* .liconst symbol - emit one or more 'li' instructions, loading an externally defined fixed value into tmp. Typically a hardware address or stack pointer.
+* .incbin - include a binary file.
+* .ctor sectionname - define a constructor section.  The sections are sorted in ascii order at link time.
+* .dtor sectionname - define a destructor section.  The sections are reverse-sorted in ascii order at link time.
+* .bss sectionname - define a BSS section
+* .global symbolname - declare a symbol as having global scope
+* .weak symbolname - declare a symbol as having weak linkage.  At link time all objects will be scanned for symbols sharing this name.  If one is found without weak linkage it will be used.  If all instances have weak linkage, the last one found will be used.
+* .section sectionname - declare a new section
+* .constant name,value - declare a constant to be referenced by .liconst.
+* .align value - align the next item to the a boundary of value bytes.
+* .comm var - declare an uninitialised variable with global scope.
+* .lcomm var - declare an uninitialised variable with local scope.
+* .ref symbol - include the address of symbol as a 32-bit value.
+* .int value - embed a 32-bit integer value
+* .short value - embed a 16-bit integer value
+* .byte value - embed an 8-bit integer value
+* .space size,value - declare an area of size bytes, filled with value.
+
+## Linker
+The linker is called "832l", and should be invoked like so:
+  832l (options) file.o (file2.o ...)
+Valid options are
+* -o outputfile - specify the output file name.  If none is specified, the linked program will be written to "a.out".
+* -b number - specify base address
+* -s symbol=number - define symbol (such as stack size)
+* -d - enable debug messages
 
