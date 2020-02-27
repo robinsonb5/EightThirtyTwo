@@ -15,12 +15,13 @@ Copyright (c) 2019, 2020 by Alastair M. Robinson
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+	The authors and maintainers of vbcc have permission to include the vbcc C
+	compiler backend in source and binary distributions of the vbcc C compiler
+	without being bound by the terms of the GNU GPL.
+
 ## Scope
 The project includes a synthesizable CPU core, an assembler, linker,
 disassembler and emulator and a backend for the vbcc C compiler.
-The authors and maintainers of vbcc have permission to include the vbcc C
-compiler backend in source and binary distributions of the vbcc C compiler
-without being bound by the terms of the GNU GPL.
 
 ## Goals
 The main design goals are modest logic footprint and minimum possible use
@@ -163,16 +164,18 @@ fixed amount the mul instruction will be faster.
 
 ## Assembler
 The assembler is called "832a", and should be invoked like so:
-  832a (options) file.asm (file2.asm ...)
+
+832a (options) file.asm (file2.asm ...)
+
 Valid options are:
 * -o outputfile  -  specify the output file name.  Only valid if assembling a single file.
 If no output file is specified, "file.asm" will be assembled to "file.o".
 * -d - enable debug output.
 
 As well as the 832 opcodes listed above, the assembler recognises the following directives:
-* .liabs value - emit one or more 'li' instructions, however many are required to load value into tmp.
+* .liconst value - emit one or more 'li' instructions, however many are required to load value into tmp.
+* .liabs value - emit one or more 'li' instructions, loading the address of symbol into tmp.
 * .lipcrel symbol - emit one or more 'li' instructions, loading the PC-relative address of symbol into tmp.
-* .liconst symbol - emit one or more 'li' instructions, loading an externally defined fixed value into tmp. Typically a hardware address or stack pointer.
 * .incbin - include a binary file.
 * .ctor sectionname - define a constructor section.  The sections are sorted in ascii order at link time.
 * .dtor sectionname - define a destructor section.  The sections are reverse-sorted in ascii order at link time.
@@ -192,7 +195,9 @@ As well as the 832 opcodes listed above, the assembler recognises the following 
 
 ## Linker
 The linker is called "832l", and should be invoked like so:
-  832l (options) file.o (file2.o ...)
+
+832l (options) file.o (file2.o ...)
+
 Valid options are
 * -o outputfile - specify the output file name.  If none is specified, the linked program will be written to "a.out".
 * -b number - specify base address
