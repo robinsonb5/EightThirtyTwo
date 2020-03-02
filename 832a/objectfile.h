@@ -3,6 +3,7 @@
 
 #include "section.h"
 #include "symbol.h"
+#include "equates.h"
 
 struct objectfile
 {
@@ -11,6 +12,8 @@ struct objectfile
 	struct section *sections;
 	struct section *lastsection;
 	struct section *currentsection;
+	struct equate *equates;
+	struct equate *lastequate;
 };
 
 struct objectfile *objectfile_new();
@@ -23,6 +26,9 @@ struct section *objectfile_addsection(struct objectfile *obj, const char *sectio
 struct section *objectfile_findsection(struct objectfile *obj,const char *sectionname);
 struct section *objectfile_setsection(struct objectfile *obj, const char *sectionname);
 struct symbol *objectfile_findsymbol(struct objectfile *obj, const char *symname);
+
+void objectfile_addequate(struct objectfile *obj,const char *equname,int value);
+struct equate *objectfile_findequate(struct objectfile *obj, const char *equname);
 
 void objectfile_dump(struct objectfile *obj,int untouched);
 

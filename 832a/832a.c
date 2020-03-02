@@ -9,6 +9,7 @@
 
 #include "objectfile.h"
 #include "section.h"
+#include "equates.h"
 
 
 static char *delims=" \t:\n\r,";
@@ -190,6 +191,25 @@ void directive_incbin(struct objectfile *obj,char *tok,char *tok2,int key)
 }
 
 
+void directive_equate(struct objectfile *obj,char *tok,char *tok2,int key)
+{
+	int value;
+	char *endptr;
+	struct equate *equ;
+
+	if(!tok)
+		asmerror("Missing identifier");
+	if(!tok2)
+		asmerror("Missing value");
+
+	value=strtoul(tok2,&endptr,0);
+	if(!value && endptr==tok2)
+		asmerror("Invalid value");
+	
+	objectfile_addequate(obj,tok,value);
+}
+
+
 struct directive
 {
 	char *mnem;
@@ -200,6 +220,7 @@ struct directive
 
 struct directive directives[]=
 {
+	{".equ",directive_equate,0},
 	{".ctor",directive_sectionflags,SECTIONFLAG_CTOR},
 	{".dtor",directive_sectionflags,SECTIONFLAG_DTOR},
 	{".bss",directive_sectionflags,SECTIONFLAG_BSS},

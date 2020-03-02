@@ -6,14 +6,17 @@ clean:
 	-rm 832d
 	-rm hello
 
-832a: 832a.c 832defs.c objectfile.c section.c symbol.c codebuffer.c 832util.c
+832a: 832a.o 832defs.o objectfile.o section.o symbol.o codebuffer.o 832util.o equates.o
 	gcc -o $@ $+
 
-832l: 832l.c 832defs.c executable.c objectfile.c section.c symbol.c codebuffer.c sectionmap.c 832util.c
+832l: 832l.o 832defs.o executable.o objectfile.o section.o symbol.o codebuffer.o sectionmap.o 832util.o equates.o
 	gcc -o $@ $+
 
 832d: 832d.c 832defs.c 832util.c
 	gcc -o $@ $+
+
+%.o: %.c
+	gcc -c $+
 
 hello: start.S premain.S hello.S uart.S
 	./832a $+

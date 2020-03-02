@@ -18,6 +18,8 @@ struct objectfile *objectfile_new()
 		obj->sections=0;
 		obj->lastsection=0;
 		obj->currentsection=0;
+		obj->equates=0;
+		obj->lastequate=0;
 	}
 	return(obj);
 }
@@ -196,6 +198,40 @@ struct symbol *objectfile_findsymbol(struct objectfile *obj, const char *symname
 }
 
 
+struct equate *objectfile_findequate(struct objectfile *obj,const char *equname)
+{
+	struct equate *result=0;
+	if(obj)
+	{
+		result=obj->equates;
+		while(result)
+		{
+			if(strcmp(result->identifier,equname)==0)
+				return(result);
+			result=result->next;
+		}
+	}
+	return(result);
+}
+
+
+void objectfile_addequate(struct objectfile *obj,const char *equname,int value)
+{
+	if(obj)
+	{
+		struct equate *equ=equate_new(equname,value);
+		if(equ)
+		{
+			if(obj->lastequate)
+				obj->lastequate->next=equ;
+			else
+				obj->equates=equ;
+			obj->lastequate=equ;
+		}
+	}
+}
+
+
 void objectfile_emitbyte(struct objectfile *obj,unsigned char byte)
 {
 	if(obj)
@@ -206,6 +242,7 @@ void objectfile_emitbyte(struct objectfile *obj,unsigned char byte)
 void objectfile_delete(struct objectfile *obj)
 {
 	struct section *sect,*next;
+	struct equate *equ;
 	if(obj)
 	{
 		if(obj->filename)
@@ -216,6 +253,14 @@ void objectfile_delete(struct objectfile *obj)
 			sect=next;
 			next=next->next;
 			section_delete(sect);
+		}
+		equ=obj->equates;
+		while(equ)
+		{
+			struct equate *neq;
+			neq=equ->next;
+			equate_delete(equ);
+			equ=neq;
 		}
 		free(obj);
 	}	

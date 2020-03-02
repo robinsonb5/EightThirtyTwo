@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "equates.h"
@@ -7,12 +8,13 @@
 struct equate *equate_new(const char *identifier, int value)
 {
 	struct equate *result=0;
-	if(result=(struct equate *)malloc(sizeof(struct equate));
+	if(result=(struct equate *)malloc(sizeof(struct equate)))
 	{
 		result->identifier=strdup(identifier);
 		result->value=value;
+		result->next=0;
 	}
-	return(equate);	
+	return(result);	
 }
 
 
@@ -22,7 +24,7 @@ void equate_delete(struct equate *equ)
 	{
 		if(equ->identifier)
 			free(equ->identifier);
-		free(equ)
+		free(equ);
 	}
 }
 

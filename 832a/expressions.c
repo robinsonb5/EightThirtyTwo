@@ -13,8 +13,9 @@ struct operatordef {
 	{"(",OP_PARENTHESES,OPTYPE_PAREN},
 	{"*",OP_MULTIPLY,OPTYPE_BINARY},
 	{"/",OP_DIVIDE,OPTYPE_BINARY},
+	{"%",OP_MODULO,OPTYPE_BINARY},
 	{"<<",OP_SHLEFT,OPTYPE_BINARY},
-	{">>",OPT_SHRIGHT,OPTYPE_BINARY},
+	{">>",OP_SHRIGHT,OPTYPE_BINARY},
 	{"+",OP_ADD,OPTYPE_BINARY},
 	{"-",OP_SUBTRACT,OPTYPE_BINARY},
 	{"&",OP_AND,OPTYPE_BINARY},
@@ -200,6 +201,10 @@ struct expression *expression_makeleaf(struct linebuffer *lb)
 {
 	struct expression *result;
 	/* If the expression begins with brackets, extract the subexpression and build a tree from it. */
+
+	while(lb->buf[lb->cursor]==' '||lb->buf[lb->cursor]=='\t')
+		lb->cursor++;
+
 	if(lb->buf[lb->cursor]=='(')
 	{
 		struct linebuffer *subexpr=linebuffer_extractsubexpr(lb);
@@ -224,6 +229,10 @@ struct expression *expression_makerightleaf(struct expression *leftleaf,struct l
 	expr=expression_new();
 	expr->left=leftleaf;
 	expr->op=lb->currentop;
+
+	while(lb->buf[lb->cursor]==' '||lb->buf[lb->cursor]=='\t')
+		lb->cursor++;
+
 	printf("assigning %s to right hand\n",&lb->buf[lb->cursor]);
 	expr2=expression_makeleaf(lb);
 	/* 	If another operator was found, compare priorities:
@@ -306,6 +315,77 @@ struct expression *expression_parse(const char *str)
 }
 
 
+int expression_evaluate(struct expression *expr)
+{
+	int result=0;
+	if(expr)
+	{
+		int left=expression_evaluate(expr->left);
+		int right=expression_evaluate(expr->right);
+		switch(expr->op)
+		{
+			case OP_VALUE:
+				result=strtoul(expr->value,0,0);
+				break;
+
+			case OP_MULTIPLY:
+				result=left*right;
+				break;
+
+			case OP_DIVIDE:
+				result=left/right;
+				break;
+
+			case OP_MODULO:
+				result=left%right;
+				break;
+
+			case OP_SHLEFT:
+				result=left<<right;
+				break;
+
+			case OP_SHRIGHT:
+				result=left>>right;
+				break;
+
+			case OP_ADD:
+				result=left+right;
+				break;
+
+			case OP_SUBTRACT:
+				result=left-right;
+				break;
+
+			case OP_AND:
+				result=left & right;
+				break;
+
+			case OP_OR:
+				result=left | right;
+				break;
+
+			case OP_XOR:
+				result=left ^ right;
+				break;
+
+			case OP_NEGATE:
+				result=-right;
+				break;
+
+			case OP_INVERT:
+				result=~right;
+				break;
+
+			default:
+				fprintf(stderr,"Expression - unknown op %x\n",expr->op);
+				break;
+		}
+
+	}
+	return(result);
+}
+
+
 int main(int argc,char **argv)
 {
 	char *line="(3+_label24)+255*(4+7)&15";
@@ -316,6 +396,7 @@ int main(int argc,char **argv)
 		line=argv[1];
 	expr=expression_parse(line);
 	expression_dumptree(expr,0);
+	printf("Evaluates to: %d\n",expression_evaluate(expr));
 	expression_delete(expr);
 	return(0);
 }
