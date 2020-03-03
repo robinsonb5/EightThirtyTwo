@@ -218,7 +218,20 @@ static struct expression *expression_makeleaf(struct expr_linebuffer *lb)
 		result->value=&lb->buf[lb->cursor];
 		result->op=OP_VALUE;
 		expression_findoperator(lb);
-		printf("created leaf: %s\n",result->value);
+		if(strlen(result->value)==0) /* Unary operator? */
+		{
+			result->op=lb->currentop;
+			result->left=expression_new();
+			result->left->op=OP_VALUE;
+			result->left->value="0";
+			result->right=expression_new();
+			result->right->op=OP_VALUE;
+			result->right->value=&lb->buf[lb->cursor];
+			expression_findoperator(lb);
+			printf("Created unary operator\n");
+		}
+		else
+			printf("created leaf: %s\n",result->value);
 	}
 	return(result);
 }
@@ -327,6 +340,11 @@ int expression_evaluate(const struct expression *expr,const struct equate *equat
 		switch(expr->op)
 		{
 			case OP_VALUE:
+				if(strlen(expr->value)==0)
+				{
+					result=0;
+					break;
+				}
 				result=strtoul(expr->value,&t,0);
 				if(t==expr->value && result==0)
 				{
