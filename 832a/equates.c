@@ -4,7 +4,6 @@
 
 #include "equates.h"
 
-
 struct equate *equate_new(const char *identifier, int value)
 {
 	struct equate *result=0;

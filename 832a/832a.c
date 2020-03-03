@@ -1,4 +1,8 @@
-/* EightThirtyTwo assembler */
+/* EightThirtyTwo assembler
+
+   Copyright (c) 2019,2020 by Alastair M. Robinson
+
+ */
 
 #include <stdio.h>
 #include <string.h>
@@ -48,7 +52,12 @@ void directive_sectionflags(struct objectfile *obj,char *tok,char *tok2,int key)
 /* Emit literal values in little-endian form */
 void directive_literal(struct objectfile *obj,char *tok,char *tok2,int key)
 {
+	char *endptr;
 	int v=strtoul(tok,0,0);
+
+	if(!v && endptr==tok)
+		v=expression_evaluatestring(tok,obj->equates);
+
 	if(key)
 	{
 		objectfile_emitbyte(obj,(v&255));
@@ -131,14 +140,10 @@ void directive_liconst(struct objectfile *obj,char *tok,char *tok2,int key)
 	char *endptr;
 	long v=strtol(tok,&endptr,0);
 	int chunk;
+
 	if(!v && endptr==tok)
-	{
-		struct expression *expr=expression_parse(tok);
-		expression_dumptree(expr,0);
-		v=expression_evaluate(expr,obj->equates);
-		printf("Evaluates to: %ld\n",v);
-		expression_delete(expr);
-	}
+		v=expression_evaluatestring(tok,obj->equates);
+
 	chunk=count_constantchunks(v);
 	debug(1,"%d chunks\n",chunk);
 	while(chunk--)
@@ -308,7 +313,7 @@ void parsesourcefile(struct objectfile *obj,const char *fn)
 						}
 						++d;
 					}
-					error_setfile(fn); /* This will have been changed by an include directive, so set it back */
+					error_setfile(fn); /* This would have been changed by an include directive, so set it back */
 
 					/* Not a directive?  Interpret as an opcode... */
 					if(!directives[d].mnem)

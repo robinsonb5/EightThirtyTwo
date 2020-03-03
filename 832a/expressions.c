@@ -100,15 +100,15 @@ static struct expr_linebuffer *linebuffer_extractsubexpr(struct expr_linebuffer 
 			--parencount;
 			if(parencount==0)
 			{
-				printf("Terminating first expression\n");
+				debug(1,"Terminating first expression\n");
 				lb->buf[i]=0; /* Terminate the subexpression */        
-				printf("Creating new lb\n");
+				debug(1,"Creating new lb\n");
 				result=linebuffer_new(&lb->buf[lb->cursor+1]);
 				lb->cursor=i+1;
 				return(result);
 			}
 		}
-		printf("i: %d, parencount: %d\n",i,parencount);
+		debug(1,"i: %d, parencount: %d\n",i,parencount);
 		++i;
 	}
 	return(result);
@@ -146,7 +146,7 @@ static enum operator expression_findoperator(struct expr_linebuffer *lb)
 				int i;
 				/*	If we found the operator, set currentop in the linebuffer structure
 					and zero out its text representation in the string. */
-				printf("Found operation %d\n",result->op);
+				debug(1,"Found operation %d\n",result->op);
 				lb->currentop=result->op;
 				for(i=0;i<strlen(result->key);++i)
 					lb->buf[lb->cursor++]=0;
@@ -228,10 +228,10 @@ static struct expression *expression_makeleaf(struct expr_linebuffer *lb)
 			result->right->op=OP_VALUE;
 			result->right->value=&lb->buf[lb->cursor];
 			expression_findoperator(lb);
-			printf("Created unary operator\n");
+			debug(1,"Created unary operator\n");
 		}
 		else
-			printf("created leaf: %s\n",result->value);
+			debug(1,"created leaf: %s\n",result->value);
 	}
 	return(result);
 }
@@ -247,7 +247,7 @@ static struct expression *expression_makerightleaf(struct expression *leftleaf,s
 	while(lb->buf[lb->cursor]==' '||lb->buf[lb->cursor]=='\t')
 		lb->cursor++;
 
-	printf("assigning %s to right hand\n",&lb->buf[lb->cursor]);
+	debug(1,"assigning %s to right hand\n",&lb->buf[lb->cursor]);
 	expr2=expression_makeleaf(lb);
 	/* 	If another operator was found, compare priorities:
 		If priority is higher than the first operator, recursively create a new expression
@@ -255,7 +255,7 @@ static struct expression *expression_makerightleaf(struct expression *leftleaf,s
 
 	while(lb->currentop<expr->op)
 	{
-		printf("Creating new righthand leaf\n");
+		debug(1,"Creating new righthand leaf\n");
 		expr2=expression_makerightleaf(expr2,lb);
 	}
 	expr->right=expr2;
@@ -269,7 +269,7 @@ static struct expression *expression_buildtree(struct expr_linebuffer *lb)
 	struct expression *expr2=0;
 	enum operator op;
 
-	printf("Buildtree: %s\n",&lb->buf[lb->cursor]);
+	debug(1,"Buildtree: %s\n",&lb->buf[lb->cursor]);
 
 	/* 	Scan the expression from left to right searching for operators.
 		Create a leaf from everything up to the first operator. */
@@ -350,7 +350,7 @@ int expression_evaluate(const struct expression *expr,const struct equate *equat
 				{
 					const struct equate *equ=equates;
 					/* Not a literal value - search for an equate */
-					printf("Hunting for %s\n",expr->value);
+					debug(1,"Hunting for %s\n",expr->value);
 					while(equ)
 					{
 						if(strcmp(expr->value,equ->identifier)==0)
@@ -419,6 +419,19 @@ int expression_evaluate(const struct expression *expr,const struct equate *equat
 		}
 
 	}
+	return(result);
+}
+
+
+int expression_evaluatestring(const char *str,const struct equate *equates)
+{
+	int result;
+	struct expression *expr=expression_parse(str);
+	if(getdebuglevel())
+		expression_dumptree(expr,0);
+	result=expression_evaluate(expr,equates);
+	debug(1,"Evaluates to: %ld\n",result);
+	expression_delete(expr);
 	return(result);
 }
 

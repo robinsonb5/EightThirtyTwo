@@ -2,6 +2,7 @@
 #define UTIL832_H
 
 void setdebuglevel(int level);
+int getdebuglevel();
 void debug(int level,const char *fmt,...);
 void hexdump(int level,char *p,int l);
 

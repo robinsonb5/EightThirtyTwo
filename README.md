@@ -15,8 +15,8 @@ Copyright (c) 2019, 2020 by Alastair M. Robinson
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-	The vbcc C compiler backend may also be distributed together with vbcc
-    C compiler, under vbcc's license.
+	The vbcc C compiler backend may also be distributed together with the
+    vbcc C compiler, under vbcc's license.
 
 ## Scope
 The project includes a synthesizable CPU core, an assembler, linker,

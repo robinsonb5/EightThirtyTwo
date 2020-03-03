@@ -7,6 +7,11 @@ static const char *error_file;
 static int error_line;
 static int debuglevel=0;
 
+int getdebuglevel()
+{
+	return(debuglevel);
+}
+
 void setdebuglevel(int level)
 {
 	debuglevel=level;

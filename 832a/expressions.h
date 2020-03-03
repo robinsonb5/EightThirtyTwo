@@ -38,7 +38,6 @@ void expression_delete();
 
 struct expression *expression_parse(const char *str);
 int expression_evaluate(const struct expression *expr,const struct equate *equates);
-
-
+int expression_evaluatestring(const char *str,const struct equate *equates);
 
 #endif
