@@ -188,10 +188,10 @@ pointer.
 * .comm var - declare an uninitialised variable with global scope.
 * .lcomm var - declare an uninitialised variable with local scope.
 * .ref symbol - include the address of symbol as a 32-bit value.
-* .int value - embed a 32-bit integer value
-* .short value - embed a 16-bit integer value
-* .byte value - embed an 8-bit integer value
-* .space size,value - declare an area of size bytes, filled with value.
+* .int expression - embed a 32-bit integer value, equate or expression.
+* .short expression - embed a 16-bit integer value, equate or expression.
+* .byte expression - embed an 8-bit integer value, equate or expression.
+* .space expression,value - declare an area of expression bytes, filled with value.
 * .ctor sectionname - define a constructor section.  The sections are sorted in ascii order at link time.
 * .dtor sectionname - define a destructor section.  The sections are reverse-sorted in ascii order at link time.
 
