@@ -172,17 +172,18 @@ If no output file is specified, "file.asm" will be assembled to "file.o".
 * -d - enable debug output.
 
 As well as the 832 opcodes listed above, the assembler recognises the following directives:
-* .liconst value - emit one or more 'li' instructions, however many are required to load value into tmp.
-* .liabs value - emit one or more 'li' instructions, loading the address of symbol into tmp.
+* .equ identifier,value - defines a symbolic value which can be used in subsequent .liconst expressions.
+* .liconst expr - emit one or more 'li' instructions, however many are required to load expr into tmp.  Expr can be a simple integer value, a symbolic value previously defined with .equ, or an arithmetic expression.
+* .liabs symbol - emit one or more 'li' instructions, loading the address of symbol into tmp.
 * .lipcrel symbol - emit one or more 'li' instructions, loading the PC-relative address of symbol into tmp.
+* .constant name,value - declare a constant to be referenced by .liabs or .lipcrel.  Similar to .equ, but resolved at link time rather than assembly time, so may not be the subject of expressions.  Typical use case is the address of a hardware register, or a fixed stack 
+pointer.
+* .include - include another file.
 * .incbin - include a binary file.
-* .ctor sectionname - define a constructor section.  The sections are sorted in ascii order at link time.
-* .dtor sectionname - define a destructor section.  The sections are reverse-sorted in ascii order at link time.
-* .bss sectionname - define a BSS section
-* .global symbolname - declare a symbol as having global scope
-* .weak symbolname - declare a symbol as having weak linkage.  At link time all objects will be scanned for symbols sharing this name.  If one is found without weak linkage it will be used.  If all instances have weak linkage, the last one found will be used.
 * .section sectionname - declare a new section
-* .constant name,value - declare a constant to be referenced by .liconst.
+* .global symbolname - declare a symbol as having global scope
+* .bss sectionname - define a BSS section
+* .weak symbolname - declare a symbol as having weak linkage.  At link time all objects will be scanned for symbols sharing this name.  If one is found without weak linkage it will be used.  If all instances have weak linkage, the last one found will be used.
 * .align value - align the next item to the a boundary of value bytes.
 * .comm var - declare an uninitialised variable with global scope.
 * .lcomm var - declare an uninitialised variable with local scope.
@@ -191,6 +192,8 @@ As well as the 832 opcodes listed above, the assembler recognises the following 
 * .short value - embed a 16-bit integer value
 * .byte value - embed an 8-bit integer value
 * .space size,value - declare an area of size bytes, filled with value.
+* .ctor sectionname - define a constructor section.  The sections are sorted in ascii order at link time.
+* .dtor sectionname - define a destructor section.  The sections are reverse-sorted in ascii order at link time.
 
 ## Linker
 The linker is called "832l", and should be invoked like so:
@@ -200,6 +203,6 @@ The linker is called "832l", and should be invoked like so:
 Valid options are
 * -o outputfile - specify the output file name.  If none is specified, the linked program will be written to "a.out".
 * -b number - specify base address
-* -s symbol=number - define symbol (such as stack size)
+* -s symbol=number - define symbol (such as stack size).  Symbols defined this way are equivalent to (and will override) symbols defined with the .constant directive.
 * -d - enable debug messages
 
