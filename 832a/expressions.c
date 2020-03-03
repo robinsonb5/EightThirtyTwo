@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #include "expressions.h"
+#include "832util.h"
 
 struct operatordef {
 	char *key;
@@ -315,17 +316,35 @@ struct expression *expression_parse(const char *str)
 }
 
 
-int expression_evaluate(struct expression *expr)
+int expression_evaluate(const struct expression *expr,const struct equate *equates)
 {
 	int result=0;
+	char *t;
 	if(expr)
 	{
-		int left=expression_evaluate(expr->left);
-		int right=expression_evaluate(expr->right);
+		int left=expression_evaluate(expr->left,equates);
+		int right=expression_evaluate(expr->right,equates);
 		switch(expr->op)
 		{
 			case OP_VALUE:
-				result=strtoul(expr->value,0,0);
+				result=strtoul(expr->value,&t,0);
+				if(t==expr->value && result==0)
+				{
+					const struct equate *equ=equates;
+					/* Not a literal value - search for an equate */
+					printf("Hunting for %s\n",expr->value);
+					while(equ)
+					{
+						if(strcmp(expr->value,equ->identifier)==0)
+						{
+							result=equ->value;
+							break;
+						}
+						equ=equ->next;
+					}
+					if(!equ)
+						asmerror("Undefined value");
+				}
 				break;
 
 			case OP_MULTIPLY:
@@ -385,19 +404,4 @@ int expression_evaluate(struct expression *expr)
 	return(result);
 }
 
-
-int main(int argc,char **argv)
-{
-	char *line="(3+_label24)+255*(4+7)&15";
-	struct linebuffer *lb1,*lb2;
-	struct expression *expr;
-	enum operator op;
-	if(argc>1)
-		line=argv[1];
-	expr=expression_parse(line);
-	expression_dumptree(expr,0);
-	printf("Evaluates to: %d\n",expression_evaluate(expr));
-	expression_delete(expr);
-	return(0);
-}
 

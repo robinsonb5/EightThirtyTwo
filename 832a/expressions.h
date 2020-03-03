@@ -1,6 +1,8 @@
 #ifndef EXPRESSIONS_H
 #define EXPRESSIONS_H
 
+#include "equates.h"
+
 enum operator {
 	OP_PARENTHESES,
 	OP_MULTIPLY,OP_DIVIDE,OP_MODULO,OP_SHLEFT,OP_SHRIGHT,
@@ -35,6 +37,7 @@ struct expression *expression_new();
 void expression_delete();
 
 struct expression *expression_parse(const char *str);
+int expression_evaluate(const struct expression *expr,const struct equate *equates);
 
 
 
