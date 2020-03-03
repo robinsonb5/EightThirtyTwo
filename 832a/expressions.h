@@ -17,7 +17,7 @@ enum optype {
 	OPTYPE_BINARY
 };
 
-struct linebuffer
+struct expr_linebuffer
 {
 	char *buf;
 	int cursor;

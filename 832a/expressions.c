@@ -55,10 +55,10 @@ FIXME - need to deal with negation and inversion.
 
 */
 
-struct linebuffer *linebuffer_new(char *buf)
+static struct expr_linebuffer *linebuffer_new(char *buf)
 {
-	struct linebuffer *result;
-	if(result=(struct linebuffer *)malloc(sizeof(struct linebuffer)))
+	struct expr_linebuffer *result;
+	if(result=(struct expr_linebuffer *)malloc(sizeof(struct expr_linebuffer)))
 	{
 		result->cursor=0;
 		result->buf=buf;
@@ -66,7 +66,7 @@ struct linebuffer *linebuffer_new(char *buf)
 	}
 }
 
-void linebuffer_delete(struct linebuffer *lb)
+static void linebuffer_delete(struct expr_linebuffer *lb)
 {
 	if(lb)
 		free(lb);
@@ -78,9 +78,9 @@ void linebuffer_delete(struct linebuffer *lb)
    And advances the cursor accordingly.
    Returns either a new linebuffer or null on failure. */
 
-struct linebuffer *linebuffer_extractsubexpr(struct linebuffer *lb)
+static struct expr_linebuffer *linebuffer_extractsubexpr(struct expr_linebuffer *lb)
 {
-	struct linebuffer *result=0;
+	struct expr_linebuffer *result=0;
 	int parencount=0;
 	int i=0;
 	int c;
@@ -115,7 +115,7 @@ struct linebuffer *linebuffer_extractsubexpr(struct linebuffer *lb)
 }
 
 
-struct operatordef *matchoperator(char *str)
+static struct operatordef *matchoperator(char *str)
 {
 	int i;
 	for(i=0;i<(sizeof(operators)/sizeof(struct operatordef));++i)
@@ -131,7 +131,7 @@ struct operatordef *matchoperator(char *str)
 }
 
 /* advance the cursor past the next operator, return the operator, and null it out. */
-enum operator expression_findoperator(struct linebuffer *lb)
+static enum operator expression_findoperator(struct expr_linebuffer *lb)
 {
 	if(lb && lb->buf)
 	{
@@ -196,9 +196,9 @@ void expression_delete(struct expression *expr)
 	Advance cursor
 */
 
-struct expression *expression_buildtree(struct linebuffer *lb);
+static struct expression *expression_buildtree(struct expr_linebuffer *lb);
 
-struct expression *expression_makeleaf(struct linebuffer *lb)
+static struct expression *expression_makeleaf(struct expr_linebuffer *lb)
 {
 	struct expression *result;
 	/* If the expression begins with brackets, extract the subexpression and build a tree from it. */
@@ -208,7 +208,7 @@ struct expression *expression_makeleaf(struct linebuffer *lb)
 
 	if(lb->buf[lb->cursor]=='(')
 	{
-		struct linebuffer *subexpr=linebuffer_extractsubexpr(lb);
+		struct expr_linebuffer *subexpr=linebuffer_extractsubexpr(lb);
 		result=expression_buildtree(subexpr);
 		linebuffer_delete(subexpr);
 		expression_findoperator(lb);
@@ -224,7 +224,7 @@ struct expression *expression_makeleaf(struct linebuffer *lb)
 }
 
 
-struct expression *expression_makerightleaf(struct expression *leftleaf,struct linebuffer *lb)
+static struct expression *expression_makerightleaf(struct expression *leftleaf,struct expr_linebuffer *lb)
 {
 	struct expression *expr,*expr2;
 	expr=expression_new();
@@ -250,7 +250,7 @@ struct expression *expression_makerightleaf(struct expression *leftleaf,struct l
 }
 
 
-struct expression *expression_buildtree(struct linebuffer *lb)
+static struct expression *expression_buildtree(struct expr_linebuffer *lb)
 {
 	struct expression *expr=0;
 	struct expression *expr2=0;
@@ -306,7 +306,7 @@ struct expression *expression_parse(const char *str)
 	if(str)
 	{
 		char *buf=strdup(str);
-		struct linebuffer *lb=linebuffer_new(buf);
+		struct expr_linebuffer *lb=linebuffer_new(buf);
 		expr=expression_buildtree(lb);
 		if(expr)
 			expr->storage=buf;

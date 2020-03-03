@@ -7,9 +7,7 @@
 int main(int argc,char **argv)
 {
 	char *line="(3+_label24)+255*(4+7)&15";
-	struct linebuffer *lb1,*lb2;
 	struct expression *expr;
-	enum operator op;
 	struct equate *equ;
 	if(argc>1)
 		line=argv[1];

@@ -10,6 +10,7 @@
 #include "objectfile.h"
 #include "section.h"
 #include "equates.h"
+#include "expressions.h"
 
 
 static char *delims=" \t:\n\r,";
@@ -130,7 +131,13 @@ void directive_liconst(struct objectfile *obj,char *tok,char *tok2,int key)
 	long v=strtol(tok,&endptr,0);
 	int chunk;
 	if(!v && endptr==tok)
-		asmerror("Invalid numeric constant");
+	{
+		struct expression *expr=expression_parse(tok);
+		expression_dumptree(expr,0);
+		v=expression_evaluate(expr,obj->equates);
+		printf("Evaluates to: %ld\n",v);
+		expression_delete(expr);
+	}
 	chunk=count_constantchunks(v);
 	debug(1,"%d chunks\n",chunk);
 	while(chunk--)
