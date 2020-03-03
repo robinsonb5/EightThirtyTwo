@@ -15,6 +15,7 @@
 
 static char *delims=" \t:\n\r,";
 
+void parsesourcefile(struct objectfile *obj,const char *fn);
 
 
 void directive_symbolflags(struct objectfile *obj,char *tok,char *tok2,int key)
@@ -177,6 +178,15 @@ void directive_common(struct objectfile *obj,char *tok,char *tok2,int key)
 }
 
 
+void directive_include(struct objectfile *obj,char *tok,char *tok2,int key)
+{
+	if(tok)
+	{
+		parsesourcefile(obj,tok);
+	}
+}
+
+
 void directive_incbin(struct objectfile *obj,char *tok,char *tok2,int key)
 {
 	char buf[512];
@@ -248,21 +258,15 @@ struct directive directives[]=
 	{".liabs",directive_reference,SYMBOLFLAG_LDABS},
 	{".lipcrel",directive_reference,SYMBOLFLAG_LDPCREL},
 	{".liconst",directive_liconst,0},
+	{".include",directive_include,0},
 	{".incbin",directive_incbin,0},
 	{0,0}
 };
 
 
-/* Attempt to assemble the named file.  Calls exit() on failure. */
-int assemble(const char *fn,const char *on)
+void parsesourcefile(struct objectfile *obj,const char *fn)
 {
 	FILE *f;
-	struct objectfile *obj;
-
-	obj=objectfile_new();
-	if(!obj)
-		return(0);
-
 	printf("Opening file %s\n",fn);
 	
 	error_setfile(fn);
@@ -304,6 +308,8 @@ int assemble(const char *fn,const char *on)
 						}
 						++d;
 					}
+					error_setfile(fn); /* This will have been changed by an include directive, so set it back */
+
 					/* Not a directive?  Interpret as an opcode... */
 					if(!directives[d].mnem)
 					{
@@ -355,6 +361,20 @@ int assemble(const char *fn,const char *on)
 	}
 	else
 		asmerror("Can't open file\n");
+}
+
+
+/* Attempt to assemble the named file.  Calls exit() on failure. */
+int assemble(const char *fn,const char *on)
+{
+	struct objectfile *obj;
+
+	obj=objectfile_new();
+	if(!obj)
+		return(0);
+
+	parsesourcefile(obj,fn);
+
 	objectfile_output(obj,on);
 	objectfile_dump(obj,1);
 	objectfile_delete(obj);
