@@ -13,7 +13,7 @@ static struct section *sectionmap_addbuiltin(struct sectionmap *map,const char *
 		sect->flags|=flags;
 		if(align)
 			section_align(sect,align);
-		section_declaresymbol(sect,id,0);
+		section_declaresymbol(sect,id,SYMBOLFLAG_GLOBAL);
 		if(map->lastbuiltin)
 			map->lastbuiltin->next=sect;
 		else

@@ -368,12 +368,6 @@ void executable_writemap(struct executable *exe,const char *fn)
 			if(sect)
 				section_writemap(sect,f);
 		}
-		sect=map->builtins;
-		while(sect)
-		{
-			section_writemap(sect,f);
-			sect=sect->next;
-		}
 		fclose(f);
 	}
 }
