@@ -314,7 +314,7 @@ void executable_save(struct executable *exe,const char *fn)
 	{
 		int i;
 		struct sectionmap *map=exe->map;
-		struct section *sect,*prev;
+		struct section *sect;
 
 		for(i=0;i<map->entrycount;++i)
 		{
@@ -359,11 +359,20 @@ void executable_writemap(struct executable *exe,const char *fn)
 	FILE *f=fopen(fn,"w");
 	if(f)
 	{
-		struct objectfile *obj=exe->objects;
-		while(obj)
+		struct sectionmap *map=exe->map;
+		struct section *sect;
+		int i;
+		for(i=0;i<map->entrycount;++i)
 		{
-			objectfile_writemap(obj,f);
-			obj=obj->next;
+			sect=map->entries[i].sect;
+			if(sect)
+				section_writemap(sect,f);
+		}
+		sect=map->builtins;
+		while(sect)
+		{
+			section_writemap(sect,f);
+			sect=sect->next;
 		}
 		fclose(f);
 	}

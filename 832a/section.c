@@ -594,14 +594,15 @@ void section_outputexe(struct section *sect,FILE *f)
 
 void section_writemap(struct section *sect,FILE *f)
 {
-	if(sect && sect->flags&SECTIONFLAG_TOUCHED)
+	if(sect)
 	{
 		struct symbol *sym;
 		fprintf(f,"%08x %s\n",sect->address,sect->identifier);
 		sym=sect->symbols;
 		while(sym)
 		{
-			fprintf(f,"%08x    %s\n",sym->address,sym->identifier);
+			if(sym->flags&SYMBOLFLAG_GLOBAL)
+				fprintf(f,"%08x    %s\n",sym->address,sym->identifier);
 			sym=sym->next;
 		}
 	}
