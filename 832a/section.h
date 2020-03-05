@@ -1,6 +1,7 @@
 #ifndef SECTION_H
 #define SECTION_H
 
+#include <stdio.h>
 #include "codebuffer.h"
 #include "symbol.h"
 #include "objectfile.h"
@@ -60,6 +61,7 @@ void section_loadchunk(struct section *sect,int bytes,FILE *f);
 void section_outputobj(struct section *sect,FILE *f);
 void section_outputexe(struct section *sect,FILE *f);
 void section_dump(struct section *sect,int untouched);
+void section_writemap(struct section *sect,FILE *f);
 
 #endif
 

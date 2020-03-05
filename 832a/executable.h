@@ -22,6 +22,7 @@ struct symbol *executable_findsymbol(struct executable *sect,const char *symname
 void executable_setbaseaddress(struct executable *exe,int baseaddress);
 void executable_link(struct executable *exe);
 void executable_save(struct executable *exe,const char *fn);
+void executable_writemap(struct executable *exe,const char *fn);
 
 void executable_dump(struct executable *exe,int untouched);
 

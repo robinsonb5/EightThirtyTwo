@@ -43,7 +43,7 @@ a.out : dhry_1.c dhry_2.c ../../Lib/hexdump.c
 	$(AS) $*.asm
 
 dhrystone.bin : $(LIBDIR)/start.o $(LIBDIR)/uart.o $(LIBDIR)/small_printf.o $(LIBDIR)/division.o $(LIBDIR)/string.o dhry_1.o dhry_2.o
-	$(LD) -o $@ $+
+	$(LD) -m $@.map -o $@ $+
 
 %.o : %.S Makefile $(LIBDIR)/start.S $(CC)
 	$(AS) $*.S

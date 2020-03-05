@@ -353,3 +353,19 @@ void executable_link(struct executable *exe)
 	executable_dump(exe,0);
 }
 
+
+void executable_writemap(struct executable *exe,const char *fn)
+{
+	FILE *f=fopen(fn,"w");
+	if(f)
+	{
+		struct objectfile *obj=exe->objects;
+		while(obj)
+		{
+			objectfile_writemap(obj,f);
+			obj=obj->next;
+		}
+		fclose(f);
+	}
+}
+

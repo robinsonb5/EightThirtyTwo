@@ -298,3 +298,18 @@ void objectfile_output(struct objectfile *obj,const char *filename)
 	}
 }
 
+
+void objectfile_writemap(struct objectfile *obj,FILE *f)
+{
+	struct section *sect;
+	if(obj)
+	{
+		sect=obj->sections;
+		while(sect)
+		{
+			section_writemap(sect,f);
+			sect=sect->next;
+		}
+	}
+}
+

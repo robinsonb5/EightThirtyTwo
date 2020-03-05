@@ -15,6 +15,7 @@ int main(int argc,char **argv)
 		fprintf(stderr,"Options:\n");
 		fprintf(stderr,"\t-o <file>\t- specify output file\n");
 		fprintf(stderr,"\t-b <number>\t- specify base address\n");
+		fprintf(stderr,"\t-m <mapfile>\t- write a map file\n");
 		fprintf(stderr,"\t-s <symbol>=<number>\t- define symbol (such as stack size)\n");
 		fprintf(stderr,"\t-d\t\t- enable debug messages\n");
 	}
@@ -24,13 +25,17 @@ int main(int argc,char **argv)
 		int nextfn=0;
 		int nextbase=0;
 		int nextsym=0;
+		int nextmap=0;
 		char *outfn="a.out";
+		char *mapfn=0;
 		struct executable *exe=executable_new();
 		if(exe)
 		{
 			for(i=1;i<argc;++i)
 			{
-				if(strncmp(argv[i],"-o",2)==0)
+				if(strncmp(argv[i],"-m",2)==0)
+					nextmap=1;
+				else if(strncmp(argv[i],"-o",2)==0)
 					nextfn=1;
 				else if(strncmp(argv[i],"-d",2)==0)
 					setdebuglevel(1);
@@ -56,6 +61,11 @@ int main(int argc,char **argv)
 				{
 					outfn=argv[i];
 					nextfn=0;
+				}
+				else if(nextmap)
+				{
+					mapfn=argv[i];
+					nextmap=0;
 				}
 				else
 				{
@@ -113,6 +123,12 @@ int main(int argc,char **argv)
 			executable_link(exe);
 			printf("Saving to %s\n",outfn);
 			executable_save(exe,outfn);
+
+			if(mapfn)
+			{
+				printf("Writing map file %s\n",mapfn);
+				executable_writemap(exe,mapfn);
+			}
 
 			executable_delete(exe);
 		}

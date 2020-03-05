@@ -1,6 +1,8 @@
 #ifndef OBJECTFILE_H
 #define OBJECTFILE_H
 
+#include <stdio.h>
+
 #include "section.h"
 #include "symbol.h"
 #include "equates.h"
@@ -31,6 +33,8 @@ void objectfile_addequate(struct objectfile *obj,const char *equname,int value);
 struct equate *objectfile_findequate(struct objectfile *obj, const char *equname);
 
 void objectfile_dump(struct objectfile *obj,int untouched);
+
+void objectfile_writemap(struct objectfile *obj,FILE *f);
 
 #endif
 
