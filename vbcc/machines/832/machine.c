@@ -158,7 +158,7 @@ static int loopid = 0;	/* must be unique for every function in a compilation uni
 static int section = -1, newobj;
 static char *codename = "\t.section\t.text\n", *dataname = "\t.section\t.data\n", *bssname =
     "\t.section\t.bss\n", *rodataname = "\t.section\t.rodata\n";
-static int sectionid;
+static int sectionid=0;
 
 /* assembly-prefixes for labels and external identifiers */
 static char *labprefix = "l", *idprefix = "_";
@@ -681,6 +681,7 @@ static void function_top(FILE * f, struct Var *v, long offset)
 	rsavesize = 0;
 	if (!special_section(f, v)) {
 		emit(f, "\t.section\t.text.%x\n", sectionid);
+		++sectionid;
 	}
 	if (v->storage_class == EXTERN) {
 		if ((v->flags & (INLINEFUNC | INLINEEXT)) != INLINEFUNC) {
@@ -1180,18 +1181,24 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		regs[c] = regsa[c];
 	pushed = 0;
 
+#if 0
 	if (!idemp) {
 		sectionid = 0;
 		if (p && p->file) {
 			int v;
 			char *c = p->file;
+			idemp = 1;
 			while (v = *c++) {
 				sectionid <<= 3;
 				sectionid ^= v;
 			}
+			printf("Created section ID %x\n",sectionid);
 		}
-		idemp = 1;
+		else
+			printf("No sectionid created (%x, %x)\n",p,p ? p->file : 0);
 	}
+#endif
+
 	for (m = p; m; m = m->next) {
 		c = m->code;
 		t = m->typf & NU;
