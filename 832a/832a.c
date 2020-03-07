@@ -226,7 +226,7 @@ void directive_equate(struct objectfile *obj,char *tok,char *tok2,int key)
 
 	value=strtoul(tok2,&endptr,0);
 	if(!value && endptr==tok2)
-		asmerror("Invalid value");
+		value=expression_evaluatestring(tok2,obj->equates);
 	
 	objectfile_addequate(obj,tok,value);
 }
