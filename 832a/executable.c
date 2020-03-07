@@ -170,12 +170,16 @@ struct symbol *executable_resolvereference(struct executable *exe,struct symbol 
 int executable_resolvereferences(struct executable *exe,struct section *sect)
 {
 	int result=1;
-	struct symbol *ref=sect->refs;
+	struct symbol *ref;
 	if(!sect)
 		return(0);
 	if(sect && (sect->flags&SECTIONFLAG_TOUCHED))
 		return(1);
 	section_touch(sect);
+
+	ref=sect->symbols;
+	if(!SYMBOL_ISREF(ref))
+		ref=symbol_nextref(ref);
 
 	while(ref)
 	{
@@ -206,7 +210,7 @@ int executable_resolvereferences(struct executable *exe,struct section *sect)
 			if(sym)
 				result&=executable_resolvereferences(exe,ref->resolve->sect);
 		}
-		ref=ref->next;
+		ref=symbol_nextref(ref);
 	}
 	return(result);
 }

@@ -23,8 +23,6 @@ struct section
 	struct codebuffer *lastcodebuffer;
 	struct symbol *symbols;
 	struct symbol *lastsymbol;
-	struct symbol *refs;
-	struct symbol *lastref;
 	struct objectfile *obj;
 	/* Used for linking */
 	int address;
@@ -45,7 +43,6 @@ struct symbol *section_getsymbol(struct section *sect, const char *symname);
 void section_declaresymbol(struct section *sect, const char *name,int flags);
 void section_addsymbol(struct section *sect, struct symbol *sym);
 
-void section_addreference(struct section *sect, struct symbol *sym);
 void section_declarereference(struct section *sect, const char *name,int flags,int offset);
 
 void section_declarecommon(struct section *sect,const char *lab,int size,int global);

@@ -34,6 +34,30 @@ void symbol_delete(struct symbol *sym)
 }
 
 
+struct symbol *symbol_nextref(struct symbol *sym)
+{
+	while(sym)
+	{
+		sym=sym->next;
+		if(sym && SYMBOL_ISREF(sym))
+			return(sym);
+	}
+	return(0);
+}
+
+
+struct symbol *symbol_nextsymbol(struct symbol *sym)
+{
+	while(sym)
+	{
+		sym=sym->next;
+		if(sym && !SYMBOL_ISREF(sym))
+			return(sym);
+	}
+	return(0);
+}
+
+
 int symbol_matchname(struct symbol *sym,const char *name)
 {
 	if(sym && name)
@@ -143,7 +167,7 @@ void symbol_dump(struct symbol *sym)
 {
 	if(sym)
 	{
-		debug(1,"%s, cursor: %d, flags: %x, offset: %d\n",sym->identifier, sym->cursor,sym->flags,sym->offset);
+		debug(1,"%s, %s, cursor: %d, flags: %x, offset: %d\n",SYMBOL_ISREF(sym) ? "REF: " : "SYM: ",sym->identifier, sym->cursor,sym->flags,sym->offset);
 		debug(1,"size %d, address %x\n",sym->size,sym->address);
 	}
 }

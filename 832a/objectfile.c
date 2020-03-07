@@ -49,14 +49,14 @@ void objectfile_load(struct objectfile *obj,const char *fn)
 	if(!f)
 		linkerror("Can't open file");
 	fread(tmp,4,1,f);
-	if(strncmp(tmp,"832\x01",4)!=0)
-		linkerror("Not an 832 object file");
+	if(strncmp(tmp,"832\x02",4)!=0)
+		linkerror("Not an 832 rev2 object file");
 
 	while(fread(tmp,4,1,f))
 	{
 		int l;
 		debug(1,"Chunk header: %s\n",tmp);
-		if(strncmp(tmp,"832\x01",4)==0)	/* Another header - probably means objects have been concatenated. */
+		if(strncmp(tmp,"832\x02",4)==0)	/* Another header - probably means objects have been concatenated. */
 			;
 		else if(strncmp(tmp,"SECT",4)==0)
 		{
@@ -102,6 +102,7 @@ void objectfile_load(struct objectfile *obj,const char *fn)
 				fread(tmp,1,1,f);
 			}
 		}
+#if 0
 		else if(strncmp(tmp,"REFS",4)==0)
 		{
 			fread(tmp,1,1,f);
@@ -124,6 +125,7 @@ void objectfile_load(struct objectfile *obj,const char *fn)
 				fread(tmp,1,1,f);
 			}
 		}
+#endif
 		else
 			linkerror("Encountered bad chunk");
 	}
@@ -287,7 +289,7 @@ void objectfile_output(struct objectfile *obj,const char *filename)
 
 		FILE *f=fopen(filename,"wb");
 		fwrite("832",3,1,f);
-		fputc(0x01,f);
+		fputc(0x02,f); /* Revision 2 file */
 
 		while(sect)
 		{

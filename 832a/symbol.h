@@ -12,6 +12,9 @@
 #define SYMBOLFLAG_CONSTANT 64
 #define SYMBOLFLAG_ALIGN 128
 
+#define SYMBOL_ISREF(x) (((x)->flags&SYMBOLFLAG_REFERENCE)|((x)->flags&SYMBOLFLAG_LDABS)\
+							|((x)->flags&SYMBOLFLAG_LDPCREL)|((x)->flags&SYMBOLFLAG_ALIGN))
+
 struct symbol
 {
 	struct symbol *next;
@@ -34,6 +37,9 @@ int symbol_matchname(struct symbol *sym,const char *name);
 void symbol_output(struct symbol *sym,FILE *f);
 
 void symbol_dump(struct symbol *sym);
+
+struct symbol *symbol_nextref(struct symbol *sym);
+struct symbol *symbol_nextsymbol(struct symbol *sym);
 
 int reference_size(struct symbol *sym);
 

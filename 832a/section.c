@@ -17,8 +17,6 @@ struct section *section_new(struct objectfile *obj,const char *name)
 		sect->lastsymbol=0;
 		sect->codebuffers=0;
 		sect->lastcodebuffer=0;
-		sect->refs=0;
-		sect->lastref=0;
 		sect->cursor=0;
 		sect->flags=0;
 		sect->obj=obj;
@@ -62,14 +60,6 @@ void section_delete(struct section *sect)
 			symbol_delete(sym);
 		}
 
-		nextsym=sect->refs;
-		while(nextsym)
-		{
-			sym=nextsym;
-			nextsym=sym->next;
-			symbol_delete(sym);
-		}
-
 		nextbuf=sect->codebuffers;
 		while(nextbuf)
 		{
@@ -101,8 +91,11 @@ struct symbol *section_findsymbol(struct section *sect,const char *symname)
 	struct symbol *sym=sect->symbols;
 	while(sym)
 	{
-		if(symbol_matchname(sym,symname))
-			return(sym);
+		if(!SYMBOL_ISREF(sym))
+		{
+			if(symbol_matchname(sym,symname))
+				return(sym);
+		}
 		sym=sym->next;
 	}
 	return(0);
@@ -176,17 +169,6 @@ void section_declareconstant(struct section *sect,const char *lab,int value,int 
 }
 
 
-void section_addreference(struct section *sect, struct symbol *sym)
-{
-	if(sect->lastref)
-		sect->lastref->next=sym;
-	else
-		sect->refs=sym;
-	sect->lastref=sym;
-	sym->sect=sect;
-}
-
-
 void section_declarereference(struct section *sect, const char *name,int flags,int offset)
 {
 	struct symbol *sym;
@@ -196,7 +178,7 @@ void section_declarereference(struct section *sect, const char *name,int flags,i
 	{
 		sym=symbol_new(name,sect->cursor,flags);
 		sym->offset=offset;
-		section_addreference(sect,sym);
+		section_addsymbol(sect,sym);
 	}
 }
 
@@ -211,7 +193,7 @@ void section_align(struct section *sect,int align)
 		   object to be aligned */
 		sym=symbol_new("algn",sect->cursor-1,SYMBOLFLAG_ALIGN);
 		sym->offset=align;
-		section_addreference(sect,sym);
+		section_addsymbol(sect,sym);
 	}
 }
 
@@ -294,13 +276,15 @@ int section_sizereferences(struct section *sect)
 	int result=0;
 	if(sect)
 	{
-		struct symbol *sym=sect->refs;
+		struct symbol *sym=sect->symbols;
+		if(sym && !SYMBOL_ISREF(sym))
+			sym=symbol_nextref(sym);
 		sect->offset=0;
 		while(sym)
 		{
 			result|=reference_size(sym);
 			sect->offset+=sym->size;
-			sym=sym->next;
+			sym=symbol_nextref(sym);
 		}
 	}
 	return(result);
@@ -309,7 +293,7 @@ int section_sizereferences(struct section *sect)
 
 int section_assignaddresses(struct section *sect,int base)
 {
-	struct symbol *ref=sect->refs;
+//	struct symbol *ref=sect->symbols;
 	struct symbol *sym=sect->symbols;
 	int cursor=0;
 	int addr=0;
@@ -329,49 +313,43 @@ int section_assignaddresses(struct section *sect,int base)
 	while(sym && sym->flags&SYMBOLFLAG_CONSTANT)
 		sym=sym->next;
 
-	while(sym || ref)
+	while(sym)
 	{
-		if(sym)
-			cursor=sym->cursor;
-		else
-			cursor=sect->cursor;
+		cursor=sym->cursor;
+
 
 		debug(1,"sym: %s, cursor %d\n",sym ? sym->identifier : "none",cursor);
 
-		while(ref && ((ref->cursor<cursor) || (cursor==sect->cursor)))
+		if(SYMBOL_ISREF(sym))
 		{
-			if(ref->flags&SYMBOLFLAG_ALIGN)
+			if(sym->flags&SYMBOLFLAG_ALIGN)
 			{
-				int alignaddr=sect->address+ref->cursor+offset+1;
+				int alignaddr=sect->address+sym->cursor+offset+1;
 				/* If this is an alignment ref, apply it rather than using a theoretical best/worst case */
-				debug(1,"Aligning %x to %d byte boundary\n",alignaddr,ref->offset);
-				alignaddr+=ref->offset-1;
-				alignaddr&=~(ref->offset-1);
-				ref->size=alignaddr-(sect->address+ref->cursor+offset+1);
-				debug(1,"  -> %x (%d)\n",alignaddr,ref->size);
-				offset+=ref->size;
+				debug(1,"Aligning %x to %d byte boundary\n",alignaddr,sym->offset);
+				alignaddr+=sym->offset-1;
+				alignaddr&=~(sym->offset-1);
+				sym->size=alignaddr-(sect->address+sym->cursor+offset+1);
+				debug(1,"  -> %x (%d)\n",alignaddr,sym->size);
+				offset+=sym->size;
 			}
 			else
 			{
-				debug(1,"  (adding ref %s [cursor %d], size %d to offset %d, making %d)\n",ref->identifier,ref->cursor,ref->size,offset,offset+ref->size);
-				offset+=ref->size;
+				debug(1,"  (adding ref %s [cursor %d], size %d to offset %d, making %d)\n",
+						sym->identifier,sym->cursor,sym->size,offset,offset+sym->size);
+				offset+=sym->size;
 			}
-			ref=ref->next;
 		}
-
-		if(sym)
+		else
 		{
-			if(!(sym->flags&SYMBOLFLAG_CONSTANT))
-			{
-				sym->address=sect->address+sym->cursor+offset;
-				debug(1,"  Assigning address %x to symbol %s\n",sym->address,sym->identifier);
-			}
-			sym=sym->next;
-
-			/* (Skip over any constant definitions.*/
-			while(sym && sym->flags&SYMBOLFLAG_CONSTANT)
-				sym=sym->next;
+			sym->address=sect->address+sym->cursor+offset;
+			debug(1,"  Assigning address %x to symbol %s\n",sym->address,sym->identifier);
 		}
+		sym=sym->next;
+
+		/* (Skip over any constant definitions.*/
+		while(sym && sym->flags&SYMBOLFLAG_CONSTANT)
+			sym=sym->next;
 	}
 	sect->offset=offset;
 
@@ -397,15 +375,6 @@ void section_dump(struct section *sect,int untouched)
 
 			debug(1,"\nSymbols:\n");
 			sym=sect->symbols;
-			while(sym)
-			{
-				debug(1,"  ");
-				symbol_dump(sym);
-				sym=sym->next;
-			}
-
-			debug(1,"\nReferences:\n");
-			sym=sect->refs;
 			while(sym)
 			{
 				debug(1,"  ");
@@ -446,16 +415,6 @@ void section_outputobj(struct section *sect,FILE *f)
 		}
 		fputc(0xff,f);
 
-		/* Output references */
-		sym=sect->refs;
-		fputs("REFS",f);
-		while(sym)
-		{
-			symbol_output(sym,f);
-			sym=sym->next;
-		}
-		fputc(0xff,f);
-
 		/* Output the binary data */
 		buf=sect->codebuffers;
 		if(buf)
@@ -484,10 +443,13 @@ void section_outputexe(struct section *sect,FILE *f)
 	int newcbcursor=0;
 	int cursor=0;
 	int newcursor=0;
-	struct symbol *ref=sect->refs;
+	struct symbol *ref=sect->symbols;
 	struct codebuffer *buffer=sect->codebuffers;
 	if(!sect)
 		return;
+
+	if(ref && !SYMBOL_ISREF(ref))
+		ref=symbol_nextref(ref);
 
 	if(sect->flags&SECTIONFLAG_BSS) /* Don't output any data for BSS. */
 		return;
@@ -585,7 +547,7 @@ void section_outputexe(struct section *sect,FILE *f)
 					write_int_le(ref->resolve->address+ref->offset,f);
 				offset+=4;
 			}
-			ref=ref->next;
+			ref=symbol_nextref(ref);
 		}
 		cursor=newcursor;
 	}
