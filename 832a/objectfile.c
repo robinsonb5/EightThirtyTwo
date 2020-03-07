@@ -89,6 +89,8 @@ void objectfile_load(struct objectfile *obj,const char *fn)
 				int offset;
 				int flags=tmp[0];
 				int cursor;
+				fread(tmp,1,1,f);	/* read second byte of flags */
+				flags|=tmp[0]<<8;
 				offset=read_int_le(f);
 				cursor=read_int_le(f);
 				read_lstr(f,tmp);
@@ -102,30 +104,6 @@ void objectfile_load(struct objectfile *obj,const char *fn)
 				fread(tmp,1,1,f);
 			}
 		}
-#if 0
-		else if(strncmp(tmp,"REFS",4)==0)
-		{
-			fread(tmp,1,1,f);
-			while(tmp[0]!=0xff)
-			{
-				int offset;
-				int flags=tmp[0];
-				int cursor;
-				offset=read_int_le(f);
-				cursor=read_int_le(f);
-				read_lstr(f,tmp);
-				debug(1,"Ref: %s, cursor %d, flags %x, offset %d\n",tmp,cursor,flags,offset);
-				sym=symbol_new(tmp,cursor,flags);
-				if(sect && sym)
-				{
-					sym->offset=offset;
-					section_addreference(sect,sym);
-				}
-
-				fread(tmp,1,1,f);
-			}
-		}
-#endif
 		else
 			linkerror("Encountered bad chunk");
 	}

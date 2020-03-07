@@ -155,7 +155,7 @@ void symbol_output(struct symbol *sym,FILE *f)
 {
 	if(sym)
 	{
-		fputc(sym->flags,f);
+		write_short_le(sym->flags,f);
 		write_int_le(sym->offset,f);
 		write_int_le(sym->cursor,f);
 		write_lstr(sym->identifier,f);
