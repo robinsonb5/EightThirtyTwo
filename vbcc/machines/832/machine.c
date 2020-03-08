@@ -532,7 +532,7 @@ static long pof2(zumax x)
 static int availreg()
 {
 	int i;
-	for(i=FIRST_GPR+SCRATCH_GPRS;i<(LAST_GPR-1);++i)
+	for(i=FIRST_GPR+RESERVED_GPRS;i<(LAST_GPR-1);++i)
 		if(regs[i]==0)
 			return(i);
 	return(0);
@@ -669,9 +669,9 @@ static void function_top(FILE * f, struct Var *v, long offset)
 	cleartempobj(f,t1);
 
 	emit(f, "\t//registers used:\n");
-	for (i = FIRST_GPR+SCRATCH_GPRS-1; i <= LAST_GPR; ++i) {
+	for (i = FIRST_GPR+RESERVED_GPRS; i <= LAST_GPR; ++i) {
 		emit(f, "\t\t//%s: %s\n", regnames[i], regused[i] ? "yes" : "no");
-		if (regused[i] && (i > FIRST_GPR) && (i <= LAST_GPR - 2))
+		if (regused[i] && (i >= (FIRST_GPR+SCRATCH_GPRS+RESERVED_GPRS)) && (i <= LAST_GPR - 2))
 			++regcount;
 	}
 
@@ -729,7 +729,7 @@ static void function_bottom(FILE * f, struct Var *v, long offset,int firsttail)
 	int i;
 
 	int regcount = 0;
-	for (i = FIRST_GPR + SCRATCH_GPRS; i <= LAST_GPR - 3; ++i) {
+	for (i = FIRST_GPR + SCRATCH_GPRS + RESERVED_GPRS; i <= LAST_GPR - 3; ++i) {
 		if (regused[i] && !regscratch[i])
 			++regcount;
 	}
@@ -866,7 +866,7 @@ int init_cg(void)
 	regsa[pc] = 1;
 	regsa[tmp] = 1;
 	regscratch[FIRST_GPR] = 0;
-	for(i=FIRST_GPR+1;i<=(FIRST_GPR+SCRATCH_GPRS);++i)
+	for(i=FIRST_GPR+RESERVED_GPRS;i<=(FIRST_GPR+SCRATCH_GPRS);++i)
 		regscratch[i] = 1;
 	regscratch[sp] = 0;
 	regscratch[pc] = 0;

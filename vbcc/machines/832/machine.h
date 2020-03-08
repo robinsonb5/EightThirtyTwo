@@ -16,6 +16,7 @@
 #define LAST_GPR (FIRST_GPR+NUM_GPRS-1)
 #define FIRST_FPR (LAST_GPR+1)
 #define LAST_FPR (FIRST_FPR+NUM_FPRS-1)
+#define RESERVED_GPRS 1
 
 /*  This struct can be used to implement machine-specific           */
 /*  addressing-modes.                                               */
