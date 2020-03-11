@@ -485,13 +485,18 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 	int matchreg;
 	emit(f, "\t\t\t\t\t// (objtotemp) flags %x \n",p->flags);
 
+	matchreg=matchtempobj(f,p,0);
+
 	if ((p->flags & (REG|DREFOBJ)) == REG) {
 		settempobj(f,reg,p,0,0);
-		emit(f, "// reg %s - don't bother matching\n", regnames[p->reg]);
+		emit(f, "// reg %s - only match against tmp\n", regnames[p->reg]);
 		if (reg == p->reg)
 			return(0);
-		emit(f,"\tmt\t%s\n",regnames[p->reg]);
-		settempobj(f,tmp,p,0,0);
+		if(matchreg!=tmp)
+		{
+			emit(f,"\tmt\t%s\n",regnames[p->reg]);
+			settempobj(f,tmp,p,0,0);
+		}
 		if(reg!=tmp)
 		{
 			emit(f, "\tmr\t%s\n", regnames[reg]);
@@ -500,7 +505,6 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 		return(0);
 	}
 
-	matchreg=matchtempobj(f,p,0);
 	if(matchreg)
 	{
 		emit(f,"\n// required value found in %s\n",regnames[matchreg]);

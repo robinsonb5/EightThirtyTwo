@@ -51,7 +51,7 @@ clean :
 	$(AS) $*.s
 
 %.bin : start.o uart.o small_printf.o division.o string.o hexdump.o %.o
-	$(LD) -o $@ $+
+	$(LD) -o $@ $+ -m map
 
 %.o : %.S Makefile $(LIBDIR)/start.S force
 	$(AS) -o $*.o $*.S

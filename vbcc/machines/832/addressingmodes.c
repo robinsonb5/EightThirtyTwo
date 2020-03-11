@@ -12,6 +12,25 @@
 
 #define AM_DEBUG 0
 
+static int is_arithmetic_bitwise(int code)
+{
+	switch(code)
+	{
+		case ADD:
+		case SUB:
+		case MULT:
+		case OR:
+		case XOR:
+		case AND:
+		case LSHIFT:
+		case RSHIFT:
+			return(1);
+			break;
+	}
+	return(0);
+}
+
+
 void am_conversions(struct IC *p)
 {
 	int c;
@@ -118,7 +137,6 @@ void am_simplify(struct IC *p)
 
 			// Check for GETRETURN followed by TEST/COMPARE of call result which is then discarded...
 			case GETRETURN:
-				p2=p->next;
 				if((p->z.flags&(REG|DREFOBJ|SCRATCH))!=(REG|SCRATCH))
 					break;
 
@@ -195,31 +213,34 @@ void am_simplify(struct IC *p)
 				if(prev)
 				{
 //					printf("TEST found, evaluating previous IC\n");
-					switch(prev->code)
+					if(is_arithmetic_bitwise(prev->code))
 					{
-						case ADD:
-						case SUB:
-						case MULT:
-						case OR:
-						case XOR:
-						case AND:
-						case LSHIFT:
-						case RSHIFT:
 //							printf("Arithmetic / bitwise IC found\n");
 //							printf("%x, %d, %x, %d\n",prev->z.flags,prev->z.reg,p->q1.flags,p->q1.reg);
-							if((prev->z.flags&(REG|DREFOBJ))==REG && ((p->q1.flags&(REG|DREFOBJ))==REG) && prev->z.reg==p->q1.reg)
-							{
+						if((prev->z.flags&(REG|DREFOBJ))==REG && ((p->q1.flags&(REG|DREFOBJ))==REG) && prev->z.reg==p->q1.reg)
+						{
 //								printf("Register match\n");
-								p->code=NOP;
-							}
-							break;
-						default:
-							break;
+							p->code=NOP;
+						}
 					}
 				}
 				break;
 
 			default:
+				if(is_arithmetic_bitwise(c) && is_arithmetic_bitwise(p2->code) && p3->code==FREEREG)
+				{
+					printf("Evaluating pair of arithmetic ops following by freereg...\n");
+					if(((p->z.flags&(REG|DREFOBJ))==REG) && ((p2->q1.flags&(REG|DREFOBJ))==REG) && ((p2->z.flags&(REG|DREFOBJ))==REG))
+					{
+						printf("Ops are all register based...\n");
+						if(p2->q1.reg==p3->q1.reg && p->z.reg==p2->q1.reg)
+						{
+							printf("So does freereg - adjusting\n");
+							p->z.reg=p2->z.reg;
+							p2->q1.reg=p2->z.reg;
+						}
+					}
+				}			
 				break;
 		}
 	}
