@@ -12,12 +12,24 @@
 
 #define AM_DEBUG 0
 
+// If the obj doesn't already have an addressing mode, create one and zero it out.
+static void am_alloc(struct obj *o)
+{
+	if (!o->am) {
+		o->am = mymalloc(sizeof(struct AddressingMode));
+		memset(o->am, 0, sizeof(struct AddressingMode));
+	}
+}
+
+
 static int is_arithmetic_bitwise(int code)
 {
 	switch(code)
 	{
 		case ADD:
+		case ADDI2P:
 		case SUB:
+		case SUBIFP:
 		case MULT:
 		case OR:
 		case XOR:
@@ -227,9 +239,11 @@ void am_simplify(struct IC *p)
 				break;
 
 			default:
+				// Look for cases where multiple arithmetic / bitwise instructions are chained and could
+				// avoid writing to an intermediate register...
 				if(is_arithmetic_bitwise(c) && is_arithmetic_bitwise(p2->code) && p3->code==FREEREG)
 				{
-					printf("Evaluating pair of arithmetic ops following by freereg...\n");
+					printf("Evaluating pair of arithmetic ops followed by freereg...\n");
 					if(((p->z.flags&(REG|DREFOBJ))==REG) && ((p2->q1.flags&(REG|DREFOBJ))==REG) && ((p2->z.flags&(REG|DREFOBJ))==REG))
 					{
 						printf("Ops are all register based...\n");
@@ -240,21 +254,32 @@ void am_simplify(struct IC *p)
 							p2->q1.reg=p2->z.reg;
 						}
 					}
-				}			
+					// FIXME - explore the lifetime of the register we've just avoided; can we
+					// avoid allocating / freeing it?  Won't help the code-generator but might be
+					// able to avoid saving / restoring it in the function head / tail.
+				}
+				else
+				{
+					// Look specificially for addt candidates...
+					if(c==ADD || c==ADDI2P)
+					{
+						if(((p->z.flags&(REG|DREFOBJ))==REG) && ((p->q1.flags&(REG|DREFOBJ))==REG) && ((p->q2.flags&(REG|DREFOBJ))==REG))
+						{
+							// All three operands are registers - are they all different?
+							if(p->z.reg!=p->q1.reg && p->z.reg!=p->q2.reg && p->q1.reg!=p->q2.reg)
+							{
+								am_alloc(&p->q1);
+								p->q1.am->type=AM_ADDT;
+								printf("Marked addt candidate\n");
+							}
+						}
+					}
+				}
 				break;
 		}
 	}
 }
 
-
-// If the obj doesn't already have an addressing mode, create one and zero it out.
-void am_alloc(struct obj *o)
-{
-	if (!o->am) {
-		o->am = mymalloc(sizeof(struct AddressingMode));
-		memset(o->am, 0, sizeof(struct AddressingMode));
-	}
-}
 
 void am_disposable(struct IC *p, struct obj *o)
 {

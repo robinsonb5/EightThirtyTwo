@@ -14,9 +14,6 @@
 // Values can also be saved to otherwise unused registers.  (The compiler is almost certainly
 // already smart enough to make use of unused registers for this, however!
 
-// Write a separate peephole utility to replace ldinc r7 constructs with PCREL immediate loads
-// where possible.
-
 // DONE: eliminate unnecessary register shuffling for compare.
 
 // DONE: Implement block copying
@@ -29,7 +26,8 @@
 
 // Minus could be optimised for the in-register case.
 
-// Do we need to reserve two temp registers?  So far I think we do, but revisit.
+// DONE: Do we need to reserve two temp registers?  Turns out one was sufficient, and giving
+// the code generator an extra one to play with helped a great deal.
 
 // Restrict byte and halfword storage to static and extern types, not stack-based variables.
 
@@ -1744,6 +1742,17 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		if ((c >= OR && c <= AND) || (c >= LSHIFT && c <= MULT)) {
 			emit(f, "\t\t\t\t\t// (bitwise/arithmetic) ");
 			emit(f, "\t//ops: %d, %d, %d\n", q1reg, q2reg, zreg);
+			if(p->q1.am && p->q1.am->type==AM_ADDT)
+			{
+				emit(f,"\t\t//Special case - addt\n");
+				// FIXME - if q2 is already in tmp could reverse this
+				emit_objtoreg(f, &p->q1, t,tmp);
+				emit(f,"\taddt\t%s\n",regnames[p->q2.reg]);
+				emit(f,"\tmr\t%s\n",regnames[p->z.reg]);
+				settempobj(f,zreg,&p->z,0,0);
+				continue;
+			}
+
 			if (involvesreg(q2) && q2reg == zreg) {
 //                      printf("Target register and q2 are the same!  Attempting a switch...\n");
 				if (switch_IC(p)) {
