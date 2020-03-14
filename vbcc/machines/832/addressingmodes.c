@@ -266,14 +266,31 @@ void am_simplify(struct IC *p)
 					// Look specificially for addt candidates...
 					if(c==ADD || c==ADDI2P)
 					{
-						if(((p->z.flags&(REG|DREFOBJ))==REG) && ((p->q1.flags&(REG|DREFOBJ))==REG) && ((p->q2.flags&(REG|DREFOBJ))==REG))
+						int zr=(p->z.flags&(REG|DREFOBJ))==REG ? 1 : 0;
+
+						printf("add %x, %x, %x, %s, %s, %s\n",p->q1.flags,p->q2.flags,p->z.flags,
+								regnames[p->q1.reg],regnames[p->q2.reg],regnames[p->z.reg]);
+						if((p->q1.flags&(REG|DREFOBJ))==REG)
 						{
-							// All three operands are registers - are they all different?
-							if(p->z.reg!=p->q1.reg && p->z.reg!=p->q2.reg && p->q1.reg!=p->q2.reg)
+							if(zr || p->z.reg!=p->q1.reg)
 							{
-								am_alloc(&p->q1);
-								p->q1.am->type=AM_ADDT;
-								printf("Marked addt candidate\n");
+								if((p->q2.flags&(REG|DREFOBJ))==REG)  // reg + reg => reg
+								{
+									// All three operands are registers - are they all different?
+									if((zr || p->z.reg!=p->q2.reg) && p->q1.reg!=p->q2.reg)
+									{
+										am_alloc(&p->q1);
+										p->q1.am->type=AM_ADDT;
+										printf("Marked addt candidate\n");
+									}
+								}
+								if((p->q2.flags&(KONST|DREFOBJ))==KONST) // reg + const => reg
+								{
+									am_alloc(&p->q1);
+									p->q1.am->type=AM_ADDT;
+									printf("Marked addt candidate\n");
+									printf("Reg + Konst => Reg\n");
+								}
 							}
 						}
 					}

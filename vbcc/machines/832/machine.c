@@ -1746,10 +1746,24 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			{
 				emit(f,"\t\t//Special case - addt\n");
 				// FIXME - if q2 is already in tmp could reverse this
-				emit_objtoreg(f, &p->q1, t,tmp);
-				emit(f,"\taddt\t%s\n",regnames[p->q2.reg]);
-				emit(f,"\tmr\t%s\n",regnames[p->z.reg]);
-				settempobj(f,zreg,&p->z,0,0);
+				if(p->q2.flags&KONST)
+				{
+					emit_prepobj(f, &p->z, t, t1, 0);
+					emit_objtoreg(f, &p->q2, t,tmp);
+					emit(f,"\taddt\t%s\n",regnames[p->q1.reg]);
+					settempobj(f,tmp,&p->z,0,0);
+					save_temp(f, p, t1);
+//					emit(f,"\tmr\t%s\n",regnames[p->z.reg]);
+				}
+				else
+				{
+					emit_prepobj(f, &p->z, t, t1, 0);
+					emit_objtoreg(f, &p->q1, t,tmp);
+					emit(f,"\taddt\t%s\n",regnames[p->q2.reg]);
+					settempobj(f,tmp,&p->z,0,0);
+					save_temp(f, p, t1);
+//					emit(f,"\tmr\t%s\n",regnames[p->z.reg]);
+				}
 				continue;
 			}
 
