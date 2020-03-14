@@ -251,8 +251,8 @@ void am_simplify(struct IC *p)
 							printf("Ops are all register based...\n");
 						if (AM_DEBUG)
 							printf("p1.q1: %s, p1.q2: %s, p1.z: %s  -  p2.q1: %s, p2.q2: %s, p2.z: %s\n",
-						regnames[p->q1.reg],regnames[p->q2.reg],regnames[p->z.reg],
-						regnames[p2->q1.reg],regnames[p2->q2.reg],regnames[p2->z.reg]);
+								regnames[p->q1.reg],regnames[p->q2.reg],regnames[p->z.reg],
+								regnames[p2->q1.reg],regnames[p2->q2.reg],regnames[p2->z.reg]);
 						if(p2->q1.reg==p3->q1.reg && p->z.reg==p2->q1.reg && p2->q1.reg!=p2->z.reg && p2->q2.reg!=p2->z.reg)
 						{
 							if (AM_DEBUG)
@@ -287,6 +287,7 @@ void am_simplify(struct IC *p)
 										p->q1.am->type=AM_ADDT;
 										if (AM_DEBUG)
 											printf("Marked addt candidate\n");
+									}
 								}
 								if((p->q2.flags&(KONST|DREFOBJ))==KONST) // reg + const => reg
 								{
