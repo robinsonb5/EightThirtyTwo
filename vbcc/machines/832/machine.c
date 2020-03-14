@@ -1776,8 +1776,15 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			else {
 				if (c == RSHIFT || c==MULT)	// Modify right shift operations with appropriate signedness...
 				{
+					printf("q1typ: %x, q2typ: %x, ztyp: %x\n",q1typ(p),q2typ(p),ztyp(p));
 					if (!(t & UNSIGNED))
-						emit(f, "\tsgn\n");
+					{
+						// Evaluate q1 - if we're dealing with a constant that doesn't have bit 31 set we don't need sgn...
+						if((!(p->typf2 & UNSIGNED) && c==RSHIFT) 
+									|| (p->q1.flags&(KONST|DREFOBJ)!=KONST)
+											|| (val2zmax(&p->q1,p->typf)&0x80000000))
+							emit(f, "\tsgn\n");
+					}
 				}
 				emit(f, "\t%s\t%s\n", arithmetics[c - LSHIFT], regnames[zreg]);
 				if(c==MULT)

@@ -7,7 +7,7 @@ To do:
 	tempreg logic should be correct - now it's up to machine.c to make good use of it.
 */
 
-zmax val2zmax(FILE * f, struct obj *o, int t)
+zmax val2zmax(struct obj *o, int t)
 {
 	union atyps *p = &o->val;
 	t &= NU;
@@ -242,10 +242,10 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 		/* Dereferencing a pointer */
 		if (p->flags & KONST) {
 			emit(f, "\t\t\t// const\n");
-			emit_constanttotemp(f, val2zmax(f, p, p->dtyp) + offset);
+			emit_constanttotemp(f, val2zmax(p, p->dtyp) + offset);
 			if (reg != tmp)
 				emit(f, "\tmr\t%s\n", regnames[reg]);
-			settempkonst(f,reg,val2zmax(f, p, p->dtyp) + offset);
+			settempkonst(f,reg,val2zmax(p, p->dtyp) + offset);
 		} else if (p->flags & REG) {
 			if (reg == tmp)
 			{
@@ -633,7 +633,7 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 			}
 		} else if (p->flags & KONST) {
 			emit(f, "// const\n");
-			emit_constanttotemp(f, val2zmax(f, p, t));
+			emit_constanttotemp(f, val2zmax(p, t));
 		} else {
 			printf("Objtotemp: unknown flags %d\n", p->flags);
 			ierror(0);
