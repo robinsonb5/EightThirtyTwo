@@ -243,16 +243,20 @@ void am_simplify(struct IC *p)
 				// avoid writing to an intermediate register...
 				if(is_arithmetic_bitwise(c) && is_arithmetic_bitwise(p2->code) && p3->code==FREEREG)
 				{
-					printf("Evaluating pair of arithmetic ops followed by freereg...\n");
+					if (AM_DEBUG)
+						printf("Evaluating pair of arithmetic ops followed by freereg...\n");
 					if(((p->z.flags&(REG|DREFOBJ))==REG) && ((p2->q1.flags&(REG|DREFOBJ))==REG) && ((p2->z.flags&(REG|DREFOBJ))==REG))
 					{
-						printf("Ops are all register based...\n");
-						printf("p1.q1: %s, p1.q2: %s, p1.z: %s  -  p2.q1: %s, p2.q2: %s, p2.z: %s\n",
-							regnames[p->q1.reg],regnames[p->q2.reg],regnames[p->z.reg],
-							regnames[p2->q1.reg],regnames[p2->q2.reg],regnames[p2->z.reg]);
+						if (AM_DEBUG)
+							printf("Ops are all register based...\n");
+						if (AM_DEBUG)
+							printf("p1.q1: %s, p1.q2: %s, p1.z: %s  -  p2.q1: %s, p2.q2: %s, p2.z: %s\n",
+						regnames[p->q1.reg],regnames[p->q2.reg],regnames[p->z.reg],
+						regnames[p2->q1.reg],regnames[p2->q2.reg],regnames[p2->z.reg]);
 						if(p2->q1.reg==p3->q1.reg && p->z.reg==p2->q1.reg && p2->q1.reg!=p2->z.reg && p2->q2.reg!=p2->z.reg)
 						{
-							printf("Freereg matches - adjusting\n");
+							if (AM_DEBUG)
+								printf("Freereg matches - adjusting\n");
 							p->z.reg=p2->z.reg;
 							p2->q1.reg=p2->z.reg;
 						}
@@ -268,8 +272,8 @@ void am_simplify(struct IC *p)
 					{
 						int zr=(p->z.flags&(REG|DREFOBJ))==REG ? 1 : 0;
 
-						printf("add %x, %x, %x, %s, %s, %s\n",p->q1.flags,p->q2.flags,p->z.flags,
-								regnames[p->q1.reg],regnames[p->q2.reg],regnames[p->z.reg]);
+//						printf("add %x, %x, %x, %s, %s, %s\n",p->q1.flags,p->q2.flags,p->z.flags,
+//								regnames[p->q1.reg],regnames[p->q2.reg],regnames[p->z.reg]);
 						if((p->q1.flags&(REG|DREFOBJ))==REG)
 						{
 							if(zr || p->z.reg!=p->q1.reg)
@@ -281,15 +285,18 @@ void am_simplify(struct IC *p)
 									{
 										am_alloc(&p->q1);
 										p->q1.am->type=AM_ADDT;
-										printf("Marked addt candidate\n");
-									}
+										if (AM_DEBUG)
+											printf("Marked addt candidate\n");
 								}
 								if((p->q2.flags&(KONST|DREFOBJ))==KONST) // reg + const => reg
 								{
 									am_alloc(&p->q1);
 									p->q1.am->type=AM_ADDT;
-									printf("Marked addt candidate\n");
-									printf("Reg + Konst => Reg\n");
+									if (AM_DEBUG)
+									{
+										printf("Marked addt candidate\n");
+										printf("Reg + Konst => Reg\n");
+									}
 								}
 							}
 						}
