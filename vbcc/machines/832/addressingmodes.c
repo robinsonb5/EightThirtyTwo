@@ -276,7 +276,7 @@ void am_simplify(struct IC *p)
 //								regnames[p->q1.reg],regnames[p->q2.reg],regnames[p->z.reg]);
 						if((p->q1.flags&(REG|DREFOBJ))==REG)
 						{
-							if(zr || p->z.reg!=p->q1.reg)
+							if(!zr || p->z.reg!=p->q1.reg)
 							{
 								if((p->q2.flags&(REG|DREFOBJ))==REG)  // reg + reg => reg
 								{
