@@ -2,6 +2,9 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
+library work;
+use work.eightthirtytwo_pkg.all;
+
 -- FIXME - add sign extension and zeroing of upper bits for byte or halfword loads
 
 entity eightthirtytwo_fetchloadstore is
@@ -19,14 +22,14 @@ port
 
 	-- cpu fetch interface
 
-	pc : in std_logic_vector(31 downto 0);
+	pc : in std_logic_vector(e32_pc_maxbit downto 0);
 	pc_req : in std_logic;
 	opcode : out std_logic_vector(7 downto 0);
 	opcode_valid : out std_logic;
 
 	-- fetch interface for second thread
 
-	pc2 : in std_logic_vector(31 downto 0) := (others=>'0');
+	pc2 : in std_logic_vector(e32_pc_maxbit downto 0) := (others=>'0');
 	pc2_req : in std_logic := '0';
 	opcode2 : out std_logic_vector(7 downto 0);
 	opcode2_valid : out std_logic;
@@ -171,7 +174,8 @@ begin
 		if pc_req='1' then	-- PC has changed - could happen while fetching...
 			fetch_ram_req<='1';
 			if prefetch=true then
-				fetch_addr<=pc(31 downto 2);
+				fetch_addr(31 downto e32_pc_maxbit+1)<=(others=>'0');
+				fetch_addr(e32_pc_maxbit downto 2)<=pc(e32_pc_maxbit downto 2);
 			end if;
 			opcodebuffer_valid<="00"; -- Invalidate both halves of the buffer.
 			if fetch_ram_req='1' then -- and ram_ack='0' then
@@ -255,7 +259,8 @@ begin
 
 		if pc2_req='1' then	-- PC has changed - could happen while fetching...
 			fetch2_ram_req<='1';
-			fetch2_addr<=pc2(31 downto 2);
+			fetch2_addr(31 downto e32_pc_maxbit+1)<=(others=>'0');
+			fetch2_addr(e32_pc_maxbit downto 2)<=pc2(e32_pc_maxbit downto 2);
 			opcodebuffer2_valid<="00"; -- Invalidate both halves of the buffer.
 			if fetch2_ram_req='1' then -- and ram_ack='0' then
 				fetch2_abort<='1';
@@ -306,7 +311,8 @@ begin
 						ram_req_r<='1';
 						ls_state<=LS_FETCH;
 					elsif fetch_ram_req='1' and prefetch=false then
-						ram_addr_r<=pc(31 downto 2);
+						ram_addr_r(31 downto e32_pc_maxbit+1)<=(others=>'0');
+						ram_addr_r(e32_pc_maxbit downto 2)<=pc(e32_pc_maxbit downto 2);
 						ram_req_r<='1';
 						ls_state<=LS_FETCH;
 					elsif fetch2_ram_req='1' and dualthread=true and prefetch=true then
@@ -314,7 +320,8 @@ begin
 						ram_req_r<='1';
 						ls_state<=LS_FETCH2;
 					elsif fetch2_ram_req='1' and dualthread=true and prefetch=false then
-						ram_addr_r<=pc2(31 downto 2);
+						ram_addr_r(31 downto e32_pc_maxbit+1)<=(others=>'0');
+						ram_addr_r(e32_pc_maxbit downto 2)<=pc2(e32_pc_maxbit downto 2);
 						ram_req_r<='1';
 						ls_state<=LS_FETCH2;
 					elsif ls_req='1' then

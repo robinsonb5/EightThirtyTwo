@@ -232,13 +232,11 @@ port map
 
 	-- cpu fetch interface
 
-	pc(31 downto e32_pc_maxbit+1) => (others => '0'),
 	pc(e32_pc_maxbit downto 0) => thread.pc,
 	pc_req => thread.setpc,
 	opcode => thread.f_op,
 	opcode_valid => thread.f_op_valid,
 
-	pc2(31 downto e32_pc_maxbit+1) => (others => '0'),
 	pc2(e32_pc_maxbit downto 0) => thread2.pc,
 	pc2_req => thread2.setpc,
 	opcode2 => thread2.f_op,
@@ -284,7 +282,6 @@ port map
 
 	-- cpu fetch interface
 
-	pc(31 downto e32_pc_maxbit+1) => (others => '0'),
 	pc(e32_pc_maxbit downto 0) => thread.pc,
 	pc_req => thread.setpc,
 	opcode => thread.f_op,
