@@ -76,7 +76,7 @@ long            Microseconds,
                 
 /* end of variables for time measurement */
 
-int             Number_Of_Runs = 4;
+int             Number_Of_Runs = 10;
 
 
 volatile long _readMilliseconds()
