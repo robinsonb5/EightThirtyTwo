@@ -604,7 +604,7 @@ void save_temp(FILE * f, struct IC *p, int treg)
 				cleartempobj(f,treg);
 			}
 			else if ((p->z.am && p->z.am->disposable)
-				 || (treg != p->z.reg))
+				 || (treg == t1))
 			{
 				emit(f, "\tstbinc\t%s\n//Disposable, postinc doesn't matter.\n", regnames[treg]);
 				cleartempobj(f,treg);
@@ -1153,6 +1153,19 @@ void gen_dc(FILE * f, int t, struct const_list *p)
 }
 
 
+/* Convenience function to determine whether we're assigning to 0(r6)
+   and can thus use a more efficient writing sequence. */
+int isztopstackslot(struct IC *p, int t)
+{
+	if(p->z.v && isauto(p->z.v->storage_class)
+			&& !(p->z.flags&DREFOBJ)
+//			&& (t==INT || t==LONG || t==POINTER)
+			&& real_offset(&p->z)==0)
+		return(1);
+	else
+		return(0);
+}
+
 /*  The main code-generation routine.                   */
 /*  f is the stream the code should be written to.      */
 /*  p is a pointer to a doubly linked list of ICs       */
@@ -1416,23 +1429,30 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					// and then truncated by a write to memory we don't need to worry.
 					if(!isreg(q1) || !isreg(z) || q1reg!=zreg) // Do we just need to mask in place, or move the value first?
 					{
-						emit_prepobj(f, &p->z, t, t1, 0);
+						if(isztopstackslot(p,t))
+							zreg=sp;
+						else
+						{
+							zreg=t1;
+							emit_prepobj(f, &p->z, t, t1, 0);
+						}
 						emit_objtoreg(f, &p->q1, t,tmp);
-						save_temp(f, p, t1);
+						save_temp(f, p, zreg);
 					}
-					switch(ztyp(p)&NQ) {
-						case SHORT:
-							emit_constanttotemp(f, 0xffff);
-							emit(f, "\tand\t%s\n", regnames[zreg]);
-							break;
-						case CHAR:
-							emit_constanttotemp(f, 0xff);
-							emit(f, "\tand\t%s\n", regnames[zreg]);
-							break;
-						default:
-							emit(f,"\t\t\t\t\t//No need to mask - same size\n");
-							break;
-					}
+					else
+						switch(ztyp(p)&NQ) {
+							case SHORT:
+								emit_constanttotemp(f, 0xffff);
+								emit(f, "\tand\t%s\n", regnames[zreg]);
+								break;
+							case CHAR:
+								emit_constanttotemp(f, 0xff);
+								emit(f, "\tand\t%s\n", regnames[zreg]);
+								break;
+							default:
+								emit(f,"\t\t\t\t\t//No need to mask - same size\n");
+								break;
+						}
 					cleartempobj(f,zreg);
 				}
 			}
@@ -1579,9 +1599,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				else
 				{
 					// Special case moving a value to 0(r6)
-					if(p->z.v && isauto(p->z.v->storage_class)
-						&& !(p->z.flags&DREFOBJ)
-						&& (t==INT || t==POINTER) && real_offset(&p->z)==0)
+					if(isztopstackslot(p,t))
 					{
 						emit_objtoreg(f, &p->q1, t, tmp);
 						save_temp(f, p, sp);
@@ -1758,20 +1776,34 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				// FIXME - if q2 is already in tmp could reverse this
 				if(p->q2.flags&KONST)
 				{
-					emit_prepobj(f, &p->z, t, t1, 0);
+					if(isztopstackslot(p,t))
+						zreg=sp;
+					else
+					{
+						zreg=t1;
+						emit_prepobj(f, &p->z, t, t1, 0);
+					}
+
 					emit_objtoreg(f, &p->q2, t,tmp);
 					emit(f,"\taddt\t%s\n",regnames[p->q1.reg]);
 					settempobj(f,tmp,&p->z,0,0);
-					save_temp(f, p, t1);
+					save_temp(f, p, zreg);
 //					emit(f,"\tmr\t%s\n",regnames[p->z.reg]);
 				}
 				else
 				{
-					emit_prepobj(f, &p->z, t, t1, 0);
+					if(isztopstackslot(p,t))
+						zreg=sp;
+					else
+					{
+						zreg=t1;
+						emit_prepobj(f, &p->z, t, t1, 0);
+					}
+
 					emit_objtoreg(f, &p->q1, t,tmp);
 					emit(f,"\taddt\t%s\n",regnames[p->q2.reg]);
 					settempobj(f,tmp,&p->z,0,0);
-					save_temp(f, p, t1);
+					save_temp(f, p, zreg);
 //					emit(f,"\tmr\t%s\n",regnames[p->z.reg]);
 				}
 				continue;
