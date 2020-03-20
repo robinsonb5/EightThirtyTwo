@@ -12,7 +12,7 @@
 // its address.
 // Also track via addressing-mode analysis whether or not it's valuable to save a value;
 // Values can also be saved to otherwise unused registers.  (The compiler is almost certainly
-// already smart enough to make use of unused registers for this, however!
+// already smart enough to make use of unused registers for this, however!)
 
 // DONE: eliminate unnecessary register shuffling for compare.
 
@@ -1578,10 +1578,20 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				}
 				else
 				{
-					int matchreg;
-					emit_prepobj(f, &p->z, t, t1, 0);
-					emit_objtoreg(f, &p->q1, t, tmp);
-					save_temp(f, p, t1);
+					// Special case moving a value to 0(r6)
+					if(p->z.v && isauto(p->z.v->storage_class)
+						&& !(p->z.flags&DREFOBJ)
+						&& (t==INT || t==POINTER) && real_offset(&p->z)==0)
+					{
+						emit_objtoreg(f, &p->q1, t, tmp);
+						save_temp(f, p, sp);
+					}
+					else
+					{
+						emit_prepobj(f, &p->z, t, t1, 0);
+						emit_objtoreg(f, &p->q1, t, tmp);
+						save_temp(f, p, t1);
+					}
 				}
 			}
 			continue;
