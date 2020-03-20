@@ -1157,13 +1157,16 @@ void gen_dc(FILE * f, int t, struct const_list *p)
    and can thus use a more efficient writing sequence. */
 int isztopstackslot(struct IC *p, int t)
 {
-	if(p->z.v && isauto(p->z.v->storage_class)
-			&& !(p->z.flags&DREFOBJ)
-//			&& (t==INT || t==LONG || t==POINTER)
-			&& real_offset(&p->z)==0)
-		return(1);
-	else
+	if(!p)
 		return(0);
+	if(p->z.v && (p->z.flags&(VAR|REG|DREFOBJ))==VAR)
+	{
+		printf("p: %lx, z.v: %lx\n",p,p->z.v);
+		if(isauto(p->z.v->storage_class)
+				&& real_offset(&p->z)==0)
+			return(1);
+	}
+	return(0);
 }
 
 /*  The main code-generation routine.                   */
