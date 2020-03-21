@@ -38,6 +38,8 @@
 
 #include "supp.h"
 
+#define DBGMSG 0
+
 static char FILE_[] = __FILE__;
 
 /*  Public data that MUST be there.                             */
@@ -353,7 +355,8 @@ int matchobj(FILE *f,struct obj *o1,struct obj *o2,int varadr)
 
 	if(isauto(o1->v->storage_class) && isauto(o2->v->storage_class))
 	{
-		emit(f,"//auto: flags: %x, comparing %d, %d with %d, %d\n",flg,o1->v->offset,o1->val.vlong, o2->v->offset,o2->val.vlong);
+		if(DBGMSG)
+			emit(f,"//auto: flags: %x, comparing %d, %d with %d, %d\n",flg,o1->v->offset,o1->val.vlong, o2->v->offset,o2->val.vlong);
 		if((o1->v->offset<0 && o2->v->offset>0) || (o1->v->offset>0 && o2->v->offset<0))
 			return(0);
 		if(o1->v->offset==o2->v->offset && o1->val.vlong==o2->val.vlong)
@@ -365,7 +368,8 @@ int matchobj(FILE *f,struct obj *o1,struct obj *o2,int varadr)
 
 	if(isextern(o1->v->storage_class) && isextern(o2->v->storage_class))
 	{
-		emit(f,"//extern: comparing %d with %d\n",o1->val.vlong, o2->val.vlong);
+		if(DBGMSG)
+			emit(f,"//extern: comparing %d with %d\n",o1->val.vlong, o2->val.vlong);
 		if(strcmp(o1->v->identifier,o2->v->identifier))
 			return(0);
 		if(o1->val.vlong==o2->val.vlong)
@@ -416,7 +420,8 @@ int matchtempobj(FILE *f,struct obj *o,int varadr)
 		else if(hit==2)
 		{
 			int offset=matchoffset(o,&tempobjs[1].o);
-			emit(f,"//Fuzzy match found, offset: %d (varadr: %d)\n",offset,varadr);
+			if(DBGMSG)
+				emit(f,"//Fuzzy match found, offset: %d (varadr: %d)\n",offset,varadr);
 			emit_constanttotemp(f,offset);
 			emit(f,"\tadd\t%s\n",regnames[tempobjs[1].reg]);
 			settempobj(f,tempobjs[1].reg,o,0,0);
@@ -442,7 +447,8 @@ int matchtempkonst(FILE *f,int k)
 static void store_reg(FILE * f, int r, struct obj *o, int type)
 {
 	// Need to take different types into account here.
-	emit(f, "// Store_reg to type 0x%x\n", type);
+	if(DBGMSG)
+		emit(f, "// Store_reg to type 0x%x\n", type);
 
 	type &= NQ;		// Filter out unsigned, etc.
 
@@ -585,17 +591,20 @@ static struct IC *preload(FILE * f, struct IC *p)
 /* Guaranteed not to touch t1/t2 unless nominated. */
 void save_temp(FILE * f, struct IC *p, int treg)
 {
-	emit(f, "\t\t\t\t\t// (save temp) ");
+	if(DBGMSG)
+		emit(f, "\t\t\t\t\t// (save temp) ");
 	int type = ztyp(p) & NQ;
 
 	if (isreg(z)) {
-		emit(f, "isreg\n");
+		if(DBGMSG)
+			emit(f, "isreg\n");
 		emit(f, "\tmr\t%s\n", regnames[p->z.reg]);
 	} else {
 		if ((p->z.flags & DREFOBJ) && (p->z.flags & REG))
 			treg = p->z.reg;
 
-		emit(f, "store\n");
+		if(DBGMSG)
+			emit(f, "store\n");
 		switch (type) {
 		case CHAR:
 			if (p->z.am && p->z.am->type == AM_POSTINC)
@@ -631,15 +640,18 @@ void save_temp(FILE * f, struct IC *p, int treg)
 			break;
 		}
 	}
-	emit(f, "\t\t\t\t//save_temp done\n");
+	if(DBGMSG)
+		emit(f, "\t\t\t\t//save_temp done\n");
 }
 
 /* save the result (in zreg) into p->z */
 void save_result(FILE * f, struct IC *p)
 {
-	emit(f, "\t\t\t\t\t// (save result) ");
+	if(DBGMSG)
+		emit(f, "\t\t\t\t\t// (save result) ");
 	if (isreg(z)) {
-		emit(f, "// isreg\n");
+		if(DBGMSG)
+			emit(f, "// isreg\n");
 		if (p->z.reg != zreg)
 		{
 			emit(f, "\tmt\t%s\n\tmr\t%s\n", regnames[zreg], regnames[p->z.reg]);
@@ -666,11 +678,14 @@ static void function_top(FILE * f, struct Var *v, long offset)
 	cleartempobj(f,tmp);
 	cleartempobj(f,t1);
 
-	emit(f, "\t//registers used:\n");
-	for (i = FIRST_GPR+RESERVED_GPRS; i <= LAST_GPR; ++i) {
-		emit(f, "\t\t//%s: %s\n", regnames[i], regused[i] ? "yes" : "no");
-		if (regused[i] && (i >= (FIRST_GPR+SCRATCH_GPRS+RESERVED_GPRS)) && (i <= LAST_GPR - 2))
-			++regcount;
+	if(DBGMSG)
+	{
+		emit(f, "\t//registers used:\n");
+		for (i = FIRST_GPR+RESERVED_GPRS; i <= LAST_GPR; ++i) {
+			emit(f, "\t\t//%s: %s\n", regnames[i], regused[i] ? "yes" : "no");
+			if (regused[i] && (i >= (FIRST_GPR+SCRATCH_GPRS+RESERVED_GPRS)) && (i <= LAST_GPR - 2))
+				++regcount;
+		}
 	}
 
 // Emit ctor / dtor tables
@@ -1278,12 +1293,14 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			continue;
 		}
 		if (c == ALLOCREG) {
-			emit(f, "\t\t\t\t// allocreg %s\n", regnames[p->q1.reg]);
+			if(DBGMSG)
+				emit(f, "\t\t\t\t// allocreg %s\n", regnames[p->q1.reg]);
 			regs[p->q1.reg] = 1;
 			continue;
 		}
 		if (c == FREEREG) {
-			emit(f, "\t\t\t\t// freereg %s\n", regnames[p->q1.reg]);
+			if(DBGMSG)
+				emit(f, "\t\t\t\t// freereg %s\n", regnames[p->q1.reg]);
 			regs[p->q1.reg] = 0;
 			continue;
 		}
@@ -1295,7 +1312,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			continue;
 		}
 
-		if (p->file)
+		if (DBGMSG && p->file)
 			emit(f, "\n\t//%s, line %d\n", p->file, p->line);
 
 		// OK
@@ -1328,7 +1345,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				}
 			}
 			emit(f, "\tcond\t%s\n",ccs[c - BEQ]);
-			emit(f, "\t\t\t\t\t//conditional branch %s",reversecmp ? "reversed" : "regular");
+			if(DBGMSG)
+				emit(f, "\t\t\t\t\t//conditional branch %s",reversecmp ? "reversed" : "regular");
 			reversecmp=0;
 			emit_pcreltotemp(f, labprefix, t);	// FIXME - double-check that we shouldn't include an offset here.
 			emit(f, "\t\tadd\tr7\n");
@@ -1374,21 +1392,25 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 //			emit(f, "// Matching objs found\n", p->prev->code,&p->prev->q1.v);
 
 		if (c == CONVERT) {
-			emit(f, "\t\t\t\t\t//FIXME convert\n");
+			if(DBGMSG)
+				emit(f, "\t\t\t\t\t//FIXME convert\n");
 			if (ISFLOAT(q1typ(p)) || ISFLOAT(ztyp(p))) {
 				printf("Float not yet supported\n");
 				ierror(0);
 			}
 			if (sizetab[q1typ(p) & NQ] < sizetab[ztyp(p) & NQ]) {
-				emit(f,"\t//Converting to wider type...\n");
+				if(DBGMSG)
+					emit(f,"\t//Converting to wider type...\n");
 				int shamt = 0;
 				emit_objtoreg(f, &p->q1, q1typ(p), zreg);
 				switch (q1typ(p) & NU) {
 					case CHAR | UNSIGNED:
-						emit(f,"\t//But unsigned, so no need to extend\n");
+						if(DBGMSG)
+							emit(f,"\t//But unsigned, so no need to extend\n");
 						break;
 					case SHORT | UNSIGNED:
-						emit(f,"\t//But unsigned, so no need to extend\n");
+						if(DBGMSG)
+							emit(f,"\t//But unsigned, so no need to extend\n");
 						break;
 					case CHAR:
 						emit_constanttotemp(f,0xffffff80);
@@ -1404,7 +1426,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				cleartempobj(f,zreg);
 				save_result(f, p);
 			} else if(sizetab[q1typ(p) & NQ] >= sizetab[ztyp(p) & NQ]) {	// Reducing the size, must mask off excess bits...
-				emit(f,"\t\t\t\t\t// (convert - reducing type %x to %x\n",q1typ(p),ztyp(p));
+				if(DBGMSG)
+					emit(f,"\t\t\t\t\t// (convert - reducing type %x to %x\n",q1typ(p),ztyp(p));
 
 				// If Z is not a register then we're storing a halfword or byte, and thus don't need to mask...
 				if(((p->q1.flags&(REG|DREFOBJ))==REG) && !(p->z.flags&REG)) {	// Use stmpdec if q1 is already in a register...
@@ -1462,7 +1485,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		}
 
 		if (c == KOMPLEMENT) {
-			emit(f, "\t\t\t\t\t//comp\n");
+			if(DBGMSG)
+				emit(f, "\t\t\t\t\t//comp\n");
 			emit_objtoreg(f, &p->q1, q1typ(p), zreg);
 			emit_constanttotemp(f,-1);
 			emit(f, "\txor\t%s\n", regnames[zreg]);
@@ -1472,19 +1496,22 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		}
 		// May not need to actually load the register here - certainly check before emitting code.
 		if (c == SETRETURN) {
-			emit(f, "\t\t\t\t\t//setreturn\n");
+			if(DBGMSG)
+				emit(f, "\t\t\t\t\t//setreturn\n");
 			emit_objtoreg(f, &p->q1, q1typ(p), zreg);
 			BSET(regs_modified, p->z.reg);
 			continue;
 		}
 		// Investigate - May not be needed for register mode?
 		if (c == GETRETURN) {
-			emit(f, "\t\t\t\t\t// (getreturn)");
+			if(DBGMSG)
+				emit(f, "\t\t\t\t\t// (getreturn)");
 			if (p->q1.reg) {
 				zreg = p->q1.reg;
 				save_result(f, p);
 			} else {
-				emit(f, " not reg\n");
+				if(DBGMSG)
+					emit(f, " not reg\n");
 				p->z.flags = 0;
 			}
 			continue;
@@ -1492,7 +1519,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		// OK - figure out what the bvunite stuff is all about.
 		if (c == CALL) {
 			int reg;
-			emit(f, "\t\t\t\t\t//call\n");
+			if(DBGMSG)
+				emit(f, "\t\t\t\t\t//call\n");
 			if ((p->q1.flags & (VAR | DREFOBJ)) == VAR && p->q1.v->fi && p->q1.v->fi->inline_asm) {
 				emit_inline_asm(f, p->q1.v->fi->inline_asm);
 				cleartempobj(f,t1);
@@ -1551,18 +1579,21 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		// Basically OK.
 		if (c == PUSH) {
 			int matchreg;
-			emit(f, "\t\t\t\t\t// (a/p push)\n");
+			if(DBGMSG)
+				emit(f, "\t\t\t\t\t// (a/p push)\n");
 
 			/* Handle composite types */
 		    if((t & NQ) > POINTER || ((t & NQ) == CHAR && zm2l(p->q2.val.vmax) != 1)) {
-				emit(f,"\t\t\t\t// Pushing composite type - size %d, pushed size %d\n",opsize(p),pushsize(p));
+				if(DBGMSG)
+					emit(f,"\t\t\t\t// Pushing composite type - size %d, pushed size %d\n",opsize(p),pushsize(p));
 				emit_inlinepush(f,p,t);
 				pushed += pushsize(p);
 			}
 			else
 			{
 				/* FIXME - need to take dt into account */
-				emit(f, "\t\t\t\t\t// a: pushed %ld, regnames[sp] %s\n", pushed, regnames[sp]);
+				if(DBGMSG)
+					emit(f, "\t\t\t\t\t// a: pushed %ld, regnames[sp] %s\n", pushed, regnames[sp]);
 				emit_objtoreg(f, &p->q1, t, tmp);
 				emit(f, "\tstdec\t%s\n", regnames[sp]);
 				pushed += pushsize(p);
@@ -1571,7 +1602,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		}
 
 		if (c == ASSIGN) {
-			emit(f, "\t\t\t\t\t// (a/p assign)\n");
+			if(DBGMSG)
+				emit(f, "\t\t\t\t\t// (a/p assign)\n");
 			if (((t & NQ) == STRUCT) || ((t & NQ) == UNION)
 			    || ((t & NQ) == CHAR && opsize(p) != 1)) {
 				emit_inlinememcpy(f,p,t);
@@ -1618,14 +1650,16 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		}
 		// Seems to work.
 		if (c == ADDRESS) {
-			emit(f, "\t\t\t\t\t// (address)\n");
+			if(DBGMSG)
+				emit(f, "\t\t\t\t\t// (address)\n");
 			emit_prepobj(f, &p->q1, POINTER, zreg, 0);
 			save_result(f, p);
 			continue;
 		}
 		// OK
 		if (c == MINUS) {
-			emit(f, "\t\t\t\t\t// (minus)\n");
+			if(DBGMSG)
+				emit(f, "\t\t\t\t\t// (minus)\n");
 			emit_objtoreg(f, &p->q1, q1typ(p), zreg);
 			emit_constanttotemp(f,0);
 			emit(f, "\texg %s\n\tsub %s\n", regnames[zreg], regnames[zreg]);
@@ -1636,7 +1670,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		// Compare - #
 		// Revisit
 		if (c == TEST) {
-			emit(f, "\t\t\t\t\t// (test)\n");
+			if(DBGMSG)
+				emit(f, "\t\t\t\t\t// (test)\n");
 			if(!emit_objtoreg(f, &p->q1, t, tmp))	// Only need Z flag - did emit_objtotemp set it?
 			{
 				if (p->q1.flags & REG) {
@@ -1652,15 +1687,18 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		// Compare
 		// Revisit
 		if (c == COMPARE) {
-			emit(f, "\t\t\t\t\t// (compare)");
-			if (q1typ(p) & UNSIGNED)
-				emit(f, " (q1 unsigned)");
-			else
-				emit(f, " (q1 signed)");
-			if (q2typ(p) & UNSIGNED)
-				emit(f, " (q2 unsigned)");
-			else
-				emit(f, " (q2 signed)");
+			if(DBGMSG)
+			{
+					emit(f, "\t\t\t\t\t// (compare)");
+				if (q1typ(p) & UNSIGNED)
+					emit(f, " (q1 unsigned)");
+				else
+					emit(f, " (q1 signed)");
+				if (q2typ(p) & UNSIGNED)
+					emit(f, " (q2 unsigned)");
+				else
+					emit(f, " (q2 signed)");
+			}
 
 			// If q2 is a register but q1 isn't we could reverse the comparison, but would then have to reverse
 			// the subsequent conditional branch.
@@ -1693,7 +1731,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		// Division and modulo
 		if ((c == MOD) || (c == DIV)) {
 			// FIXME - do we need to use switch_IC here?
-			emit(f, "\t//Call division routine\n");
+			if(DBGMSG)
+				emit(f, "\t//Call division routine\n");
 
 			// determine here whether R1 and R2 really need saving - may not be in use, or may be the target register.
 			if(zreg!=t2)
@@ -1770,11 +1809,14 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		// Remaining arithmetic and bitwise operations
 
 		if ((c >= OR && c <= AND) || (c >= LSHIFT && c <= MULT)) {
-			emit(f, "\t\t\t\t\t// (bitwise/arithmetic) ");
-			emit(f, "\t//ops: %d, %d, %d\n", q1reg, q2reg, zreg);
+			if(DBGMSG)
+				emit(f, "\t\t\t\t\t// (bitwise/arithmetic) ");
+			if(DBGMSG)
+				emit(f, "\t//ops: %d, %d, %d\n", q1reg, q2reg, zreg);
 			if(p->q1.am && p->q1.am->type==AM_ADDT)
 			{
-				emit(f,"\t\t//Special case - addt\n");
+				if(DBGMSG)
+					emit(f,"\t\t//Special case - addt\n");
 				// FIXME - if q2 is already in tmp could reverse this
 				if(p->q2.flags&KONST)
 				{
@@ -1834,7 +1876,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			else {
 				if (c == RSHIFT || c==MULT)	// Modify right shift operations with appropriate signedness...
 				{
-					printf("q1typ: %x, q2typ: %x, ztyp: %x\n",q1typ(p),q2typ(p),ztyp(p));
+//					printf("q1typ: %x, q2typ: %x, ztyp: %x\n",q1typ(p),q2typ(p),ztyp(p));
 					if (!(t & UNSIGNED))
 					{
 						// Evaluate q1 - if we're dealing with a constant that doesn't have bit 31 set we don't need sgn...
