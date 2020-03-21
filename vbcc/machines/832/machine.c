@@ -1161,7 +1161,6 @@ int isztopstackslot(struct IC *p, int t)
 		return(0);
 	if(p->z.v && (p->z.flags&(VAR|REG|DREFOBJ))==VAR)
 	{
-		printf("p: %lx, z.v: %lx\n",p,p->z.v);
 		if(isauto(p->z.v->storage_class)
 				&& real_offset(&p->z)==0)
 			return(1);
