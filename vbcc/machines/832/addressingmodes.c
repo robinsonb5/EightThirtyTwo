@@ -314,10 +314,17 @@ void am_disposable(struct IC *p, struct obj *o)
 	struct IC *p2;
 	int disposable = 0;
 	if (o->flags & REG) {
+		// Cover the case where q1 or q2 are the same register as z.
+		if(o!=&p->z)
+		{
+			// We're writing to the same register as we're reading from - not disposable!
+			if((p->z.flags&&REG) && p->z.reg==o->reg)
+				return;
+		}
 		p2 = p->next;
 		while (p2) {
 			if (p2->code == FREEREG && p2->q1.reg == o->reg) {
-				if (AM_DEBUG)
+//				if (AM_DEBUG)
 					printf("\t(%s disposable.)\n", regnames[o->reg]);
 				am_alloc(o);
 				o->am->disposable = 1;
@@ -534,6 +541,7 @@ static void find_addressingmodes(struct IC *p)
 					printf("Collision between z and q1 or q2 - ignoring\n");
 		} else
 			am_prepost_incdec(p, &p->z);
+		printic(stdout,p);
 		am_disposable(p, &p->q1);
 		am_disposable(p, &p->q2);
 		am_disposable(p, &p->z);
