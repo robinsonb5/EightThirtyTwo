@@ -38,7 +38,7 @@
 
 #include "supp.h"
 
-#define DBGMSG 1
+#define DBGMSG 0
 
 static char FILE_[] = __FILE__;
 

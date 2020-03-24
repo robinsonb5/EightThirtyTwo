@@ -324,7 +324,7 @@ void am_disposable(struct IC *p, struct obj *o)
 		p2 = p->next;
 		while (p2) {
 			if (p2->code == FREEREG && p2->q1.reg == o->reg) {
-//				if (AM_DEBUG)
+				if (AM_DEBUG)
 					printf("\t(%s disposable.)\n", regnames[o->reg]);
 				am_alloc(o);
 				o->am->disposable = 1;
@@ -541,7 +541,7 @@ static void find_addressingmodes(struct IC *p)
 					printf("Collision between z and q1 or q2 - ignoring\n");
 		} else
 			am_prepost_incdec(p, &p->z);
-		printic(stdout,p);
+//		printic(stdout,p);
 		am_disposable(p, &p->q1);
 		am_disposable(p, &p->q2);
 		am_disposable(p, &p->z);
