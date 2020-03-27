@@ -293,3 +293,61 @@ _memset:
 	mr	r7	// 13 bytes
 
 
+	// char *strncpy(__reg("r3") char *dst, __reg("r2") const char *src, __reg("r1") size_t size);
+
+	.section	.text.memcpy
+	.globl	_memcpy
+_memcpy:
+	stdec	r6
+	mt	r3
+	mr	r0
+	add	r1
+.memcpyloop:
+	mt	r3
+	cmp	r1
+	cond	EQ
+		.lipcrel .memcpydone
+		add	r7
+	ldbinc r2
+	stbinc	r3
+	.lipcrel .memcpyloop
+	add	r7
+.memcpydone:
+	ldinc	r6
+	mr	r7	// 15 bytes
+
+
+	// char *memmove(__reg("r3") char *dst, __reg("r2") const char *src, __reg("r1") size_t size);
+
+	.section	.text.memove
+	.globl	_memmove
+_memmove:
+	stdec	r6
+	mt	r3
+	mr	r0
+	add	r1
+	cmp	r2
+	cond	LE
+		.lipcrel	.memcpyloop
+		add	r7
+	sub	r2
+	mt	r1
+	add	r2
+.memmoveloop:
+	mt	r3
+	cmp	r1
+	cond	EQ
+		.lipcrel .memmovedone
+		add	r7
+	li	1
+	sub	r2
+	byt
+	ld r2
+	byt
+	stdec r3
+	.lipcrel .memmoveloop
+	add	r7
+.memmovedone:
+	ldinc	r6
+	mr	r7	// 15 bytes
+

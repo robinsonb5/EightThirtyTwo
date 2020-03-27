@@ -80,6 +80,9 @@ void executable_loadobject(struct executable *exe,const char *fn)
 		exe->lastobject=obj;
 
 		objectfile_load(obj,fn);
+
+		while(exe->lastobject->next)
+			exe->lastobject=exe->lastobject->next;
 	}
 }
 

@@ -57,7 +57,16 @@ void objectfile_load(struct objectfile *obj,const char *fn)
 		int l;
 		debug(1,"Chunk header: %s\n",tmp);
 		if(strncmp(tmp,"832\x02",4)==0)	/* Another header - probably means objects have been concatenated. */
-			;
+		{
+			struct objectfile *new=objectfile_new();
+			if(new)
+			{
+				obj->next=new;
+				obj->filename=strdup(fn);
+				obj=new;
+				sect=0;
+			}
+		}
 		else if(strncmp(tmp,"SECT",4)==0)
 		{
 			read_lstr(f,tmp);
