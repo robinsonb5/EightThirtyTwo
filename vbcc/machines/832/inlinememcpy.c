@@ -65,9 +65,11 @@ void emit_inlinememcpy(FILE *f,struct IC *p, int t)
 
 	emit(f, "// Copying %d words and %d bytes to %s\n", wordcopy / 4, bytecopy,
 	     p->z.v ? p->z.v->identifier : "(null)");
+	printf("memcpy: Copying %d words and %d bytes to %s\n", wordcopy / 4, bytecopy,
+	     p->z.v ? p->z.v->identifier : "(null)");
 
-	if(!p->z.v)
-		printf("No z->v: z flags: %x\n",p->z.flags);
+//	if(!p->z.v)
+//		printf("No z->v: z flags: %x\n",p->z.flags);
 
 	// Prepare the copy
 	// FIXME - we don't necessarily have a valid z->v!  If not, where does the target come from?
@@ -175,11 +177,10 @@ void emit_inlinepush(FILE *f,struct IC *p, int t)
 		pushed+=4;
 	}
 
-	emit(f, "// Copying %d words and %d bytes to %s\n", wordcopy / 4, bytecopy,
-	     p->z.v ? p->z.v->identifier : "(null)");
+	emit(f, "// Copying %d words and %d bytes to stack\n", wordcopy / 4, bytecopy);
 
-	if(!p->z.v)
-		printf("No z->v: z flags: %x\n",p->z.flags);
+//	if(!p->z.v)
+//		printf("No z->v: z flags: %x\n",p->z.flags);
 
 	// Prepare the copy
 	emit_prepobj(f, &p->q1, t,srcr,0);
@@ -192,13 +193,13 @@ void emit_inlinepush(FILE *f,struct IC *p, int t)
 	if (unrollwords) {
 		wordcopy >>= 2;
 		if (wordcopy) {
-			emit(f, "// Copying %d words to %s\n", wordcopy, p->z.v ? p->z.v->identifier : "(null)");
+			emit(f, "// Copying %d words to stack\n", wordcopy);
 		}
 		while (wordcopy--) {
 			emit(f, "\tldinc\t%s\n\tstinc\t%s\n", regnames[srcr], regnames[dstr]);
 		}
 	} else {
-		emit(f, "// Copying %d words to %s\n", wordcopy / 4, p->z.v ? p->z.v->identifier : "(null)");
+		emit(f, "// Copying %d words to stack\n", wordcopy / 4);
 		// Copy bytes...
 		emit_constanttotemp(f, wordcopy);
 		emit(f, "\taddt\t%s\n", regnames[dstr]);
@@ -213,11 +214,11 @@ void emit_inlinepush(FILE *f,struct IC *p, int t)
 
 	if (unrollbytes) {
 		if (bytecopy)
-			emit(f, "// Copying %d byte tail to %s\n", bytecopy,p->z.v ? p->z.v->identifier : "null");
+			emit(f, "// Copying %d byte tail to stack\n", bytecopy);
 		while (bytecopy--)
 			emit(f, "\tldbinc\t%s\n\tstbinc\t%s\n", regnames[srcr], regnames[dstr]);
 	} else {
-		emit(f, "// Copying %d bytes to %s\n", bytecopy, p->z.v ? p->z.v->identifier : "null");
+		emit(f, "// Copying %d bytes to stack\n", bytecopy);
 		// Copy bytes...
 		emit_constanttotemp(f, bytecopy);
 		emit(f, "\taddt\t%s\n", regnames[dstr]);

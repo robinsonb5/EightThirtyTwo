@@ -1584,7 +1584,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 
 			/* Handle composite types */
 		    if((t & NQ) > POINTER || ((t & NQ) == CHAR && zm2l(p->q2.val.vmax) != 1)) {
-				if(DBGMSG)
+//				if(DBGMSG)
 					emit(f,"\t\t\t\t// Pushing composite type - size %d, pushed size %d\n",opsize(p),pushsize(p));
 				emit_inlinepush(f,p,t);
 				pushed += pushsize(p);
