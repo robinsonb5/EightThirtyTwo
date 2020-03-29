@@ -24,7 +24,7 @@ vbcc/supp.h:
 	$(error Extract the latest vbcc source archive into vbcc then try again.)
 
 vbcc/bin/vbcc832:
-	make -C vbcc TARGET=831
+	make -C vbcc TARGET=832
 
 vbcc/bin:
 	mkdir vbcc/bin
