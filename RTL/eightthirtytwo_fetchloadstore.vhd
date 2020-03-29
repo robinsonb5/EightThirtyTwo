@@ -283,13 +283,11 @@ end generate;
 -- With prefetch enabled we want to assert ram_req immediately if we can:
 -- Careful - priorities here must match priorities in state machine!
 ram_req<='0' when reset_n='0'
-	else (fetch_ram_req or fetch2_ram_req) and not ram_ack when ls_state=LS_WAIT and prefetch=true
-	else ram_req_r and not ram_ack;
+	else (fetch_ram_req or fetch2_ram_req) when ls_state=LS_WAIT and prefetch=true
+	else ram_req_r;
 
-ram_addr<=fetch_addr(31 downto 2) when ls_state=LS_WAIT and fetch_ram_req='1' and prefetch=true
---	else pc(31 downto 2) when ls_state=LS_WAIT and fetch_ram_req='1' and prefetch=false
-	else fetch2_addr(31 downto 2) when ls_state=LS_WAIT and fetch2_ram_req='1' and prefetch=true
---	else pc2(31 downto 2) when ls_state=LS_WAIT and fetch2_ram_req='1' and prefetch=false
+ram_addr<=fetch_addr(31 downto 2) when (ls_state=LS_FETCH or (ls_state=LS_WAIT and fetch_ram_req='1')) and prefetch=true
+	else fetch2_addr(31 downto 2) when (ls_state=LS_FETCH2 or (ls_state=LS_WAIT and fetch2_ram_req='1')) and prefetch=true
 	else ram_addr_r;
 
 	
@@ -297,32 +295,31 @@ process(clk, reset_n, ls_req, ls_wr,ram_ack,fetch_ram_req)
 begin
 	if reset_n='0' then
 		ls_state<=LS_WAIT;
-		ram_req_r<='0';
 		ram_wr<='0';
 	elsif rising_edge(clk) then
-
+		ram_req_r<='0';
 		ls_addrplus4<=unsigned(ls_addr)+4;
 		ls_ack<='0';
 
 		case ls_state is
 			when LS_WAIT =>
 					if fetch_ram_req='1' and prefetch=true then
-						ram_addr_r<=std_logic_vector(fetch_addr(31 downto 2));
-						ram_req_r<='1';
+--						ram_addr_r<=std_logic_vector(fetch_addr(31 downto 2));
+--						ram_req_r<='1';
 						ls_state<=LS_FETCH;
 					elsif fetch_ram_req='1' and prefetch=false then
 						ram_addr_r(31 downto e32_pc_maxbit+1)<=(others=>'0');
 						ram_addr_r(e32_pc_maxbit downto 2)<=pc(e32_pc_maxbit downto 2);
-						ram_req_r<='1';
+--						ram_req_r<='1';
 						ls_state<=LS_FETCH;
 					elsif fetch2_ram_req='1' and dualthread=true and prefetch=true then
-						ram_addr_r<=std_logic_vector(fetch2_addr(31 downto 2));
-						ram_req_r<='1';
+--						ram_addr_r<=std_logic_vector(fetch2_addr(31 downto 2));
+--						ram_req_r<='1';
 						ls_state<=LS_FETCH2;
 					elsif fetch2_ram_req='1' and dualthread=true and prefetch=false then
 						ram_addr_r(31 downto e32_pc_maxbit+1)<=(others=>'0');
 						ram_addr_r(e32_pc_maxbit downto 2)<=pc2(e32_pc_maxbit downto 2);
-						ram_req_r<='1';
+--						ram_req_r<='1';
 						ls_state<=LS_FETCH2;
 					elsif ls_req='1' then
 						ram_addr_r<=ls_addr(31 downto 2);
@@ -337,7 +334,7 @@ begin
 
 			when LS_FETCH =>
 				if ram_ack='1' then
-					ram_req_r<='0';
+--					ram_req_r<='0';
 					ls_state<=LS_WAIT;
 					if ls_req='1' then
 						ram_addr_r<=ls_addr(31 downto 2);
@@ -353,7 +350,7 @@ begin
 
 			when LS_FETCH2 =>
 				if ram_ack='1' then
-					ram_req_r<='0';
+--					ram_req_r<='0';
 					ls_state<=LS_WAIT;
 					if ls_req='1' then
 						ram_addr_r<=ls_addr(31 downto 2);
@@ -395,7 +392,7 @@ begin
 					end if;
 					
 					if ls_mask2="0000" then
-						ram_req_r<='0';
+--						ram_req_r<='0';
 						ram_wr<='0';
 						ls_ack<='1';
 						ls_state<=LS_WAIT;
@@ -429,7 +426,7 @@ begin
 						ls_q(7 downto 0)<=from_aligner(7 downto 0);
 					end if;
 
-					ram_req_r<='0';
+--					ram_req_r<='0';
 					ram_wr<='0';
 					ls_ack<='1';
 					ls_state<=LS_WAIT;

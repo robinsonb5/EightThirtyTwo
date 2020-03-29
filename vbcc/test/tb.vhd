@@ -102,8 +102,7 @@ interrupt<='1' when intcounter(5 downto 3)="111" else '0';
 			reset_n<='1';
 			ram_ack<='0';
 
-
-			if ram_req='1' and ramwait="0000" then
+			if ramwait="0001" then
 				if ram_addr(31)='1' then
 					if ram_wr='1' then
 --					report "out: " & integer'image(to_integer(unsigned(to_ram(15 downto 0))));
@@ -116,14 +115,15 @@ interrupt<='1' when intcounter(5 downto 3)="111" else '0';
 						uart_count<=uart_count-1;
 					end if;
 				end if;
---				ram_ack<='1';
-				ramwait<="0000";
+				ram_ack<='1';
 			end if;
 
-			if ramwait="0000" then
-				ram_ack<=ram_req;
-			else
+			if ramwait/="0000" then
 				ramwait<=ramwait-1;
+			end if;
+
+			if ram_req='1' then
+				ramwait<="0100";
 			end if;
 
 			case tbstate is
