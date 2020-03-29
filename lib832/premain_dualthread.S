@@ -22,8 +22,8 @@ _premain:
 	// Clear BSS data
 	.liabs	__bss_end__
 	mr	r1
-	mr	r0
 	.liabs	__bss_start__
+	mr	r0
 	sub	r1
 .clrwordloop
 	li	16
