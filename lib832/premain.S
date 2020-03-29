@@ -52,19 +52,17 @@ _premain:
 
 	// Call constructors
 	.liabs	__ctors_end__
-	mr	r4
-	.liabs	__ctors_start__
 	mr	r5
-.ctorloop:	// Call in reverse order
+	.liabs	__ctors_start__
+	mr	r4
+.ctorloop:
 	mt	r4
 	cmp	r5
 	cond	EQ
 		.lipcrel .ctordone
 		add	r7
 
-	li	4
-	sub	r4
-	ld	r4
+	ldinc	r4
 	exg	r7
 
 	.lipcrel .ctorloop
@@ -76,12 +74,10 @@ _premain:
 	add	r7
 
 	// Call destructors
-	ldinc	r7
-	.ref	__dtors_start__
-	mr	r4
-	ldinc	r7
-	.ref	__dtors_end__
+	.liabs	__dtors_start__
 	mr	r5
+	.liabs	__dtors_end__
+	mr	r4
 .dtorloop:
 	mt	r4
 	cmp	r5
@@ -89,7 +85,9 @@ _premain:
 		.lipcrel .endloop
 		add	r7
 
-	ldinc	r4
+	li	4
+	sub	r4
+	ld	r4
 	exg	r7
 
 	.lipcrel .dtorloop

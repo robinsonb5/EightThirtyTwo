@@ -134,6 +134,7 @@ CHAR};
 static char *marray[] = { "__section(x)=__vattr(\"section(\"#x\")\")",
 	"__EIGHTTHIRTYTWO__",
 	"__constructor(pri)=__vattr(\"ctor(\"#pri\")\")",
+	"__destructor(pri)=__vattr(\"dtor(\"#pri\")\")",
 	"__weak=__vattr(\"weak\")",
 	0
 };
@@ -258,7 +259,7 @@ static int ctor_dtor(FILE * f, struct Var *v)
 	if (!sec)
 		return 0;
 	sec += strlen("ctor(");
-	emit(f, "\t%s.", dtor ? ".dtor .dtor " : ".ctor .ctor ");
+	emit(f, "\t%s.", dtor ? ".dtor .dtor" : ".ctor .ctor");
 	while (*sec && *sec != ')')
 		emit_char(f, *sec++);
 	emit(f, "\n\t.ref\t%s%s\n", idprefix, v->identifier);
@@ -694,6 +695,7 @@ static void function_top(FILE * f, struct Var *v, long offset)
 	rsavesize = 0;
 	if (!special_section(f, v)) {
 		emit(f, "\t.section\t.text.%x\n", sectionid);
+		section=CODE;
 		++sectionid;
 	}
 	if (v->storage_class == EXTERN) {
