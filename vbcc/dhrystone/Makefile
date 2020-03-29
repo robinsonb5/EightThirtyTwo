@@ -11,7 +11,7 @@ CFLAGS = -+ -unsigned-char $(COPT) -I$(832DIR)/include/ -I$(LIBDIR)
 
 LDFLAGS = -s_STACKSIZE=4096
 
-TIME=2ms
+TIME=3ms
 all: compiler dhrystone_ROM.vhd
 
 compiler:

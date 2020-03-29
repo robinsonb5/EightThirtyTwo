@@ -310,7 +310,7 @@ begin
 					elsif fetch_ram_req='1' and prefetch=false then
 						ram_addr_r(31 downto e32_pc_maxbit+1)<=(others=>'0');
 						ram_addr_r(e32_pc_maxbit downto 2)<=pc(e32_pc_maxbit downto 2);
---						ram_req_r<='1';
+						ram_req_r<='1';
 						ls_state<=LS_FETCH;
 					elsif fetch2_ram_req='1' and dualthread=true and prefetch=true then
 --						ram_addr_r<=std_logic_vector(fetch2_addr(31 downto 2));
@@ -319,7 +319,7 @@ begin
 					elsif fetch2_ram_req='1' and dualthread=true and prefetch=false then
 						ram_addr_r(31 downto e32_pc_maxbit+1)<=(others=>'0');
 						ram_addr_r(e32_pc_maxbit downto 2)<=pc2(e32_pc_maxbit downto 2);
---						ram_req_r<='1';
+						ram_req_r<='1';
 						ls_state<=LS_FETCH2;
 					elsif ls_req='1' then
 						ram_addr_r<=ls_addr(31 downto 2);
