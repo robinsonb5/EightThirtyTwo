@@ -1,5 +1,5 @@
 832DIR=../../
-LIBDIR = $(832DIR)/Lib
+LIBDIR = $(832DIR)/lib832
 ROMGENDIR = ../../romgen
 ROMGEN = $(ROMGENDIR)/romgen
 GHDL = ghdl
@@ -21,6 +21,8 @@ sim: helloworld.ghw strcpytest.ghw fptrtest.ghw copytest.ghw comparisons.ghw vat
 emu: helloworld.emu strcpytest.emu fptrtest.emu copytest.emu comparisons.emu vatest.emu divtest.emu
 
 clean :
+	-rm *_ROM.vhd
+	-rm *.ghw
 	-rm *.bin
 	-rm *.S
 	-rm *.asm
@@ -50,7 +52,7 @@ clean :
 %.o : %.s Makefile
 	$(AS) $*.s
 
-%.bin : start.o uart.o small_printf.o division.o string.o hexdump.o %.o
+%.bin : $(LIBDIR)/crt0.a $(LIBDIR)/lib832.a %.o
 	$(LD) -o $@ $+ -m map
 
 %.o : %.S Makefile $(LIBDIR)/start.S force

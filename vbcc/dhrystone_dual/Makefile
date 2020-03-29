@@ -1,5 +1,5 @@
 832DIR=../../
-LIBDIR = $(832DIR)/Lib
+LIBDIR = $(832DIR)/lib832
 ROMGENDIR = ../../romgen
 ROMGEN = $(ROMGENDIR)/romgen
 GHDL = ghdl
@@ -8,7 +8,7 @@ LD=../../832a/832l
 CC=../bin/vbcc832
 COPT = -O=32767 -speed -unsigned-char
 CFLAGS = -+ $(COPT) -I$(832DIR)/include/ -I$(LIBDIR)
-TIME=3ms
+TIME=4ms
 all: compiler dhrystone_ROM.vhd
 
 compiler:
@@ -39,27 +39,21 @@ clean :
 %.o : %.asm Makefile
 	$(AS) $*.asm
 
-dhrystone.bin : $(LIBDIR)/start.o premain_dual.o $(LIBDIR)/uart.o $(LIBDIR)/small_printf.o $(LIBDIR)/division.o $(LIBDIR)/string.o dhry_1.o dhry_2.o dhry_3.o dhry_4.o
+dhrystone.bin : $(LIBDIR)/dualcrt0.a $(LIBDIR)/lib832.a dhry_1.o dhry_2.o dhry_3.o dhry_4.o
 	$(LD) -o $@ $+
 
-%.o : %.S Makefile $(LIBDIR)/start.S $(CC)
+%.o : %.S Makefile
 	$(AS) $*.S
 
-%.o : %.asm Makefile $(LIBDIR)/start.S $(CC)
+%.o : %.asm Makefile
 	$(AS) $*.asm
 
-%.asm : %.c Makefile $(LIBDIR)/start.S $(CC)
+%.asm : %.c Makefile
 	../bin/vbcc832 $(CFLAGS) $*.c
 
 %.o : %.c Makefile $(LIBDIR)/start.S $(CC)
 	../bin/vbcc832 $(CFLAGS) $*.c
 	$(AS) $*.asm
-
-%.o : $(LIBDIR)/%.S Makefile $(832DIR)/Lib/assembler.pp $(LIBDIR)/start.S $(CC)
-	$(AS) $(LIBDIR)/$*.S
-
-%.o : $(LIBDIR)/%.asm Makefile $(832DIR)/Lib/assembler.pp $(LIBDIR)/start.S $(CC)
-	$(AS) $(LIBDIR)/$*.asm
 
 $(ROMGEN): $(ROMGENDIR)/romgen.c
 	gcc -o $(ROMGENDIR)/romgen $(ROMGENDIR)/romgen.c

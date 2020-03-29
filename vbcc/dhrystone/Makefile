@@ -1,5 +1,5 @@
 832DIR=../../
-LIBDIR = $(832DIR)/Lib
+LIBDIR = $(832DIR)/lib832
 ROMGENDIR = ../../romgen
 ROMGEN = $(ROMGENDIR)/romgen
 GHDL = ghdl
@@ -8,6 +8,9 @@ LD=../../832a/832l
 CC=../bin/vbcc832
 COPT = -O=32767 -speed
 CFLAGS = -+ -unsigned-char $(COPT) -I$(832DIR)/include/ -I$(LIBDIR)
+
+LDFLAGS = -s_STACKSIZE=4096
+
 TIME=2ms
 all: compiler dhrystone_ROM.vhd
 
@@ -17,6 +20,8 @@ compiler:
 run: dhrystone.ghw
 
 clean :
+	-rm *ROM.vhd
+	-rm *.ghw
 	-rm *.asm
 	-rm *.o
 	-rm *.bin
@@ -42,27 +47,15 @@ a.out : dhry_1.c dhry_2.c ../../Lib/hexdump.c
 %.o : %.asm Makefile
 	$(AS) $*.asm
 
-dhrystone.bin : $(LIBDIR)/start.o $(LIBDIR)/uart.o $(LIBDIR)/small_printf.o $(LIBDIR)/division.o $(LIBDIR)/string.o dhry_1.o dhry_2.o
-	$(LD) -m $@.map -o $@ $+
-
-%.o : %.S Makefile $(LIBDIR)/start.S $(CC)
-	$(AS) $*.S
-
-%.o : %.asm Makefile $(LIBDIR)/start.S $(CC)
-	$(AS) $*.asm
+dhrystone.bin : $(LIBDIR)/crt0.a $(LIBDIR)/lib832.a dhry_1.o dhry_2.o
+	$(LD) $(LDFLAGS) -m $@.map -o $@ $+
 
 %.asm : %.c Makefile ldscript.ld $(LIBDIR)/start.S $(CC)
-	../bin/vbcc832 $(CFLAGS) $(COPT) $*.c
+	../bin/vbcc832 $(CFLAGS) $*.c
 
 %.o : %.c Makefile ldscript.ld $(LIBDIR)/start.S $(CC)
-	../bin/vbcc832 $(CFLAGS) $(COPT) $*.c
+	../bin/vbcc832 $(CFLAGS) $*.c
 	$(AS) $*.asm
-
-%.o : $(LIBDIR)/%.S Makefile ldscript.ld $(832DIR)/Lib/assembler.pp $(LIBDIR)/start.S $(CC)
-	$(AS) $(LIBDIR)/$*.S
-
-%.o : $(LIBDIR)/%.asm Makefile ldscript.ld $(832DIR)/Lib/assembler.pp $(LIBDIR)/start.S $(CC)
-	$(AS) $(LIBDIR)/$*.asm
 
 $(ROMGEN): $(ROMGENDIR)/romgen.c
 	gcc -o $(ROMGENDIR)/romgen $(ROMGENDIR)/romgen.c
