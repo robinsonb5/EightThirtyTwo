@@ -1,6 +1,8 @@
 #ifndef UTIL832_H
 #define UTIL832_H
 
+enum eightthirtytwo_endian {EIGHTTHIRTYTWO_BIGENDIAN,EIGHTTHIRTYTWO_LITTLEENDIAN};
+
 void setdebuglevel(int level);
 int getdebuglevel();
 void debug(int level,const char *fmt,...);
@@ -11,8 +13,12 @@ void error_setline(int line);
 void asmerror(const char *err);
 void linkerror(const char *err);
 
+void write_int(int i,FILE *f,enum eightthirtytwo_endian endian);
 void write_int_le(int i,FILE *f);
+void write_int_be(int i,FILE *f);
+void write_short(int i,FILE *f,enum eightthirtytwo_endian endian);
 void write_short_le(int i,FILE *f);
+void write_short_be(int i,FILE *f);
 void write_lstr(const char *str,FILE *f);
 
 int read_int_le(FILE *f);

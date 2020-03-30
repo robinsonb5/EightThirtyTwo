@@ -436,7 +436,7 @@ void section_outputobj(struct section *sect,FILE *f)
 }
 
 
-void section_outputexe(struct section *sect,FILE *f)
+void section_outputexe(struct section *sect,FILE *f,enum eightthirtytwo_endian endian)
 {
 	int offset=0;
 	int cbcursor=0;
@@ -542,9 +542,9 @@ void section_outputexe(struct section *sect,FILE *f)
 			{
 				debug(1,"Outputting standard reference %s\n",ref->identifier);
 				if(ref->resolve->flags&SYMBOLFLAG_CONSTANT)
-					write_int_le(ref->resolve->cursor,f);
+					write_int(ref->resolve->cursor,f,endian);
 				else
-					write_int_le(ref->resolve->address+ref->offset,f);
+					write_int(ref->resolve->address+ref->offset,f,endian);
 				offset+=4;
 			}
 			ref=symbol_nextref(ref);

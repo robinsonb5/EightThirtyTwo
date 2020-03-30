@@ -13,6 +13,7 @@ int main(int argc,char **argv)
 	{
 		fprintf(stderr,"Usage: %s [options] obj1.o <obj2.o> ... <-o output.bin>\n",argv[0]);
 		fprintf(stderr,"Options:\n");
+		fprintf(stderr,"\t-e big|little\t- specify bit or little endian configuration\n");
 		fprintf(stderr,"\t-o <file>\t- specify output file\n");
 		fprintf(stderr,"\t-b <number>\t- specify base address\n");
 		fprintf(stderr,"\t-m <mapfile>\t- write a map file\n");
@@ -22,10 +23,12 @@ int main(int argc,char **argv)
 	else
 	{
 		int i;
+		enum eightthirtytwo_endian endian=EIGHTTHIRTYTWO_LITTLEENDIAN;
 		int nextfn=0;
 		int nextbase=0;
 		int nextsym=0;
 		int nextmap=0;
+		int nextendian=0;
 		char *outfn="a.out";
 		char *mapfn=0;
 		struct executable *exe=executable_new();
@@ -35,6 +38,8 @@ int main(int argc,char **argv)
 			{
 				if(strncmp(argv[i],"-m",2)==0)
 					nextmap=1;
+				else if(strncmp(argv[i],"-e",2)==0)
+					nextendian=1;
 				else if(strncmp(argv[i],"-o",2)==0)
 					nextfn=1;
 				else if(strncmp(argv[i],"-d",2)==0)
@@ -66,6 +71,16 @@ int main(int argc,char **argv)
 				{
 					mapfn=argv[i];
 					nextmap=0;
+				}
+				else if(nextendian)
+				{
+					if(*argv[i]=='l')
+						endian=EIGHTTHIRTYTWO_LITTLEENDIAN;
+					else if(*argv[i]=='b')
+						endian=EIGHTTHIRTYTWO_BIGENDIAN;
+					else
+						linkerror("Endian flag must be \"little\" or \"big\"\n");
+					nextendian=0;
 				}
 				else
 				{
@@ -121,8 +136,8 @@ int main(int argc,char **argv)
 
 			printf("Linking...\n");
 			executable_link(exe);
-			printf("Saving to %s\n",outfn);
-			executable_save(exe,outfn);
+			printf("Saving with %s endian configuration to %s\n",endian==EIGHTTHIRTYTWO_LITTLEENDIAN ? "little" : "big",outfn);
+			executable_save(exe,outfn,endian);
 
 			if(mapfn)
 			{

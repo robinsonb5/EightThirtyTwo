@@ -11,6 +11,16 @@ CFLAGS = -+ -c99 -I$(832DIR)/include/ -I$(LIBDIR)
 COPT = -O=1311 -size
 TIME=200us
 
+# LITTLE ENDIAN
+ASFLAGS=-el
+LDFLAGS=-el 
+ROMGENFLAGS=-b
+
+#BIG ENDIAN
+#ASFLAGS=-eb
+#LDFLAGS=-eb 
+#ROMGENFLAGS=
+
 all: compiler helloworld.bin
 
 compiler:
@@ -46,27 +56,27 @@ clean :
 
 %_ROM.vhd: %.bin $(ROMGEN) force
 	sed 's/dualportram/$*_rom/' >$*_ROM.vhd <$(ROMGENDIR)/rom_prologue.vhd
-	$(ROMGEN) -b $*.bin >>$*_ROM.vhd
+	$(ROMGEN) $(ROMGENFLAGS) $*.bin >>$*_ROM.vhd
 	cat >>$*_ROM.vhd $(ROMGENDIR)/rom_epilogue.vhd
 
 %.o : %.s Makefile
 	$(AS) $*.s
 
 %.bin : $(LIBDIR)/crt0.a $(LIBDIR)/lib832.a %.o
-	$(LD) -o $@ $+ -m map
+	$(LD) $(LDFLAGS) -o $@ $+ -m map
 
 %.o : %.S Makefile $(LIBDIR)/start.S force
-	$(AS) -o $*.o $*.S
+	$(AS) $(ASFLAGS) -o $*.o $*.S
 
 %.o : %.asm Makefile $(LIBDIR)/start.S force
-	$(AS) -o $*.o $*.asm
+	$(AS) $(ASFLAGS) -o $*.o $*.asm
 
 %.o : %.c Makefile ldscript.ld $(LIBDIR)/start.S $(CC) force
 	../bin/vbcc832 $(CFLAGS) $(COPT) $*.c
-	$(AS) -o $*.o $*.asm
+	$(AS) $(ASFLAGS) -o $*.o $*.asm
 
 %.o : $(LIBDIR)/%.S Makefile ldscript.ld $(832DIR)/Lib/assembler.pp $(LIBDIR)/start.S force
-	$(AS) -o $*.o $(LIBDIR)/$*.S
+	$(AS) $(ASFLAGS) -o $*.o $(LIBDIR)/$*.S
 
 %.asm : %.c Makefile ../bin/vbcc832 $(CC) force
 	../bin/vbcc832 $(CFLAGS) $(COPT) -I$(832DIR) $*.c

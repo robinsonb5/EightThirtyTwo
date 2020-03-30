@@ -9,7 +9,16 @@ CC=../bin/vbcc832
 COPT = -O=32767 -speed
 CFLAGS = -+ -unsigned-char $(COPT) -I$(832DIR)/include/ -I$(LIBDIR)
 
-LDFLAGS = -s_STACKSIZE=4096
+# LITTLE ENDIAN
+ASFLAGS=-el
+LDFLAGS=-el -s_STACKSIZE=4096
+ROMGENFLAGS=-b
+
+#BIG ENDIAN
+#ASFLAGS=-eb
+#LDFLAGS=-eb -s_STACKSIZE=4096
+#ROMGENFLAGS=
+
 
 TIME=3ms
 all: compiler dhrystone_ROM.vhd
@@ -38,14 +47,11 @@ a.out : dhry_1.c dhry_2.c ../../Lib/hexdump.c
 
 %_ROM.vhd: %.bin $(ROMGEN)
 	sed 's/dualportram/$*_rom/' >$*_ROM.vhd <$(ROMGENDIR)/rom_prologue.vhd
-	$(ROMGEN) -b $*.bin >>$*_ROM.vhd
+	$(ROMGEN) $(ROMGENFLAGS) $*.bin >>$*_ROM.vhd
 	cat >>$*_ROM.vhd $(ROMGENDIR)/rom_epilogue.vhd
 
-%.bin : Makefile $(CC)
-	objcopy -Obinary $< $@
-
 %.o : %.asm Makefile
-	$(AS) $*.asm
+	$(AS) $(ASFLAGS) $*.asm
 
 dhrystone.bin : $(LIBDIR)/crt0.a $(LIBDIR)/lib832.a dhry_1.o dhry_2.o
 	$(LD) $(LDFLAGS) -m $@.map -o $@ $+
@@ -55,7 +61,7 @@ dhrystone.bin : $(LIBDIR)/crt0.a $(LIBDIR)/lib832.a dhry_1.o dhry_2.o
 
 %.o : %.c Makefile ldscript.ld $(LIBDIR)/start.S $(CC)
 	../bin/vbcc832 $(CFLAGS) $*.c
-	$(AS) $*.asm
+	$(AS) $(ASFLAGS) $*.asm
 
 $(ROMGEN): $(ROMGENDIR)/romgen.c
 	gcc -o $(ROMGENDIR)/romgen $(ROMGENDIR)/romgen.c

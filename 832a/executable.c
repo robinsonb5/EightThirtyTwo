@@ -313,7 +313,7 @@ void executable_assignaddresses(struct executable *exe)
 }
 
 
-void executable_save(struct executable *exe,const char *fn)
+void executable_save(struct executable *exe,const char *fn,enum eightthirtytwo_endian endian)
 {
 	FILE *f;
 	f=fopen(fn,"wb");
@@ -327,7 +327,7 @@ void executable_save(struct executable *exe,const char *fn)
 		{
 			sect=map->entries[i].sect;
 			if(sect)
-				section_outputexe(sect,f);
+				section_outputexe(sect,f,endian);
 		}
 
 		fclose(f);

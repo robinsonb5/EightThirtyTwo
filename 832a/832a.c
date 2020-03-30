@@ -19,7 +19,7 @@
 
 static char *delims=" \t:\n\r,";
 
-void parsesourcefile(struct objectfile *obj,const char *fn);
+void parsesourcefile(struct objectfile *obj,const char *fn,enum eightthirtytwo_endian endian);
 
 
 void directive_symbolflags(struct objectfile *obj,char *tok,char *tok2,int key)
@@ -60,7 +60,21 @@ void directive_literal(struct objectfile *obj,char *tok,char *tok2,int key)
 
 	if(key)
 	{
+		/* Big endian... */
+
+		if(key<-1)
+		{
+			objectfile_emitbyte(obj,((v>>24)&255)); /* int */
+			objectfile_emitbyte(obj,((v>>16)&255));
+		}
+		if(key<0)
+			objectfile_emitbyte(obj,((v>>8)&255)); /* short */
+
+		/* Single byte */
+
 		objectfile_emitbyte(obj,(v&255));
+
+		/* Little endian */
 		if(key>1)
 			objectfile_emitbyte(obj,((v>>8)&255)); /* short */
 		if(key>2)
@@ -187,7 +201,7 @@ void directive_include(struct objectfile *obj,char *tok,char *tok2,int key)
 {
 	if(tok)
 	{
-		parsesourcefile(obj,tok);
+		parsesourcefile(obj,tok,(enum eightthirtytwo_endian)key);
 	}
 }
 
@@ -242,6 +256,16 @@ struct directive
 
 struct directive directives[]=
 {
+	/* In big-endian mode start searching here */
+	{".include",directive_include,EIGHTTHIRTYTWO_BIGENDIAN},
+	{".int",directive_literal,-2},	/* Big endian variants */
+	{".short",directive_literal,-1},
+	/* In little-endian mode start the search here */
+	{".include",directive_include,EIGHTTHIRTYTWO_LITTLEENDIAN},
+	{".int",directive_literal,4},	/* Little endian variants */
+	{".short",directive_literal,2},
+	{".byte",directive_literal,1},
+	{".space",directive_literal,0},
 	{".equ",directive_equate,0},
 	{".ctor",directive_sectionflags,SECTIONFLAG_CTOR},
 	{".dtor",directive_sectionflags,SECTIONFLAG_DTOR},
@@ -255,21 +279,16 @@ struct directive directives[]=
 	{".comm",directive_common,1},
 	{".lcomm",directive_common,0},
 	{".ascii",directive_ascii,0},
-	{".int",directive_literal,4},
-	{".short",directive_literal,2},
-	{".byte",directive_literal,1},
-	{".space",directive_literal,0},
 	{".ref",directive_reference,SYMBOLFLAG_REFERENCE},
 	{".liabs",directive_reference,SYMBOLFLAG_LDABS},
 	{".lipcrel",directive_reference,SYMBOLFLAG_LDPCREL},
 	{".liconst",directive_liconst,0},
-	{".include",directive_include,0},
 	{".incbin",directive_incbin,0},
 	{0,0}
 };
 
 
-void parsesourcefile(struct objectfile *obj,const char *fn)
+void parsesourcefile(struct objectfile *obj,const char *fn,enum eightthirtytwo_endian endian)
 {
 	FILE *f;
 	printf("Opening file %s\n",fn);
@@ -303,7 +322,10 @@ void parsesourcefile(struct objectfile *obj,const char *fn)
 				else
 				{
 					/* Search the directives table */
-					d=0;
+					if(endian==EIGHTTHIRTYTWO_LITTLEENDIAN)
+						d=3;	/* Skip over the big-endian definitions */
+					else
+						d=0;
 					while(directives[d].mnem)
 					{
 						if(strcasecmp(tok,directives[d].mnem)==0)
@@ -370,7 +392,7 @@ void parsesourcefile(struct objectfile *obj,const char *fn)
 
 
 /* Attempt to assemble the named file.  Calls exit() on failure. */
-int assemble(const char *fn,const char *on)
+int assemble(const char *fn,const char *on,enum eightthirtytwo_endian endian)
 {
 	struct objectfile *obj;
 
@@ -378,7 +400,7 @@ int assemble(const char *fn,const char *on)
 	if(!obj)
 		return(0);
 
-	parsesourcefile(obj,fn);
+	parsesourcefile(obj,fn,endian);
 
 	objectfile_output(obj,on);
 	objectfile_dump(obj,1);
@@ -423,28 +445,49 @@ int main(int argc, char **argv)
 	}
 	else
 	{
+		enum eightthirtytwo_endian endian=EIGHTTHIRTYTWO_LITTLEENDIAN;
 		char *outfn=0;
 		int nextfn=0;
+		int nextendian=0;
 		for(i=1;i<argc;++i)
 		{
 			if(strcmp(argv[i],"-d")==0)
 					setdebuglevel(1);
 			else if(strcmp(argv[i],"-o")==0)
 					nextfn=1;
-			else if(nextfn==1)
+			else if(strncmp(argv[i],"-e",2)==0)
+				nextendian=1;
+			else if(nextfn)
 			{
 				outfn=argv[i];
 				nextfn=0;
+			}
+			else if(nextendian)
+			{
+				if(*argv[i]=='l')
+					endian=EIGHTTHIRTYTWO_LITTLEENDIAN;
+				else if(*argv[i]=='b')
+					endian=EIGHTTHIRTYTWO_BIGENDIAN;
+				else
+					asmerror("Endian flag must be \"little\" or \"big\"\n");
+				nextendian=0;
 			}
 			else
 			{
 				char *on;
 				if(!(on=outfn))
 					on=objname(argv[i]);
-				assemble(argv[i],on);
+				printf("Assembling %s with %s endian configuration\n",argv[i],endian==EIGHTTHIRTYTWO_LITTLEENDIAN ? "little" : "big");
+				assemble(argv[i],on,endian);
 				if(!outfn)
 					free(on);
 				outfn=0;
+			}
+			/* Dirty trick for when we have an option with no space before the parameter. */
+			if((*argv[i]=='-') && (strlen(argv[i])>2))
+			{
+				argv[i]+=2;
+				--i;
 			}
 		}
 	}

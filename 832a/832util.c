@@ -3,6 +3,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "832util.h"
+
 static const char *error_file;
 static int error_line;
 static int debuglevel=0;
@@ -74,6 +76,13 @@ void asmerror(const char *err)
 	exit(1);
 }
 
+void write_int(int i,FILE *f,enum eightthirtytwo_endian endian)
+{
+	if(endian==EIGHTTHIRTYTWO_BIGENDIAN)
+		write_int_be(i,f);
+	else
+		write_int_le(i,f);
+}
 
 void write_int_le(int i,FILE *f)
 {
@@ -83,9 +92,31 @@ void write_int_le(int i,FILE *f)
 	fputc(i&255,f);
 }
 
+void write_int_be(int i,FILE *f)
+{
+	fputc((i>>24)&255,f);
+	fputc((i>>16)&255,f);
+	fputc((i>>8)&255,f);
+	fputc(i&255,f);
+}
+
+void write_short(int i,FILE *f,enum eightthirtytwo_endian endian)
+{
+	if(endian==EIGHTTHIRTYTWO_BIGENDIAN)
+		write_short_be(i,f);
+	else
+		write_short_le(i,f);
+}
+
 void write_short_le(int i,FILE *f)
 {
 	fputc(i&255,f); i>>=8;
+	fputc(i&255,f);
+}
+
+void write_short_be(int i,FILE *f)
+{
+	fputc((i>>8)&255,f);
 	fputc(i&255,f);
 }
 
