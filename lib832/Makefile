@@ -2,13 +2,15 @@
 AS=$(832DIR)/832a/832a
 LD=$(832DIR)/832a/832l
 CC=$(832DIR)/vbcc/bin/vbcc832
-COPT = -O=1024
+COPT = -O=1311
 CFLAGS = -+ -unsigned-char $(COPT) -I$(832DIR)/include/ -I$(LIBDIR)
 TIME=2ms
 
 OBJDIR=832dir
 
 all: $(OBJDIR) crt0.a dualcrt0.a lib832.a libtiny832.a helloworld helloworld_tiny
+
+COMMONOBJ=$(OBJDIR)/uart.o $(OBJDIR)/division.o $(OBJDIR)/string.o $(OBJDIR)/abort.o
 
 clean :
 	-rm *.asm
@@ -28,10 +30,10 @@ crt0.a : $(OBJDIR)/start.o $(OBJDIR)/premain.o
 dualcrt0.a : $(OBJDIR)/start.o $(OBJDIR)/premain_dualthread.o
 	cat >$@ $+
 
-lib832.a : $(OBJDIR)/uart.o $(OBJDIR)/small_printf.o $(OBJDIR)/division.o $(OBJDIR)/string.o
+lib832.a : $(OBJDIR)/small_printf.o $(COMMONOBJ)
 	cat >$@ $+
 
-libtiny832.a : $(OBJDIR)/uart.o $(OBJDIR)/tiny_printf.o $(OBJDIR)/division.o $(OBJDIR)/string.o
+libtiny832.a : $(OBJDIR)/tiny_printf.o $(COMMONOBJ)
 	cat >$@ $+
 
 $(OBJDIR)/%.o : %.asm Makefile
