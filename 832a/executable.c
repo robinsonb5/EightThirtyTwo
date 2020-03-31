@@ -169,7 +169,10 @@ struct symbol *executable_resolvereference(struct executable *exe,struct symbol 
 
 
 /* Resolve each reference within a section, recursively repeating the
-   process for each section in which a reference was found. */
+   process for each section in which a reference was found.
+   Marks as "touched" the supplied section and, through the recursion,
+   the sections containing any resolved symbols. */
+
 int executable_resolvereferences(struct executable *exe,struct section *sect)
 {
 	int result=1;
@@ -241,11 +244,16 @@ int executable_resolvecdtors(struct executable *exe)
 				{
 					if((sect->flags&SECTIONFLAG_CTOR) || (sect->flags&SECTIONFLAG_DTOR))
 					{
-						result&=executable_resolvereferences(exe,sect);
-						if(ctorwarn)
+						/* Having found a ctor or dtor we need to touch the function it references
+						   but only if something else within the same objectfile has been referenced. */
+						if(objectfile_containstouchedsection(obj))
 						{
-							fprintf(stderr,"\nWARNING: ctors/dtors found but __ctors_start__ not referenced\n\n");
-							ctorwarn=0;
+							result&=executable_resolvereferences(exe,sect);
+							if(ctorwarn)
+							{
+								fprintf(stderr,"\nWARNING: ctors/dtors found but __ctors_start__ not referenced\n\n");
+								ctorwarn=0;
+							}
 						}
 					}
 				}

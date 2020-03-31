@@ -29,6 +29,8 @@ struct section *objectfile_findsection(struct objectfile *obj,const char *sectio
 struct section *objectfile_setsection(struct objectfile *obj, const char *sectionname);
 struct symbol *objectfile_findsymbol(struct objectfile *obj, const char *symname);
 
+int objectfile_containstouchedsection(struct objectfile *obj);
+
 void objectfile_addequate(struct objectfile *obj,const char *equname,int value);
 struct equate *objectfile_findequate(struct objectfile *obj, const char *equname);
 

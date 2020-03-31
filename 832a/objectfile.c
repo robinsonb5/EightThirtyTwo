@@ -302,3 +302,21 @@ void objectfile_writemap(struct objectfile *obj,FILE *f)
 	}
 }
 
+
+int objectfile_containstouchedsection(struct objectfile *obj)
+{
+	int result=0;
+	struct section *sect;
+	if(obj)
+	{
+		sect=obj->sections;
+		while(sect)
+		{
+			if(sect->flags&SECTIONFLAG_TOUCHED)
+				result=1;
+			sect=sect->next;
+		}
+	}
+	return(result);
+}
+
