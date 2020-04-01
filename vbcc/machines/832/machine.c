@@ -1453,7 +1453,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 						emit_prepobj(f, &p->z, t, tmp, 0); // Need an offset
 						emit(f, "\texg\t%s\n", regnames[q1reg]);
 						if(!isstackvar(&p->z))
-							emit_sizemod(f,t);
+							emit_sizemod(f,ztyp(p));
 						emit(f, "\tst\t%s\n", regnames[q1reg]);
 						if(p->z.am && p->z.am->disposable)
 							emit(f, "// Object is disposable, not bothering to undo exg\n");
@@ -1461,9 +1461,9 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 							emit(f, "\texg\t%s\n", regnames[q1reg]);
 					}
 					else {
-						emit_prepobj(f, &p->z, t, tmp, 4); // Need an offset
+						emit_prepobj(f, &p->z, ztyp(p), tmp, 4); // Need an offset
 						if(!isstackvar(&p->z))
-							emit_sizemod(f,t);
+							emit_sizemod(f,ztyp(p));
 						emit(f,"\tstmpdec\t%s\n",regnames[q1reg]);
 //						cleartempobj(f,tmp);
 					}
@@ -1479,7 +1479,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 						else
 						{
 							zreg=t1;
-							emit_prepobj(f, &p->z, t, t1, 0);
+							emit_prepobj(f, &p->z, ztyp(p), t1, 0);
 						}
 						emit_objtoreg(f, &p->q1, t,tmp);
 						save_temp(f, p, zreg);
