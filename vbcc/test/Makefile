@@ -98,7 +98,6 @@ init:
 	$(GHDL) -a $(GHDLFLAGS) ../../RTL/eightthirtytwo_hazard.vhd
 	$(GHDL) -a $(GHDLFLAGS) ../../RTL/eightthirtytwo_cpu.vhd
 	$(GHDL) -a $(GHDLFLAGS) ../../romgen/rom_pkg.vhd
-	$(GHDL) -a $(GHDLFLAGS) helloworld_ROM.vhd
 
 force:
 

@@ -358,7 +358,7 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 }
 
 
-// Returns 1 if the Z flag can has been set (i.e. a load has occurred)
+// Returns 1 if the Z flag has been set (i.e. a load has occurred)
 // Guaranteed not to modify t1 or t2.
 
 static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)

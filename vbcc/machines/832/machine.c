@@ -38,7 +38,7 @@
 
 #include "supp.h"
 
-#define DBGMSG 0
+#define DBGMSG 1
 
 static char FILE_[] = __FILE__;
 
@@ -1304,7 +1304,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 	for (; p; p = p->next) {
 //		printic(stdout,p);
 		c = p->code;
-		t = p->typf;
+		t = q1typ(p);
 
 		if (c == NOP) {
 			p->z.flags = 0;
