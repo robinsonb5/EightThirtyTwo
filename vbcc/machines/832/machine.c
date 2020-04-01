@@ -215,6 +215,22 @@ static long real_offset(struct obj *o)
 }
 
 
+static int isstackvar(struct obj *o)
+{
+	int result=0;
+	if(o->flags&VAR)
+	{
+		if(isauto(o->v->storage_class))
+		{
+			long off = zm2l(o->v->offset);
+				if (off < 0)
+					result=1;
+		}
+	}
+	return(result);
+}
+
+
 /* changes to a special section, used for __section() */
 static int special_section(FILE * f, struct Var *v)
 {
@@ -1436,7 +1452,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					if(p->z.flags&DREFOBJ) {	// Can't use stmpdec for dereferenced objects
 						emit_prepobj(f, &p->z, t, tmp, 0); // Need an offset
 						emit(f, "\texg\t%s\n", regnames[q1reg]);
-						emit_sizemod(f,t);
+						if(!isstackvar(&p->z))
+							emit_sizemod(f,t);
 						emit(f, "\tst\t%s\n", regnames[q1reg]);
 						if(p->z.am && p->z.am->disposable)
 							emit(f, "// Object is disposable, not bothering to undo exg\n");
@@ -1445,7 +1462,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					}
 					else {
 						emit_prepobj(f, &p->z, t, tmp, 4); // Need an offset
-						emit_sizemod(f,t);
+						if(!isstackvar(&p->z))
+							emit_sizemod(f,t);
 						emit(f,"\tstmpdec\t%s\n",regnames[q1reg]);
 //						cleartempobj(f,tmp);
 					}
@@ -1638,7 +1656,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					else
 					{
 						emit_prepobj(f, &p->z, t, tmp, 4); // Need an offset
-						emit_sizemod(f,t);
+						if(!isstackvar(&p->z))
+							emit_sizemod(f,t);
 						emit(f,"\tstmpdec\t%s\n",regnames[q1reg]);
 						cleartempobj(f,tmp);
 					}
