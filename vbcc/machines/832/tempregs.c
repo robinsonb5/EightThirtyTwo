@@ -484,18 +484,20 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 			if (isauto(p->v->storage_class)) {
 				if(DBGMSG)
 					emit(f, "// var, auto|reg\n");
-				emit_sizemod(f, t);
 				if (real_offset(p)) {
 					emit_constanttotemp(f, real_offset(p));
+					if(zm2l(p->v->offset)>0)
+						emit_sizemod(f, t);
 					emit(f, "\tldidx\t%s\n", regnames[sp]);
-				} else
+				} else {
+					emit_sizemod(f, t);
 					emit(f, "\tld\t%s\n", regnames[sp]);
+				}
 				result=1;
 			} else if (isextern(p->v->storage_class)) {
 				if(DBGMSG)
 					emit(f, "// extern\n");
 				emit_externtotemp(f, p->v->identifier, p->val.vmax);
-				emit_sizemod(f, t);
 				// Structs and unions have to remain as pointers
 				if ((!(p->flags & VARADR))
 				    && ((t & NQ) != STRUCT)
@@ -503,6 +505,7 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 				    && ((t & NQ) != ARRAY)) {
 					if(DBGMSG)
 						emit(f, "\t//extern deref\n");
+					emit_sizemod(f, t);
 					emit(f, "\tldt\n");
 					result=1;
 				}

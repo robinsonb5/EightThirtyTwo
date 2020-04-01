@@ -5,7 +5,6 @@ set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) eightthirt
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) eightthirtytwo_aligner_le.vhd]
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) eightthirtytwo_decode.vhd]
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) eightthirtytwo_fetchloadstore.vhd]
-set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) eightthirtytwo_fetchloadstore_le.vhd]
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) eightthirtytwo_hazard.vhd]
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) eightthirtytwo_cpu.vhd]
 

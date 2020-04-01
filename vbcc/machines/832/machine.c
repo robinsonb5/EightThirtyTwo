@@ -1593,11 +1593,22 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			}
 			else
 			{
-				/* FIXME - need to take dt into account */
+				/* need to take dt into account */
 				if(DBGMSG)
 					emit(f, "\t\t\t\t\t// a: pushed %ld, regnames[sp] %s\n", pushed, regnames[sp]);
-				emit_objtoreg(f, &p->q1, t, tmp);
-				emit(f, "\tstdec\t%s\n", regnames[sp]);
+				switch(t&NQ)
+				{
+					case INT:
+					case LONG:
+					case POINTER:
+						emit_objtoreg(f, &p->q1, t, tmp);
+						emit(f, "\tstdec\t%s\n", regnames[sp]);
+						break;
+					default:
+						printf("Pushing unhandled type 0x%x to the stack\n",t);
+						ierror(0);
+						break;
+				}
 				pushed += pushsize(p);
 			}
 			continue;
