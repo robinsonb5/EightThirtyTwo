@@ -366,7 +366,7 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 	int result=0;
 	int matchreg;
 	if(DBGMSG)
-		emit(f, "\t\t\t\t\t// (obj to %s) flags %x \n",regnames[reg],p->flags);
+		emit(f, "\t\t\t\t\t// (obj to %s) flags %x type %x\n",regnames[reg],p->flags,t);
 
 	matchreg=matchtempobj(f,p,0);
 
@@ -486,7 +486,7 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 					emit(f, "// var, auto|reg\n");
 				if (real_offset(p)) {
 					emit_constanttotemp(f, real_offset(p));
-					if(zm2l(p->v->offset)>0)
+					if(zm2l(p->v->offset)>=0)
 						emit_sizemod(f, t);
 					emit(f, "\tldidx\t%s\n", regnames[sp]);
 				} else {
