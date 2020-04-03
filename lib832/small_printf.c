@@ -66,7 +66,7 @@ __weak int _printfcore(const char *fmt,va_list ap,pf_outfunc f,void *ofdata)
 			int base=0;
 			nextfmt=0;
 	        // Process output
-	        switch ((c) {			
+	        switch (c) {			
 			    case 'd':
 			    case 'D':
 				case 'u':
