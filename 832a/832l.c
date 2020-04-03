@@ -57,6 +57,8 @@ int main(int argc,char **argv)
 				{
 					char *tmp;
 					unsigned long addr=strtoul(argv[i],&tmp,0);
+					if(*argv[i]=='=')
+						++argv[i];
 					if(tmp==argv[i] && addr==0)
 						fprintf(stderr,"Bad base address - using 0\n");
 					executable_setbaseaddress(exe,addr);

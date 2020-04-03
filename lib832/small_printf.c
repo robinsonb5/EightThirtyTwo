@@ -6,7 +6,7 @@ static char temp[16];
 
 typedef int (*pf_outfunc)(int c,void *ofdata);
 
-static int _cvt(int val, unsigned int radix,pf_outfunc f,void *ofdata)
+static int _cvt(int val, unsigned int radix,pf_outfunc f,void *ofdata,int width,int padzero)
 {
 	char *cp = temp;
 	const char *digits="0123456789ABCDEF";
@@ -21,6 +21,12 @@ static int _cvt(int val, unsigned int radix,pf_outfunc f,void *ofdata)
 			c=val%radix;
 			*cp++ = digits[c];
 			val /= radix;
+			--width;
+		}
+		while(width>0)
+		{
+			*cp++ = padzero ? '0' : ' ';
+			--width;
 		}
 	}
 	while (cp != temp) {
@@ -48,8 +54,9 @@ __weak int _printfcore(const char *fmt,va_list ap,pf_outfunc f,void *ofdata)
 {
     int ret=0;
 	unsigned int c;
-	int length;
 	int nextfmt=0;
+	int padzero;
+	int width;
 
 	while((c=*fmt++))
 	{
@@ -57,16 +64,20 @@ __weak int _printfcore(const char *fmt,va_list ap,pf_outfunc f,void *ofdata)
 		{
 			int val;
 			int base=0;
-			length=0;
 			nextfmt=0;
 	        // Process output
-	        switch (c) {			
+	        switch ((c) {			
 			    case 'd':
+			    case 'D':
 				case 'u':
 					base=10;
 				    break;
+				case 'b':
+					base=2;
+					break;
 			    case 'p':
 			    case 'x':
+			    case 'X':
 					base=16;
 				    break;
 			    case 's':
@@ -80,11 +91,29 @@ __weak int _printfcore(const char *fmt,va_list ap,pf_outfunc f,void *ofdata)
 			        f(va_arg(ap, int /*char*/),ofdata);
 					ret++;
 			        break;
-			    default:
-					if(c!='%')
-						f('%',ofdata);
-			        f(c,ofdata);
+				case '%':
+					f('%',ofdata);
 					ret++;
+					break;
+				case '\'':
+				case '#':
+				case ' ':
+				case '-':
+				case '+':
+					// These flags are currently unsupported;
+					nextfmt=1;
+					break;
+				case '0':
+					padzero=1;
+					nextfmt=1;
+					break;
+			    default:
+					// If we're still parsing the format string, this is probably the width field...
+					if(c>'0' && c<'9')
+					{
+						width=(width*10)+(c-'0');
+						nextfmt=1;
+					}
 			        break;
 	        }
 			if(base)
@@ -95,13 +124,17 @@ __weak int _printfcore(const char *fmt,va_list ap,pf_outfunc f,void *ofdata)
 					putchar('-');
 					val=-val;
 				}
-		        ret+=length = _cvt(val, base,f,ofdata);
+		        ret+=_cvt(val, base,f,ofdata,width,padzero);
 			}
 		}
 		else
 		{
 			if(c=='%')
+			{
+				padzero=0;
+				width=0;
 				nextfmt=1;
+			}
 			else
 				f(c,ofdata);
 		}
@@ -153,6 +186,7 @@ int sprintf(char *buf,const char *fmt, ...)
 	ud.len=-1;
 	va_start(ap,fmt);
 	ret=_printfcore(fmt,ap,_fpwritechar,&ud);
+	_fpwritechar(0,&ud);
 	va_end(ap);
 	return(ret);
 }
@@ -163,9 +197,11 @@ int snprintf(char *buf,size_t size,const char *fmt, ...)
     va_list ap;
 	struct _fpwcdata ud;
 	ud.buf=buf;
-	ud.len=size;
+	ud.len=size-1;
 	va_start(ap,fmt);
 	ret=_printfcore(fmt,ap,_fpwritechar,&ud);
+	ud.len=size;
+	_fpwritechar(0,&ud);
 	va_end(ap);
 	return(ret);
 }
