@@ -306,6 +306,7 @@ begin
 
 		case ls_state is
 			when LS_WAIT =>
+					ram_bytesel<="1111";
 					if fetch_ram_req='1' and prefetch=true then
 						ram_addr_r<=std_logic_vector(fetch_addr(31 downto 2));
 						ram_req_r<='1';
