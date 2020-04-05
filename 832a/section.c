@@ -559,12 +559,12 @@ void section_writemap(struct section *sect,FILE *f)
 	if(sect)
 	{
 		struct symbol *sym;
-		fprintf(f,"%08x %s\n",sect->address,sect->identifier);
+		fprintf(f,"0x%08x Section: %s\n",sect->address,sect->identifier);
 		sym=sect->symbols;
 		while(sym)
 		{
 			if(sym->flags&SYMBOLFLAG_GLOBAL)
-				fprintf(f,"%08x    %s\n",sym->address,sym->identifier);
+				fprintf(f,"0x%08x    %s\n",sym->address,sym->identifier);
 			sym=sym->next;
 		}
 	}

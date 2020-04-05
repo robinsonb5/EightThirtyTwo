@@ -12,7 +12,7 @@ clean:
 832l: 832l.o 832defs.o executable.o objectfile.o section.o symbol.o codebuffer.o sectionmap.o 832util.o equates.o
 	gcc -o $@ $+
 
-832d: 832d.c 832defs.c 832util.c
+832d: 832d.o 832defs.o 832util.o section.o symbol.o codebuffer.o
 	gcc -o $@ $+
 
 %.o: %.c

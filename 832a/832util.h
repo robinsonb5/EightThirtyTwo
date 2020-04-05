@@ -21,7 +21,9 @@ void write_short_le(int i,FILE *f);
 void write_short_be(int i,FILE *f);
 void write_lstr(const char *str,FILE *f);
 
+int read_int(FILE *f,enum eightthirtytwo_endian endian);
 int read_int_le(FILE *f);
+int read_int_be(FILE *f);
 int read_short_le(FILE *f);
 void read_lstr(FILE *f,char *ptr);
 
