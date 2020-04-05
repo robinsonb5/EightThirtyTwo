@@ -10,7 +10,7 @@ use work.eightthirtytwo_pkg.all;
 entity eightthirtytwo_fetchloadstore is
 generic
 (
-	littleendian : in boolean := true;
+	littleendian : in boolean := false;
 	storealign : in boolean := true;
 	dualthread : in boolean := true;
 	prefetch : in boolean := true

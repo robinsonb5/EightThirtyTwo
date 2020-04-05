@@ -8,18 +8,18 @@ LD=../../832a/832l
 CC=../bin/vbcc832
 EM=../../832emu/832e
 CFLAGS = -+ -c99 -I$(832DIR)/include/ -I$(LIBDIR)
-COPT = -O=1311 -size
+COPT = -O=1311 -size -unsigned-char
 TIME=200us
 
 # LITTLE ENDIAN
-ASFLAGS=-el
-LDFLAGS=-el 
-ROMGENFLAGS=-b
+#ASFLAGS=-el
+#LDFLAGS=-el 
+#ROMGENFLAGS=-b
 
 #BIG ENDIAN
-#ASFLAGS=-eb
-#LDFLAGS=-eb 
-#ROMGENFLAGS=
+ASFLAGS=-eb
+LDFLAGS=-eb 
+ROMGENFLAGS=
 
 all: compiler helloworld.bin
 
