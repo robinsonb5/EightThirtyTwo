@@ -38,6 +38,7 @@ struct executable *executable_new()
 		result->lastobject=0;
 		result->map=sectionmap_new();
 		result->baseaddress=0;
+		result->bssaddress=-1;
 	}
 	return(result);
 }
@@ -47,6 +48,13 @@ void executable_setbaseaddress(struct executable *exe,int baseaddress)
 {
 	if(exe)
 		exe->baseaddress=baseaddress;
+}
+
+
+void executable_setbssaddress(struct executable *exe,int bssaddress)
+{
+	if(exe)
+		exe->bssaddress=bssaddress;
 }
 
 
@@ -278,8 +286,11 @@ void executable_assignaddresses(struct executable *exe)
 	{
 		struct sectionmap *map=exe->map;
 		struct section *sect,*prev;
+		struct section *bssstart;
 		int j=0;
 		int resolve;
+
+		bssstart=sectionmap_getbuiltin(map,BUILTIN_BSS_START);
 
 		/* Assign initial sizes to references */
 		for(i=0;i<map->entrycount;++i)
@@ -304,7 +315,16 @@ void executable_assignaddresses(struct executable *exe)
 			{
 				sect=map->entries[i].sect;
 				if(sect)
+				{
+					/* If the user has specified a BSS start address, apply it here. */
+					if(sect==bssstart && exe->bssaddress>0)
+					{
+						if(exe->bssaddress<sectionbase && exe->bssaddress>=exe->baseaddress)
+							linkerror("Specified BSS address would collide with code!");
+						sectionbase=exe->bssaddress;
+					}
 					sectionbase=section_assignaddresses(sect,sectionbase);
+				}
 			}
 
 			/* Refine reference sizes based on new addresses */

@@ -12,14 +12,14 @@ COPT = -O=1311 -size -unsigned-char
 TIME=200us
 
 # LITTLE ENDIAN
-#ASFLAGS=-el
-#LDFLAGS=-el 
-#ROMGENFLAGS=-b
+ASFLAGS=-el
+LDFLAGS=-el 
+ROMGENFLAGS=-b
 
 #BIG ENDIAN
-ASFLAGS=-eb
-LDFLAGS=-eb 
-ROMGENFLAGS=
+#ASFLAGS=-eb
+#LDFLAGS=-eb 
+#ROMGENFLAGS=
 
 all: compiler helloworld.bin
 

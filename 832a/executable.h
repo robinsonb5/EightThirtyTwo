@@ -11,6 +11,7 @@ struct executable
 	struct objectfile *lastobject;
 	struct sectionmap *map;
 	int baseaddress;
+	int bssaddress;
 };
 
 

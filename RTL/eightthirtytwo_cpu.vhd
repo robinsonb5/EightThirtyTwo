@@ -8,7 +8,7 @@ use work.eightthirtytwo_pkg.all;
 
 entity eightthirtytwo_cpu is
 generic(
-	littleendian : boolean := false;
+	littleendian : boolean := true;
 	storealign : boolean := true;
 	interrupts : boolean := true;
 	multiplier : boolean := true;

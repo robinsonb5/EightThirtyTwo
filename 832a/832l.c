@@ -59,8 +59,23 @@ int main(int argc,char **argv)
 					unsigned long addr=strtoul(argv[i],&tmp,0);
 					if(tmp==argv[i] && addr==0)
 						fprintf(stderr,"Bad base address - using 0\n");
-					executable_setbaseaddress(exe,addr);
 					printf("Setting base address to 0x%lx\n",addr);
+					executable_setbaseaddress(exe,addr);
+					if(*tmp==',')
+					{
+						++tmp;
+						addr=0;
+						if(!*tmp)
+							tmp=argv[++i];
+						addr=strtoul(tmp,&tmp,0);
+						if(tmp==argv[i] && addr==0)
+							fprintf(stderr,"Bad BSS base address - ignoring\n");
+						else
+						{
+							printf("Setting bss base address to 0x%lx\n",addr);
+							executable_setbssaddress(exe,addr);
+						}
+					}
 					nextbase=0;
 				}
 				else if(nextfn)
