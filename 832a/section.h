@@ -39,6 +39,7 @@ void section_delete(struct section *sect);
 int section_matchname(struct section *sect,const char *name);
 void section_touch(struct section *sect);
 
+struct symbol *section_findsymbolbycursor(struct section *sect,int cursor);
 struct symbol *section_findsymbol(struct section *sect,const char *symname);
 struct symbol *section_getsymbol(struct section *sect, const char *symname);
 void section_declaresymbol(struct section *sect, const char *name,int flags);

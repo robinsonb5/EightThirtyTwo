@@ -36,7 +36,6 @@ struct section *parse_mapfile(const char *filename)
 						{
 							struct symbol *sym;
 							char *tok=strtok_escaped(endptr);
-							printf("Addr %x, symbol %s\n",v,tok);
 							if(sym=symbol_new(tok,v,0))
 								section_addsymbol(result,sym);
 						}
@@ -50,7 +49,7 @@ struct section *parse_mapfile(const char *filename)
 	return(result);
 }
 
-void file_disassemble(const char *filename,enum eightthirtytwo_endian endian)
+void file_disassemble(const char *filename,struct section *symbolmap,enum eightthirtytwo_endian endian)
 {
 	FILE *f;
 	f=fopen(filename,"rb");
@@ -66,6 +65,10 @@ void file_disassemble(const char *filename,enum eightthirtytwo_endian endian)
 			int opc=c&0xf8;
 			int opr=c&7;
 			int j;
+			struct symbol *s;
+			s=section_findsymbolbycursor(symbolmap,a);
+			if(s && s->cursor==a)
+				printf("%s:\n",s->identifier);
 			if((opc&0xc0)==0xc0)
 			{
 				if(immstreak)
@@ -81,7 +84,7 @@ void file_disassemble(const char *filename,enum eightthirtytwo_endian endian)
 				}
 				else
 					signedimm=imm;
-				printf("%05x\t%02x\tli\t%x\t(0x%x, %d)\n",a,c,c&0x3f,imm,signedimm);
+				printf("  %05x\t%02x\tli\t%x\t(0x%x, %d)\n",a,c,c&0x3f,imm,signedimm);
 				immstreak=1;
 			}
 			else
@@ -95,7 +98,7 @@ void file_disassemble(const char *filename,enum eightthirtytwo_endian endian)
 						if(opcodes[j].opcode==c)
 						{
 							found=1;
-							printf("%05x\t%02x\t%s\n",a,c,opcodes[j].mnem);
+							printf("  %05x\t%02x\t%s\n",a,c,opcodes[j].mnem);
 							break;
 						}
 					}
@@ -109,11 +112,11 @@ void file_disassemble(const char *filename,enum eightthirtytwo_endian endian)
 						{
 							if((c==(opc_add+7) || c==(opc_addt+7)) && immstreak)
 							{
-								printf("%05x\t%02x\t%s\t%s\t(%x)\n",
+								printf("  %05x\t%02x\t%s\t%s\t(%x)\n",
 									a,c,opcodes[j].mnem,operands[(c&7)|((c&0xf8)==0 ? 8 : 0)].mnem,a+1+signedimm);
 							}
 							else
-								printf("%05x\t%02x\t%s\t%s\n",a,c,opcodes[j].mnem,operands[(c&7)|((c&0xf8)==0 ? 8 : 0)].mnem);
+								printf("  %05x\t%02x\t%s\t%s\n",a,c,opcodes[j].mnem,operands[(c&7)|((c&0xf8)==0 ? 8 : 0)].mnem);
 							if(c==(opc_ldinc+7))
 							{
 								int v=read_int(f,endian);
@@ -173,7 +176,7 @@ int main(int argc,char **argv)
 			}
 			else
 			{
-				file_disassemble(argv[i],endian);
+				file_disassemble(argv[i],symbolmap,endian);
 			}
 
 			/* Dirty trick for when we have an option with no space before the parameter. */

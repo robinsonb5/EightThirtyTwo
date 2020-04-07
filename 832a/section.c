@@ -102,6 +102,24 @@ struct symbol *section_findsymbol(struct section *sect,const char *symname)
 }
 
 
+struct symbol *section_findsymbolbycursor(struct section *sect,int cursor)
+{
+	struct symbol *psym=0;
+	if(!sect)
+		return(0);
+	struct symbol *sym=sect->symbols;
+	while(sym)
+	{
+		if(sym->cursor>cursor)
+			return(psym);
+		psym=sym;
+		sym=sym->next;
+	}
+	return(0);
+}
+
+
+
 /*	Hunts for an existing symbol; creates it if not found,
 	with a cursor position of -1 to indicate that it's not
     been declared, only referenced.  */
