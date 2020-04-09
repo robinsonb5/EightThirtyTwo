@@ -196,10 +196,12 @@ signal dbg_q : std_logic_vector(31 downto 0);
 signal dbg_rdreg : std_logic;
 signal dbg_reg : std_logic_vector(3 downto 0);
 signal dbg_reg_q : std_logic_vector(31 downto 0);
+signal dbg_break : std_logic;
 signal dbg_breakpoint : std_logic_vector(31 downto 0);
 signal dbg_setbrk : std_logic;
 signal dbg_run : std_logic;
 signal dbg_step : std_logic;
+signal dbg_singlestep : std_logic;
 
 begin
 
@@ -259,7 +261,7 @@ port map
 (
 	clk => clk,
 	reset_n => reset_n,
-	freeze => dbg_run,
+	freeze => dbg_pause,
 
 	-- cpu fetch interface
 
@@ -310,7 +312,7 @@ port map
 (
 	clk => clk,
 	reset_n => reset_n,
-	freeze => dbg_run,
+	freeze => dbg_pause,
 
 	-- cpu fetch interface
 
@@ -510,6 +512,7 @@ begin
 	if reset_n='0' then
 		alu_forward_q2tod1<='0';
 		alu_forward_q2tod1_d<='0';
+		e_thread<='0';
 		-- Thread 1:
 		regfile.flag_cond<='0';
 		regfile.flag_sgn<='0';
@@ -1132,7 +1135,7 @@ port map (
 	rdreg => dbg_rdreg,
 	setbrk => dbg_setbrk,
 	run => dbg_run,
-	step => dbg_step
+	step => dbg_singlestep
 );
 
 process(clk)
@@ -1142,10 +1145,10 @@ begin
 		dbg_divert<='0';
 --		dbg_req<='0';
 --		dbg_wr<='0';
-		dbg_breakpoint<=X"00000100";
+		dbg_breakpoint<=X"00000000";
 --		dbg_rdreg<='0';
 --		dbg_setbrk<='0';
-		dbg_pause<='0';
+		dbg_break<='0';
 --		dbg_step<='0';
 		dbg_byte<='0';
 		dbg_halfword<='0';
@@ -1154,7 +1157,8 @@ begin
 		dbg_counter<=dbg_counter+1;
 
 		dbg_ack<='0';
-
+		dbg_step<='0';
+	
 		-- Debug load/store interface
 		-- Divert loads/stores via the debug unit but only if the main core isn't using it.
 		if dbg_req='1' then
@@ -1183,18 +1187,18 @@ begin
 			dbg_ack<='1';
 		end if;
 
-		if thread.pc=dbg_breakpoint then
-			dbg_pause<='1';
+		if thread.pc=dbg_breakpoint(e32_pc_maxbit downto 0) then
+			dbg_break<='1';
 		end if;
 
 		if dbg_run='1' then
-			dbg_pause<='0';
+			dbg_break<='0';
 			dbg_ack<='1';
 		end if;
 
 	end if;
-	dbg_req<=dbg_counter(4);
-	dbg_run<=(dbg_counter(6) and (not dbg_pause or dbg_step));
+--	dbg_req<=dbg_counter(4);
+	dbg_pause<=dbg_break and not (dbg_singlestep);
 end process;
 
 -- Combinational reads from register file

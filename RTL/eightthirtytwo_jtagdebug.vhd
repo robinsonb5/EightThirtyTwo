@@ -24,6 +24,11 @@ end entity;
 
 architecture rtl of eightthirtytwo_jtagdebug is
 
+type debugstate_t is (IDLE,SINGLESTEP,GO,READ,WRITE,READREG,BREAKPOINT);
+signal debugstate : debugstate_t := IDLE;
+
+signal counter : unsigned(3 downto 0) := X"0";
+
 begin
 
 process(clk)
@@ -34,7 +39,37 @@ begin
 		rdreg<='0';
 		setbrk<='0';
 		step<='0';
+		run<='0';
 		addr<=X"00000000";
+	elsif rising_edge(clk) then
+
+		setbrk<='0';
+		run<='0';
+		step<='0';
+
+		case debugstate is
+			when IDLE =>
+				counter<=counter+1;
+				if counter=X"0" then
+					debugstate<=SINGLESTEP;
+				end if;
+
+			when BREAKPOINT =>
+				setbrk<='1';
+
+			when GO => 
+				run<='1';
+				debugstate<=IDLE;
+
+			when SINGLESTEP => 
+				step<='1';
+				debugstate<=IDLE;
+
+			when others =>
+				null;
+
+		end case;
+
 	end if;
 end process;
 
