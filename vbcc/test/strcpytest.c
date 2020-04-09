@@ -1,5 +1,5 @@
 /*
---stop-time=1ms
+--stop-time=2ms
 */
 
 #include <stdio.h>

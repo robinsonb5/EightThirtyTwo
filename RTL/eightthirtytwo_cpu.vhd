@@ -14,7 +14,8 @@ generic(
 	multiplier : boolean := true;
 	prefetch : boolean := true;
 	dualthread : boolean := true;
-	forwarding : boolean := true
+	forwarding : boolean := true;
+	debug_jtag : boolean := true
 	);
 port(
 	clk : in std_logic;
@@ -67,8 +68,6 @@ end record;
 signal regfile : e32_regfile;
 signal regfile2 : e32_regfile;
 
-signal debug_inscount : unsigned(15 downto 0) :=X"0000";
-
 -- Status flags.  Z and C are used for conditional execution.
 
 -- Load / store signals
@@ -82,6 +81,14 @@ signal ls_req : std_logic;
 signal ls_req_r : std_logic;
 signal ls_wr : std_logic;
 signal ls_ack : std_logic;
+
+signal ls_addr_i : std_logic_vector(31 downto 0);
+signal ls_d_i : std_logic_vector(31 downto 0);
+signal ls_byte_i : std_logic;
+signal ls_halfword_i : std_logic;
+signal ls_req_i : std_logic;
+signal ls_wr_i : std_logic;
+signal ls_ack_i : std_logic;
 
 -- Fetch stage signals:
 
@@ -127,7 +134,7 @@ signal thread : e32_thread;
 signal thread2 : e32_thread;
 
 -- Decode stage signals:
-
+-- (moved to within the thread record)
 
 
 -- Execute stage signals:
@@ -170,6 +177,29 @@ signal w_loadstore : std_logic;
 -- hazard / stall signals
 
 signal stall : std_logic;
+
+
+-- Debugging signals
+
+signal dbg_divert : std_logic;
+signal dbg_addr : std_logic_vector(31 downto 0);
+signal dbg_d : std_logic_vector(31 downto 0);
+signal dbg_byte : std_logic;
+signal dbg_halfword : std_logic;
+signal dbg_req : std_logic;
+signal dbg_wr : std_logic;
+signal dbg_pause : std_logic;
+signal dbg_counter : unsigned(6 downto 0);
+
+signal dbg_ack : std_logic;
+signal dbg_q : std_logic_vector(31 downto 0);
+signal dbg_rdreg : std_logic;
+signal dbg_reg : std_logic_vector(3 downto 0);
+signal dbg_reg_q : std_logic_vector(31 downto 0);
+signal dbg_breakpoint : std_logic_vector(31 downto 0);
+signal dbg_setbrk : std_logic;
+signal dbg_run : std_logic;
+signal dbg_step : std_logic;
 
 begin
 
@@ -229,6 +259,7 @@ port map
 (
 	clk => clk,
 	reset_n => reset_n,
+	freeze => dbg_run,
 
 	-- cpu fetch interface
 
@@ -244,14 +275,14 @@ port map
 
 	-- cpu load/store interface
 
-	ls_addr => ls_addr,
-	ls_d => ls_d,
+	ls_addr => ls_addr_i,
+	ls_d => ls_d_i,
 	ls_q => ls_q,
-	ls_wr => ls_wr,
-	ls_byte => ls_byte,
-	ls_halfword => ls_halfword,
-	ls_req => ls_req,
-	ls_ack => ls_ack,
+	ls_wr => ls_wr_i,
+	ls_byte => ls_byte_i,
+	ls_halfword => ls_halfword_i,
+	ls_req => ls_req_i,
+	ls_ack => ls_ack_i,
 
 		-- external RAM interface:
 
@@ -279,6 +310,7 @@ port map
 (
 	clk => clk,
 	reset_n => reset_n,
+	freeze => dbg_run,
 
 	-- cpu fetch interface
 
@@ -289,14 +321,14 @@ port map
 
 	-- cpu load/store interface
 
-	ls_addr => ls_addr,
-	ls_d => ls_d,
+	ls_addr => ls_addr_i,
+	ls_d => ls_d_i,
 	ls_q => ls_q,
-	ls_wr => ls_wr,
-	ls_byte => ls_byte,
-	ls_halfword => ls_halfword,
-	ls_req => ls_req,
-	ls_ack => ls_ack,
+	ls_wr => ls_wr_i,
+	ls_byte => ls_byte_i,
+	ls_halfword => ls_halfword_i,
+	ls_req => ls_req_i,
+	ls_ack => ls_ack_i,
 
 		-- external RAM interface:
 
@@ -452,7 +484,8 @@ if dualthread=false generate
 	thread2.hazard<='0';
 end generate;
 
--- Stall - causes the entire pipeline to pause, without inserting bubbles.
+-- Stall - pauses the pipeline from F through to M, without inserting bubbles.
+-- Operations already in M will complete.
 
 stall<='1' when (e_ex_op(e32_exb_waitalu)='1' and alu_ack='0')
 	else '0';
@@ -604,7 +637,6 @@ begin
 				if thread.d_ex_op(e32_exb_postinc)='1' and regfile.flag_cond='0' then
 					e_continue<='1';
 				end if;
-				debug_inscount<=debug_inscount+1; -- Temporary debugging counter
 				thread.pc<=thread.nextpc;
 				alu_imm<=thread.d_imm;
 
@@ -1082,6 +1114,128 @@ begin
 
 	
 end process;
+
+
+GENDEBUG_JTAG:
+if debug_jtag=true generate
+
+debug_inst : entity work.eightthirtytwo_jtagdebug
+port map (
+	clk => clk,
+	reset_n => reset_n,
+	addr => dbg_addr,
+	d => dbg_d,
+	q => dbg_q,
+	req => dbg_req,
+	ack => dbg_ack,
+	wr => dbg_wr,
+	rdreg => dbg_rdreg,
+	setbrk => dbg_setbrk,
+	run => dbg_run,
+	step => dbg_step
+);
+
+process(clk)
+begin
+	if reset_n='0' then
+		dbg_counter<=(others=>'0');
+		dbg_divert<='0';
+--		dbg_req<='0';
+--		dbg_wr<='0';
+		dbg_breakpoint<=X"00000100";
+--		dbg_rdreg<='0';
+--		dbg_setbrk<='0';
+		dbg_pause<='0';
+--		dbg_step<='0';
+		dbg_byte<='0';
+		dbg_halfword<='0';
+--		dbg_addr<=X"00000000";
+	elsif rising_edge(clk) then
+		dbg_counter<=dbg_counter+1;
+
+		dbg_ack<='0';
+
+		-- Debug load/store interface
+		-- Divert loads/stores via the debug unit but only if the main core isn't using it.
+		if dbg_req='1' then
+			if ls_req='0' then
+				dbg_divert<='1';
+			end if;
+		end if;
+
+		if dbg_req='1' and ls_ack_i='1' then
+			dbg_q<=ls_q;
+			dbg_ack<='1';
+			dbg_divert<='0';
+		end if;
+
+		-- read from register file
+
+		if dbg_rdreg='1' then
+			dbg_q<=dbg_reg_q;
+			dbg_ack<='1';
+		end if;
+
+		-- breakpoints
+
+		if dbg_setbrk='1' then
+			dbg_breakpoint<=dbg_addr;
+			dbg_ack<='1';
+		end if;
+
+		if thread.pc=dbg_breakpoint then
+			dbg_pause<='1';
+		end if;
+
+		if dbg_run='1' then
+			dbg_pause<='0';
+			dbg_ack<='1';
+		end if;
+
+	end if;
+	dbg_req<=dbg_counter(4);
+	dbg_run<=(dbg_counter(6) and (not dbg_pause or dbg_step));
+end process;
+
+-- Combinational reads from register file
+
+with dbg_reg(3 downto 0) select dbg_reg_q <=
+	regfile.gpr0 when "0000",
+	regfile.gpr1 when "0001",
+	regfile.gpr2 when "0010",
+	regfile.gpr3 when "0011",
+	regfile.gpr4 when "0100",
+	regfile.gpr5 when "0101",
+	regfile.gpr6 when "0110",
+	regfile.gpr7 when "0111",
+	regfile.tmp when "1000",
+	X"0000000"&"0"&regfile.flag_cond&regfile.flag_c&regfile.flag_z when "1001",
+	(others=>'-') when others;	-- r7 is the program counter.
+
+-- Divering load/store signals
+
+ls_addr_i<=dbg_addr when dbg_divert='1' else ls_addr;
+ls_d_i<=dbg_d  when dbg_divert='1' else ls_d;
+ls_byte_i<='0' when dbg_divert='1' else ls_byte;
+ls_halfword_i<='0'  when dbg_divert='1' else ls_halfword;
+ls_req_i<=dbg_req and not ls_ack_i when dbg_divert='1' else ls_req;
+ls_wr_i<=dbg_wr  when dbg_divert='1' else ls_wr;
+ls_ack<='0' when dbg_divert='1' else ls_ack_i;
+
+end generate;
+
+GENNODEBUG_JTAG:
+if debug_jtag=false generate
+dbg_pause<='0';
+
+ls_addr_i<=ls_addr;
+ls_d_i<=ls_d;
+ls_byte_i<=ls_byte;
+ls_halfword_i<=ls_halfword;
+ls_req_i<=ls_req;
+ls_wr_i<=ls_wr;
+
+end generate;
 
 
 end architecture;

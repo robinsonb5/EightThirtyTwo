@@ -19,6 +19,7 @@ port
 (
 	clk : in std_logic;
 	reset_n : in std_logic;
+	freeze : in std_logic := '0';
 
 	-- cpu fetch interface
 
@@ -105,7 +106,7 @@ begin
 -- Fetch 1
 
 opcode_valid_i<=opcodebuffer_valid(1) when pc(2)='0' else opcodebuffer_valid(0);
-opcode_valid<=opcode_valid_i and not pc_req;
+opcode_valid<=opcode_valid_i and not (pc_req or freeze);
 
 process(pc,clk,ram_ack,reset_n)
 begin
@@ -191,7 +192,7 @@ end process;
 genthread2:
 if dualthread=true generate
 opcode2_valid_i<=opcodebuffer2_valid(1) when pc2(2)='0' else opcodebuffer2_valid(0);
-opcode2_valid<=opcode2_valid_i and not pc2_req;
+opcode2_valid<=opcode2_valid_i and not (pc2_req or freeze);
 
 process(pc2,clk,ram_ack,reset_n)
 begin
