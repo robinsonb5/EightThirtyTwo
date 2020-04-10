@@ -117,7 +117,7 @@ BEGIN
 
 	sld_virtual_jtag_component : sld_virtual_jtag
 	GENERIC MAP (
-		sld_auto_instance_index => "YES",
+		sld_auto_instance_index => "NO",
 		sld_instance_index => 0,
 		sld_ir_width => 2,
 		sld_sim_action => "",
@@ -151,7 +151,7 @@ END SYN;
 -- Retrieval info: PRIVATE: INTENDED_DEVICE_FAMILY STRING "Cyclone II"
 -- Retrieval info: PRIVATE: show_jtag_state STRING "0"
 -- Retrieval info: LIBRARY: altera_mf altera_mf.altera_mf_components.all
--- Retrieval info: CONSTANT: SLD_AUTO_INSTANCE_INDEX STRING "YES"
+-- Retrieval info: CONSTANT: SLD_AUTO_INSTANCE_INDEX STRING "NO"
 -- Retrieval info: CONSTANT: SLD_INSTANCE_INDEX NUMERIC "0"
 -- Retrieval info: CONSTANT: SLD_IR_WIDTH NUMERIC "2"
 -- Retrieval info: CONSTANT: SLD_SIM_ACTION STRING ""

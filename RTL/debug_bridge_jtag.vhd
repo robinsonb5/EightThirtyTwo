@@ -30,7 +30,10 @@ constant BYPASS : std_logic_vector(1 downto 0) := "11";
 
 signal ir_in : std_logic_vector(1 downto 0);
 signal ir_out : std_logic_vector(1 downto 0);
-signal ir : std_logic_vector(1 downto 0);
+signal ir : std_logic_vector(1 downto 0) := BYPASS;
+signal ir_d : std_logic_vector(1 downto 0);
+signal ir_d2 : std_logic_vector(1 downto 0);
+signal ir_d3 : std_logic_vector(1 downto 0);
 signal vstate_cdr : std_logic;
 signal vstate_sdr : std_logic;
 signal vstate_udr : std_logic;
@@ -152,6 +155,9 @@ begin
 
 		if vstate_uir='1' then
 			ir <= ir_in;
+			ir_d<=ir;
+			ir_d2<=ir_d;
+			ir_d3<=ir_d2;
 		end if;
 
 	end if;
@@ -172,7 +178,7 @@ begin
 
 			when STATUS =>
 				if cdr_d='1' then
-					shift <= X"0000000" & rxfl & rxmt & txfl & txmt;
+					shift <= X"0000000"& rxfl & rxmt & txfl & txmt;
 				elsif sdr_d='1' then 
 					shift <= tdi&shift(31 downto 1);
 				end if;
