@@ -15,7 +15,7 @@ generic(
 	prefetch : boolean := true;
 	dualthread : boolean := true;
 	forwarding : boolean := true;
-	debug_jtag : boolean := true
+	debug : boolean := false
 	);
 port(
 	clk : in std_logic;
@@ -27,7 +27,13 @@ port(
 	wr : out std_logic;
 	req : out std_logic;
 	ack : in std_logic;
-	bytesel : out std_logic_vector(3 downto 0)
+	bytesel : out std_logic_vector(3 downto 0);
+	-- Debug signals
+	debug_d : in std_logic_vector(31 downto 0) := X"00000000";
+	debug_q : out std_logic_vector(31 downto 0);
+	debug_req : out std_logic;
+	debug_wr : out std_logic;
+	debug_ack : in std_logic := '0'
 );
 end entity;
 
@@ -181,27 +187,27 @@ signal stall : std_logic;
 
 -- Debugging signals
 
-signal dbg_divert : std_logic;
-signal dbg_addr : std_logic_vector(31 downto 0);
-signal dbg_d : std_logic_vector(31 downto 0);
-signal dbg_byte : std_logic;
-signal dbg_halfword : std_logic;
-signal dbg_req : std_logic;
-signal dbg_wr : std_logic;
-signal dbg_pause : std_logic;
-signal dbg_counter : unsigned(6 downto 0);
+signal idbg_divert : std_logic;
+signal idbg_addr : std_logic_vector(31 downto 0);
+signal idbg_d : std_logic_vector(31 downto 0);
+signal idbg_byte : std_logic;
+signal idbg_halfword : std_logic;
+signal idbg_req : std_logic;
+signal idbg_wr : std_logic;
+signal idbg_pause : std_logic;
+signal idbg_counter : unsigned(6 downto 0);
 
-signal dbg_ack : std_logic;
-signal dbg_q : std_logic_vector(31 downto 0);
-signal dbg_rdreg : std_logic;
-signal dbg_reg : std_logic_vector(3 downto 0);
-signal dbg_reg_q : std_logic_vector(31 downto 0);
-signal dbg_break : std_logic;
-signal dbg_breakpoint : std_logic_vector(31 downto 0);
-signal dbg_setbrk : std_logic;
-signal dbg_run : std_logic;
-signal dbg_step : std_logic;
-signal dbg_singlestep : std_logic;
+signal idbg_ack : std_logic;
+signal idbg_q : std_logic_vector(31 downto 0);
+signal idbg_rdreg : std_logic;
+signal idbg_reg : std_logic_vector(3 downto 0);
+signal idbg_reg_q : std_logic_vector(31 downto 0);
+signal idbg_break : std_logic;
+signal idbg_breakpoint : std_logic_vector(31 downto 0);
+signal idbg_setbrk : std_logic;
+signal idbg_run : std_logic;
+signal idbg_step : std_logic;
+signal idbg_singlestep : std_logic;
 
 begin
 
@@ -261,7 +267,7 @@ port map
 (
 	clk => clk,
 	reset_n => reset_n,
-	freeze => dbg_pause,
+	freeze => idbg_pause,
 
 	-- cpu fetch interface
 
@@ -312,7 +318,7 @@ port map
 (
 	clk => clk,
 	reset_n => reset_n,
-	freeze => dbg_pause,
+	freeze => idbg_pause,
 
 	-- cpu fetch interface
 
@@ -1120,90 +1126,96 @@ end process;
 
 
 GENDEBUG_JTAG:
-if debug_jtag=true generate
+if debug=true generate
 
-debug_inst : entity work.eightthirtytwo_jtagdebug
+debug_inst : entity work.eightthirtytwo_debug
 port map (
 	clk => clk,
 	reset_n => reset_n,
-	addr => dbg_addr,
-	d => dbg_d,
-	q => dbg_q,
-	req => dbg_req,
-	ack => dbg_ack,
-	wr => dbg_wr,
-	rdreg => dbg_rdreg,
-	setbrk => dbg_setbrk,
-	run => dbg_run,
-	step => dbg_singlestep
+	addr => idbg_addr,
+	d => idbg_d,
+	q => idbg_q,
+	req => idbg_req,
+	ack => idbg_ack,
+	wr => idbg_wr,
+	rdreg => idbg_rdreg,
+	setbrk => idbg_setbrk,
+	run => idbg_run,
+	step => idbg_singlestep,
+	-- plumbing to external debug bridge
+	debug_d => debug_d,
+	debug_q => debug_q,
+	debug_req => debug_req,
+	debug_wr => debug_wr,
+	debug_ack => debug_ack
 );
 
-process(clk)
+process(clk,reset_n,idbg_break,idbg_singlestep)
 begin
 	if reset_n='0' then
-		dbg_counter<=(others=>'0');
-		dbg_divert<='0';
---		dbg_req<='0';
---		dbg_wr<='0';
-		dbg_breakpoint<=X"00000000";
---		dbg_rdreg<='0';
---		dbg_setbrk<='0';
-		dbg_break<='0';
---		dbg_step<='0';
-		dbg_byte<='0';
-		dbg_halfword<='0';
---		dbg_addr<=X"00000000";
+		idbg_counter<=(others=>'0');
+		idbg_divert<='0';
+--		idbg_req<='0';
+--		idbg_wr<='0';
+		idbg_breakpoint<=X"00000000";
+--		idbg_rdreg<='0';
+--		idbg_setbrk<='0';
+		idbg_break<='0';
+--		idbg_step<='0';
+		idbg_byte<='0';
+		idbg_halfword<='0';
+--		idbg_addr<=X"00000000";
 	elsif rising_edge(clk) then
-		dbg_counter<=dbg_counter+1;
+		idbg_counter<=idbg_counter+1;
 
-		dbg_ack<='0';
-		dbg_step<='0';
+		idbg_ack<='0';
+		idbg_step<='0';
 	
 		-- Debug load/store interface
 		-- Divert loads/stores via the debug unit but only if the main core isn't using it.
-		if dbg_req='1' then
+		if idbg_req='1' then
 			if ls_req='0' then
-				dbg_divert<='1';
+				idbg_divert<='1';
 			end if;
 		end if;
 
-		if dbg_req='1' and ls_ack_i='1' then
-			dbg_q<=ls_q;
-			dbg_ack<='1';
-			dbg_divert<='0';
+		if idbg_req='1' and ls_ack_i='1' then
+			idbg_d<=ls_q;
+			idbg_ack<='1';
+			idbg_divert<='0';
 		end if;
 
 		-- read from register file
 
-		if dbg_rdreg='1' then
-			dbg_q<=dbg_reg_q;
-			dbg_ack<='1';
+		if idbg_rdreg='1' then
+			idbg_d<=idbg_reg_q;
+			idbg_ack<='1';
 		end if;
 
 		-- breakpoints
 
-		if dbg_setbrk='1' then
-			dbg_breakpoint<=dbg_addr;
-			dbg_ack<='1';
+		if idbg_setbrk='1' then
+			idbg_breakpoint<=idbg_addr;
+			idbg_ack<='1';
 		end if;
 
-		if thread.pc=dbg_breakpoint(e32_pc_maxbit downto 0) then
-			dbg_break<='1';
+		if thread.pc=idbg_breakpoint(e32_pc_maxbit downto 0) then
+			idbg_break<='1';
 		end if;
 
-		if dbg_run='1' then
-			dbg_break<='0';
-			dbg_ack<='1';
+		if idbg_run='1' then
+			idbg_break<='0';
+			idbg_ack<='1';
 		end if;
 
 	end if;
---	dbg_req<=dbg_counter(4);
-	dbg_pause<=dbg_break and not (dbg_singlestep);
+--	idbg_req<=idbg_counter(4);
+	idbg_pause<=idbg_break and not (idbg_singlestep);
 end process;
 
 -- Combinational reads from register file
 
-with dbg_reg(3 downto 0) select dbg_reg_q <=
+with idbg_q(3 downto 0) select idbg_reg_q <=
 	regfile.gpr0 when "0000",
 	regfile.gpr1 when "0001",
 	regfile.gpr2 when "0010",
@@ -1216,21 +1228,21 @@ with dbg_reg(3 downto 0) select dbg_reg_q <=
 	X"0000000"&"0"&regfile.flag_cond&regfile.flag_c&regfile.flag_z when "1001",
 	(others=>'-') when others;	-- r7 is the program counter.
 
--- Divering load/store signals
+-- Diverting load/store signals
 
-ls_addr_i<=dbg_addr when dbg_divert='1' else ls_addr;
-ls_d_i<=dbg_d  when dbg_divert='1' else ls_d;
-ls_byte_i<='0' when dbg_divert='1' else ls_byte;
-ls_halfword_i<='0'  when dbg_divert='1' else ls_halfword;
-ls_req_i<=dbg_req and not ls_ack_i when dbg_divert='1' else ls_req;
-ls_wr_i<=dbg_wr  when dbg_divert='1' else ls_wr;
-ls_ack<='0' when dbg_divert='1' else ls_ack_i;
+ls_addr_i<=idbg_addr when idbg_divert='1' else ls_addr;
+ls_d_i<=idbg_q  when idbg_divert='1' else ls_d;
+ls_byte_i<='0' when idbg_divert='1' else ls_byte;
+ls_halfword_i<='0'  when idbg_divert='1' else ls_halfword;
+ls_req_i<=idbg_req and not ls_ack_i when idbg_divert='1' else ls_req;
+ls_wr_i<=idbg_wr  when idbg_divert='1' else ls_wr;
+ls_ack<='0' when idbg_divert='1' else ls_ack_i;
 
 end generate;
 
 GENNODEBUG_JTAG:
-if debug_jtag=false generate
-dbg_pause<='0';
+if debug=false generate
+idbg_pause<='0';
 
 ls_addr_i<=ls_addr;
 ls_d_i<=ls_d;
@@ -1238,6 +1250,7 @@ ls_byte_i<=ls_byte;
 ls_halfword_i<=ls_halfword;
 ls_req_i<=ls_req;
 ls_wr_i<=ls_wr;
+ls_ack<=ls_ack_i;
 
 end generate;
 
