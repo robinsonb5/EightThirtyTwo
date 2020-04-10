@@ -17,12 +17,13 @@ void get_regfile(struct ocd_connection *con,struct regfile *rf)
 	{
 		rf->regs[i]=OCD_READREG(con,i);
 	}
-	rf->tmp=OCD_READREG(con,REG_TMP);
 	i=OCD_READREG(con,REG_FLAGS);
+	rf->tmp=OCD_READREG(con,REG_TMP);
 	OCD_RELEASE(con);
 	rf->z=i&1;
 	rf->c=(i>>1)&1;
 	rf->cond=(i>>2)&1;
+	rf->sign=(i>>3)&1;
 }
 
 void draw_regfile(WINDOW *w,struct regfile *rf)
@@ -32,10 +33,10 @@ void draw_regfile(WINDOW *w,struct regfile *rf)
 	{
 		mvwprintw(w,1+(i&3),2+(i>>2)*15,"r%d: %08x",i,rf->regs[i]);
 	}
-	mvwprintw(w,1,32,"tmp: %08x",i,rf->tmp);
-	mvwprintw(w,2,32,"z: %d",rf->z&1);
-	mvwprintw(w,3,32,"c: %d",rf->c&1);
-	mvwprintw(w,4,32,"cond: %d",rf->cond&1);
+	mvwprintw(w,1,32,"tmp: %08x",rf->tmp);
+	mvwprintw(w,2,32,"z: %d  sign: %d",rf->z&1,rf->sign&1);
+	mvwprintw(w,3,32,"c: %d  cond: %d",rf->c&1,rf->cond&1);
+//	mvwprintw(w,4,32,"cond: %d",rf->cond&1);
 	wrefresh(w);
 }
 
@@ -154,6 +155,7 @@ int main(int argc, char *argv[])
 	delwin(stack_win);
 	delwin(mem_win);
 	endwin();			/* End curses mode		  */
+	printf("%d\n",DBG832_RELEASE);
 	return 0;
 }
 

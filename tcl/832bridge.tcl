@@ -95,7 +95,6 @@ proc dec2bin {i {width {}}} {
         append d [string repeat 0 $width] $res
         set res [string range $d [string length $res] end]
     }
-	puts $sign$res
     return $sign$res
 }
 
@@ -120,7 +119,6 @@ proc send {chr} {
 
 # Read data in from the Altera output FIFO buffer
 proc recv {} {
-	puts "in recv"
 	# Check if there is anything to read
 	device_virtual_ir_shift -instance_index 0 -ir_value 2 -no_captured_ir_value
 	set tdi [device_virtual_dr_shift -dr_value 0000 -instance_index 0 -length 4]
@@ -135,11 +133,10 @@ proc recv {} {
 
 # Read data in from the Altera output FIFO buffer
 proc recv_blocking {} {
-	puts "in recv_blocking"
 	while {1} {
 		device_virtual_ir_shift -instance_index 0 -ir_value 2 -no_captured_ir_value
 		set tdi [device_virtual_dr_shift -dr_value 0000 -instance_index 0 -length 4]
-		puts $tdi
+#		puts $tdi
 		if {![expr $tdi & 1]} {
 			device_virtual_ir_shift -instance_index 0 -ir_value 0 -no_captured_ir_value
 			set tdi [device_virtual_dr_shift -dr_value 00000000000000000000000000000000 -instance_index 0 -length 32]
@@ -166,23 +163,10 @@ proc conn {channel_name client_address client_port} {
 	while {1} {
 		# Try to read a character from the buffer
 		set cmd [read $channel_name 1]
-		if {[eof $channel_name]} {
-			puts "EOF on cmd"
-			break
-		}
 		set parambytes [read $channel_name 1]
-		if {[eof $channel_name]} {
-			puts "EOF on pb"
-			break
-		}
 		set responsebytes [read $channel_name 1]
-		if {[eof $channel_name]} {
-			puts "EOF on rb"
-			break
-		}
 		set byteparam [read $channel_name 1]
 		if {[eof $channel_name]} {
-			puts "EOF on bp"
 			break
 		}
 		set numchars [string length $byteparam]
@@ -193,19 +177,18 @@ proc conn {channel_name client_address client_port} {
 
 			scan $cmd %c ascii
 
-			if { $cmd == 255} {
+			if { $ascii == 255} {
 				# Release the USB blaster again
 				closeport
 				set portopen 0
-				puts "Port closed"
+#				puts "Port closed"
 			}
 			
-			if { $cmd != 0} {
-				puts $portopen
+			if { $ascii != 255} {
 				if { $portopen == 0} {
 					openport
 					set portopen 1
-					puts "Port opened"
+#					puts "Port opened"
 				}
 
 				set cmd [expr $ascii << 24]
@@ -217,8 +200,7 @@ proc conn {channel_name client_address client_port} {
 				set cmd [expr $cmd | $byteparam]
 				send $cmd
 
-				puts "Sending parameters (if any)"
-
+				# Sending parameters, if any
 
 				set $cmd 0
 				while { $parambytes > 0 } {
@@ -231,24 +213,16 @@ proc conn {channel_name client_address client_port} {
 					}
 				}
 
-
 				while { $responsebytes > 0 } {
-					puts "Waiting for response"
-					puts $responsebytes
+#					puts "Waiting for response"
 					if {[eof $channel_name]} break
 					set rx [recv_blocking]
-					puts $rx
-					puts [expr [expr $rx >> 24] & 255]
-					puts [expr [expr $rx >> 16] & 255]
-					puts [expr [expr $rx >> 8] & 255]
-					puts [expr $rx & 255]
 					puts -nonewline $channel_name [format %c [expr [expr $rx >> 24] & 255]]
 					puts -nonewline $channel_name [format %c [expr [expr $rx >> 16] & 255]]
 					puts -nonewline $channel_name [format %c [expr [expr $rx >> 8] & 255]]
 					puts -nonewline $channel_name [format %c [expr $rx & 255]]
 					set responsebytes [expr $responsebytes -4]
 				}
-				puts "Done"
 			}
 		}
 	}

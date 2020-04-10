@@ -1155,16 +1155,10 @@ begin
 	if reset_n='0' then
 		idbg_counter<=(others=>'0');
 		idbg_divert<='0';
---		idbg_req<='0';
---		idbg_wr<='0';
 		idbg_breakpoint<=X"00000000";
---		idbg_rdreg<='0';
---		idbg_setbrk<='0';
 		idbg_break<='0';
---		idbg_step<='0';
 		idbg_byte<='0';
 		idbg_halfword<='0';
---		idbg_addr<=X"00000000";
 	elsif rising_edge(clk) then
 		idbg_counter<=idbg_counter+1;
 
@@ -1225,7 +1219,7 @@ with idbg_q(3 downto 0) select idbg_reg_q <=
 	regfile.gpr6 when "0110",
 	regfile.gpr7 when "0111",
 	regfile.tmp when "1000",
-	X"0000000"&"0"&regfile.flag_cond&regfile.flag_c&regfile.flag_z when "1001",
+	X"0000000"&regfile.flag_sgn&regfile.flag_cond&regfile.flag_c&regfile.flag_z when "1001",
 	(others=>'-') when others;	-- r7 is the program counter.
 
 -- Diverting load/store signals

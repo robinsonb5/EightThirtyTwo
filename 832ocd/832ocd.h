@@ -12,7 +12,7 @@ struct regfile
 {
 	int regs[8];
 	int tmp;
-	char c,z,cond;
+	char c,z,cond,sign;
 };
 
 #endif
