@@ -4,6 +4,8 @@
 
 #include "832ocd.h"
 #include "832ocd_connection.h"
+#include "832opcodes.h"
+#include "832a.h"
 
 WINDOW *create_newwin(const char *title,int height, int width, int starty, int startx);
 void destroy_win(WINDOW *local_win);
@@ -13,6 +15,80 @@ void destroy_win(WINDOW *local_win);
 
 #define OCD_BUFSIZE 64
 #define OCD_BUFMASK 63
+
+char disbuf[32];
+void disassemble_byte(unsigned char op)
+{
+	FILE *f;
+	int opc=op&0xf8;
+	int opr=op&7;
+	int j;
+	static int immstreak=0;
+	static int imm;
+	static int signedimm=0;
+	if((opc&0xc0)==0xc0)
+	{
+		if(immstreak)
+			imm<<=6;
+		else
+			imm=op&0x20 ? 0xffffffc0 : 0;
+		imm|=op&0x3f;
+		if(imm&0x80000000)
+		{
+			signedimm=~imm;
+			signedimm+=1;
+			signedimm=-signedimm;
+		}
+		else
+			signedimm=imm;
+		snprintf(disbuf,32,"%02x  li  %x  (0x%x, %d)",op,op&0x3f,imm,signedimm);
+		immstreak=1;
+	}
+	else
+	{
+		int found=0;
+		/* Look for overloads first... */
+		if((op&7)==7)
+		{
+			for(j=0;j<sizeof(opcodes)/sizeof(struct opcode);++j)
+			{
+				if(opcodes[j].opcode==op)
+				{
+					found=1;
+					snprintf(disbuf,32,"%02x  %s",op,opcodes[j].mnem);
+					break;
+				}
+			}
+		}
+		if(!found)
+		{
+			/* If not found, look for base opcodes... */
+			for(j=0;j<sizeof(opcodes)/sizeof(struct opcode);++j)
+			{
+				if(opcodes[j].opcode==opc)
+				{
+					if((op==(opc_add+7) || op==(opc_addt+7)) && immstreak)
+					{
+						snprintf(disbuf,32,"%02x  %s  %s (pc+%x)",
+							op,opcodes[j].mnem,operands[(op&7)|((op&0xf8)==0 ? 8 : 0)].mnem,1+signedimm);
+					}
+					else
+						snprintf(disbuf,32,"%02x  %s  %s",op,opcodes[j].mnem,operands[(op&7)|((op&0xf8)==0 ? 8 : 0)].mnem);
+//					if(c==(opc_ldinc+7))
+//					{
+//						int v=read_int(f,endian);
+//						printf("\t\t0x%x\n",v);
+//						a+=4;
+//					}
+					break;
+				}
+			}
+		}
+		immstreak=0;
+	}
+}
+
+
 
 /* Ring buffer contains 32 bytes - 8 words of program data.
    As we read each value we fill in the value 4 words ahead. */
@@ -67,10 +143,10 @@ void ocd_rbuf_fetch(struct ocd_rbuf *code,int pc)
 					pc&=~3;
 					pc+=OCD_BUFSIZE/2;
 					v=OCD_READ(code->con,pc);
-					code->buffer[(pc+i)&OCD_BUFMASK]=(v>>24)&255;
-					code->buffer[(pc+i+1)&OCD_BUFMASK]=(v>>16)&255;
-					code->buffer[(pc+i+2)&OCD_BUFMASK]=(v>>8)&255;
-					code->buffer[(pc+i+3)&OCD_BUFMASK]=v&255;
+					code->buffer[(pc+i+3)&OCD_BUFMASK]=(v>>24)&255;
+					code->buffer[(pc+i+2)&OCD_BUFMASK]=(v>>16)&255;
+					code->buffer[(pc+i+1)&OCD_BUFMASK]=(v>>8)&255;
+					code->buffer[(pc+i+0)&OCD_BUFMASK]=v&255;
 				}
 				fprintf(stderr,"done\n");
 				break;
@@ -81,10 +157,10 @@ void ocd_rbuf_fetch(struct ocd_rbuf *code,int pc)
 				for(i=0;i<OCD_BUFSIZE/2;i+=4)
 				{
 					v=OCD_READ(code->con,pc+i);
-					code->buffer[(pc+i)&OCD_BUFMASK]=(v>>24)&255;
-					code->buffer[(pc+i+1)&OCD_BUFMASK]=(v>>16)&255;
-					code->buffer[(pc+i+2)&OCD_BUFMASK]=(v>>8)&255;
-					code->buffer[(pc+i+3)&OCD_BUFMASK]=v&255;
+					code->buffer[(pc+i+3)&OCD_BUFMASK]=(v>>24)&255;
+					code->buffer[(pc+i+2)&OCD_BUFMASK]=(v>>16)&255;
+					code->buffer[(pc+i+1)&OCD_BUFMASK]=(v>>8)&255;
+					code->buffer[(pc+i+0)&OCD_BUFMASK]=v&255;
 				}
 				fprintf(stderr,"Clearing remainder\n");
 				for(i=OCD_BUFSIZE/2;i<OCD_BUFSIZE;++i)
@@ -157,7 +233,10 @@ void draw_disassembly(WINDOW *w,struct ocd_rbuf *code,int pc)
 		h=(OCD_BUFSIZE-4);
 	for(i=0;i<h;++i)
 	{
-		mvwprintw(w,1+i,2,"%08x: %02x",pc+i,ocd_rbuf_get(code,pc+i));
+		disassemble_byte(ocd_rbuf_get(code,pc+i));
+		mvwprintw(w,1+i,2,"                                        ",pc+i,disbuf);
+		mvwprintw(w,1+i,2,"%08x: %s",pc+i,disbuf);
+//		mvwprintw(w,1+i,2,"%08x: %02x",pc+i,ocd_rbuf_get(code,pc+i));
 	}
 	wrefresh(w);
 }
