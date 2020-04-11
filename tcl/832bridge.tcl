@@ -179,17 +179,13 @@ proc conn {channel_name client_address client_port} {
 
 			if { $ascii == 255} {
 				# Release the USB blaster again
-				closeport
+				if { $portopen == 1 } closeport
 				set portopen 0
-#				puts "Port closed"
 			}
 			
 			if { $ascii != 255} {
-				if { $portopen == 0} {
-					openport
-					set portopen 1
-#					puts "Port opened"
-				}
+				if { $portopen == 0} openport
+				set portopen 1
 
 				set cmd [expr $ascii << 24]
 				scan $parambytes %c parambytes

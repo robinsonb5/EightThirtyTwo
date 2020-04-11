@@ -11,7 +11,7 @@
 struct ocd_connection *ocd_connection_new()
 {
 	struct ocd_connection *result=0;
-	result=(struct ocd_connection *)malloc(sizeof(struct ocd_connection *));
+	result=(struct ocd_connection *)malloc(sizeof(struct ocd_connection));
 	if(result)
 	{
 		result->connected=0;
@@ -58,7 +58,7 @@ int ocd_connect(struct ocd_connection *con,const char *ip,int port)
 
 		if (connect(con->sock, (struct sockaddr *)&con->serv_addr, sizeof(con->serv_addr)) < 0)
 		{
-			fprintf(stderr,"Connection Failed \n");
+			fprintf(stderr,"Can't connect to JTAG bridge\n");
 			return(0);
 		}
 		return(1);
@@ -108,11 +108,12 @@ int ocd_command(struct ocd_connection *con,enum dbg832_op op,int paramcount,int 
 }
 
 
-#if 0
+#ifdef DBG
 int main(int argc, char const *argv[])
 {
 	int result;
     int valread;
+	int i;
 
 	struct ocd_connection *con;
 
@@ -128,13 +129,20 @@ int main(int argc, char const *argv[])
 
 //	result=ocd_command(con,DBG832_READ,4,4,7,0x0000004,0);
 	result=OCD_READ(con,4);
+	result=OCD_READ(con,8);
+	result=OCD_READ(con,12);
 	printf("%08x\n",result);
 //	result=ocd_command(con,DBG832_SINGLESTEP,0,0,7,0,0);
 	result=OCD_SINGLESTEP(con);
 	printf("%08x\n",result);
+	OCD_RELEASE(con);
 	result=OCD_READREG(con,7);
-//	result=ocd_command(con,DBG832_READREG,0,4,7,0,0);
 	printf("%08x\n",result);
+	for(i=0;i<1024;i+=4)
+	{
+		result=OCD_READ(con,i);
+		printf("%08x\n",result);
+	}
 //	result=command(sock,DBG832_RELEASE,0,0,0,0,0);
 //	printf("%08x\n",result);
 //	result=command(sock,DBG832_SINGLESTEP,0,0,7,0x12345678,0);
