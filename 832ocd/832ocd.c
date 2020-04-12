@@ -4,8 +4,14 @@
 
 #include "832ocd.h"
 #include "832ocd_connection.h"
+#include "frontend.h"
+
+/* Imported from 832a */
 #include "832opcodes.h"
 #include "832a.h"
+#include "section.h"
+#include "symbol.h"
+
 
 WINDOW *create_newwin(const char *title,int height, int width, int starty, int startx);
 void destroy_win(WINDOW *local_win);
@@ -16,8 +22,8 @@ void destroy_win(WINDOW *local_win);
 #define OCD_BUFSIZE 64
 #define OCD_BUFMASK 63
 
-char disbuf[32];
-void disassemble_byte(unsigned char op)
+char disbuf[REGS_WIDTH];
+void disassemble_byte(unsigned char op,int row)
 {
 	FILE *f;
 	int opc=op&0xf8;
@@ -26,6 +32,8 @@ void disassemble_byte(unsigned char op)
 	static int immstreak=0;
 	static int imm;
 	static int signedimm=0;
+	if(row==0)
+		immstreak=0;
 	if((opc&0xc0)==0xc0)
 	{
 		if(immstreak)
@@ -90,15 +98,30 @@ void disassemble_byte(unsigned char op)
 
 
 
-/* Ring buffer contains 32 bytes - 8 words of program data.
+/* Ring buffer contains OCD_BUFSIZE bytes of program data.
    As we read each value we fill in the value 4 words ahead. */
 
 struct ocd_rbuf
 {
-	int pc;
+	int cursor;	/* Centre point of the buffer */
 	struct ocd_connection *con;
+	struct regfile regfile;
 	unsigned char buffer[OCD_BUFSIZE];
+	struct section *symbolmap;
+	enum eightthirtytwo_endian endian;
 };
+
+
+static int ocd_rbuf_high(struct ocd_rbuf *buf)
+{
+	return(buf->cursor+OCD_BUFSIZE/2-1);
+}
+
+
+static int ocd_rbuf_low(struct ocd_rbuf *buf)
+{
+	return(buf->cursor-OCD_BUFSIZE/2);
+}
 
 
 struct ocd_rbuf *ocd_rbuf_new(struct ocd_connection *con)
@@ -108,7 +131,9 @@ struct ocd_rbuf *ocd_rbuf_new(struct ocd_connection *con)
 	if(rb)
 	{
 		rb->con=con;
-		rb->pc=-OCD_BUFSIZE;
+		rb->cursor=-OCD_BUFSIZE;
+		rb->symbolmap=0;
+		rb->endian=EIGHTTHIRTYTWO_LITTLEENDIAN;
 	}
 	return(rb);
 }
@@ -118,79 +143,101 @@ void ocd_rbuf_delete(struct ocd_rbuf *buf)
 {
 	if(buf)
 	{
+		if(buf->symbolmap)
+			section_delete(buf->symbolmap);
 		free(buf);
 	}
 }
 
 
-void ocd_rbuf_fetch(struct ocd_rbuf *code,int pc)
+void ocd_rbuf_fillword(struct ocd_rbuf *buf,int a)
 {
-	int i;
-	int v;
-	fprintf(stderr,"In fetch\n");
-	if(code)
-	{
-		switch(pc-code->pc)
-		{
-			case 0:
-				break;
-			case 1:
-				fprintf(stderr,"Single step\n");
-				code->pc=pc;
-				if((pc&3)==0)	/* Have we crossed a word boundary? */
-				{
-					int v;
-					pc&=~3;
-					pc+=OCD_BUFSIZE/2;
-					v=OCD_READ(code->con,pc);
-					code->buffer[(pc+i+3)&OCD_BUFMASK]=(v>>24)&255;
-					code->buffer[(pc+i+2)&OCD_BUFMASK]=(v>>16)&255;
-					code->buffer[(pc+i+1)&OCD_BUFMASK]=(v>>8)&255;
-					code->buffer[(pc+i+0)&OCD_BUFMASK]=v&255;
-				}
-				fprintf(stderr,"done\n");
-				break;
-			default:
-				code->pc=pc;
-				pc&=~3;
-				fprintf(stderr,"Filling buffer\n");
-				for(i=0;i<OCD_BUFSIZE/2;i+=4)
-				{
-					v=OCD_READ(code->con,pc+i);
-					code->buffer[(pc+i+3)&OCD_BUFMASK]=(v>>24)&255;
-					code->buffer[(pc+i+2)&OCD_BUFMASK]=(v>>16)&255;
-					code->buffer[(pc+i+1)&OCD_BUFMASK]=(v>>8)&255;
-					code->buffer[(pc+i+0)&OCD_BUFMASK]=v&255;
-				}
-				fprintf(stderr,"Clearing remainder\n");
-				for(i=OCD_BUFSIZE/2;i<OCD_BUFSIZE;++i)
-				{
-					code->buffer[(pc+i)&OCD_BUFMASK]=0;
-				}
-				fprintf(stderr,"Single step\n");
-		}
-		fprintf(stderr,"Releasing connection\n");
-		OCD_RELEASE(code->con);
-		fprintf(stderr,"done\n");
-	}
+	int v=OCD_READ(buf->con,a);
+	buf->buffer[(a+3)&OCD_BUFMASK]=(v>>24)&255;
+	buf->buffer[(a+2)&OCD_BUFMASK]=(v>>16)&255;
+	buf->buffer[(a+1)&OCD_BUFMASK]=(v>>8)&255;
+	buf->buffer[(a+0)&OCD_BUFMASK]=v&255;
 }
 
 
-int ocd_rbuf_get(struct ocd_rbuf *code,int pc)
+void ocd_rbuf_prev(struct ocd_rbuf *buf)
 {
-	fprintf(stderr,"Getting opcode at %x\n",pc);
-	if(code)
+	int a,v;
+	buf->cursor-=4;
+	a=buf->cursor-OCD_BUFSIZE/2;
+	v=OCD_READ(buf->con,a);
+	ocd_rbuf_fillword(buf,a);
+}
+
+
+void ocd_rbuf_next(struct ocd_rbuf *buf)
+{
+	int a=buf->cursor+OCD_BUFSIZE/2;
+	int v=OCD_READ(buf->con,a);
+	ocd_rbuf_fillword(buf,a);
+	buf->cursor+=4;
+}
+
+
+void ocd_rbuf_fill(struct ocd_rbuf *buf,int addr)
+{
+	int i;
+	int v;
+	addr&=~3;
+	if(addr<OCD_BUFSIZE/2)
+		addr=OCD_BUFSIZE/2;
+
+	for(i=-OCD_BUFSIZE/2;i<OCD_BUFSIZE/2;i+=4)
 	{
-		int i;
-		if((pc-code->pc)>(OCD_BUFSIZE/2))
-		{
-			fprintf(stderr,"Address not in buffer - fetching\n");
-			ocd_rbuf_fetch(code,pc);
-			fprintf(stderr,"Done\n");
-		}
-		return(code->buffer[pc&OCD_BUFMASK]);
+		v=OCD_READ(buf->con,addr+i);
+		buf->buffer[(addr+i+3)&OCD_BUFMASK]=(v>>24)&255;
+		buf->buffer[(addr+i+2)&OCD_BUFMASK]=(v>>16)&255;
+		buf->buffer[(addr+i+1)&OCD_BUFMASK]=(v>>8)&255;
+		buf->buffer[(addr+i+0)&OCD_BUFMASK]=v&255;
 	}
-	return(0);
+	buf->cursor=addr;
+}
+
+
+int ocd_rbuf_get(struct ocd_rbuf *code,int addr)
+{
+	int high,low;
+	high=ocd_rbuf_high(code);
+	low=ocd_rbuf_low(code);
+
+	if(addr<low || addr>high)
+	{
+		if(addr<low)
+		{
+			int d=low-addr;
+			if(d<OCD_BUFSIZE/2)
+			{
+				while(d>0)
+				{
+					ocd_rbuf_prev(code);
+					d-=4;
+				}
+			}
+			else
+				ocd_rbuf_fill(code,addr);
+		}
+		else
+		{
+			int d=addr-high;
+			if(d<OCD_BUFSIZE/2)
+			{
+				while(d>0)
+				{
+					ocd_rbuf_next(code);
+					d-=4;
+				}
+			}
+			else
+				ocd_rbuf_fill(code,addr);
+		}
+		OCD_RELEASE(code->con);
+	}
+	return(code->buffer[addr&OCD_BUFMASK]);
 }
 
 
@@ -228,50 +275,127 @@ void draw_regfile(WINDOW *w,struct regfile *rf)
 void draw_disassembly(WINDOW *w,struct ocd_rbuf *code,int pc)
 {
 	int i;
+	int a;
 	int h=LINES-REGS_HEIGHT-3;
 	if(h>(OCD_BUFSIZE-4))
 		h=(OCD_BUFSIZE-4);
+	a=pc;
 	for(i=0;i<h;++i)
 	{
-		disassemble_byte(ocd_rbuf_get(code,pc+i));
-		mvwprintw(w,1+i,2,"                                        ",pc+i,disbuf);
-		mvwprintw(w,1+i,2,"%08x: %s",pc+i,disbuf);
-//		mvwprintw(w,1+i,2,"%08x: %02x",pc+i,ocd_rbuf_get(code,pc+i));
+		char caret=' ';
+		struct symbol *s;
+		mvwprintw(w,1+i,2,"                                          ");
+		s=section_findsymbolbycursor(code->symbolmap,a);
+		if(s && s->cursor==a)
+		{
+			mvwprintw(w,1+i,2,"%s:",s->identifier);
+			++i;
+		}
+		if(i<h)
+		{
+			if(a==code->regfile.regs[7])
+				caret='~';
+			if(a==code->regfile.prevpc)
+				caret='>';
+			disassemble_byte(ocd_rbuf_get(code,a),a-pc);
+			mvwprintw(w,1+i,2,"%c %08x: %s",caret,a,disbuf);
+			++a;
+		}
 	}
 	wrefresh(w);
 }
 
 
-int confirm()
+struct section *parse_mapfile(const char *filename)
 {
-	while(1)
+	struct section *result=0;
+	if(filename)
 	{
-		char ch = getch();
-		switch(ch)
+		FILE *f;
+		f=fopen(filename,"r");
+		if(f)
 		{
-			case 'y':
-			case 'Y':
-				return(1);
-				break;
-			case 'n':
-			case 'N':
-			case 27:
-				return(0);
-				break;
-			default:
-				break;
+			if(result=section_new(0,"symboltable"))
+			{
+				int line=0;
+				char *linebuf=0;
+				size_t len;
+				int c;
+				while(c=getline(&linebuf,&len,f)>0)
+				{
+					char *endptr;
+					int v=strtoul(linebuf,&endptr,0);
+					if(!v && endptr==linebuf)
+						linkerror("Invalid constant value");
+					else
+					{
+						if(endptr[1]==' ')
+						{
+							struct symbol *sym;
+							char *tok=strtok_escaped(endptr);
+							if(sym=symbol_new(tok,v,0))
+								section_addsymbol(result,sym);
+						}
+					}					
+				}
+			}
+			fclose(f);
+		}	
+	}
+
+	return(result);
+}
+
+
+void parse_args(int argc, char *argv[],struct ocd_rbuf *buf)
+{
+	int nextmap=0;
+	int nextendian=0;
+	int i;
+	for(i=1;i<argc;++i)
+	{
+		if(strncmp(argv[i],"-m",2)==0)
+			nextmap=1;
+		else if(strncmp(argv[i],"-e",2)==0)
+			nextendian=1;
+		else if(nextmap)
+		{
+			buf->symbolmap=parse_mapfile(argv[i]);
+			nextmap=0;
+		}
+		else if(nextendian)
+		{
+			if(*argv[i]=='l')
+				buf->endian=EIGHTTHIRTYTWO_LITTLEENDIAN;
+			else if(*argv[i]=='b')
+				buf->endian=EIGHTTHIRTYTWO_BIGENDIAN;
+			else
+				linkerror("Endian flag must be \"little\" or \"big\"\n");
+			nextendian=0;
+		}
+
+		/* Dirty trick for when we have an option with no space before the parameter. */
+		if((*argv[i]=='-') && (strlen(argv[i])>2))
+		{
+			argv[i]+=2;
+			if(*argv[i]=='=')
+				++argv[i];
+			--i;
 		}
 	}
 }
 
+
+#define DIS_WIN_HEIGHT (LINES-REGS_HEIGHT-1)
+#define MEM_WIN_HEIGHT (LINES-LINES/2)
 
 int main(int argc, char *argv[])
 {
 	int x, y;
 	int ch;
 	int running=1;
+	int disaddr=0;
 	struct ocd_connection *ocdcon;
-	struct regfile regs;
 	struct ocd_rbuf *code;
 	WINDOW *reg_win;
 	WINDOW *dis_win;
@@ -292,21 +416,24 @@ int main(int argc, char *argv[])
 
 	refresh();
 	reg_win=create_newwin("Register File",REGS_HEIGHT,REGS_WIDTH,0,0);
-	dis_win=create_newwin("Disassembly",LINES-REGS_HEIGHT-1,REGS_WIDTH,REGS_HEIGHT,0);
+	dis_win=create_newwin("Disassembly",DIS_WIN_HEIGHT,REGS_WIDTH,REGS_HEIGHT,0);
 	stack_win=create_newwin("Stack",LINES/2-1,COLS-REGS_WIDTH,0,REGS_WIDTH);
 	mem_win=create_newwin("Memory",LINES-LINES/2,COLS-REGS_WIDTH,LINES/2-1,REGS_WIDTH);
 	cmd_win=newwin(1,COLS,LINES-1,0);
 
-	get_regfile(ocdcon,&regs);
-	draw_regfile(reg_win,&regs);
-//	ocd_rbuf_fetch(code,regs.regs[7]);
-	draw_disassembly(dis_win,code,regs.regs[7]);
+	parse_args(argc,argv,code);
+
+	get_regfile(ocdcon,&code->regfile);
+	code->regfile.prevpc=code->regfile.regs[7]-1;
+	draw_regfile(reg_win,&code->regfile);
+	draw_disassembly(dis_win,code,disaddr);
 
 	move(LINES-1,2);
 
 	while(running)
 	{
-		mvwprintw(cmd_win,0,0,"                ");
+		char *input;
+		mvwprintw(cmd_win,0,0,"                                ");
 		curs_set(0);
 		wrefresh(cmd_win);
 
@@ -318,40 +445,84 @@ int main(int argc, char *argv[])
 			case KEY_RIGHT:
 				break;
 			case KEY_UP:
+				--disaddr;
+				draw_disassembly(dis_win,code,disaddr);
 				break;
 			case KEY_DOWN:
-				fprintf(stderr,"key down - fetch\n");
-				ocd_rbuf_fetch(code,++regs.regs[7]);
-				fprintf(stderr,"key down - update\n");
-				draw_disassembly(dis_win,code,regs.regs[7]);
-				fprintf(stderr,"key down - done\n");
+				++disaddr;
+				draw_disassembly(dis_win,code,disaddr);
 				break;
 			case KEY_BACKSPACE: /* backspace */
+				break;
+
+			case KEY_PPAGE:
+				disaddr-=8;
+				draw_disassembly(dis_win,code,disaddr);
+				break;
+
+			case KEY_NPAGE:
+				disaddr+=8;
+				draw_disassembly(dis_win,code,disaddr);
 				break;
 
 			case 'q':
 			case 'Q':
 				mvwprintw(cmd_win,0,0,"Really quit? ");
 				wrefresh(cmd_win);
-				curs_set(2);
-				if(confirm())
+				if(frontend_confirm())
 					running=0;
 				break;
 
 			case 's':
 			case 'S':
-				fprintf(stderr,"Single stepping\n");
 				OCD_SINGLESTEP(ocdcon);
-				fprintf(stderr,"Done\n");
-				get_regfile(ocdcon,&regs);
-				fprintf(stderr,"Fetching based on new r7 %x\n",regs.regs[7]);
-				ocd_rbuf_fetch(code,regs.regs[7]);
-				draw_regfile(reg_win,&regs);
-				draw_disassembly(dis_win,code,regs.regs[7]);
+				code->regfile.prevpc=code->regfile.regs[7];
+				get_regfile(ocdcon,&code->regfile);
+				draw_regfile(reg_win,&code->regfile);
+
+				if(code->regfile.regs[7]<disaddr)
+					disaddr=code->regfile.regs[7];
+				if((code->regfile.regs[7]-disaddr)>(DIS_WIN_HEIGHT-5))
+					disaddr=code->regfile.regs[7]-(DIS_WIN_HEIGHT-5);
+				draw_disassembly(dis_win,code,disaddr);
 				break;
 			case 'r':
+				input=frontend_gethexnumber(cmd_win,"Read: ");
+				if(strlen(input))
+				{
+					char *endptr;
+					int addr=strtoul(input,&endptr,0);
+					if(endptr!=input)
+					{
+						int v=OCD_READ(code->con,addr);
+						OCD_RELEASE(code->con);
+						mvwprintw(mem_win,MEM_WIN_HEIGHT-2,2,"R - %08x: %08x",addr,v);
+						wrefresh(mem_win);
+					}
+				}
+				break;
 			case 'R':
 			case 'w':
+				input=frontend_gethexnumber(cmd_win,"Write - Address: ");
+				if(strlen(input))
+				{
+					char *endptr;
+					int addr=strtoul(input,&endptr,0);
+					if(endptr!=input)
+					{
+						input=frontend_gethexnumber(cmd_win,"Write - Value: ");
+						if(strlen(input))
+						{
+							char *endptr;
+							int v=strtoul(input,&endptr,0);
+							OCD_WRITE(code->con,addr,v);
+							OCD_RELEASE(code->con);
+							mvwprintw(mem_win,MEM_WIN_HEIGHT-2,2,"W - %08x: %08x",addr,v);
+							wrefresh(mem_win);
+						}
+					}
+				}
+				break;
 			case 'W':
 				mvwprintw(cmd_win,0,0,"%c: ",ch);
 				wrefresh(cmd_win);

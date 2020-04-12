@@ -143,7 +143,7 @@ begin
 					when DBG832_WRITE =>
 						req<='1';
 						wr<='1';
-						debugstate<=IDLE;
+						debugstate<=FINISH;
 					when others =>
 						null;
 				end case;

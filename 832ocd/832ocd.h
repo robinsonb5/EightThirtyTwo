@@ -13,6 +13,7 @@ struct regfile
 	int regs[8];
 	int tmp;
 	char c,z,cond,sign;
+	int prevpc;
 };
 
 #endif

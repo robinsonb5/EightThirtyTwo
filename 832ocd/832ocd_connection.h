@@ -8,6 +8,7 @@
 #define OCD_PORT 33581
 
 #define OCD_READ(con,addr) ocd_command((con),DBG832_READ,4,4,0,(addr),0)
+#define OCD_WRITE(con,addr,v) ocd_command((con),DBG832_WRITE,8,0,0,(addr),(v))
 #define OCD_READREG(con,reg) ocd_command((con),DBG832_READREG,0,4,(reg),0,0)
 #define OCD_SINGLESTEP(con) ocd_command((con),DBG832_SINGLESTEP,0,0,0,0,0)
 #define OCD_RUN(con) ocd_command((con),DBG832_RUN,0,0,0,0,0)
