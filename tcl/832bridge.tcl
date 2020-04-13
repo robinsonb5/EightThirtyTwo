@@ -184,6 +184,7 @@ proc conn {channel_name client_address client_port} {
 			}
 			
 			if { $ascii != 255} {
+#				puts [dec2bin $ascii]
 				if { $portopen == 0} openport
 				set portopen 1
 
@@ -200,18 +201,18 @@ proc conn {channel_name client_address client_port} {
 
 				set $cmd 0
 				while { $parambytes > 0 } {
-					puts "Sending param..."
 					set byteparam [read $channel_name 1]
 					scan $byteparam %c ascii
 					set cmd [expr [expr $cmd << 8] | $ascii]
 					set parambytes [expr $parambytes - 1]
 					if {$parambytes==0 || $parambytes==4} {
+#						puts "Sending param..."
 						send $cmd
 					}
 				}
 
 				while { $responsebytes > 0 } {
-					puts "Waiting for response"
+#					puts "Waiting for response"
 					if {[eof $channel_name]} break
 					set rx [recv_blocking]
 					puts -nonewline $channel_name [format %c [expr [expr $rx >> 24] & 255]]
@@ -220,7 +221,7 @@ proc conn {channel_name client_address client_port} {
 					puts -nonewline $channel_name [format %c [expr $rx & 255]]
 					set responsebytes [expr $responsebytes -4]
 				}
-				puts "done"
+#				puts "done"
 			}
 		}
 	}

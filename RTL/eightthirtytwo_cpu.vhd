@@ -1171,9 +1171,11 @@ begin
 			if ls_req='0' then
 				idbg_divert<='1';
 			end if;
+		else
+			idbg_divert<='0';
 		end if;
 
-		if idbg_req='1' and ls_ack_i='1' then
+		if idbg_req='1' and idbg_divert='1' and ls_ack_i='1' then
 			idbg_d<=ls_q;
 			idbg_ack<='1';
 			idbg_divert<='0';

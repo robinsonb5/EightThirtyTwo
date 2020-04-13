@@ -419,6 +419,7 @@ int main(int argc, char *argv[])
 	dis_win=create_newwin("Disassembly",DIS_WIN_HEIGHT,REGS_WIDTH,REGS_HEIGHT,0);
 	stack_win=create_newwin("Stack",LINES/2-1,COLS-REGS_WIDTH,0,REGS_WIDTH);
 	mem_win=create_newwin("Memory",LINES-LINES/2,COLS-REGS_WIDTH,LINES/2-1,REGS_WIDTH);
+	scrollok(mem_win,1);
 	cmd_win=newwin(1,COLS,LINES-1,0);
 
 	parse_args(argc,argv,code);
@@ -433,7 +434,7 @@ int main(int argc, char *argv[])
 	while(running)
 	{
 		char *input;
-		mvwprintw(cmd_win,0,0,"                                ");
+		werase(cmd_win);
 		curs_set(0);
 		wrefresh(cmd_win);
 
@@ -473,8 +474,24 @@ int main(int argc, char *argv[])
 					running=0;
 				break;
 
-			case 's':
 			case 'S':
+				/* Multiple steps. */
+				input=frontend_getnumber(cmd_win,"Multiple steps: ",10);
+				if(strlen(input))
+				{
+					char *endptr;
+					int i=strtoul(input,&endptr,0);
+					if(endptr!=input)
+					{
+						while(--i>0)
+							OCD_SINGLESTEP(ocdcon);						
+					}
+				}
+				else
+					break;
+				code->regfile.regs[7]=OCD_READREG(ocdcon,7);
+				/* Fall through to single step */
+			case 's':
 				OCD_SINGLESTEP(ocdcon);
 				code->regfile.prevpc=code->regfile.regs[7];
 				get_regfile(ocdcon,&code->regfile);
@@ -487,7 +504,7 @@ int main(int argc, char *argv[])
 				draw_disassembly(dis_win,code,disaddr);
 				break;
 			case 'r':
-				input=frontend_gethexnumber(cmd_win,"Read: ");
+				input=frontend_getnumber(cmd_win,"Read: ",16);
 				if(strlen(input))
 				{
 					char *endptr;
@@ -496,21 +513,21 @@ int main(int argc, char *argv[])
 					{
 						int v=OCD_READ(code->con,addr);
 						OCD_RELEASE(code->con);
-						mvwprintw(mem_win,MEM_WIN_HEIGHT-2,2,"R - %08x: %08x",addr,v);
+						mvwprintw(mem_win,MEM_WIN_HEIGHT-2,2,"R - %08x: %08x\n",addr,v);
 						wrefresh(mem_win);
 					}
 				}
 				break;
 			case 'R':
 			case 'w':
-				input=frontend_gethexnumber(cmd_win,"Write - Address: ");
+				input=frontend_getnumber(cmd_win,"Write - Address: ",16);
 				if(strlen(input))
 				{
 					char *endptr;
 					int addr=strtoul(input,&endptr,0);
 					if(endptr!=input)
 					{
-						input=frontend_gethexnumber(cmd_win,"Write - Value: ");
+						input=frontend_getnumber(cmd_win,"Write - Value: ",16);
 						if(strlen(input))
 						{
 							char *endptr;

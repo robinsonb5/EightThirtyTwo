@@ -45,7 +45,7 @@ constant DBG832_BREAKPOINT : std_logic_vector(7 downto 0) := X"09";
 
 -- State machine definitions
 
-type debugstate_t is (IDLE,SINGLESTEP,READADDR,READDATA,EXECUTE,RESPOND,FINISH);
+type debugstate_t is (IDLE,SINGLESTEP,READADDR,READDATA,WRITEDATA,EXECUTE,RESPOND,FINISH);
 signal debugstate : debugstate_t := IDLE;
 
 -- Storage for parameters
@@ -143,11 +143,18 @@ begin
 					when DBG832_WRITE =>
 						req<='1';
 						wr<='1';
-						debugstate<=FINISH;
+						debugstate<=WRITEDATA;
 					when others =>
 						null;
 				end case;
 
+			when WRITEDATA =>
+				if ack='1' then
+					req<='0';
+					wr<='0';
+					debugstate<=IDLE;
+				end if;
+				
 			-- Wait for the CPU to supply the requested data
 			-- then send the response to the debug channel
 			when RESPOND =>
