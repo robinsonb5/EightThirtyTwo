@@ -53,7 +53,7 @@ void directive_sectionflags(struct objectfile *obj,char *tok,char *tok2,int key)
 void directive_literal(struct objectfile *obj,char *tok,char *tok2,int key)
 {
 	char *endptr;
-	int v=strtoul(tok,*endptr,0);
+	int v=strtoul(tok,&endptr,0);
 
 	if(!v && endptr==tok)
 		v=expression_evaluatestring(tok,obj->equates);
