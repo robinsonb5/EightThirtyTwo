@@ -12,7 +12,8 @@
 #define OCD_READREG(con,reg) ocd_command((con),DBG832_READREG,0,4,(reg),0,0)
 #define OCD_SINGLESTEP(con) ocd_command((con),DBG832_SINGLESTEP,0,0,0,0,0)
 #define OCD_RUN(con) ocd_command((con),DBG832_RUN,0,0,0,0,0)
-#define OCD_BREAKPOINT(con) ocd_command((con),DBG832_BREAKPOINT,0,0,0,0,0)
+#define OCD_STOP(con) ocd_command((con),DBG832_STOP,0,0,0,0,0)
+#define OCD_BREAKPOINT(con,addr) ocd_command((con),DBG832_BREAKPOINT,4,0,0,(addr),0)
 #define OCD_RELEASE(con) ocd_command((con),DBG832_RELEASE,0,0,0,0,0)
 
 struct ocd_connection

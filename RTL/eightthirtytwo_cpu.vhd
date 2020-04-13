@@ -206,6 +206,7 @@ signal idbg_break : std_logic;
 signal idbg_breakpoint : std_logic_vector(31 downto 0);
 signal idbg_setbrk : std_logic;
 signal idbg_run : std_logic;
+signal idbg_stop : std_logic;
 signal idbg_step : std_logic;
 signal idbg_singlestep : std_logic;
 
@@ -1141,6 +1142,7 @@ port map (
 	rdreg => idbg_rdreg,
 	setbrk => idbg_setbrk,
 	run => idbg_run,
+	stop => idbg_stop,
 	step => idbg_singlestep,
 	-- plumbing to external debug bridge
 	debug_d => debug_d,
@@ -1195,7 +1197,7 @@ begin
 			idbg_ack<='1';
 		end if;
 
-		if thread.pc=idbg_breakpoint(e32_pc_maxbit downto 0) then
+		if idbg_stop='1' or thread.pc=idbg_breakpoint(e32_pc_maxbit downto 0) then
 			idbg_break<='1';
 		end if;
 
@@ -1221,7 +1223,9 @@ with idbg_q(3 downto 0) select idbg_reg_q <=
 	regfile.gpr6 when "0110",
 	regfile.gpr7 when "0111",
 	regfile.tmp when "1000",
-	X"0000000"&regfile.flag_sgn&regfile.flag_cond&regfile.flag_c&regfile.flag_z when "1001",
+	X"000000"&
+			idbg_break&"000"&
+			regfile.flag_sgn&regfile.flag_cond&regfile.flag_c&regfile.flag_z when "1001",
 	(others=>'-') when others;	-- r7 is the program counter.
 
 -- Diverting load/store signals

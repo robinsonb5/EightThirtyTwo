@@ -14,6 +14,8 @@
 
 
 WINDOW *create_newwin(const char *title,int height, int width, int starty, int startx);
+void decorate_window(WINDOW *win,int width,const char *title);
+
 void destroy_win(WINDOW *local_win);
 
 #define REGS_WIDTH 48
@@ -277,6 +279,7 @@ void draw_disassembly(WINDOW *w,struct ocd_rbuf *code,int pc)
 	int i;
 	int a;
 	int h=LINES-REGS_HEIGHT-3;
+
 	if(h>(OCD_BUFSIZE-4))
 		h=(OCD_BUFSIZE-4);
 	a=pc;
@@ -387,7 +390,18 @@ void parse_args(int argc, char *argv[],struct ocd_rbuf *buf)
 
 
 #define DIS_WIN_HEIGHT (LINES-REGS_HEIGHT-1)
-#define MEM_WIN_HEIGHT (LINES-LINES/2)
+#define MEM_WIN_TITLE "Memory"
+#define MEM_WIN_WIDTH (COLS-REGS_WIDTH)
+#define MEM_WIN_HEIGHT (LINES-1)
+// #define MEM_WIN_HEIGHT (LINES-LINES/2)
+
+int scroll_window(WINDOW *w,int height,int width,const char *title)
+{
+	wmove(w,height-1,0);
+	wclrtoeol(w);
+	wscrl(w,1);
+	decorate_window(w,width,title);
+}
 
 int main(int argc, char *argv[])
 {
@@ -399,7 +413,7 @@ int main(int argc, char *argv[])
 	struct ocd_rbuf *code;
 	WINDOW *reg_win;
 	WINDOW *dis_win;
-	WINDOW *stack_win;
+//	WINDOW *stack_win;
 	WINDOW *mem_win;
 	WINDOW *cmd_win;
 
@@ -417,13 +431,14 @@ int main(int argc, char *argv[])
 	refresh();
 	reg_win=create_newwin("Register File",REGS_HEIGHT,REGS_WIDTH,0,0);
 	dis_win=create_newwin("Disassembly",DIS_WIN_HEIGHT,REGS_WIDTH,REGS_HEIGHT,0);
-	stack_win=create_newwin("Stack",LINES/2-1,COLS-REGS_WIDTH,0,REGS_WIDTH);
-	mem_win=create_newwin("Memory",LINES-LINES/2,COLS-REGS_WIDTH,LINES/2-1,REGS_WIDTH);
+//	stack_win=create_newwin("Stack",LINES/2-1,COLS-REGS_WIDTH,0,REGS_WIDTH);
+	mem_win=create_newwin(MEM_WIN_TITLE,MEM_WIN_HEIGHT,MEM_WIN_WIDTH,0,REGS_WIDTH);
 	scrollok(mem_win,1);
 	cmd_win=newwin(1,COLS,LINES-1,0);
 
 	parse_args(argc,argv,code);
 
+	OCD_STOP(ocdcon);
 	get_regfile(ocdcon,&code->regfile);
 	code->regfile.prevpc=code->regfile.regs[7]-1;
 	draw_regfile(reg_win,&code->regfile);
@@ -433,6 +448,7 @@ int main(int argc, char *argv[])
 
 	while(running)
 	{
+		int corerunning;
 		char *input;
 		werase(cmd_win);
 		curs_set(0);
@@ -466,6 +482,36 @@ int main(int argc, char *argv[])
 				draw_disassembly(dis_win,code,disaddr);
 				break;
 
+			case 'c':
+				OCD_RUN(code->con);
+				OCD_RELEASE(code->con);
+				mvwprintw(cmd_win,0,0,"Running... (press any key to stop)");
+				wrefresh(cmd_win);
+				timeout(100);
+				corerunning=1;
+				while(corerunning)
+				{
+					if(getch()!=ERR)
+					{
+						OCD_STOP(code->con);
+						OCD_RELEASE(code->con);
+						corerunning=0;
+					}
+					else
+					{
+						/* Read the break flag */
+						int f=OCD_READREG(code->con,9);
+						if(f & 0x80)
+							corerunning=0;
+						OCD_RELEASE(code->con);
+					}
+				}
+				get_regfile(ocdcon,&code->regfile);
+				disaddr=code->regfile.prevpc=code->regfile.regs[7];
+				draw_regfile(reg_win,&code->regfile);
+				draw_disassembly(dis_win,code,disaddr);
+				break;
+
 			case 'q':
 			case 'Q':
 				mvwprintw(cmd_win,0,0,"Really quit? ");
@@ -474,9 +520,26 @@ int main(int argc, char *argv[])
 					running=0;
 				break;
 
+			case 'b':
+				input=frontend_getinput(cmd_win,"Breakpoint address: ",16);
+				if(strlen(input))
+				{
+					char *endptr;
+					int addr=strtoul(input,&endptr,0);
+					if(endptr!=input)
+					{
+						int v=OCD_BREAKPOINT(code->con,addr);
+						OCD_RELEASE(code->con);
+						scroll_window(mem_win,MEM_WIN_HEIGHT,MEM_WIN_WIDTH,MEM_WIN_TITLE);
+						mvwprintw(mem_win,MEM_WIN_HEIGHT-2,2,"Breakpoint: %08x",addr);
+						wrefresh(mem_win);
+					}
+				}
+				break;
+
 			case 'S':
 				/* Multiple steps. */
-				input=frontend_getnumber(cmd_win,"Multiple steps: ",10);
+				input=frontend_getinput(cmd_win,"Multiple steps: ",10);
 				if(strlen(input))
 				{
 					char *endptr;
@@ -504,7 +567,7 @@ int main(int argc, char *argv[])
 				draw_disassembly(dis_win,code,disaddr);
 				break;
 			case 'r':
-				input=frontend_getnumber(cmd_win,"Read: ",16);
+				input=frontend_getinput(cmd_win,"Read: ",16);
 				if(strlen(input))
 				{
 					char *endptr;
@@ -513,27 +576,30 @@ int main(int argc, char *argv[])
 					{
 						int v=OCD_READ(code->con,addr);
 						OCD_RELEASE(code->con);
-						mvwprintw(mem_win,MEM_WIN_HEIGHT-2,2,"R - %08x: %08x\n",addr,v);
+						scroll_window(mem_win,MEM_WIN_HEIGHT,MEM_WIN_WIDTH,MEM_WIN_TITLE);
+						mvwprintw(mem_win,MEM_WIN_HEIGHT-2,2,"R - %08x: %08x",addr,v);
 						wrefresh(mem_win);
 					}
 				}
 				break;
 			case 'R':
+				break;
 			case 'w':
-				input=frontend_getnumber(cmd_win,"Write - Address: ",16);
+				input=frontend_getinput(cmd_win,"Write - Address: ",16);
 				if(strlen(input))
 				{
 					char *endptr;
 					int addr=strtoul(input,&endptr,0);
 					if(endptr!=input)
 					{
-						input=frontend_getnumber(cmd_win,"Write - Value: ",16);
+						input=frontend_getinput(cmd_win,"Write - Value: ",16);
 						if(strlen(input))
 						{
 							char *endptr;
 							int v=strtoul(input,&endptr,0);
 							OCD_WRITE(code->con,addr,v);
 							OCD_RELEASE(code->con);
+							scroll_window(mem_win,MEM_WIN_HEIGHT,MEM_WIN_WIDTH,MEM_WIN_TITLE);
 							mvwprintw(mem_win,MEM_WIN_HEIGHT-2,2,"W - %08x: %08x",addr,v);
 							wrefresh(mem_win);
 						}
@@ -541,10 +607,17 @@ int main(int argc, char *argv[])
 				}
 				break;
 			case 'W':
-				mvwprintw(cmd_win,0,0,"%c: ",ch);
-				wrefresh(cmd_win);
-				curs_set(2);
 				break;
+
+			case 'm':
+				input=frontend_getinput(cmd_win,"Memo: ",0);
+				if(strlen(input))
+				{
+					scroll_window(mem_win,MEM_WIN_HEIGHT,MEM_WIN_WIDTH,MEM_WIN_TITLE);
+					mvwprintw(mem_win,MEM_WIN_HEIGHT-2,2,"%s",input);
+					wrefresh(mem_win);
+				}
+
 
 			case 10: /* enter */
 				move(LINES-1,2);
@@ -556,7 +629,7 @@ int main(int argc, char *argv[])
 	}
 	delwin(reg_win);
 	delwin(dis_win);
-	delwin(stack_win);
+//	delwin(stack_win);
 	delwin(mem_win);
 	endwin();			/* End curses mode		  */
 
@@ -566,13 +639,20 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
+
+void decorate_window(WINDOW *win,int width,const char *title)
+{
+	box(win, 0 , 0);
+	mvwprintw(win,0,(width-(2+strlen(title)))/2," %s ",title);
+}
+
+
 WINDOW *create_newwin(const char *title,int height, int width, int starty, int startx)
 {
 	WINDOW *local_win;
 
 	local_win = newwin(height, width, starty, startx);
-	box(local_win, 0 , 0);
-	mvwprintw(local_win,0,(width-(2+strlen(title)))/2," %s ",title);
+	decorate_window(local_win,width,title);
 	wrefresh(local_win);
 
 	return local_win;

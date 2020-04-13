@@ -27,6 +27,7 @@ port (
 	rdreg : out std_logic;
 	setbrk : out std_logic;
 	run : out std_logic;
+	stop : out std_logic;
 	step : out std_logic
 );
 end entity;
@@ -42,6 +43,7 @@ constant DBG832_READFLAGS : std_logic_vector(7 downto 0) := X"06";
 constant DBG832_READ : std_logic_vector(7 downto 0) := X"07";
 constant DBG832_WRITE : std_logic_vector(7 downto 0) := X"08";
 constant DBG832_BREAKPOINT : std_logic_vector(7 downto 0) := X"09";
+constant DBG832_STOP : std_logic_vector(7 downto 0) := X"0A";
 
 -- State machine definitions
 
@@ -75,6 +77,7 @@ begin
 		rdreg<='0';
 		setbrk<='0';
 		run<='0';
+		stop<='0';
 		step<='0';
 		debug_req<='0';
 
@@ -127,6 +130,8 @@ begin
 				case debug_cmd is
 					when DBG832_RUN =>
 						run<='1';
+					when DBG832_STOP =>
+						stop<='1';
 					when DBG832_BREAKPOINT =>
 						setbrk<='1';
 					when DBG832_SINGLESTEP =>

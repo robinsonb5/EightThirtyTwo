@@ -30,17 +30,14 @@ int frontend_confirm()
 }
 
 
-static char stringbuf[128];
-
-char *frontend_getstring()
-{
-	return(&stringbuf[0]);
-}
-
-static int validatenumeric(int ch,int base)
+static int validatechar(int ch,int base)
 {
 	switch(base)
 	{
+		case 0:
+			if(ch>=' ' && ch<=255)
+				return(1);
+			break;
 		case 10:
 			if(ch>='0' && ch<='9')
 				return(1);
@@ -56,16 +53,17 @@ static int validatenumeric(int ch,int base)
 	return(0);
 }
 
+#define STRINGBUFSIZE 29
+static char stringbuf[STRINGBUFSIZE];
 
-char *frontend_getnumber(WINDOW *win,const char *prompt,int base)
+char *frontend_getinput(WINDOW *win,const char *prompt,int base)
 {
 	int cursor;
 	int promptlen=strlen(prompt);
 	int prefixbytes=0;
 	werase(win);
 	mvwprintw(win,0,0,prompt);
-	if(!stringbuf[0])
-		stringbuf[0]=' ';
+	stringbuf[0]=' ';
 
 	if(base==16)
 	{
@@ -73,9 +71,13 @@ char *frontend_getnumber(WINDOW *win,const char *prompt,int base)
 		stringbuf[2]='x';
 		stringbuf[3]=0;
 	}
-	else
+	else if(base==10)
 	{
 		stringbuf[1]=0;
+	}
+	else
+	{
+		stringbuf[0]=0;
 	}
 	
 	cursor=prefixbytes=strlen(stringbuf);
@@ -88,15 +90,15 @@ char *frontend_getnumber(WINDOW *win,const char *prompt,int base)
 		wmove(win,0,promptlen+cursor);
 		wrefresh(win);
 		ch = getch();
-		if(ch=='-')
-			stringbuf[0]=stringbuf[0]==' ' ? '-' : ' ';
-		else if(ch=='+')
-			stringbuf[0]=' ';
-		else if(validatenumeric(ch,base))
+		if(validatechar(ch,base))
 		{
 			stringbuf[cursor++]=ch;
 			stringbuf[cursor]=0;
 		}
+		else if(ch=='-')
+			stringbuf[0]=stringbuf[0]==' ' ? '-' : ' ';
+		else if(ch=='+')
+			stringbuf[0]=' ';
 		else
 		{
 			switch(ch)
@@ -120,6 +122,8 @@ char *frontend_getnumber(WINDOW *win,const char *prompt,int base)
 					break;
 			}
 		}
+		if(cursor>=(STRINGBUFSIZE-1))
+			cursor=STRINGBUFSIZE-2;
 	}
 }
 
