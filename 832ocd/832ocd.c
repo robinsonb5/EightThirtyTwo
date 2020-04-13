@@ -155,10 +155,20 @@ void ocd_rbuf_delete(struct ocd_rbuf *buf)
 void ocd_rbuf_fillword(struct ocd_rbuf *buf,int a)
 {
 	int v=OCD_READ(buf->con,a);
-	buf->buffer[(a+3)&OCD_BUFMASK]=(v>>24)&255;
-	buf->buffer[(a+2)&OCD_BUFMASK]=(v>>16)&255;
-	buf->buffer[(a+1)&OCD_BUFMASK]=(v>>8)&255;
-	buf->buffer[(a+0)&OCD_BUFMASK]=v&255;
+	if(buf->endian==EIGHTTHIRTYTWO_LITTLEENDIAN)
+	{
+		buf->buffer[(a+3)&OCD_BUFMASK]=(v>>24)&255;
+		buf->buffer[(a+2)&OCD_BUFMASK]=(v>>16)&255;
+		buf->buffer[(a+1)&OCD_BUFMASK]=(v>>8)&255;
+		buf->buffer[(a+0)&OCD_BUFMASK]=v&255;
+	}
+	else
+	{
+		buf->buffer[(a+0)&OCD_BUFMASK]=(v>>24)&255;
+		buf->buffer[(a+1)&OCD_BUFMASK]=(v>>16)&255;
+		buf->buffer[(a+2)&OCD_BUFMASK]=(v>>8)&255;
+		buf->buffer[(a+3)&OCD_BUFMASK]=v&255;
+	}
 }
 
 
@@ -190,13 +200,7 @@ void ocd_rbuf_fill(struct ocd_rbuf *buf,int addr)
 		addr=OCD_BUFSIZE/2;
 
 	for(i=-OCD_BUFSIZE/2;i<OCD_BUFSIZE/2;i+=4)
-	{
-		v=OCD_READ(buf->con,addr+i);
-		buf->buffer[(addr+i+3)&OCD_BUFMASK]=(v>>24)&255;
-		buf->buffer[(addr+i+2)&OCD_BUFMASK]=(v>>16)&255;
-		buf->buffer[(addr+i+1)&OCD_BUFMASK]=(v>>8)&255;
-		buf->buffer[(addr+i+0)&OCD_BUFMASK]=v&255;
-	}
+		ocd_rbuf_fillword(buf,addr+i);
 	buf->cursor=addr;
 }
 
@@ -390,7 +394,7 @@ void parse_args(int argc, char *argv[],struct ocd_rbuf *buf)
 
 
 #define DIS_WIN_HEIGHT (LINES-REGS_HEIGHT-1)
-#define MEM_WIN_TITLE "Memory"
+#define MEM_WIN_TITLE "Messages"
 #define MEM_WIN_WIDTH (COLS-REGS_WIDTH)
 #define MEM_WIN_HEIGHT (LINES-1)
 // #define MEM_WIN_HEIGHT (LINES-LINES/2)
@@ -473,12 +477,12 @@ int main(int argc, char *argv[])
 				break;
 
 			case KEY_PPAGE:
-				disaddr-=8;
+				disaddr-=DIS_WIN_HEIGHT-2;
 				draw_disassembly(dis_win,code,disaddr);
 				break;
 
 			case KEY_NPAGE:
-				disaddr+=8;
+				disaddr+=DIS_WIN_HEIGHT-2;
 				draw_disassembly(dis_win,code,disaddr);
 				break;
 
@@ -597,11 +601,14 @@ int main(int argc, char *argv[])
 						{
 							char *endptr;
 							int v=strtoul(input,&endptr,0);
-							OCD_WRITE(code->con,addr,v);
-							OCD_RELEASE(code->con);
-							scroll_window(mem_win,MEM_WIN_HEIGHT,MEM_WIN_WIDTH,MEM_WIN_TITLE);
-							mvwprintw(mem_win,MEM_WIN_HEIGHT-2,2,"W - %08x: %08x",addr,v);
-							wrefresh(mem_win);
+							if(endptr!=input)
+							{
+								OCD_WRITE(code->con,addr,v);
+								OCD_RELEASE(code->con);
+								scroll_window(mem_win,MEM_WIN_HEIGHT,MEM_WIN_WIDTH,MEM_WIN_TITLE);
+								mvwprintw(mem_win,MEM_WIN_HEIGHT-2,2,"W - %08x: %08x",addr,v);
+								wrefresh(mem_win);
+							}
 						}
 					}
 				}
@@ -617,10 +624,38 @@ int main(int argc, char *argv[])
 					mvwprintw(mem_win,MEM_WIN_HEIGHT-2,2,"%s",input);
 					wrefresh(mem_win);
 				}
+				break;
 
+			case 'd':
+				input=frontend_getinput(cmd_win,"Disassembly start (address or symbol): ",0);
+				if(strlen(input))
+				{
+					char *endptr;
+					int v=strtoul(input,&endptr,0);
+					if(endptr==input)
+					{
+						struct symbol *sym=section_findsymbol(code->symbolmap,input);
+						if(sym)
+						{
+							v=sym->cursor;
+							disaddr=v;
+						}
+						else
+						{
+							scroll_window(mem_win,MEM_WIN_HEIGHT,MEM_WIN_WIDTH,MEM_WIN_TITLE);
+							mvwprintw(mem_win,MEM_WIN_HEIGHT-2,2,"Symbol not found");
+							wrefresh(mem_win);
+						}
+					}
+					else
+					{
+						disaddr=v;
+					}
+					draw_disassembly(dis_win,code,disaddr);
+				}
+				break;
 
 			case 10: /* enter */
-				move(LINES-1,2);
 				break;
 
 			default:
