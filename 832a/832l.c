@@ -17,6 +17,7 @@ int main(int argc,char **argv)
 		fprintf(stderr,"\t-o <file>\t- specify output file\n");
 		fprintf(stderr,"\t-b <number>\t- specify base address\n");
 		fprintf(stderr,"\t-m <mapfile>\t- write a map file\n");
+		fprintf(stderr,"\t-M <mapfile>\t- write a map file including static / local symbols\n");
 		fprintf(stderr,"\t-s <symbol>=<number>\t- define symbol (such as stack size)\n");
 		fprintf(stderr,"\t-d\t\t- enable debug messages\n");
 	}
@@ -24,6 +25,7 @@ int main(int argc,char **argv)
 	{
 		int i;
 		enum eightthirtytwo_endian endian=EIGHTTHIRTYTWO_LITTLEENDIAN;
+		int locals=0;
 		int nextfn=0;
 		int nextbase=0;
 		int nextsym=0;
@@ -38,6 +40,8 @@ int main(int argc,char **argv)
 			{
 				if(strncmp(argv[i],"-m",2)==0)
 					nextmap=1;
+				else if(strncmp(argv[i],"-M",2)==0)
+					nextmap=locals=1;
 				else if(strncmp(argv[i],"-e",2)==0)
 					nextendian=1;
 				else if(strncmp(argv[i],"-o",2)==0)
@@ -162,7 +166,7 @@ int main(int argc,char **argv)
 			if(mapfn)
 			{
 				printf("Writing map file %s\n",mapfn);
-				executable_writemap(exe,mapfn);
+				executable_writemap(exe,mapfn,locals);
 			}
 
 			executable_delete(exe);

@@ -389,7 +389,7 @@ void executable_link(struct executable *exe)
 }
 
 
-void executable_writemap(struct executable *exe,const char *fn)
+void executable_writemap(struct executable *exe,const char *fn,int locals)
 {
 	FILE *f=fopen(fn,"w");
 	if(f)
@@ -401,7 +401,7 @@ void executable_writemap(struct executable *exe,const char *fn)
 		{
 			sect=map->entries[i].sect;
 			if(sect)
-				section_writemap(sect,f);
+				section_writemap(sect,f,locals);
 		}
 		fclose(f);
 	}

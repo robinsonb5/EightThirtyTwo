@@ -141,6 +141,7 @@ struct section *objectfile_addsection(struct objectfile *obj, const char *sectio
 	struct section *sect=section_new(obj,sectionname);
 	if(sect)
 	{
+		sect->obj=obj;
 		if(obj->lastsection)
 			obj->lastsection->next=sect;
 		else
@@ -288,7 +289,7 @@ void objectfile_output(struct objectfile *obj,const char *filename)
 }
 
 
-void objectfile_writemap(struct objectfile *obj,FILE *f)
+void objectfile_writemap(struct objectfile *obj,FILE *f,int locals)
 {
 	struct section *sect;
 	if(obj)
@@ -296,7 +297,7 @@ void objectfile_writemap(struct objectfile *obj,FILE *f)
 		sect=obj->sections;
 		while(sect)
 		{
-			section_writemap(sect,f);
+			section_writemap(sect,f,locals);
 			sect=sect->next;
 		}
 	}

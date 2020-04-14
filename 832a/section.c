@@ -572,16 +572,16 @@ void section_outputexe(struct section *sect,FILE *f,enum eightthirtytwo_endian e
 }
 
 
-void section_writemap(struct section *sect,FILE *f)
+void section_writemap(struct section *sect,FILE *f,int locals)
 {
 	if(sect)
 	{
 		struct symbol *sym;
-		fprintf(f,"0x%08x Section: %s\n",sect->address,sect->identifier);
+		fprintf(f,"0x%08x Section: %s,%s\n",sect->address,sect->obj ? sect->obj->filename : "<internal>" ,sect->identifier);
 		sym=sect->symbols;
 		while(sym)
 		{
-			if(sym->flags&SYMBOLFLAG_GLOBAL)
+			if(sym->flags&SYMBOLFLAG_GLOBAL || locals)
 				fprintf(f,"0x%08x    %s\n",sym->address,sym->identifier);
 			sym=sym->next;
 		}

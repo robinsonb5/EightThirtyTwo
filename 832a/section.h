@@ -60,7 +60,7 @@ void section_loadchunk(struct section *sect,int bytes,FILE *f);
 void section_outputobj(struct section *sect,FILE *f);
 void section_outputexe(struct section *sect,FILE *f,enum eightthirtytwo_endian);
 void section_dump(struct section *sect,int untouched);
-void section_writemap(struct section *sect,FILE *f);
+void section_writemap(struct section *sect,FILE *f,int locals);
 
 #endif
 
