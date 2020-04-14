@@ -1,5 +1,5 @@
 	.section	.text
-	.global	_main
+	.global _main:
 _main:
 	stdec	r6
 

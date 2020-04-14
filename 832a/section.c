@@ -581,7 +581,8 @@ void section_writemap(struct section *sect,FILE *f,int locals)
 		sym=sect->symbols;
 		while(sym)
 		{
-			if(sym->flags&SYMBOLFLAG_GLOBAL || locals)
+			if(sym->flags&SYMBOLFLAG_GLOBAL ||
+				(locals && ((sym->flags&(SYMBOLFLAG_REFERENCE|SYMBOLFLAG_LDABS|SYMBOLFLAG_LDPCREL|SYMBOLFLAG_ALIGN)) == 0)))
 				fprintf(f,"0x%08x    %s\n",sym->address,sym->identifier);
 			sym=sym->next;
 		}
