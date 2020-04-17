@@ -51,11 +51,11 @@ zmax val2zmax(struct obj *o, int t)
 static void emit_sizemod(FILE * f, int type)
 {
 	if(DBGMSG)
-		emit(f, "\t\t//sizemod based on type 0x%x\n", type);
+		emit(f, "\t\t\t\t\t\t//sizemod based on type 0x%x\n", type);
 	switch (type & NQ) {
 	case 0:
 		if(DBGMSG)
-			emit(f, "//sizemod type is zero (movefromreg?)");
+			emit(f, "\t\t\t\t\t\t//sizemod type is zero (movefromreg?)");
 		break;
 	case CHAR:
 		emit(f, "\tbyt\n");
@@ -86,7 +86,7 @@ static void emit_pcreltotemp(FILE * f, char *lab, int suffix)
 {
 	int i;
 	if(DBGMSG)
-		emit(f, "\t\t\t//pcreltotemp\n");
+		emit(f, "\t\t\t\t\t\t//pcreltotemp\n");
 	emit(f, "\t.lipcrel\t%s%d\n", lab, suffix);
 	cleartempobj(f,tmp);
 }
@@ -94,7 +94,7 @@ static void emit_pcreltotemp(FILE * f, char *lab, int suffix)
 static void emit_pcreltotemp2(FILE *f,struct obj *p)
 {
 	if(DBGMSG)
-		emit(f, "\t\t\t//pcreltotemp\n");
+		emit(f, "\t\t\t\t\t\t//pcreltotemp\n");
 	if (p->v->storage_class == STATIC)
 		emit(f,"\t.lipcrel\t%s%d\n",labprefix, zm2l(p->v->offset));
 	else if(p->v->storage_class == EXTERN)
@@ -132,7 +132,7 @@ static void emit_externtotemp(FILE * f, char *lab, int offset)	// FIXME - need t
 static void emit_statictotemp(FILE * f, char *lab, int suffix, int offset)	// FIXME - need to find a way to do this PC relative
 {
 	if(DBGMSG)
-		emit(f, "\t\t\t\t//statictotemp\n");
+		emit(f, "\t\t\t\t\t\t//statictotemp\n");
 #if 0
 	emit(f, "\tldinc\t%s\n", regnames[pc]);
 	emit(f, "\t.ref\t%s%d,%d\n", lab, suffix, offset);
@@ -204,11 +204,11 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 	int matchreg=0;
 
 	if(DBGMSG)
-		emit(f, "\t\t\t\t\t// (prepobj %s)\n ", regnames[reg]);
+		emit(f, "\t\t\t\t\t\t// (prepobj %s)\n ", regnames[reg]);
 
 	if (p->flags & REG) {
 		if(DBGMSG)
-			emit(f, "// reg %s - no need to prep\n", regnames[p->reg]);
+			emit(f, "\t\t\t\t\t\t// reg %s - no need to prep\n", regnames[p->reg]);
 		if(p->flags & DREFOBJ)
 		{
 			if (reg == tmp)
@@ -224,7 +224,7 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 	if(matchreg)
 	{
 		if(DBGMSG)
-			emit(f,"\n// required value found in %s\n",regnames[matchreg]);
+			emit(f,"\n\t\t\t\t\t\t// required value found in %s\n",regnames[matchreg]);
 		if(matchreg==reg)
 			return;
 		else if(matchreg==tmp) {
@@ -246,13 +246,13 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 	if (p->flags & DREFOBJ) {
 		if (p->flags & VARADR)
 			if(DBGMSG)
-				emit(f, "//varadr AND ");
+				emit(f, "\t\t\t\t\t\t//varadr AND ");
 		if(DBGMSG)
-			emit(f, "// deref\n");
+			emit(f, "\t\t\t\t\t\t// deref\n");
 		/* Dereferencing a pointer */
 		if (p->flags & KONST) {
 			if(DBGMSG)
-				emit(f, "\t\t\t// const\n");
+				emit(f, "\t\t\t\t\t\t// const\n");
 			emit_constanttotemp(f, val2zmax(p, p->dtyp) + offset);
 			if (reg != tmp)
 				emit(f, "\tmr\t%s\n", regnames[reg]);
@@ -264,10 +264,10 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 				cleartempobj(f,tmp);
 			}
 			else if(DBGMSG)
-				emit(f, "\t\t\t\t// reg %s - no need to prep\n", regnames[p->reg]);
+				emit(f, "\t\t\t\t\t\t// reg %s - no need to prep\n", regnames[p->reg]);
 		} else if (p->flags & VAR) {
 			if(DBGMSG)
-				emit(f, "\t\t\t\t// var FIXME - deref?");
+				emit(f, "\t\t\t\t\t\t// var FIXME - deref?");
 			if(offset)
 			{
 				printf("emit_prepobj: Offset supplied but object is being dereferenced!\n");
@@ -275,7 +275,7 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 			}
 			if (isauto(p->v->storage_class)) {
 				if(DBGMSG)
-					emit(f, "// reg \n");
+					emit(f, "\t\t\t\t\t\t// reg \n");
 				emit_stackvartotemp(f, real_offset(p) + offset, 1);
 				if (reg != tmp)
 				{
@@ -286,7 +286,7 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 				cleartempobj(f,tmp);
 				cleartempobj(f,reg);
 				if(DBGMSG)
-					emit(f, "// static\n");
+					emit(f, "\t\t\t\t\t\t// static\n");
 				emit(f, "\tldinc\tr7\n\t.ref\t%s%d,%d\n",
 				     labprefix, zm2l(p->v->offset), offset + p->val.vmax);
 				emit(f, "\tldt\n");
@@ -315,35 +315,35 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 	} else {
 		if (p->flags & REG) {
 			if(DBGMSG)
-				emit(f, "// reg %s - no need to prep\n", regnames[p->reg]);
+				emit(f, "\t\t\t\t\t\t// reg %s - no need to prep\n", regnames[p->reg]);
 		} else if (p->flags & VAR) {
 			if (isauto(p->v->storage_class)) {
 				/* Set a register to point to a stack-base variable. */
 				if(DBGMSG)
-					emit(f, "// var, auto|reg\n");
+					emit(f, "\t\t\t\t\t\t// var, auto|reg\n");
 				if (p->v->storage_class == REGISTER)
 					if(DBGMSG)
-						emit(f, "\t\t\t// (is actually REGISTER)\n");
+						emit(f, "\t\t\t\t\t\t// (is actually REGISTER)\n");
 				emit_stackvartotemp(f, real_offset(p) + offset, 0);
 				if (reg != tmp)
 					emit(f, "\tmr\t%s\n\n", regnames[reg]);
 			} else if (isextern(p->v->storage_class)) {
 				if(DBGMSG)
-					emit(f, "// extern (offset %d)\n", p->val.vmax);
+					emit(f, "\t\t\t\t\t\t// extern (offset %d)\n", p->val.vmax);
 				emit_externtotemp(f, p->v->identifier, p->val.vmax + offset);
 				if(DBGMSG)
-					emit(f, "// extern pe %s varadr\n", p->flags & VARADR ? "is" : "not");
+					emit(f, "\t\t\t\t\t\t// extern pe %s varadr\n", p->flags & VARADR ? "is" : "not");
 				if (reg != tmp)
 					emit(f, "\tmr\t%s\n", regnames[reg]);
 			} else if (isstatic(p->v->storage_class)) {
 				if(DBGMSG)
-					emit(f, "// static\n");
+					emit(f, "\t\t\t\t\t\t// static\n");
 //				emit(f, "\tldinc\tr7\n\t.ref\t%s%d,%d\n",
 //				     labprefix, zm2l(p->v->offset), offset + p->val.vmax);
 				emit(f, "\t.liabs\t%s%d,%d\n",
 				     labprefix, zm2l(p->v->offset), offset + p->val.vmax);
 				if(DBGMSG)
-					emit(f, "// static pe %s varadr\n", p->flags & VARADR ? "is" : "not");
+					emit(f, "\t\t\t\t\t\t// static pe %s varadr\n", p->flags & VARADR ? "is" : "not");
 				if (reg != tmp)
 					emit(f, "\tmr\t%s\n", regnames[reg]);
 			} else {
@@ -366,14 +366,14 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 	int result=0;
 	int matchreg;
 	if(DBGMSG)
-		emit(f, "\t\t\t\t\t// (obj to %s) flags %x type %x\n",regnames[reg],p->flags,t);
+		emit(f, "\t\t\t\t\t\t// (obj to %s) flags %x type %x\n",regnames[reg],p->flags,t);
 
 	matchreg=matchtempobj(f,p,0);
 
 	if ((p->flags & (REG|DREFOBJ)) == REG) {
 		settempobj(f,reg,p,0,0);
 		if(DBGMSG)
-			emit(f, "// reg %s - only match against tmp\n", regnames[p->reg]);
+			emit(f, "\t\t\t\t\t\t// reg %s - only match against tmp\n", regnames[p->reg]);
 		if (reg == p->reg)
 			return(0);
 		if(matchreg!=tmp)
@@ -392,7 +392,7 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 	if(matchreg)
 	{
 		if(DBGMSG)
-			emit(f,"\n// required value found in %s\n",regnames[matchreg]);
+			emit(f,"\n\t\t\t// required value found in %s\n",regnames[matchreg]);
 		if(matchreg==reg)
 			return(0);
 		if(matchreg!=tmp)
@@ -416,7 +416,7 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 	}
 	if ((p->flags & (KONST | DREFOBJ)) == (KONST | DREFOBJ)) {
 		if(DBGMSG)
-			emit(f, "// const/deref\n");
+			emit(f, "\t\t\t\t\t\t// const/deref\n");
 		emit_prepobj(f, p, t, tmp, 0);
 		emit_sizemod(f, t);
 		emit(f, "\tldt\n");
@@ -431,7 +431,7 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 
 	if (p->flags & DREFOBJ) {
 		if(DBGMSG)
-			emit(f, "// deref \n");
+			emit(f, "\t\t\t\t\t\t// deref \n");
 		/* Dereferencing a pointer */
 		if (p->flags & REG) {
 			switch (t & NQ) {
@@ -460,7 +460,7 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 				emit(f, "\tmt\t%s\n", regnames[p->reg]);
 			default:
 				if(DBGMSG)
-					emit(f, "//FIXME - unhandled type %d\n", t);
+					emit(f, "\t\t\t\t\t\t//FIXME - unhandled type %d\n", t);
 				break;
 			}
 			result=1;
@@ -479,12 +479,12 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 		if (p->flags & REG) {
 			// Already handled in the preamble.
 			if(DBGMSG)
-				emit(f, "// reg %s\n", regnames[p->reg]);
+				emit(f, "\t\t\t\t\t\t// reg %s\n", regnames[p->reg]);
 			emit(f, "\tmt\t%s\n", regnames[p->reg]);
 		} else if (p->flags & VAR) {
 			if (isauto(p->v->storage_class)) {
 				if(DBGMSG)
-					emit(f, "// var, auto|reg\n");
+					emit(f, "\t\t\t\t\t\t// var, auto|reg\n");
 				if (real_offset(p)) {
 					emit_constanttotemp(f, real_offset(p));
 					if(zm2l(p->v->offset)>=0)
@@ -497,7 +497,7 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 				result=1;
 			} else if (isextern(p->v->storage_class)) {
 				if(DBGMSG)
-					emit(f, "// extern\n");
+					emit(f, "\t\t\t\t\t\t// extern\n");
 				emit_externtotemp(f, p->v->identifier, p->val.vmax);
 				// Structs and unions have to remain as pointers
 				if ((!(p->flags & VARADR))
@@ -505,14 +505,14 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 				    && ((t & NQ) != UNION)
 				    && ((t & NQ) != ARRAY)) {
 					if(DBGMSG)
-						emit(f, "\t//extern deref\n");
+						emit(f, "\t\t\t\t\t\t//extern deref\n");
 					emit_sizemod(f, t);
 					emit(f, "\tldt\n");
 					result=1;
 				}
 			} else if (isstatic(p->v->storage_class)) {
 				if(DBGMSG)
-					emit(f, "//static %s\n", p->flags & VARADR ? "varadr" : "not varadr");
+					emit(f, "\t\t\t\t\t\t//static %s\n", p->flags & VARADR ? "varadr" : "not varadr");
 				emit_statictotemp(f, labprefix, zm2l(p->v->offset), p->val.vmax);
 				// Structs and unions have to remain as pointers
 				if ((!(p->flags & VARADR))
@@ -520,7 +520,7 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 				    && ((t & NQ) != UNION)
 				    && ((t & NQ) != ARRAY)) {
 					if(DBGMSG)
-						emit(f, "\t//static deref\n");
+						emit(f, "\t\t\t\t\t\t//static deref\n");
 					emit(f, "\tldt\n");
 					result=1;
 				}
@@ -530,7 +530,7 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 			}
 		} else if (p->flags & KONST) {
 			if(DBGMSG)
-				emit(f, "// const\n");
+				emit(f, "\t\t\t\t\t\t// const\n");
 			emit_constanttotemp(f, val2zmax(p, t));
 		} else {
 			printf("Objtotemp: unknown flags %d\n", p->flags);
