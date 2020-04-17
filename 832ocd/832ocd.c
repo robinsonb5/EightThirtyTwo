@@ -24,8 +24,24 @@ void destroy_win(WINDOW *local_win);
 #define OCD_BUFSIZE 64
 #define OCD_BUFMASK 63
 
+
+/* Ring buffer contains OCD_BUFSIZE bytes of program data.
+   As we read each value we fill in the value 4 words ahead. */
+
+struct ocd_rbuf
+{
+	int cursor;	/* Centre point of the buffer */
+	struct ocd_connection *con;
+	struct regfile regfile;
+	unsigned char buffer[OCD_BUFSIZE];
+	struct section *symbolmap;
+	enum eightthirtytwo_endian endian;
+};
+
+
+
 char disbuf[REGS_WIDTH];
-void disassemble_byte(unsigned char op,int row)
+void disassemble_byte(struct ocd_rbuf *code,unsigned char op,int addr,int row)
 {
 	FILE *f;
 	int opc=op&0xf8;
@@ -34,6 +50,8 @@ void disassemble_byte(unsigned char op,int row)
 	static int immstreak=0;
 	static int imm;
 	static int signedimm=0;
+	struct symbol *s;
+
 	if(row==0)
 		immstreak=0;
 	if((opc&0xc0)==0xc0)
@@ -51,7 +69,11 @@ void disassemble_byte(unsigned char op,int row)
 		}
 		else
 			signedimm=imm;
-		snprintf(disbuf,32,"%02x  li  %x  (0x%x, %d)",op,op&0x3f,imm,signedimm);
+		s=section_findsymbolbycursor(code->symbolmap,imm);
+		if(s && s->cursor==imm)
+			snprintf(disbuf,32,"%02x  li  %x  (%s)",op,op&0x3f,s->identifier);
+		else
+			snprintf(disbuf,32,"%02x  li  %x  (0x%x, %d)",op,op&0x3f,imm,signedimm);
 		immstreak=1;
 	}
 	else
@@ -79,8 +101,18 @@ void disassemble_byte(unsigned char op,int row)
 				{
 					if((op==(opc_add+7) || op==(opc_addt+7)) && immstreak)
 					{
-						snprintf(disbuf,32,"%02x  %s  %s (pc+%x)",
-							op,opcodes[j].mnem,operands[(op&7)|((op&0xf8)==0 ? 8 : 0)].mnem,1+signedimm);
+						int target=addr+imm+1;
+						s=section_findsymbolbycursor(code->symbolmap,target);
+						if(s && s->cursor==target)
+						{
+							snprintf(disbuf,32,"%02x  %s  %s (%s)",
+								op,opcodes[j].mnem,operands[(op&7)|((op&0xf8)==0 ? 8 : 0)].mnem,s->identifier);
+						}
+						else
+						{
+							snprintf(disbuf,32,"%02x  %s  %s (pc+%x)",
+								op,opcodes[j].mnem,operands[(op&7)|((op&0xf8)==0 ? 8 : 0)].mnem,1+signedimm);
+						}
 					}
 					else
 						snprintf(disbuf,32,"%02x  %s  %s",op,opcodes[j].mnem,operands[(op&7)|((op&0xf8)==0 ? 8 : 0)].mnem);
@@ -97,21 +129,6 @@ void disassemble_byte(unsigned char op,int row)
 		immstreak=0;
 	}
 }
-
-
-
-/* Ring buffer contains OCD_BUFSIZE bytes of program data.
-   As we read each value we fill in the value 4 words ahead. */
-
-struct ocd_rbuf
-{
-	int cursor;	/* Centre point of the buffer */
-	struct ocd_connection *con;
-	struct regfile regfile;
-	unsigned char buffer[OCD_BUFSIZE];
-	struct section *symbolmap;
-	enum eightthirtytwo_endian endian;
-};
 
 
 static int ocd_rbuf_high(struct ocd_rbuf *buf)
@@ -304,7 +321,7 @@ void draw_disassembly(WINDOW *w,struct ocd_rbuf *code,int pc)
 				caret='~';
 			if(a==code->regfile.prevpc)
 				caret='>';
-			disassemble_byte(ocd_rbuf_get(code,a),a-pc);
+			disassemble_byte(code,ocd_rbuf_get(code,a),a,a-pc);
 			mvwprintw(w,1+i,2,"%c %08x: %s",caret,a,disbuf);
 			++a;
 		}

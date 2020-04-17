@@ -13,7 +13,7 @@ port (
 	-- Connections to debug data transport
 	debug_d : in std_logic_vector(31 downto 0);
 	debug_q : out std_logic_vector(31 downto 0);
-	debug_req : buffer std_logic;
+	debug_req : out std_logic;
 	debug_wr : out std_logic;
 	debug_ack : in std_logic;
 	
@@ -57,8 +57,11 @@ signal debug_parambytes : std_logic_vector(7 downto 0);
 signal debug_responsebytes : std_logic_vector(7 downto 0);
 signal debug_param : std_logic_vector(7 downto 0);
 
+signal debug_req_r : std_logic;
 
 begin
+
+debug_req <= debug_req_r;
 
 process(clk,reset_n)
 begin
@@ -79,12 +82,12 @@ begin
 		run<='0';
 		stop<='0';
 		step<='0';
-		debug_req<='0';
+		debug_req_r<='0';
 
 		case debugstate is
 			when IDLE =>
 				wr<='0';
-				if debug_req='1' and debug_ack='1' then
+				if debug_req_r='1' and debug_ack='1' then
 					debug_cmd<=debug_d(31 downto 24);
 					debug_parambytes<=debug_d(23 downto 16);
 					debug_responsebytes<=debug_d(15 downto 8);
@@ -102,11 +105,11 @@ begin
 							null;
 					end case;
 				else
-					debug_req<='1';
+					debug_req_r<='1';
 				end if;
 
 			when READADDR =>
-				if debug_req='1' and debug_ack='1' then
+				if debug_req_r='1' and debug_ack='1' then
 					addr<=debug_d;
 					if debug_parambytes=X"08" then
 						debugstate<=READDATA;
@@ -114,15 +117,15 @@ begin
 						debugstate<=EXECUTE;
 					end if;
 				else
-					debug_req<='1';
+					debug_req_r<='1';
 				end if;
 
 			when READDATA =>
-				if debug_req='1' and debug_ack='1' then
+				if debug_req_r='1' and debug_ack='1' then
 					q<=debug_d;
 					debugstate<=EXECUTE;
 				else
-					debug_req<='1';
+					debug_req_r<='1';
 				end if;
 
 			when EXECUTE =>
@@ -166,7 +169,7 @@ begin
 				if ack='1' then
 					-- FIXME - this can probably be done directly.	
 					debug_q<=d;
-					debug_req<='1';
+					debug_req_r<='1';
 					debug_wr<='1';
 					wr<='0';
 					req<='0';
@@ -175,11 +178,11 @@ begin
 
 			-- Wait for the debug channel to acknowledge the data
 			when FINISH =>
-				if debug_req='1' and debug_ack='1' then
+				if debug_req_r='1' and debug_ack='1' then
 					debug_wr<='0';
 					debugstate<=IDLE;
 				else
-					debug_req<='1';
+					debug_req_r<='1';
 				end if;
 				
 			when others =>
