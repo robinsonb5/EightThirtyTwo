@@ -142,6 +142,14 @@ static int ocd_rbuf_low(struct ocd_rbuf *buf)
 	return(buf->cursor-OCD_BUFSIZE/2);
 }
 
+void ocd_rbuf_clear(struct ocd_rbuf *buf)
+{
+	if(buf)
+	{
+		buf->cursor=-OCD_BUFSIZE;
+	}
+}
+
 
 struct ocd_rbuf *ocd_rbuf_new(struct ocd_connection *con)
 {
@@ -475,6 +483,7 @@ int main(int argc, char *argv[])
 		curs_set(0);
 		wrefresh(cmd_win);
 
+		timeout(-1);
 		ch = getch();
 		switch(ch)
 		{
@@ -533,6 +542,61 @@ int main(int argc, char *argv[])
 				draw_disassembly(dis_win,code,disaddr);
 				break;
 
+
+			case 'C':
+				input=frontend_getinput(cmd_win,"Run until r7 + ",10);
+				if(strlen(input))
+				{
+					char *endptr;
+					int val=strtoul(input,&endptr,0);
+					if(endptr!=input)
+					{
+						OCD_BREAKPOINT(code->con,code->regfile.regs[7]+val);
+						OCD_RUN(code->con);
+						OCD_RELEASE(code->con);
+						mvwprintw(cmd_win,0,0,"Running... (press any key to stop)");
+						wrefresh(cmd_win);
+						timeout(100);
+						corerunning=1;
+						while(corerunning)
+						{
+							if(getch()!=ERR)
+							{
+								OCD_STOP(code->con);
+								OCD_RELEASE(code->con);
+								corerunning=0;
+							}
+							else
+							{
+								/* Read the break flag */
+								int f=OCD_READREG(code->con,9);
+								if(f & 0x80)
+									corerunning=0;
+								OCD_RELEASE(code->con);
+							}
+						}
+						get_regfile(ocdcon,&code->regfile);
+						disaddr=code->regfile.prevpc=code->regfile.regs[7];
+						draw_regfile(reg_win,&code->regfile);
+						draw_disassembly(dis_win,code,disaddr);
+					}
+				}
+				break;
+
+
+			case 'h':
+				break;
+
+			case 'e':
+				ch=frontend_choice(cmd_win,"Set endian mode (b/l): ","bl",code->endian==EIGHTTHIRTYTWO_BIGENDIAN ? 'b' : 'l');
+				if(ch=='b')
+					code->endian=EIGHTTHIRTYTWO_BIGENDIAN;
+				else if(ch=='l')
+					code->endian=EIGHTTHIRTYTWO_LITTLEENDIAN;
+				ocd_rbuf_clear(code);
+				draw_disassembly(dis_win,code,disaddr);
+				break;
+
 			case 'q':
 			case 'Q':
 				mvwprintw(cmd_win,0,0,"Really quit? ");
@@ -587,6 +651,7 @@ int main(int argc, char *argv[])
 					disaddr=code->regfile.regs[7]-(DIS_WIN_HEIGHT-5);
 				draw_disassembly(dis_win,code,disaddr);
 				break;
+
 			case 'r':
 				input=frontend_getinput(cmd_win,"Read: ",16);
 				if(strlen(input))

@@ -30,34 +30,29 @@ int frontend_confirm()
 }
 
 
-static int validatechar(int ch,int base)
+char validatechar(char in,const char *options)
 {
-	switch(base)
+	int l;
+	int i;
+	if(!options)
+		return(in);
+	l=strlen(options);
+
+	for(i=0;i<l;++i)
 	{
-		case 0:
-			if(ch>=' ' && ch<=255)
-				return(1);
-			break;
-		case 10:
-			if(ch>='0' && ch<='9')
-				return(1);
-			break;
-		case 16:
-			if((ch>='0' && ch<='9') || (ch>='A' && ch<='F') || (ch>='a' && ch<='f'))
-				return(1);
-			break;
-		default:
-			return(0);
-			break;
+		if(options[i]==in)
+			return(in);
 	}
 	return(0);
 }
+
 
 #define STRINGBUFSIZE 29
 static char stringbuf[STRINGBUFSIZE];
 
 char *frontend_getinput(WINDOW *win,const char *prompt,int base)
 {
+	char *validkeys;
 	int cursor;
 	int promptlen=strlen(prompt);
 	int prefixbytes=0;
@@ -70,14 +65,17 @@ char *frontend_getinput(WINDOW *win,const char *prompt,int base)
 		stringbuf[1]='0';
 		stringbuf[2]='x';
 		stringbuf[3]=0;
+		validkeys="abcdefABCDEF0123456789";
 	}
 	else if(base==10)
 	{
 		stringbuf[1]=0;
+		validkeys="0123456789";
 	}
 	else
 	{
 		stringbuf[0]=0;
+		validkeys=0;
 	}
 	
 	cursor=prefixbytes=strlen(stringbuf);
@@ -90,40 +88,68 @@ char *frontend_getinput(WINDOW *win,const char *prompt,int base)
 		wmove(win,0,promptlen+cursor);
 		wrefresh(win);
 		ch = getch();
-		if(validatechar(ch,base))
+		switch(ch)
 		{
-			stringbuf[cursor++]=ch;
-			stringbuf[cursor]=0;
-		}
-		else if(ch=='-')
-			stringbuf[0]=stringbuf[0]==' ' ? '-' : ' ';
-		else if(ch=='+')
-			stringbuf[0]=' ';
-		else
-		{
-			switch(ch)
-			{
-				case KEY_BACKSPACE:
-					if(cursor>prefixbytes)
-						stringbuf[--cursor]=0;
-					else
-						stringbuf[0]=' ';
-					break;
-				case 27:
-					stringbuf[0]=0;
-					curs_set(0);
-					return(stringbuf);
-					break;
-				case 10:
-					curs_set(0);
-					return(stringbuf);
-					break;
-				default:
-					break;
-			}
+			case '-':
+				stringbuf[0]=stringbuf[0]==' ' ? '-' : ' ';
+				break;
+			case '+':
+				stringbuf[0]=' ';
+				break;
+			case KEY_BACKSPACE:
+				if(cursor>prefixbytes)
+					stringbuf[--cursor]=0;
+				else
+					stringbuf[0]=' ';
+				break;
+			case 27:
+				stringbuf[0]=0;
+				curs_set(0);
+				return(stringbuf);
+				break;
+			case 10:
+				curs_set(0);
+				return(stringbuf);
+				break;
+			default:
+				if(validatechar(ch,validkeys))
+				{
+					stringbuf[cursor++]=ch;
+					stringbuf[cursor]=0;
+				}
+				break;
 		}
 		if(cursor>=(STRINGBUFSIZE-1))
 			cursor=STRINGBUFSIZE-2;
 	}
 }
+
+
+int frontend_choice(WINDOW *w,const char *prompt,const char *options,char def)
+{
+	int promptlen=strlen(prompt);
+	int optbytes=strlen(options);
+	werase(w);
+	mvwprintw(w,0,0,prompt);
+	stringbuf[0]=def;
+	stringbuf[1]=0;
+	curs_set(2);
+	while(1)
+	{
+		int ch;
+		mvwprintw(w,0,promptlen,"%s ",stringbuf);
+		wmove(w,0,promptlen);
+		wrefresh(w);
+
+		ch=getch();
+		if(ch==10 || ch==27)
+			return(stringbuf[0]);
+		else if(validatechar(ch,options))
+		{
+			stringbuf[0]=ch;
+			return(stringbuf[0]);
+		}
+	}
+}
+
 
