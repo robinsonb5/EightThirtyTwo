@@ -47,6 +47,7 @@ proc setup_blaster {} {
 
 
 	foreach device_name [get_device_names -hardware_name $usbblaster_name] {
+		puts $device_name
 		if { [string match "@1*" $device_name] } {
 			set test_device $device_name
 		}
@@ -57,9 +58,18 @@ proc setup_blaster {} {
 # Open device 
 proc openport {} {
 	global usbblaster_name
-        global test_device
-	open_device -hardware_name $usbblaster_name -device_name $test_device
-	device_lock -timeout 10000
+	global test_device
+	set res 1
+	if [ catch { open_device -hardware_name $usbblaster_name -device_name $test_device } ] { set res 0 }
+
+	# Set IR to 0, which is bypass mode - which has the side-effect of verifying that there's a suitable JTAG instance.
+	catch { device_lock -timeout 10000 }
+	if [ catch { device_virtual_ir_shift -instance_index 0 -ir_value 3 -no_captured_ir_value } ] {
+		set res 0
+		catch {device_unlock}
+		catch {close_device}
+	}
+	return $res
 }
 
 
@@ -69,7 +79,7 @@ proc closeport { } {
 	global test_device
 
 	# Set IR back to 0, which is bypass mode
-	device_virtual_ir_shift -instance_index 0 -ir_value 3 -no_captured_ir_value
+	catch { device_virtual_ir_shift -instance_index 0 -ir_value 3 -no_captured_ir_value }
 
 	catch {device_unlock}
 	catch {close_device}
@@ -113,14 +123,15 @@ proc bin2dec {bin} {
 
 # Send data to the Altera input FIFO buffer
 proc send {chr} {
-	device_virtual_ir_shift -instance_index 0 -ir_value 1 -no_captured_ir_value
+	if [ catch { device_virtual_ir_shift -instance_index 0 -ir_value 1 -no_captured_ir_value } ] { return -1 }
 	device_virtual_dr_shift -dr_value [dec2bin $chr 32] -instance_index 0  -length 32 -no_captured_dr_value
+	return 1
 }
 
 # Read data in from the Altera output FIFO buffer
 proc recv {} {
 	# Check if there is anything to read
-	device_virtual_ir_shift -instance_index 0 -ir_value 2 -no_captured_ir_value
+	if [ catch { device_virtual_ir_shift -instance_index 0 -ir_value 2 -no_captured_ir_value } ] { return -1 }
 	set tdi [device_virtual_dr_shift -dr_value 0000 -instance_index 0 -length 4]
 	if {![expr $tdi & 1]} {
 		device_virtual_ir_shift -instance_index 0 -ir_value 0 -no_captured_ir_value
@@ -134,7 +145,7 @@ proc recv {} {
 # Read data in from the Altera output FIFO buffer
 proc recv_blocking {} {
 	while {1} {
-		device_virtual_ir_shift -instance_index 0 -ir_value 2 -no_captured_ir_value
+		if [ catch { device_virtual_ir_shift -instance_index 0 -ir_value 2 -no_captured_ir_value } ] { return [ bin2dec 0 ] }
 		set tdi [device_virtual_dr_shift -dr_value 0000 -instance_index 0 -length 4]
 #		puts $tdi
 		if {![expr $tdi & 1]} {
@@ -178,6 +189,7 @@ proc conn {channel_name client_address client_port} {
 			scan $cmd %c ascii
 
 			if { $ascii == 255} {
+				puts -nonewline $channel_name [format %c $portopen]
 				# Release the USB blaster again
 				if { $portopen == 1 } closeport
 				set portopen 0
@@ -185,8 +197,9 @@ proc conn {channel_name client_address client_port} {
 			
 			if { $ascii != 255} {
 #				puts [dec2bin $ascii]
-				if { $portopen == 0} openport
-				set portopen 1
+				if { $portopen == 0 } {
+					if [ openport ] { set portopen 1 }
+				}
 
 				set cmd [expr $ascii << 24]
 				scan $parambytes %c parambytes
@@ -221,7 +234,7 @@ proc conn {channel_name client_address client_port} {
 					puts -nonewline $channel_name [format %c [expr $rx & 255]]
 					set responsebytes [expr $responsebytes -4]
 				}
-#				puts "done"
+	#				puts "done"
 			}
 		}
 	}

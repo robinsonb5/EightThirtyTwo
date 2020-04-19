@@ -1,6 +1,7 @@
 #include <ncurses.h>
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #include "832ocd.h"
 #include "832ocd_connection.h"
@@ -266,7 +267,7 @@ int ocd_rbuf_get(struct ocd_rbuf *code,int addr)
 			else
 				ocd_rbuf_fill(code,addr);
 		}
-		OCD_RELEASE(code->con);
+		ocd_release(code->con);
 	}
 	return(code->buffer[addr&OCD_BUFMASK]);
 }
@@ -281,7 +282,7 @@ void get_regfile(struct ocd_connection *con,struct regfile *rf)
 	}
 	i=OCD_READREG(con,REG_FLAGS);
 	rf->tmp=OCD_READREG(con,REG_TMP);
-	OCD_RELEASE(con);
+	ocd_release(con);
 	rf->z=i&1;
 	rf->c=(i>>1)&1;
 	rf->cond=(i>>2)&1;
@@ -418,6 +419,8 @@ void parse_args(int argc, char *argv[],struct ocd_rbuf *buf)
 }
 
 
+#define DIS_WIN_TITLE "Dissasembly"
+#define DIS_WIN_WIDTH REGS_WIDTH
 #define DIS_WIN_HEIGHT (LINES-REGS_HEIGHT-1)
 #define MEM_WIN_TITLE "Messages"
 #define MEM_WIN_WIDTH (COLS-REGS_WIDTH)
@@ -432,12 +435,21 @@ int scroll_window(WINDOW *w,int height,int width,const char *title)
 	decorate_window(w,width,title);
 }
 
+
+int clear_window(WINDOW *w,int height,int width,const char *title)
+{
+	werase(w);
+	decorate_window(w,width,title);
+}
+
+
 int main(int argc, char *argv[])
 {
 	int x, y;
 	int ch;
 	int running=1;
 	int disaddr=0;
+	const char *err;
 	struct ocd_connection *ocdcon;
 	struct ocd_rbuf *code;
 	WINDOW *reg_win;
@@ -447,8 +459,11 @@ int main(int argc, char *argv[])
 	WINDOW *cmd_win;
 
 	ocdcon=ocd_connection_new();
-	if(!ocd_connect(ocdcon,OCD_ADDR,OCD_PORT))
+	if(err=ocd_connect(ocdcon,OCD_ADDR,OCD_PORT))
+	{
+		fprintf(stderr,"%s\nEnsure 832bridge.tcl is running under quartus_stp.\n",err);	
 		return(0);
+	}
 
 	code=ocd_rbuf_new(ocdcon);
 
@@ -459,7 +474,7 @@ int main(int argc, char *argv[])
 
 	refresh();
 	reg_win=create_newwin("Register File",REGS_HEIGHT,REGS_WIDTH,0,0);
-	dis_win=create_newwin("Disassembly",DIS_WIN_HEIGHT,REGS_WIDTH,REGS_HEIGHT,0);
+	dis_win=create_newwin(DIS_WIN_TITLE,DIS_WIN_HEIGHT,DIS_WIN_WIDTH,REGS_HEIGHT,0);
 //	stack_win=create_newwin("Stack",LINES/2-1,COLS-REGS_WIDTH,0,REGS_WIDTH);
 	mem_win=create_newwin(MEM_WIN_TITLE,MEM_WIN_HEIGHT,MEM_WIN_WIDTH,0,REGS_WIDTH);
 	scrollok(mem_win,1);
@@ -484,7 +499,10 @@ int main(int argc, char *argv[])
 		wrefresh(cmd_win);
 
 		timeout(-1);
-		ch = getch();
+		ch=0;
+		if(code->con->cpuconnected && code->con->bridgeconnected)
+			ch = getch();
+
 		switch(ch)
 		{
 			case KEY_LEFT:
@@ -514,7 +532,7 @@ int main(int argc, char *argv[])
 
 			case 'c':
 				OCD_RUN(code->con);
-				OCD_RELEASE(code->con);
+				ocd_release(code->con);
 				mvwprintw(cmd_win,0,0,"Running... (press any key to stop)");
 				wrefresh(cmd_win);
 				timeout(100);
@@ -524,7 +542,7 @@ int main(int argc, char *argv[])
 					if(getch()!=ERR)
 					{
 						OCD_STOP(code->con);
-						OCD_RELEASE(code->con);
+						ocd_release(code->con);
 						corerunning=0;
 					}
 					else
@@ -533,7 +551,7 @@ int main(int argc, char *argv[])
 						int f=OCD_READREG(code->con,9);
 						if(f & 0x80)
 							corerunning=0;
-						OCD_RELEASE(code->con);
+						ocd_release(code->con);
 					}
 				}
 				get_regfile(ocdcon,&code->regfile);
@@ -553,7 +571,7 @@ int main(int argc, char *argv[])
 					{
 						OCD_BREAKPOINT(code->con,code->regfile.regs[7]+val);
 						OCD_RUN(code->con);
-						OCD_RELEASE(code->con);
+						ocd_release(code->con);
 						mvwprintw(cmd_win,0,0,"Running... (press any key to stop)");
 						wrefresh(cmd_win);
 						timeout(100);
@@ -563,7 +581,7 @@ int main(int argc, char *argv[])
 							if(getch()!=ERR)
 							{
 								OCD_STOP(code->con);
-								OCD_RELEASE(code->con);
+								ocd_release(code->con);
 								corerunning=0;
 							}
 							else
@@ -572,7 +590,7 @@ int main(int argc, char *argv[])
 								int f=OCD_READREG(code->con,9);
 								if(f & 0x80)
 									corerunning=0;
-								OCD_RELEASE(code->con);
+								ocd_release(code->con);
 							}
 						}
 						get_regfile(ocdcon,&code->regfile);
@@ -614,7 +632,7 @@ int main(int argc, char *argv[])
 					if(endptr!=input)
 					{
 						int v=OCD_BREAKPOINT(code->con,addr);
-						OCD_RELEASE(code->con);
+						ocd_release(code->con);
 						scroll_window(mem_win,MEM_WIN_HEIGHT,MEM_WIN_WIDTH,MEM_WIN_TITLE);
 						mvwprintw(mem_win,MEM_WIN_HEIGHT-2,2,"Breakpoint: %08x",addr);
 						wrefresh(mem_win);
@@ -661,7 +679,7 @@ int main(int argc, char *argv[])
 					if(endptr!=input)
 					{
 						int v=OCD_READ(code->con,addr);
-						OCD_RELEASE(code->con);
+						ocd_release(code->con);
 						scroll_window(mem_win,MEM_WIN_HEIGHT,MEM_WIN_WIDTH,MEM_WIN_TITLE);
 						mvwprintw(mem_win,MEM_WIN_HEIGHT-2,2,"R - %08x: %08x",addr,v);
 						wrefresh(mem_win);
@@ -686,7 +704,7 @@ int main(int argc, char *argv[])
 							if(endptr!=input)
 							{
 								OCD_WRITE(code->con,addr,v);
-								OCD_RELEASE(code->con);
+								ocd_release(code->con);
 								scroll_window(mem_win,MEM_WIN_HEIGHT,MEM_WIN_WIDTH,MEM_WIN_TITLE);
 								mvwprintw(mem_win,MEM_WIN_HEIGHT-2,2,"W - %08x: %08x",addr,v);
 								wrefresh(mem_win);
@@ -743,6 +761,32 @@ int main(int argc, char *argv[])
 			default:
 				break;
 		}
+
+		/* Deal with either socket-level or JTAG level disconnection */
+		while(running && ((!code->con->cpuconnected) || (!code->con->bridgeconnected)))
+		{
+			clear_window(dis_win,DIS_WIN_HEIGHT,DIS_WIN_WIDTH,DIS_WIN_TITLE);
+			wrefresh(dis_win);
+			if(code->con->bridgeconnected)
+				ch=frontend_choice(cmd_win,"No connection to CPU - press enter to retry or q to quit.","qQ ",' ');
+			else
+				ch=frontend_choice(cmd_win,"Connection lost - press enter to reconnect or q to quit.","qQ ",' ');
+			if(ch=='q' || ch=='Q')
+				running=0;
+			else
+			{
+				err=ocd_connect(ocdcon,OCD_ADDR,OCD_PORT);
+				OCD_READREG(code->con,7);
+				ocd_release(code->con);
+				if(code->con->cpuconnected);
+				{
+					disaddr=code->regfile.regs[7];
+					ocd_rbuf_clear(code);
+					draw_disassembly(dis_win,code,disaddr);
+				}
+			}
+		}
+
 	}
 	delwin(reg_win);
 	delwin(dis_win);

@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <netinet/in.h>
 #include <string.h>
+#include <errno.h>
 
 #include "832ocd.h"
 #include "832ocd_connection.h"
@@ -14,11 +15,11 @@ struct ocd_connection *ocd_connection_new()
 	result=(struct ocd_connection *)malloc(sizeof(struct ocd_connection));
 	if(result)
 	{
-		result->connected=0;
+		result->sock=-1;
+		result->bridgeconnected=0;
 		result->sock=socket(AF_INET, SOCK_STREAM, 0);
 		if(result->sock < 0)
 		{
-			fprintf(stderr,"Failed to create socket\n");
 			free(result);
 			return(0);
 		}
@@ -31,39 +32,39 @@ void ocd_connection_delete(struct ocd_connection *con)
 {
 	if(con)
 	{
-		if(con->connected)
+		if(con->bridgeconnected)
 			close(con->sock);
 		free(con);
 	}
 }
 
 
-int ocd_connect(struct ocd_connection *con,const char *ip,int port)
+const char *ocd_connect(struct ocd_connection *con,const char *ip,int port)
 {
 	if(con)
 	{
-		if(con->connected)
+		if(con->sock>=0)
+		{
 			close(con->sock);
-		con->connected=0;
+			con->sock=socket(AF_INET, SOCK_STREAM, 0);
+			if(con->sock<0)
+				return("Can't create new socket");
+		}
+		con->bridgeconnected=0;
 
 	    memset(&con->serv_addr, '0', sizeof(con->serv_addr));
 		con->serv_addr.sin_family = AF_INET;
 		con->serv_addr.sin_port = htons(port);
       
 		if(inet_pton(AF_INET, ip, &con->serv_addr.sin_addr)<=0) 
-		{
-			fprintf(stderr,"Invalid address / Address not supported \n");
-			return(0);
-		}
+			return("Invalid address / Address not supported");
 
 		if (connect(con->sock, (struct sockaddr *)&con->serv_addr, sizeof(con->serv_addr)) < 0)
-		{
-			fprintf(stderr,"Can't connect to JTAG bridge\n");
-			return(0);
-		}
-		return(1);
+			return("Can't connect to JTAG bridge");
+		con->bridgeconnected=1;
+		return(0);
 	}
-	return(0);
+	return("Internal error");
 }
 
 
@@ -98,15 +99,24 @@ int ocd_command(struct ocd_connection *con,enum dbg832_op op,int paramcount,int 
 		default:
 			break;
 	}
-    send(con->sock,con->cmdbuffer,l,0);
+    send(con->sock,con->cmdbuffer,l,MSG_NOSIGNAL);
+	if(errno==EPIPE)
+		con->bridgeconnected=0;
 	while(responsecount--)
 	{
-		read(con->sock,con->cmdbuffer,1);
+		recv(con->sock,con->cmdbuffer,1,0);
 		result=(result<<8)|(con->cmdbuffer[0]&255);
 	}
 	return(result);
 }
 
+void ocd_release(struct ocd_connection *con)
+{
+	if(con)
+	{
+		con->cpuconnected=OCD_RELEASE(con);
+	}
+}
 
 #ifdef DBG
 int main(int argc, char const *argv[])
