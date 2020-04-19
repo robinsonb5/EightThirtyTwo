@@ -353,6 +353,45 @@ void draw_disassembly(WINDOW *w,struct ocd_rbuf *code,int pc)
 }
 
 
+void draw_help(WINDOW *w)
+{
+	int i=0;
+	int a;
+	int h=LINES-REGS_HEIGHT-3;
+	werase(w);
+	decorate_window(w,DIS_WIN_WIDTH,"Help");
+
+	if(h--)
+		mvwprintw(w,1+i++,2,"b: Set breakpoint");
+	if(h--)
+		mvwprintw(w,1+i++,2,"c: Continue program - run until breakpoint");
+	if(h--)
+		mvwprintw(w,1+i++,2,"C: Set breakpoint at r7 + <n>, then run");
+	if(h--)
+		mvwprintw(w,1+i++,2,"d: Set disassembly start address to <addr>");
+	if(h--)
+		mvwprintw(w,1+i++,2,"   (<addr> can be a symbol in the mapfile)");
+	if(h--)
+		mvwprintw(w,1+i++,2,"e: Set big or little endian mode");
+	if(h--)
+		mvwprintw(w,1+i++,2,"s: Single step");
+	if(h--)
+		mvwprintw(w,1+i++,2,"S: Single step <n> times");
+	if(h--)
+		mvwprintw(w,1+i++,2,"r: Read word at <addr>");
+	if(h--)
+		mvwprintw(w,1+i++,2,"w: Write to <addr> with <value>");
+	if(h--)
+		mvwprintw(w,1+i++,2,"m: Add a memo to the messages pane");
+	if(h--)
+		mvwprintw(w,1+i++,2,"q: Quit");
+	if(h--)
+		mvwprintw(w,1+i++,2,"Scroll with cursor up/down / Page up/down");
+
+	wrefresh(w);
+}
+
+
 struct section *parse_mapfile(const char *filename)
 {
 	struct section *result=0;
@@ -464,7 +503,6 @@ int main(int argc, char *argv[])
 	struct ocd_rbuf *code;
 	WINDOW *reg_win;
 	WINDOW *dis_win;
-//	WINDOW *stack_win;
 	WINDOW *mem_win;
 	WINDOW *cmd_win;
 
@@ -485,7 +523,6 @@ int main(int argc, char *argv[])
 	refresh();
 	reg_win=create_newwin("Register File",REGS_HEIGHT,REGS_WIDTH,0,0);
 	dis_win=create_newwin(DIS_WIN_TITLE,DIS_WIN_HEIGHT,DIS_WIN_WIDTH,REGS_HEIGHT,0);
-//	stack_win=create_newwin("Stack",LINES/2-1,COLS-REGS_WIDTH,0,REGS_WIDTH);
 	mem_win=create_newwin(MEM_WIN_TITLE,MEM_WIN_HEIGHT,MEM_WIN_WIDTH,0,REGS_WIDTH);
 	scrollok(mem_win,1);
 	cmd_win=newwin(1,COLS,LINES-1,0);
@@ -495,8 +532,8 @@ int main(int argc, char *argv[])
 	OCD_STOP(ocdcon);
 	get_regfile(ocdcon,&code->regfile);
 	code->regfile.prevpc=code->regfile.regs[7]-1;
+	disaddr=code->regfile.regs[7];
 	draw_regfile(reg_win,&code->regfile);
-	draw_disassembly(dis_win,code,disaddr);
 
 	move(LINES-1,2);
 
@@ -507,6 +544,8 @@ int main(int argc, char *argv[])
 		werase(cmd_win);
 		curs_set(0);
 		wrefresh(cmd_win);
+
+		draw_disassembly(dis_win,code,disaddr);
 
 		timeout(-1);
 		ch=0;
@@ -521,23 +560,19 @@ int main(int argc, char *argv[])
 				break;
 			case KEY_UP:
 				--disaddr;
-				draw_disassembly(dis_win,code,disaddr);
 				break;
 			case KEY_DOWN:
 				++disaddr;
-				draw_disassembly(dis_win,code,disaddr);
 				break;
 			case KEY_BACKSPACE: /* backspace */
 				break;
 
 			case KEY_PPAGE:
 				disaddr-=DIS_WIN_HEIGHT-2;
-				draw_disassembly(dis_win,code,disaddr);
 				break;
 
 			case KEY_NPAGE:
 				disaddr+=DIS_WIN_HEIGHT-2;
-				draw_disassembly(dis_win,code,disaddr);
 				break;
 
 			case 'c':
@@ -567,7 +602,6 @@ int main(int argc, char *argv[])
 				get_regfile(ocdcon,&code->regfile);
 				disaddr=code->regfile.prevpc=code->regfile.regs[7];
 				draw_regfile(reg_win,&code->regfile);
-				draw_disassembly(dis_win,code,disaddr);
 				break;
 
 
@@ -606,15 +640,14 @@ int main(int argc, char *argv[])
 						get_regfile(ocdcon,&code->regfile);
 						disaddr=code->regfile.prevpc=code->regfile.regs[7];
 						draw_regfile(reg_win,&code->regfile);
-						draw_disassembly(dis_win,code,disaddr);
 					}
 				}
 				break;
 
 
 			case 'h':
-
-
+				draw_help(dis_win);
+				frontend_choice(cmd_win,"Press enter to continue...","\n ",' ');
 				break;
 
 			case 'e':
@@ -624,7 +657,6 @@ int main(int argc, char *argv[])
 				else if(ch=='l')
 					code->endian=EIGHTTHIRTYTWO_LITTLEENDIAN;
 				ocd_rbuf_clear(code);
-				draw_disassembly(dis_win,code,disaddr);
 				break;
 
 			case 'q':
@@ -679,7 +711,6 @@ int main(int argc, char *argv[])
 					disaddr=code->regfile.regs[7];
 				if((code->regfile.regs[7]-disaddr)>(DIS_WIN_HEIGHT-5))
 					disaddr=code->regfile.regs[7]-(DIS_WIN_HEIGHT-5);
-				draw_disassembly(dis_win,code,disaddr);
 				break;
 
 			case 'r':
@@ -760,10 +791,7 @@ int main(int argc, char *argv[])
 						}
 					}
 					else
-					{
 						disaddr=v;
-					}
-					draw_disassembly(dis_win,code,disaddr);
 				}
 				break;
 
@@ -794,7 +822,6 @@ int main(int argc, char *argv[])
 				{
 					disaddr=code->regfile.regs[7];
 					ocd_rbuf_clear(code);
-					draw_disassembly(dis_win,code,disaddr);
 				}
 			}
 		}
@@ -802,7 +829,6 @@ int main(int argc, char *argv[])
 	}
 	delwin(reg_win);
 	delwin(dis_win);
-//	delwin(stack_win);
 	delwin(mem_win);
 	endwin();			/* End curses mode		  */
 
