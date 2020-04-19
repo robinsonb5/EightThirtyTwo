@@ -211,9 +211,9 @@ Valid options are
 * -m mapfile - write a mapfile showing the addresses assigned to global symbols.
 * -M mapfile - write a mapfile showing the addresses assigned to global and local symbols
 
-## On chip debugger
+## On-chip debugger
 The on-chip debugger is currently only supported on Altera/Intel devices.  There is an optional RTL component which bridges between
-the CPU and JTAG interface, a TCL scripts which is used with the quartus_stp utility which creates a TCP/IP interface to the CPU,
+the CPU and JTAG interface, a TCL script which in conjunction with the quartus_stp utility creates a TCP/IP interface to the CPU,
 and the debugger itself, which is an ncurses-based shell utility.
 The bridge should be invoked first, with:
 

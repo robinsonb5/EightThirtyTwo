@@ -132,7 +132,7 @@ static void emit_externtotemp(FILE * f, char *lab, int offset)	// FIXME - need t
 static void emit_statictotemp(FILE * f, char *lab, int suffix, int offset)	// FIXME - need to find a way to do this PC relative
 {
 	if(DBGMSG)
-		emit(f, "\t\t\t\t\t\t//statictotemp\n");
+		emit(f, "\t\t\t\t\t\t//statictotemp (FIXME - make PC-relative?)\n");
 #if 0
 	emit(f, "\tldinc\t%s\n", regnames[pc]);
 	emit(f, "\t.ref\t%s%d,%d\n", lab, suffix, offset);
@@ -521,6 +521,7 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 				    && ((t & NQ) != ARRAY)) {
 					if(DBGMSG)
 						emit(f, "\t\t\t\t\t\t//static deref\n");
+					emit_sizemod(f, t);
 					emit(f, "\tldt\n");
 					result=1;
 				}
