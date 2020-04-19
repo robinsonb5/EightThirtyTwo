@@ -22,6 +22,15 @@ void destroy_win(WINDOW *local_win);
 #define REGS_WIDTH 48
 #define REGS_HEIGHT 6
 
+#define DIS_WIN_TITLE "Dissasembly"
+#define DIS_WIN_WIDTH REGS_WIDTH
+#define DIS_WIN_HEIGHT (LINES-REGS_HEIGHT-1)
+#define MEM_WIN_TITLE "Messages"
+#define MEM_WIN_WIDTH (COLS-REGS_WIDTH)
+#define MEM_WIN_HEIGHT (LINES-1)
+// #define MEM_WIN_HEIGHT (LINES-LINES/2)
+
+
 #define OCD_BUFSIZE 64
 #define OCD_BUFMASK 63
 
@@ -309,6 +318,13 @@ void draw_disassembly(WINDOW *w,struct ocd_rbuf *code,int pc)
 	int i;
 	int a;
 	int h=LINES-REGS_HEIGHT-3;
+	char *title="Disassembly";
+	struct symbol *s;
+	s=section_findglobalsymbolbycursor(code->symbolmap,pc);
+	if(s && (s->flags&SYMBOLFLAG_GLOBAL))
+		title=s->identifier;
+	werase(w);
+	decorate_window(w,DIS_WIN_WIDTH,title);
 
 	if(h>(OCD_BUFSIZE-4))
 		h=(OCD_BUFSIZE-4);
@@ -316,8 +332,6 @@ void draw_disassembly(WINDOW *w,struct ocd_rbuf *code,int pc)
 	for(i=0;i<h;++i)
 	{
 		char caret=' ';
-		struct symbol *s;
-		mvwprintw(w,1+i,2,"                                          ");
 		s=section_findsymbolbycursor(code->symbolmap,a);
 		if(s && s->cursor==a)
 		{
@@ -367,7 +381,11 @@ struct section *parse_mapfile(const char *filename)
 							struct symbol *sym;
 							char *tok=strtok_escaped(endptr);
 							if(sym=symbol_new(tok,v,0))
+							{
+								if(sym->identifier[0]=='_')
+									sym->flags=SYMBOLFLAG_GLOBAL;
 								section_addsymbol(result,sym);
+							}
 						}
 					}					
 				}
@@ -418,14 +436,6 @@ void parse_args(int argc, char *argv[],struct ocd_rbuf *buf)
 	}
 }
 
-
-#define DIS_WIN_TITLE "Dissasembly"
-#define DIS_WIN_WIDTH REGS_WIDTH
-#define DIS_WIN_HEIGHT (LINES-REGS_HEIGHT-1)
-#define MEM_WIN_TITLE "Messages"
-#define MEM_WIN_WIDTH (COLS-REGS_WIDTH)
-#define MEM_WIN_HEIGHT (LINES-1)
-// #define MEM_WIN_HEIGHT (LINES-LINES/2)
 
 int scroll_window(WINDOW *w,int height,int width,const char *title)
 {
@@ -603,6 +613,8 @@ int main(int argc, char *argv[])
 
 
 			case 'h':
+
+
 				break;
 
 			case 'e':
