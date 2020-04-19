@@ -20,7 +20,8 @@ Copyright (c) 2019, 2020 by Alastair M. Robinson
 
 ## Scope
 The project includes a synthesizable CPU core, an assembler, linker,
-disassembler and emulator and a backend for the vbcc C compiler.
+disassembler, emulator and on-chip debugger, as well as a backend
+for the vbcc C compiler.
 
 ## Goals
 The main design goals are modest logic footprint and minimum possible use
@@ -169,6 +170,7 @@ The assembler is called "832a", and should be invoked like so:
 Valid options are:
 * -o outputfile  -  specify the output file name.  Only valid if assembling a single file.
 If no output file is specified, "file.asm" will be assembled to "file.o".
+* -e(l|b) - set endian mode.
 * -d - enable debug output.
 
 As well as the 832 opcodes listed above, the assembler recognises the following directives:
@@ -205,4 +207,38 @@ Valid options are
 * -b number - specify base address.
 * -s symbol=number - define symbol (such as stack size).  Symbols defined this way are equivalent to (and will override) symbols defined with the .constant directive.
 * -d - enable debug messages.
+* -e(l|b) - set endian mode.
 * -m mapfile - write a mapfile showing the addresses assigned to global symbols.
+* -M mapfile - write a mapfile showing the addresses assigned to global and local symbols
+
+## On chip debugger
+The on-chip debugger is currently only supported on Altera/Intel devices.  There is an optional RTL component which bridges between
+the CPU and JTAG interface, a TCL scripts which is used with the quartus_stp utility which creates a TCP/IP interface to the CPU,
+and the debugger itself, which is an ncurses-based shell utility.
+The bridge should be invoked first, with:
+
+quartus_stp -t tcl/832bridge.tcl
+
+Then the on-chip debugger can be invoked with
+
+832ocd (options)
+
+Valid options are
+* -e(l|b) - set endian mode.
+* -m mapfile - read symbols from the mapfile.
+
+The debugger will show a live disassembly as well as register contents.
+The following key commands are available:
+* b - Set breakpoint
+* c - Continue program - run until breakpoint
+* C - Set breakpoint at r7 + n, then run
+* d - Set disassembly start address to addr.  Addr can be a numeric address, or a symbol from the mapfile.
+* e - Set big or little endian mode");
+* s - Single step
+* S - Single step n times
+* r - Read word at addr
+* w - Write to addr with value
+* m - Add a memo to the messages pane
+* q - Quit
+* Cursor up / down, Page up / down - scroll the disassembly view.
+
