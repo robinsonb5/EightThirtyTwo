@@ -487,7 +487,8 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 					emit(f, "\t\t\t\t\t\t// var, auto|reg\n");
 				if (real_offset(p)) {
 					emit_constanttotemp(f, real_offset(p));
-					if(zm2l(p->v->offset)>=0)
+//					if(zm2l(p->v->offset)>=0)
+					if(!isstackparam(p))
 						emit_sizemod(f, t);
 					emit(f, "\tldidx\t%s\n", regnames[sp]);
 				} else {

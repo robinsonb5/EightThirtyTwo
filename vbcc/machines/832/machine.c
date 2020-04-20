@@ -215,7 +215,7 @@ static long real_offset(struct obj *o)
 }
 
 
-static int isstackvar(struct obj *o)
+static int isstackparam(struct obj *o)
 {
 	int result=0;
 	if(o->flags&VAR)
@@ -623,6 +623,10 @@ void save_temp(FILE * f, struct IC *p, int treg)
 
 		if(DBGMSG)
 			emit(f, "store\n");
+
+		if(isstackparam(&p->z))
+			type=INT;
+
 		switch (type) {
 		case CHAR:
 			if (p->z.am && p->z.am->type == AM_POSTINC)
@@ -1456,7 +1460,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					if(p->z.flags&DREFOBJ) {	// Can't use stmpdec for dereferenced objects
 						emit_prepobj(f, &p->z, t, tmp, 0); // Need an offset
 						emit(f, "\texg\t%s\n", regnames[q1reg]);
-						if(!isstackvar(&p->z))
+						if(!isstackparam(&p->z))
 							emit_sizemod(f,ztyp(p));
 						emit(f, "\tst\t%s\n", regnames[q1reg]);
 						if(p->z.am && p->z.am->disposable)
@@ -1466,7 +1470,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					}
 					else {
 						emit_prepobj(f, &p->z, ztyp(p), tmp, 4); // Need an offset
-						if(!isstackvar(&p->z))
+						if(!isstackparam(&p->z))
 							emit_sizemod(f,ztyp(p));
 						emit(f,"\tstmpdec\t%s\n",regnames[q1reg]);
 //						cleartempobj(f,tmp);
@@ -1649,7 +1653,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					{
 						emit_prepobj(f, &p->z, t, tmp, 0); // Need an offset
 						emit(f, "\texg\t%s\n", regnames[q1reg]);
-						emit_sizemod(f,t);
+						if(!isstackparam(&p->z))
+							emit_sizemod(f,t);
 						emit(f, "\tst\t%s\n", regnames[q1reg]);
 						if(p->z.am && p->z.am->disposable)
 							emit(f, "\t\t\t\t\t\t// Object is disposable, not bothering to undo exg\n");
@@ -1660,7 +1665,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					else
 					{
 						emit_prepobj(f, &p->z, t, tmp, 4); // Need an offset
-						if(!isstackvar(&p->z))
+						if(!isstackparam(&p->z))
 							emit_sizemod(f,t);
 						emit(f,"\tstmpdec\t%s\n",regnames[q1reg]);
 						cleartempobj(f,tmp);
