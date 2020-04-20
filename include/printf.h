@@ -1,6 +1,7 @@
 #ifndef PRINTF_H
 #define PRINTF_H
 
+#include <sys/types.h>
 #include <stdarg.h>
 
 #ifdef DISABLE_PRINTF
