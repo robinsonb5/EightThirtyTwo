@@ -9,6 +9,8 @@
 #else
 int printf(const char *fmt, ...);
 int vprintf(const char *fmt, va_list ap);
+int sprintf(char *str, const char *format, ...);
+int snprintf(char *str, size_t size, const char *format, ...);
 #endif
 
 #endif
