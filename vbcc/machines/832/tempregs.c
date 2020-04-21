@@ -471,7 +471,7 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 			if ((t & NQ) != FUNKT && (t & NQ) != STRUCT && (t & NQ) != UNION && (t & NQ) != ARRAY)
 			{
 				emit_sizemod(f, t);
-				emit(f, "\tldt\n//marker 2\n");
+				emit(f, "\tldt\n");
 				result=1;
 			}
 		}

@@ -34,5 +34,7 @@ int main(int argc,char **argv)
 	puts(strbuf);
 	printf("strlen is %d\n",strlen(strbuf));
 
+	strncpy(strbuf,"Hello, World\n",7);
+	puts(strbuf);
 	return(0);
 }

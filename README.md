@@ -2,6 +2,13 @@
 An experimental CPU core with 8-bit instruction words and 32-bit registers.
 Copyright (c) 2019, 2020 by Alastair M. Robinson
 
+## Scope
+The project includes a synthesizable CPU core, an assembler, linker,
+disassembler, emulator and on-chip debugger, as well as a backend
+for the vbcc C compiler.
+
+## License
+
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
@@ -15,13 +22,9 @@ Copyright (c) 2019, 2020 by Alastair M. Robinson
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-	The vbcc C compiler backend may also be distributed together with the
-    vbcc C compiler, under vbcc's license.
-
-## Scope
-The project includes a synthesizable CPU core, an assembler, linker,
-disassembler, emulator and on-chip debugger, as well as a backend
-for the vbcc C compiler.
+	Additionally, the author and maintainers of vbcc may, if they wish,
+    distribute the C compiler backend as part of the vbcc package under
+    vbcc's license.
 
 ## Goals
 The main design goals are modest logic footprint and minimum possible use

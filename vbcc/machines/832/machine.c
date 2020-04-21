@@ -46,7 +46,7 @@ static char FILE_[] = __FILE__;
 
 /* Name and copyright. */
 char cg_copyright[] =
-    "vbcc EightThirtyTwo code-generator, (c) 2019 by Alastair M. Robinson\nBased on the generic RISC example backend (c) 2001 by Volker Barthelmann";
+    "vbcc EightThirtyTwo code-generator, (c) 2019/2020 by Alastair M. Robinson\nBased on the generic RISC example backend (c) 2001 by Volker Barthelmann";
 
 /*  Commandline-flags the code-generator accepts:
     0: just a flag
@@ -637,7 +637,7 @@ void save_temp(FILE * f, struct IC *p, int treg)
 			else if ((p->z.am && p->z.am->disposable)
 				 || (treg == t1))
 			{
-				emit(f, "\tstbinc\t%s\n//Disposable, postinc doesn't matter.\n", regnames[treg]);
+				emit(f, "\tstbinc\t%s\n\t\t\t\t\t\t//Disposable, postinc doesn't matter.\n", regnames[treg]);
 				cleartempobj(f,treg);
 			}
 			else
@@ -1858,7 +1858,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			if(p->q1.am && p->q1.am->type==AM_ADDT)
 			{
 				if(DBGMSG)
-					emit(f,"\t\t//Special case - addt\n");
+					emit(f,"\t\t\t\t\t\t//Special case - addt\n");
 				// FIXME - if q2 is already in tmp could reverse this
 				if(p->q2.flags&KONST)
 				{
