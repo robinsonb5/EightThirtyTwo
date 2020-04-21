@@ -794,7 +794,7 @@ static void function_bottom(FILE * f, struct Var *v, long offset,int firsttail)
 			emit(f,".functiontail:\n");
 			for (i = LAST_GPR - 3; i >= FIRST_GPR + SCRATCH_GPRS; --i) {
 				if (!regscratch[i])
-					emit(f, "\tldinc\t%s\n\tmr\t%s\n", regnames[sp], regnames[i]);
+					emit(f, "\tldinc\t%s\n\tmr\t%s\n\n", regnames[sp], regnames[i]);
 			}
 			emit(f, "\tldinc\t%s\n\tmr\t%s\n\n", regnames[sp], regnames[pc]);
 		}
@@ -803,7 +803,7 @@ static void function_bottom(FILE * f, struct Var *v, long offset,int firsttail)
 	{
 		for (i = LAST_GPR - 3; i >= FIRST_GPR + SCRATCH_GPRS; --i) {
 			if (regused[i] && !regscratch[i])
-				emit(f, "\tldinc\t%s\n\tmr\t%s\n", regnames[sp], regnames[i]);
+				emit(f, "\tldinc\t%s\n\tmr\t%s\n\n", regnames[sp], regnames[i]);
 		}
 		emit(f, "\tldinc\t%s\n\tmr\t%s\n\n", regnames[sp], regnames[pc]);
 	}

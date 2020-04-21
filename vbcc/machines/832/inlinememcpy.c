@@ -30,6 +30,7 @@ void emit_inlinememcpy(FILE *f,struct IC *p, int t)
 	dstr=t1+1;
 	if(p->z.flags&(REG|DREFOBJ)==REG)
 		dstr=p->z.reg;
+	// FIXME - check this logic.  If the target is a register, it may not be a scratch register.
 	if(regs[dstr]) // Scratch register - only need to save if it's in use?
 	{
 		saved=1;
@@ -167,7 +168,12 @@ void emit_inlinepush(FILE *f,struct IC *p, int t)
 
 	// FIXME - don't necessarily need the counter register if the copy is small...
 
-	cntr=t1+2;
+	/* Is our source a register?  If so, set srcr accordingly */
+	if (p->q1.flags & REG) {
+		srcr=p->q1.reg;
+		cntr=t1;
+	} else
+		cntr=t1+2;
 
 	if((unrollwords && unrollbytes) || regs[cntr]==0)
 		savec=0;

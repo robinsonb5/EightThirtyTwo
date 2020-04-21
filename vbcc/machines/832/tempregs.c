@@ -456,11 +456,15 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 				else
 					emit(f, "\tld\t%s\n", regnames[p->reg]);
 				break;
+			case STRUCT:
+			case UNION:
+			case ARRAY:
 			case FUNKT:	// Function pointers are dereferenced by calling them.
 				emit(f, "\tmt\t%s\n", regnames[p->reg]);
+				break;
 			default:
-				if(DBGMSG)
-					emit(f, "\t\t\t\t\t\t//FIXME - unhandled type %d\n", t);
+				fprintf(stderr,"Objtoreg - unhandled type %d\n",t);
+				ierror(0);
 				break;
 			}
 			result=1;
@@ -485,17 +489,29 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 			if (isauto(p->v->storage_class)) {
 				if(DBGMSG)
 					emit(f, "\t\t\t\t\t\t// var, auto|reg\n");
-				if (real_offset(p)) {
-					emit_constanttotemp(f, real_offset(p));
-//					if(zm2l(p->v->offset)>=0)
-					if(!isstackparam(p))
+				/* Do we need to deference? */
+				if ((!(p->flags & VARADR))
+					    && ((t & NQ) != STRUCT)
+					    && ((t & NQ) != UNION)
+					    && ((t & NQ) != ARRAY)) {
+					if (real_offset(p)) {
+						emit_constanttotemp(f, real_offset(p));
+						if(!isstackparam(p))
+							emit_sizemod(f, t);
+						emit(f, "\tldidx\t%s\n", regnames[sp]);
+					} else {
 						emit_sizemod(f, t);
-					emit(f, "\tldidx\t%s\n", regnames[sp]);
+						emit(f, "\tld\t%s\n", regnames[sp]);
+					}
+					result=1;
 				} else {
-					emit_sizemod(f, t);
-					emit(f, "\tld\t%s\n", regnames[sp]);
+					if (real_offset(p)) {
+						emit_constanttotemp(f, real_offset(p));
+						emit(f, "\taddt\t%s\n", regnames[sp]);
+					} else {
+						emit(f, "\tmt\t%s\n", regnames[sp]);
+					}
 				}
-				result=1;
 			} else if (isextern(p->v->storage_class)) {
 				if(DBGMSG)
 					emit(f, "\t\t\t\t\t\t// extern\n");
