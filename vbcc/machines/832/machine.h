@@ -57,7 +57,7 @@ struct AddressingMode{
 /*  If switch-statements should be generated as a sequence of       */
 /*  SUB,TST,BEQ ICs rather than COMPARE,BEQ ICs set this to 1.      */
 /*  This can yield better code on some machines.                    */
-#define SWITCHSUBS 0
+#define SWITCHSUBS 1
 
 /*  In optimizing compilation certain library memcpy/strcpy-calls   */
 /*  with length known at compile-time will be inlined using an      */
@@ -118,8 +118,8 @@ struct reg_handle{
 /* we do not need extra elements in the IC */
 #undef HAVE_EXT_IC
 
-/* we do not use unsigned int as size_t (but unsigned long, the default) */
-#undef HAVE_INT_SIZET
+/* we use unsigned int as size_t (but unsigned long, the default) */
+#define HAVE_INT_SIZET 1
 
 /* we do not need register-pairs */
 #undef HAVE_REGPAIRS

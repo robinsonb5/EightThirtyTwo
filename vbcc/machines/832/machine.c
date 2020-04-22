@@ -564,7 +564,7 @@ static int availreg()
 static struct IC *preload(FILE *, struct IC *);
 
 static void function_top(FILE *, struct Var *, long);
-static void function_bottom(FILE * f, struct Var *, long,int);
+static int function_bottom(FILE * f, struct Var *, long,int);
 
 #define isreg(x) ((p->x.flags&(REG|DREFOBJ))==REG)
 #define involvesreg(x) ((p->x.flags&(REG))==REG)
@@ -763,9 +763,11 @@ static void function_top(FILE * f, struct Var *v, long offset)
 }
 
 /* generates the function exit code */
-static void function_bottom(FILE * f, struct Var *v, long offset,int firsttail)
+/* Returns 1 if tail code was generated. */
+static int function_bottom(FILE * f, struct Var *v, long offset,int firsttail)
 {
 	int i;
+	int tail=0;
 
 	int regcount = 0;
 	for (i = FIRST_GPR + SCRATCH_GPRS + RESERVED_GPRS; i <= LAST_GPR - 3; ++i) {
@@ -782,20 +784,30 @@ static void function_bottom(FILE * f, struct Var *v, long offset,int firsttail)
 
 	if(optsize) // If we're optimising for size we can potentially save some bytes in the function tails.
 	{
-		if(regcount<(5-SCRATCH_GPRS) || !firsttail)
+		if(regcount)
 		{
-			emit(f,"\t.lipcrel\t.functiontail, %d\n",((5-SCRATCH_GPRS)-regcount)*2);
-			emit(f,"\tadd\t%s\n",regnames[pc]);
-		}
-		if(firsttail)
-		{
-//			emit(f,"\t.global\t.functiontail\n");
-//			emit(f,"\t.weak\t.functiontail\n");
-			emit(f,".functiontail:\n");
-			for (i = LAST_GPR - 3; i >= FIRST_GPR + SCRATCH_GPRS; --i) {
-				if (!regscratch[i])
-					emit(f, "\tldinc\t%s\n\tmr\t%s\n\n", regnames[sp], regnames[i]);
+			/* We have to restore some registers.  Jump into the tail code at the appropriate place. */
+			if(regcount<(5-SCRATCH_GPRS) || !firsttail)
+			{
+				emit(f,"\t.lipcrel\t.functiontail, %d\n",((5-SCRATCH_GPRS)-regcount)*2);
+				emit(f,"\tadd\t%s\n\n",regnames[pc]);
 			}
+			if(firsttail)
+			{
+				/* This is the first time we've needed to restore registers - generate tail code */
+				emit(f,".functiontail:\n");
+				for (i = LAST_GPR - 3; i >= FIRST_GPR + SCRATCH_GPRS; --i) {
+					if (!regscratch[i])
+						emit(f, "\tldinc\t%s\n\tmr\t%s\n\n", regnames[sp], regnames[i]);
+				}
+				emit(f, "\tldinc\t%s\n\tmr\t%s\n\n", regnames[sp], regnames[pc]);
+				if(f)
+					tail=1; /* Higher optimisation levels do a dummy run with null file */
+			}
+		}
+		else
+		{
+			/* Didn't need to preserve any registers, just restore PC */
 			emit(f, "\tldinc\t%s\n\tmr\t%s\n\n", regnames[sp], regnames[pc]);
 		}
 	}
@@ -807,6 +819,7 @@ static void function_bottom(FILE * f, struct Var *v, long offset,int firsttail)
 		}
 		emit(f, "\tldinc\t%s\n\tmr\t%s\n\n", regnames[sp], regnames[pc]);
 	}
+	return(tail);
 }
 
 /****************************************/
@@ -1941,8 +1954,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		pric2(stdout, p);
 		ierror(0);
 	}
-	function_bottom(f, v, localsize,firsttail);
-	firsttail=0;
+	if(function_bottom(f, v, localsize,firsttail))
+		firsttail=0;
 }
 
 int shortcut(int code, int typ)
