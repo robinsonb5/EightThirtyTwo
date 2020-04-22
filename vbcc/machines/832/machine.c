@@ -35,7 +35,7 @@
 // Restrict byte and halfword storage to static and extern types, not stack-based variables.
 // (Having learned more, bytes and halfwords on the stack are fine, the complication is with
 // function parameters, which are promoted to int - thus the size modifier will be different
-// for parameters and local variables.)
+// for parameters and local variables even though both live on the stack.)
 
 // DONE - Avoid moving registers for cmp and test when possible.
 
@@ -174,6 +174,8 @@ static char *labprefix = "l", *idprefix = "_";
 /* variables to keep track of the current stack-offset in the case of
    a moving stack-pointer */
 static long pushed;
+static long pushing;
+static long notyetpopped;
 
 static long localsize, rsavesize, argsize;
 
@@ -217,6 +219,7 @@ static long real_offset(struct obj *o)
 		off = localsize + rsavesize + 4 - off - zm2l(maxalign);
 	}
 	off += pushed;
+	off += notyetpopped;
 	off += zm2l(o->val.vmax);
 	return off;
 }
@@ -1254,6 +1257,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 	for (c = 1; c <= MAXR; c++)
 		regs[c] = regsa[c];
 	pushed = 0;
+	pushing = 0;
+	notyetpopped = 0;
 
 #if 0
 	if (!idemp) {
@@ -1333,6 +1338,18 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 //		printic(stdout,p);
 		c = p->code;
 		t = q1typ(p);
+
+		if (c==LABEL || (c >= BEQ && c <= BRA) || (c==PUSH && pushing==0 && pushed!=0 ))
+		{
+			/* Is this an operation that needs the stack to be consistent?  If so apply any deferred pop. */
+			if(notyetpopped)
+			{
+				emit(f,"\t.liconst\t%d\n",notyetpopped);
+				emit(f,"\taddt\t%s\n",regnames[sp]);
+				cleartempobj(f,tmp);
+				notyetpopped=0;
+			}
+		}
 
 		if (c == NOP) {
 			p->z.flags = 0;
@@ -1573,6 +1590,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				emit_inline_asm(f, p->q1.v->fi->inline_asm);
 				cleartempobj(f,t1);
 				cleartempobj(f,tmp);
+				/* FIXME - restore stack from pushed arguments? */
 			} else {
 				/* FIXME - deal with different object types here */
 				if (p->q1.v->storage_class == STATIC) {
@@ -1597,12 +1615,15 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					emit_objtoreg(f, &p->q1, t, tmp);
 					emit(f, "\texg\t%s\n", regnames[pc]);
 				}
-				if (pushedargsize(p)) {
+/*				if (pushedargsize(p)) {
 					emit_constanttotemp(f, pushedargsize(p));
 					emit(f, "\tadd\t%s\n", regnames[sp]);
 				}
+*/
 				emit(f, "\n");
 				pushed -= pushedargsize(p);
+				notyetpopped+=pushedargsize(p);
+				pushing=0;
 				cleartempobj(f,tmp);
 				cleartempobj(f,t1);
 			}
@@ -1636,6 +1657,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					emit(f,"\t\t\t\t\t\t// Pushing composite type - size %d, pushed size %d\n",opsize(p),pushsize(p));
 				emit_inlinepush(f,p,t);
 				pushed += pushsize(p);
+				pushing+=pushsize(p);
 			}
 			else
 			{
@@ -1656,6 +1678,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 						break;
 				}
 				pushed += pushsize(p);
+				pushing+=pushsize(p);
 			}
 			continue;
 		}
@@ -1961,7 +1984,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		pric2(stdout, p);
 		ierror(0);
 	}
-	if(function_bottom(f, v, localsize,firsttail))
+	if(function_bottom(f, v, localsize+notyetpopped,firsttail))
 		firsttail=0;
 }
 
