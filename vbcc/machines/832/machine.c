@@ -1,6 +1,9 @@
 /*  EightThirtyTwo backend for vbcc,
 	based on the generic RISC backend
- 
+
+	The CPU targeted by this backend can be found at
+    https://github.com/robinsonb5/EightThirtyTwo
+
 */
 
 // DONE - T2 no longer used at all - frees up a register for the main code generator
@@ -30,10 +33,14 @@
 // the code generator an extra one to play with helped a great deal.
 
 // Restrict byte and halfword storage to static and extern types, not stack-based variables.
+// (Having learned more, bytes and halfwords on the stack are fine, the complication is with
+// function parameters, which are promoted to int - thus the size modifier will be different
+// for parameters and local variables.)
 
 // DONE - Avoid moving registers for cmp and test when possible.
 
 // Condition code for test may well be already set by previous load.
+// Done for TEST, do the same for comparisons?
 
 
 #include "supp.h"
