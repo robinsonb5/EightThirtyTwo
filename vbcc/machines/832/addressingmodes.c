@@ -10,6 +10,11 @@
 /* Look for ways to use ldidx when an IC adds to a pointer and the next one dereferences it */
 
 
+#define DEFERREDPOP_FLOWCONTROL 0
+#define DEFERREDPOP_NESTEDCALLS 1
+#define DEFERREDPOP_OK 2
+
+
 #define AM_DEBUG 0
 
 // If the obj doesn't already have an addressing mode, create one and zero it out.
@@ -18,6 +23,84 @@ static void am_alloc(struct obj *o)
 	if (!o->am) {
 		o->am = mymalloc(sizeof(struct AddressingMode));
 		memset(o->am, 0, sizeof(struct AddressingMode));
+	}
+}
+
+
+void am_deferredpop(struct IC *p)
+{
+	struct IC *p2;
+	int pushed=0;
+	int deferredpop=0;
+	int candefer=0;
+	for(;p;p=p->next)
+	{
+		switch(p->code)
+		{
+			case PUSH:
+				pushed+=pushsize(p);
+//				printf("Pushing %d bytes, %d so far\n",pushsize(p),pushed);
+				break;
+			case CALL:
+//				printf("CALL IC with pushedsize %d\n",pushedargsize(p));
+
+				am_alloc(&p->z);
+
+				/* If this isn't a nested function call we might be able to defer stack popping. */
+				if(pushed==pushedargsize(p))
+				{
+					printf("Checking for flow change\n");
+					p2=p->next;
+					candefer=1;
+					while(p2)
+					{
+						switch(p2->code)
+						{
+							/* If we encounter LABEL, COMPARE, TEST or BRA then program flow changes
+							   before the next PUSH, and we can't defer the stack pop. */
+							case LABEL:
+							case COMPARE:
+							case TEST:
+							case BLT:
+							case BGT:
+							case BLE:
+							case BGE:
+							case BEQ:
+							case BNE:
+							case BRA:
+								printf("Flow control changed - can't defer\n");
+								p->z.am->deferredpop=DEFERREDPOP_FLOWCONTROL;
+								candefer=0;
+								p2=0;
+								break;
+							/* If we encounter another PUSH operation without a flow control change we can defer */
+							case PUSH:
+								printf("Can defer stack popping\n");
+								p2=0;
+								break;
+							default:
+								break;
+						}
+						if(p2)
+							p2=p2->next;
+					}
+				}
+				else
+				{
+					p->z.am->deferredpop=DEFERREDPOP_NESTEDCALLS;
+					printf("Nested call - can't defer stack popping\n");
+					candefer=0;
+				}
+				if(candefer)
+				{
+					p->z.am->deferredpop=DEFERREDPOP_OK;
+					deferredpop=pushedargsize(p);
+				}
+				pushed-=pushedargsize(p);
+				break;
+			default:
+				break;
+		}
 	}
 }
 
@@ -201,15 +284,15 @@ void am_simplify(struct IC *p)
 			case CONVERT:
 				if(p2->code==CONVERT)
 				{
-					printf("Found successive Convert ICs\n");
-					printf("p1: %x, %d, %x -> %x, p2: %x, %d, %x -> %x\n",p->z.flags,p->z.reg,q1typ(p),ztyp(p),
-						p2->q1.flags,p2->q1.reg,q1typ(p2),ztyp(p2));
+//					printf("Found successive Convert ICs\n");
+//					printf("p1: %x, %d, %x -> %x, p2: %x, %d, %x -> %x\n",p->z.flags,p->z.reg,q1typ(p),ztyp(p),
+//						p2->q1.flags,p2->q1.reg,q1typ(p2),ztyp(p2));
 					if((p->z.flags&(REG|DREFOBJ))==REG && ((p2->q1.flags&(REG|DREFOBJ))==REG) && p->z.reg==p2->q1.reg)
 					{
-						printf("Register match\n");
+//						printf("Register match\n");
 						if(((q1typ(p)&NQ)<(ztyp(p)&NQ)) && (q1typ(p)==ztyp(p2)))
 						{
-							printf("Sizes match - nullifying conversion to wider type.\n");
+//							printf("Sizes match - nullifying conversion to wider type.\n");
 							p->code=NOP;
 							p2->q1=p->q1;
 						}
@@ -511,6 +594,7 @@ static void find_addressingmodes(struct IC *p)
 	struct obj *o;
 	struct AddressingMode *am;
 
+	am_deferredpop(p);
 	am_simplify(p);
 //	am_conversions(p);
 

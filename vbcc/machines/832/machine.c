@@ -174,7 +174,6 @@ static char *labprefix = "l", *idprefix = "_";
 /* variables to keep track of the current stack-offset in the case of
    a moving stack-pointer */
 static long pushed;
-static long pushing;
 static long notyetpopped;
 
 static long localsize, rsavesize, argsize;
@@ -1257,7 +1256,6 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 	for (c = 1; c <= MAXR; c++)
 		regs[c] = regsa[c];
 	pushed = 0;
-	pushing = 0;
 	notyetpopped = 0;
 
 #if 0
@@ -1339,17 +1337,6 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		c = p->code;
 		t = q1typ(p);
 
-		if (c==LABEL || (c >= BEQ && c <= BRA) || (c==PUSH && pushing==0 && pushed!=0 ))
-		{
-			/* Is this an operation that needs the stack to be consistent?  If so apply any deferred pop. */
-			if(notyetpopped)
-			{
-				emit(f,"\t.liconst\t%d\n",notyetpopped);
-				emit(f,"\taddt\t%s\n",regnames[sp]);
-				cleartempobj(f,tmp);
-				notyetpopped=0;
-			}
-		}
 
 		if (c == NOP) {
 			p->z.flags = 0;
@@ -1618,12 +1605,43 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 /*				if (pushedargsize(p)) {
 					emit_constanttotemp(f, pushedargsize(p));
 					emit(f, "\tadd\t%s\n", regnames[sp]);
+				}*/
+				if(p->z.am)
+				{
+					switch(p->z.am->deferredpop)
+					{
+						case DEFERREDPOP_FLOWCONTROL: /* Toplevel call, can't defer popping due to flow control */
+							emit(f,"\t\t\t\t\t\t// Flow control - popping %d + %d bytes\n",pushedargsize(p),notyetpopped);
+							if(pushedargsize(p)+notyetpopped)
+							{
+								emit_constanttotemp(f, pushedargsize(p)+notyetpopped);				
+								emit(f, "\tadd\t%s\n", regnames[sp]);
+							}
+							pushed -= pushedargsize(p);
+							notyetpopped=0;
+							break;
+						case DEFERREDPOP_NESTEDCALLS:	/* Nested call */
+							emit(f,"\t\t\t\t\t\t// Nested call - popping %d bytes\n",pushedargsize(p));
+							if(pushedargsize(p))
+							{
+								emit_constanttotemp(f, pushedargsize(p));
+								emit(f, "\tadd\t%s\n", regnames[sp]);
+							}
+							pushed -= pushedargsize(p);
+							break;
+						case DEFERREDPOP_OK: /* Can defer popping */
+							notyetpopped+=pushedargsize(p);
+							pushed -= pushedargsize(p);
+							emit(f,"\t\t\t\t\t\t// Deferred popping of %d bytes (%d in total)\n",pushedargsize(p),notyetpopped);
+							break;
+					}
 				}
-*/
-				emit(f, "\n");
-				pushed -= pushedargsize(p);
-				notyetpopped+=pushedargsize(p);
-				pushing=0;
+				else if(pushedargsize(p))
+				{
+					emit_constanttotemp(f, pushedargsize(p));
+					pushed -= pushedargsize(p);
+					emit(f, "\tadd\t%s\n", regnames[sp]);
+				}
 				cleartempobj(f,tmp);
 				cleartempobj(f,t1);
 			}
@@ -1657,7 +1675,6 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					emit(f,"\t\t\t\t\t\t// Pushing composite type - size %d, pushed size %d\n",opsize(p),pushsize(p));
 				emit_inlinepush(f,p,t);
 				pushed += pushsize(p);
-				pushing+=pushsize(p);
 			}
 			else
 			{
@@ -1678,7 +1695,6 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 						break;
 				}
 				pushed += pushsize(p);
-				pushing+=pushsize(p);
 			}
 			continue;
 		}

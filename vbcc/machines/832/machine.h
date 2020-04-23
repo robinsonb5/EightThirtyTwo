@@ -26,6 +26,7 @@ enum AddressingMode_Type { AM_POSTINC=1, AM_PREDEC, AM_ADDT };
 struct AddressingMode{
     enum AddressingMode_Type type;
 	int disposable;
+	int deferredpop;
 };
 
 /*  The number of registers of the target machine.                  */

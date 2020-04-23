@@ -66,8 +66,8 @@ void emit_inlinememcpy(FILE *f,struct IC *p, int t)
 
 	emit(f, "\t\t\t\t\t// Copying %d words and %d bytes to %s\n", wordcopy / 4, bytecopy,
 	     p->z.v ? p->z.v->identifier : "(null)");
-	printf("memcpy: Copying %d words and %d bytes to %s\n", wordcopy / 4, bytecopy,
-	     p->z.v ? p->z.v->identifier : "(null)");
+//	printf("memcpy: Copying %d words and %d bytes to %s\n", wordcopy / 4, bytecopy,
+//	     p->z.v ? p->z.v->identifier : "(null)");
 
 //	if(!p->z.v)
 //		printf("No z->v: z flags: %x\n",p->z.flags);
