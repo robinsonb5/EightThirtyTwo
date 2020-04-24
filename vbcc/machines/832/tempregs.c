@@ -164,7 +164,7 @@ static void emit_constanttotemp(FILE * f, zmax v)
 	if(matchreg==tmp)
 		return;
 	else if(matchreg)
-		emit(f,"\t,mt\t%s\n",regnames[matchreg]);
+		emit(f,"\tmt\t%s\n",regnames[matchreg]);
 	else {
 		emit(f, "\t.liconst\t%d\n", v);
 		settempkonst(f,tmp,v);

@@ -1602,15 +1602,15 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					emit_objtoreg(f, &p->q1, t, tmp);
 					emit(f, "\texg\t%s\n", regnames[pc]);
 				}
-/*				if (pushedargsize(p)) {
-					emit_constanttotemp(f, pushedargsize(p));
-					emit(f, "\tadd\t%s\n", regnames[sp]);
-				}*/
+
+				/* If we have an addressingmode, see if we're able to defer stack popping. */
 				if(p->z.am)
 				{
 					switch(p->z.am->deferredpop)
 					{
-						case DEFERREDPOP_FLOWCONTROL: /* Toplevel call, can't defer popping due to flow control */
+						/* If we couldn't defer popping due to flow control changes, we need to pop any previously
+						   deferred stack entries at this point.*/
+						case DEFERREDPOP_FLOWCONTROL:
 							emit(f,"\t\t\t\t\t\t// Flow control - popping %d + %d bytes\n",pushedargsize(p),notyetpopped);
 							if(pushedargsize(p)+notyetpopped)
 							{
@@ -1620,7 +1620,9 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 							pushed -= pushedargsize(p);
 							notyetpopped=0;
 							break;
-						case DEFERREDPOP_NESTEDCALLS:	/* Nested call */
+
+						/* If we couldn't defer popping due to nested calls then we only pop this function's stack entries. */
+						case DEFERREDPOP_NESTEDCALLS:
 							emit(f,"\t\t\t\t\t\t// Nested call - popping %d bytes\n",pushedargsize(p));
 							if(pushedargsize(p))
 							{
@@ -1629,7 +1631,9 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 							}
 							pushed -= pushedargsize(p);
 							break;
-						case DEFERREDPOP_OK: /* Can defer popping */
+
+						/*	Otherwise, we're OK to defer popping until later. */
+						case DEFERREDPOP_OK:
 							notyetpopped+=pushedargsize(p);
 							pushed -= pushedargsize(p);
 							emit(f,"\t\t\t\t\t\t// Deferred popping of %d bytes (%d in total)\n",pushedargsize(p),notyetpopped);

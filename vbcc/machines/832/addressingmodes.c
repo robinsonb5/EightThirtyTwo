@@ -46,17 +46,19 @@ void am_deferredpop(struct IC *p)
 
 				am_alloc(&p->z);
 
-				/* If this isn't a nested function call we might be able to defer stack popping. */
+				/* We detected nested function calls by comparing the amount of data pushed to the 
+				   stack with this call's pushedargsize().  If they don't match we're dealing with
+                   nested calls.  If they do match, we might be able to defer stack popping. */
 				if(pushed==pushedargsize(p))
 				{
-					printf("Checking for flow change\n");
+//					printf("Checking for flow change\n");
 					p2=p->next;
 					candefer=1;
 					while(p2)
 					{
 						switch(p2->code)
 						{
-							/* If we encounter LABEL, COMPARE, TEST or BRA then program flow changes
+							/* If we encounter LABEL, COMPARE, TEST or a branch operation then program flow changes
 							   before the next PUSH, and we can't defer the stack pop. */
 							case LABEL:
 							case COMPARE:
@@ -68,24 +70,23 @@ void am_deferredpop(struct IC *p)
 							case BEQ:
 							case BNE:
 							case BRA:
-								printf("Flow control changed - can't defer\n");
+//								printf("Flow control changed - can't defer\n");
 								p->z.am->deferredpop=DEFERREDPOP_FLOWCONTROL;
 								candefer=0;
 								p2=0;
 								break;
 							/* If we encounter another PUSH operation without a flow control change we can defer */
 							case PUSH:
-								printf("Can defer stack popping\n");
+//								printf("Can defer stack popping\n");
 								p2=0;
 								break;
 							default:
+								p2=p2->next;
 								break;
 						}
-						if(p2)
-							p2=p2->next;
 					}
 				}
-				else
+				else /* pushedargsize() and the contents of the stack differed in size - nested calls. */
 				{
 					p->z.am->deferredpop=DEFERREDPOP_NESTEDCALLS;
 					printf("Nested call - can't defer stack popping\n");
