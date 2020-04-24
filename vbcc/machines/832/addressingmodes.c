@@ -89,14 +89,16 @@ void am_deferredpop(struct IC *p)
 				else /* pushedargsize() and the contents of the stack differed in size - nested calls. */
 				{
 					p->z.am->deferredpop=DEFERREDPOP_NESTEDCALLS;
-					printf("Nested call - can't defer stack popping\n");
+//					printf("Nested call - can't defer stack popping\n");
 					candefer=0;
 				}
+
 				if(candefer)
 				{
 					p->z.am->deferredpop=DEFERREDPOP_OK;
 					deferredpop=pushedargsize(p);
 				}
+
 				pushed-=pushedargsize(p);
 				break;
 			default:
