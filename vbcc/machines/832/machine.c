@@ -1553,7 +1553,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 						save_temp(f, p, zreg);
 					}
 //					else
-					if(zreg!=sp)
+					if(zreg!=sp && (p->z.flags&(DREFOBJ|REG))==REG)
 					{
 						switch(ztyp(p)&NQ) {
 							case SHORT:
