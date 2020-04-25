@@ -461,7 +461,8 @@ int matchtempobj(FILE *f,struct obj *o,int varadr)
 			emit(f,"\tmr\t%s\n",regnames[t1]);
 			emit_constanttotemp(f,offset);
 			emit(f,"\taddt\t%s\n",regnames[t1]);
-			settempobj(f,t1,o,0,varadr);
+			settempobj(f,t1,&tempobjs[0].o,0,0);
+			settempobj(f,tmp,o,0,varadr);
 			return(tempobjs[0].reg);
 		}
 		else
