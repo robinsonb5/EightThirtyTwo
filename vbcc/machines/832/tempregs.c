@@ -220,7 +220,9 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 		return;
 	}
 
-	matchreg=matchtempobj(f,p,1);  // FIXME - we're hunting for varadr here.
+	if(!offset)
+		matchreg=matchtempobj(f,p,1);  // FIXME - we're hunting for varadr here.
+
 	if(matchreg)
 	{
 		if(DBGMSG)
