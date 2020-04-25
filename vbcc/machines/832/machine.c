@@ -650,7 +650,7 @@ static struct IC *preload(FILE * f, struct IC *p)
 void save_temp(FILE * f, struct IC *p, int treg)
 {
 	if(DBGMSG)
-		emit(f, "\t\t\t\t\t\t// (save temp) ");
+		emit(f, "\t\t\t\t\t\t// (save temp)");
 	int type = ztyp(p) & NQ;
 
 	if (isreg(z)) {
@@ -1511,7 +1511,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					emit(f,"\t\t\t\t\t\t// (convert - reducing type %x to %x\n",q1typ(p),ztyp(p));
 
 				// If Z is not a register then we're storing a halfword or byte, and thus don't need to mask...
-				if(((p->q1.flags&(REG|DREFOBJ))==REG) && !(p->z.flags&REG)) {	// Use stmpdec if q1 is already in a register...
+
+				if(((p->q1.flags&(REG|DREFOBJ))==REG) && (p->z.flags&(REG|DREFOBJ))!=REG) {
 					if(p->z.flags&DREFOBJ) {	// Can't use stmpdec for dereferenced objects
 						emit_prepobj(f, &p->z, t, tmp, 0); // Need an offset
 						emit(f, "\texg\t%s\n", regnames[q1reg]);
@@ -1524,6 +1525,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 							emit(f, "\texg\t%s\n", regnames[q1reg]);
 					}
 					else {
+						// Use stmpdec if q1 is already in a register...
 						emit_prepobj(f, &p->z, ztyp(p), tmp, 4); // Need an offset
 						if(!isstackparam(&p->z))
 							emit_sizemod(f,ztyp(p));
@@ -1541,13 +1543,17 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 							zreg=sp;
 						else
 						{
-							zreg=t1;
+							if(!isreg(z))
+								zreg=t1;
 							emit_prepobj(f, &p->z, ztyp(p), t1, 0);
 						}
 						emit_objtoreg(f, &p->q1, t,tmp);
+						emit(f,"\t\t\t\t\t\t//Saving to reg %s\n",regnames[zreg]);
 						save_temp(f, p, zreg);
 					}
-					else
+//					else
+					if(zreg!=sp)
+					{
 						switch(ztyp(p)&NQ) {
 							case SHORT:
 								emit_constanttotemp(f, 0xffff);
@@ -1561,7 +1567,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 								emit(f,"\t\t\t\t\t\t//No need to mask - same size\n");
 								break;
 						}
-					cleartempobj(f,zreg);
+					}
+//					cleartempobj(f,zreg);
 				}
 			}
 			continue;
