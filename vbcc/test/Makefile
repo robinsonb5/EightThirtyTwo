@@ -8,7 +8,7 @@ LD=../../832a/832l
 CC=../bin/vbcc832
 EM=../../832emu/832e
 CFLAGS = -+ -c99 -I$(832DIR)/include/ -I$(LIBDIR)
-COPT = -O=1311 -size -unsigned-char
+COPT = -O=1343 -size -unsigned-char
 TIME=200us
 
 # LITTLE ENDIAN

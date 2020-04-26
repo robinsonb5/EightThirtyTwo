@@ -1529,7 +1529,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					if(p->z.flags&DREFOBJ) {	// Can't use stmpdec for dereferenced objects
 						emit_prepobj(f, &p->z, t, tmp, 0); // Need an offset
 						emit(f, "\texg\t%s\n", regnames[q1reg]);
-						if(!isstackparam(&p->z))
+//						if(!isstackparam(&p->z) || (p->z.flags&DREFOBJ))
 							emit_sizemod(f,ztyp(p));
 						emit(f, "\tst\t%s\n", regnames[q1reg]);
 						if(p->z.am && p->z.am->disposable)
@@ -1767,7 +1767,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					{
 						emit_prepobj(f, &p->z, t, tmp, 0); // Need an offset
 						emit(f, "\texg\t%s\n", regnames[q1reg]);
-						if(!isstackparam(&p->z))
+//						if(!isstackparam(&p->z))
 							emit_sizemod(f,t);
 						emit(f, "\tst\t%s\n", regnames[q1reg]);
 						if(p->z.am && p->z.am->disposable)
