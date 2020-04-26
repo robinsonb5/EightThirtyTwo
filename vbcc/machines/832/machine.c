@@ -228,7 +228,7 @@ static long real_offset(struct obj *o)
 static int isstackparam(struct obj *o)
 {
 	int result=0;
-	if(o->flags&VAR)
+	if(o->flags&VAR && !o->flags&REG)
 	{
 		if(isauto(o->v->storage_class))
 		{
@@ -674,12 +674,11 @@ void save_temp(FILE * f, struct IC *p, int treg)
 	} else {
 		if ((p->z.flags & DREFOBJ) && (p->z.flags & REG))
 			treg = p->z.reg;
+		else if(isstackparam(&p->z))
+			type=INT;
 
 		if(DBGMSG)
-			emit(f, "store\n");
-
-		if(isstackparam(&p->z))
-			type=INT;
+			emit(f, "store type %x\n",type);
 
 		switch (type) {
 		case CHAR:
