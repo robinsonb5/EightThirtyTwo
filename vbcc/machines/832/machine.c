@@ -474,7 +474,8 @@ int matchtempobj(FILE *f,struct obj *o,int varadr,int preferredreg)
 				emit(f,"\tadd\t%s\n",regnames[preferredreg]);
 				settempobj(f,preferredreg,o,0,varadr);
 			}
-			return(tempobjs[0].reg);
+			return(preferredreg);
+//			return(tempobjs[0].reg);
 		}
 		else
 			return(0);

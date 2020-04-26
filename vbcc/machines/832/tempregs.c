@@ -171,6 +171,11 @@ static void emit_constanttoreg(FILE * f, zmax v,int reg)
 	else {
 		emit(f, "\t.liconst\t%d\n", v);
 		settempkonst(f,tmp,v);
+		if(reg!=tmp)
+		{
+			emit(f,"\tmr\t%s\n",regnames[reg]);
+			settempkonst(f,reg,v);
+		}
 	}
 }
 
@@ -378,7 +383,7 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 	if(DBGMSG)
 		emit(f, "\t\t\t\t\t\t// (obj to %s) flags %x type %x\n",regnames[reg],p->flags,t);
 
-	matchreg=matchtempobj(f,p,0,t1);
+	matchreg=matchtempobj(f,p,0,reg);
 
 	if ((p->flags & (REG|DREFOBJ)) == REG) {
 		settempobj(f,reg,p,0,0);
