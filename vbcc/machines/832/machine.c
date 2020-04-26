@@ -228,7 +228,7 @@ static long real_offset(struct obj *o)
 static int isstackparam(struct obj *o)
 {
 	int result=0;
-	if(o->flags&VAR && !o->flags&REG)
+	if(o->flags&VAR)
 	{
 		if(isauto(o->v->storage_class))
 		{
