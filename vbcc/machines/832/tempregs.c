@@ -158,17 +158,25 @@ static int count_constantchunks(zmax v)
 
 // tempobj logic should be correct.
 
-static void emit_constanttotemp(FILE * f, zmax v)
+static void emit_constanttoreg(FILE * f, zmax v,int reg)
 {
-	int matchreg=matchtempkonst(f,v);
-	if(matchreg==tmp)
-		return;
-	else if(matchreg)
-		emit(f,"\tmt\t%s\n",regnames[matchreg]);
+	int matchreg=matchtempkonst(f,v,reg);
+//	if(matchreg==tmp)
+//		return;
+//	else if(matchreg)
+//		emit(f,"\tmt\t%s\n",regnames[matchreg]);
+	if(matchreg) {
+		settempkonst(f,reg,v);
+	}
 	else {
 		emit(f, "\t.liconst\t%d\n", v);
 		settempkonst(f,tmp,v);
 	}
+}
+
+static void emit_constanttotemp(FILE * f, zmax v)
+{
+	emit_constanttoreg(f,v,tmp);
 }
 
 
@@ -221,7 +229,7 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 	}
 
 	if(!offset)
-		matchreg=matchtempobj(f,p,1);  // FIXME - we're hunting for varadr here.
+		matchreg=matchtempobj(f,p,1,t1);  // FIXME - we're hunting for varadr here.
 
 	if(matchreg)
 	{
@@ -255,9 +263,9 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 		if (p->flags & KONST) {
 			if(DBGMSG)
 				emit(f, "\t\t\t\t\t\t// const\n");
-			emit_constanttotemp(f, val2zmax(p, p->dtyp) + offset);
-			if (reg != tmp)
-				emit(f, "\tmr\t%s\n", regnames[reg]);
+			emit_constanttoreg(f, val2zmax(p, p->dtyp) + offset,reg);
+//			if (reg != tmp)
+//				emit(f, "\tmr\t%s\n", regnames[reg]);
 			settempkonst(f,reg,val2zmax(p, p->dtyp) + offset);
 		} else if (p->flags & REG) {
 			if (reg == tmp)
@@ -370,7 +378,7 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 	if(DBGMSG)
 		emit(f, "\t\t\t\t\t\t// (obj to %s) flags %x type %x\n",regnames[reg],p->flags,t);
 
-	matchreg=matchtempobj(f,p,0);
+	matchreg=matchtempobj(f,p,0,t1);
 
 	if ((p->flags & (REG|DREFOBJ)) == REG) {
 		settempobj(f,reg,p,0,0);

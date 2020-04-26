@@ -368,7 +368,7 @@ int matchobj(FILE *f,struct obj *o1,struct obj *o2,int varadr)
 
 	if(o1->flags&KONST)
 	{
-		emit(f,"\t\t\t\t\t\t// Comparing constants %x with %x\n",o1->val.vlong,o2->val.vlong);
+//		emit(f,"\t\t\t\t\t\t// Comparing constants %x with %x\n",o1->val.vlong,o2->val.vlong);
 		if(o1->val.vlong == o2->val.vlong)
 			return(1);
 		else
@@ -378,7 +378,7 @@ int matchobj(FILE *f,struct obj *o1,struct obj *o2,int varadr)
 			// Don't bother if we need fewer than four LIs to represent the value, or if we'd need more than 1 LI for the offset.
 			if(count_constantchunks(o1->val.vlong)<4 || count_constantchunks(d)>1)
 			{
-				emit(f,"\t\t\t\t\t\t// Gains from fuzzy matching too small, ignoring.\n");
+//				emit(f,"\t\t\t\t\t\t// Gains from fuzzy matching too small, ignoring.\n");
 				return(0);
 			}
 			else
@@ -444,7 +444,7 @@ int matchoffset(struct obj *o,struct obj *o2)
 
 
 // Check the tempobj records to see if the value we're interested in can be found in either.
-int matchtempobj(FILE *f,struct obj *o,int varadr)
+int matchtempobj(FILE *f,struct obj *o,int varadr,int preferredreg)
 {
 	int hit=0;	// Hit will be 1 for an exact match, 2 for a near miss.
 //	return(0); // Temporarily disable matching
@@ -457,12 +457,23 @@ int matchtempobj(FILE *f,struct obj *o,int varadr)
 		else if(hit==2)
 		{
 			int offset=matchoffset(o,&tempobjs[0].o);
-			emit(f,"\t\t\t\t\t\t// Fuzzy match found against tmp.\n");
-			emit(f,"\tmr\t%s\n",regnames[t1]);
-			emit_constanttotemp(f,offset);
-			emit(f,"\taddt\t%s\n",regnames[t1]);
-			settempobj(f,t1,&tempobjs[0].o,0,0);
-			settempobj(f,tmp,o,0,varadr);
+//			emit(f,"\t\t\t\t\t\t// Fuzzy match found against tmp.\n");
+			if(preferredreg==tmp)
+			{
+				emit(f,"\tmr\t%s\n",regnames[t1]);
+				emit(f,"\t.liconst\t%d\n",offset);
+				emit(f,"\taddt\t%s\n",regnames[t1]);
+				settempobj(f,t1,&tempobjs[0].o,0,0);
+				settempobj(f,tmp,o,0,varadr);
+			}
+			else
+			{
+				emit(f,"\tmr\t%s\n",regnames[preferredreg]);
+				emit(f,"\t.liconst\t%d\n",offset);
+				settempkonst(f,tmp,offset);
+				emit(f,"\tadd\t%s\n",regnames[preferredreg]);
+				settempobj(f,preferredreg,o,0,varadr);
+			}
 			return(tempobjs[0].reg);
 		}
 		else
@@ -480,9 +491,10 @@ int matchtempobj(FILE *f,struct obj *o,int varadr)
 		{
 			int offset=matchoffset(o,&tempobjs[1].o);
 //			if(DBGMSG)
-				emit(f,"\t\t\t\t\t\t//Fuzzy match found, offset: %d (varadr: %d)\n",offset,varadr);
-			emit_constanttotemp(f,offset);
+//				emit(f,"\t\t\t\t\t\t//Fuzzy match found, offset: %d (varadr: %d)\n",offset,varadr);
+			emit(f,"\t.liconst\t%d\n",offset);
 			emit(f,"\tadd\t%s\n",regnames[tempobjs[1].reg]);
+			settempkonst(f,tmp,offset);
 			settempobj(f,tempobjs[1].reg,o,0,0);
 			return(tempobjs[1].reg);
 		}
@@ -492,13 +504,13 @@ int matchtempobj(FILE *f,struct obj *o,int varadr)
 		return(0);
 }
 
-int matchtempkonst(FILE *f,int k)
+int matchtempkonst(FILE *f,int k,int preferredreg)
 {
 //	return(0); // Temporarily disable matching
 	struct obj o;
 	o.flags=KONST;
 	o.val.vlong=k;
-	return(matchtempobj(f,&o,0)==1);
+	return(matchtempobj(f,&o,0,preferredreg)==1);
 }
 
 
