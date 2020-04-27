@@ -85,7 +85,7 @@ void emit_inlinememcpy(FILE *f,struct IC *p, int t)
 		while (wordcopy--) {
 			emit(f, "\tldinc\t%s\n\tstinc\t%s\n", regnames[srcr], regnames[dstr]);
 		}
-	} else {
+	} else if(wordcopy) {
 		emit(f, "\t\t\t\t\t// Copying %d words to %s\n", wordcopy / 4, p->z.v ? p->z.v->identifier : "(null)");
 		// Copy bytes...
 		emit_constanttotemp(f, wordcopy);
@@ -104,7 +104,7 @@ void emit_inlinememcpy(FILE *f,struct IC *p, int t)
 			emit(f, "\t\t\t\t\t// Copying %d byte tail to %s\n", bytecopy,p->z.v ? p->z.v->identifier : "null");
 		while (bytecopy--)
 			emit(f, "\tldbinc\t%s\n\tstbinc\t%s\n", regnames[srcr], regnames[dstr]);
-	} else {
+	} else if (bytecopy) {
 		emit(f, "\t\t\t\t\t// Copying %d bytes to %s\n", bytecopy, p->z.v ? p->z.v->identifier : "null");
 		// Copy bytes...
 		emit_constanttotemp(f, bytecopy);
