@@ -2086,11 +2086,14 @@ int reg_parm(struct reg_handle *m, struct Typ *t, int vararg, struct Typ *d)
 {
 	int f;
 	f = t->flags & NQ;
+	if(is_varargs(d))	/* Disallow register parameters for varargs functions */
+		return(0);
+
 	if (f <= LONG || f == POINTER) {
-		if (m->gregs >= 0)
+		if (m->gregs >= REGPARM_COUNT)
 			return 0;
 		else
-			return FIRST_GPR + 3 + m->gregs++;
+			return FIRST_GPR + 1 + m->gregs++;
 	}
 	if (ISFLOAT(f)) {
 		if (m->fregs >= 0)

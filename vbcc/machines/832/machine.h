@@ -67,7 +67,8 @@ struct AddressingMode{
 #define INLINEMEMCPY 1024
 
 /*  Parameters are sometimes passed in registers without __reg.     */
-#define HAVE_REGPARMS 0
+#define HAVE_REGPARMS 1
+#define REGPARM_COUNT 1
 
 /*  Parameters on the stack should be pushed in order rather than   */
 /*  in reverse order.                                               */
