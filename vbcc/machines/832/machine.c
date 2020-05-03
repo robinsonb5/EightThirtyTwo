@@ -1,7 +1,7 @@
 /*  EightThirtyTwo backend for vbcc,
 	based on the generic RISC backend
 
-	The CPU targeted by this backend can be found at
+	The CPU targeted by this backend, and the latest version, can be found at
     https://github.com/robinsonb5/EightThirtyTwo
 
 */
@@ -1465,7 +1465,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 //			ierror(0);
 //		}
 
-		if ((c == ASSIGN) && ((t & NQ) > POINTER && (t & NQ) != STRUCT)) {
+		if ((c == ASSIGN) && ((t & NQ) > UNION)) {
 			printf("Assignment of a type we don't yet handle: 0x%x\n", t);
 			ierror(0);
 		}
@@ -1757,7 +1757,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		if (c == ASSIGN) {
 			if(DBGMSG)
 				emit(f, "\t\t\t\t\t\t// (a/p assign)\n");
-			if (((t & NQ) == STRUCT) || ((t & NQ) == UNION)
+			if (((t & NQ) == STRUCT) || ((t & NQ) == UNION) || ((t & NQ) == ARRAY)
 			    || ((t & NQ) == CHAR && opsize(p) != 1)) {
 				emit_inlinememcpy(f,p,t);
 			} else {

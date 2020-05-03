@@ -2,6 +2,7 @@
 
 void emit_inlinememcpy(FILE *f,struct IC *p, int t)
 {
+	int srctype=t;
 	int srcr = t1;
 	int dstr=0;
 	int cntr=0;
@@ -40,8 +41,10 @@ void emit_inlinememcpy(FILE *f,struct IC *p, int t)
 	}
 
 	cntr=t1+2;
-	if(cntr==dstr)	// Use r1 instead of r2 if the dest pointer is in r2 already.
+	if(cntr==dstr)	/* Use r1 instead of r2 if the dest pointer is in r2 already. */
 		cntr=t1+1;
+	if(cntr==srcr)  /* If cntr && srcr now clash, use r3 instead */
+		cntr=t1+3;
 
 	if((unrollwords && unrollbytes) || regs[cntr]==0)
 		savec=0;
@@ -51,11 +54,16 @@ void emit_inlinememcpy(FILE *f,struct IC *p, int t)
 		pushed+=4;
 	}
 
-	emit_prepobj(f, &p->z, t, dstr, 0);
+	/* Prepare source register */
 	if ((t & NQ) == CHAR && (opsize(p) != 1)) {
 		emit(f, "\t\t\t\t\t// (char with size!=1 -> array of unknown type)\n");
-		t = ARRAY;	// FIXME - ugly hack
+		srctype = ARRAY;	// FIXME - ugly hack
 	}
+	emit_objtoreg(f, &p->q1, srctype,srcr);
+
+	/* Prepare destination register */
+
+	emit_prepobj(f, &p->z, t, dstr, 0);
 
 	if (p->z.flags & REG) {
 		if(p->z.reg!=dstr) {// Move target register to dstr
@@ -75,7 +83,6 @@ void emit_inlinememcpy(FILE *f,struct IC *p, int t)
 	// Prepare the copy
 	// FIXME - we don't necessarily have a valid z->v!  If not, where does the target come from?
 	// Stack based variable?
-	emit_objtoreg(f, &p->q1, t,srcr);
 
 	if (unrollwords) {
 		wordcopy >>= 2;

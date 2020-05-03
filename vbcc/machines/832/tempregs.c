@@ -380,8 +380,19 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 {
 	int result=0;
 	int matchreg;
+	int elementary;
 	if(DBGMSG)
 		emit(f, "\t\t\t\t\t\t// (obj to %s) flags %x type %x\n",regnames[reg],p->flags,t);
+
+	/* If we're dealing with an elementary type on the stack we'll copy the actual object into
+	   a register.  If we're dealing with a composite type, or taking the address of an elementary
+	   type then instead we'll take its address into the register.  There's a subtlety to take care
+	   of with ASSIGN ICs and inline memcpy/strcpy where they type can be CHAR with a size!=1.
+	   I hack around this by overriding type in the parent fucction. */
+	if ((!(p->flags & VARADR)) && ((t & NQ) != STRUCT) && ((t & NQ) != UNION) && ((t & NQ) != ARRAY))
+		elementary=1;
+	else
+		elementary=0;
 
 	matchreg=matchtempobj(f,p,0,reg);
 
@@ -505,10 +516,7 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 				if(DBGMSG)
 					emit(f, "\t\t\t\t\t\t// var, auto|reg\n");
 				/* Do we need to deference? */
-				if ((!(p->flags & VARADR))
-					    && ((t & NQ) != STRUCT)
-					    && ((t & NQ) != UNION)
-					    && ((t & NQ) != ARRAY)) {
+				if (elementary) {
 					if (real_offset(p)) {
 						emit_constanttotemp(f, real_offset(p));
 						if(!isstackparam(p))
@@ -531,11 +539,8 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 				if(DBGMSG)
 					emit(f, "\t\t\t\t\t\t// extern\n");
 				emit_externtotemp(f, p->v->identifier, p->val.vmax);
-				// Structs and unions have to remain as pointers
-				if ((!(p->flags & VARADR))
-				    && ((t & NQ) != STRUCT)
-				    && ((t & NQ) != UNION)
-				    && ((t & NQ) != ARRAY)) {
+				// Structs, unions and arrays have to remain as pointers
+				if (elementary) {
 					if(DBGMSG)
 						emit(f, "\t\t\t\t\t\t//extern deref\n");
 					emit_sizemod(f, t);
@@ -546,11 +551,8 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 				if(DBGMSG)
 					emit(f, "\t\t\t\t\t\t//static %s\n", p->flags & VARADR ? "varadr" : "not varadr");
 				emit_statictotemp(f, labprefix, zm2l(p->v->offset), p->val.vmax);
-				// Structs and unions have to remain as pointers
-				if ((!(p->flags & VARADR))
-				    && ((t & NQ) != STRUCT)
-				    && ((t & NQ) != UNION)
-				    && ((t & NQ) != ARRAY)) {
+				// Structs, unions and arrays have to remain as pointers
+				if (elementary) {
 					if(DBGMSG)
 						emit(f, "\t\t\t\t\t\t//static deref\n");
 					emit_sizemod(f, t);
