@@ -517,13 +517,14 @@ int matchtempobj(FILE *f,struct obj *o,int varadr,int preferredreg)
 		return(0);
 }
 
+
 int matchtempkonst(FILE *f,int k,int preferredreg)
 {
 //	return(0); // Temporarily disable matching
 	struct obj o;
 	o.flags=KONST;
 	o.val.vlong=k;
-	return(matchtempobj(f,&o,0,preferredreg)==1);
+	return(matchtempobj(f,&o,0,preferredreg));
 }
 
 
