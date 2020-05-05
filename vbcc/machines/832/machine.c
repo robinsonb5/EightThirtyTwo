@@ -493,11 +493,23 @@ int matchtempobj(FILE *f,struct obj *o,int varadr,int preferredreg)
 			int offset=matchoffset(o,&tempobjs[1].o);
 //			if(DBGMSG)
 //				emit(f,"\t\t\t\t\t\t//Fuzzy match found, offset: %d (varadr: %d)\n",offset,varadr);
+			// Fuzzy match against t1 - if target is t1 use add, otherwise use addt.
 			emit(f,"\t.liconst\t%d\n",offset);
-			emit(f,"\tadd\t%s\n",regnames[tempobjs[1].reg]);
-			settempkonst(f,tmp,offset);
-			settempobj(f,tempobjs[1].reg,o,0,0);
-			return(tempobjs[1].reg);
+			if(preferredreg!=tempobjs[1].reg)
+			{
+				emit(f,"\taddt\t%s\n",regnames[tempobjs[1].reg]);
+				if(preferredreg!=tmp)
+					emit(f,"\tmr\t%s\n",regnames[preferredreg]);
+				settempobj(f,tmp,o,0,0);
+				settempobj(f,preferredreg,o,0,varadr);
+			}
+			else
+			{
+				emit(f,"\tadd\t%s\n",regnames[tempobjs[1].reg]);
+				settempkonst(f,tmp,offset);
+				settempobj(f,tempobjs[1].reg,o,0,varadr);
+			}
+			return(preferredreg);
 		}
 		return(0);
 	}
@@ -1765,7 +1777,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				{
 					if(p->z.flags&DREFOBJ)	// Can't use stmpdec for dereferenced objects
 					{
-						emit_prepobj(f, &p->z, t, tmp, 0); // Need an offset
+						emit_prepobj(f, &p->z, t, tmp, 0);
 						emit(f, "\texg\t%s\n", regnames[q1reg]);
 //						if(!isstackparam(&p->z))
 							emit_sizemod(f,t);

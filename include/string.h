@@ -7,7 +7,7 @@
  void *memchr(const void *, int, size_t);
  void *memrchr(const void *, int, size_t);
  int memcmp(__reg("r3") const void *, __reg("r2") const void *, __reg("r1") size_t);
- int memcpy(__reg("r3") const void *, __reg("r2") const void *, __reg("r1") size_t);
+ void *memcpy(__reg("r3") const void *, __reg("r2") const void *, __reg("r1") size_t);
  int memmove(__reg("r3") const void *, __reg("r2") const void *, __reg("r1") size_t);
  void *memset(__reg("r3") void *, __reg("r2") int,__reg("r1") size_t);
  void *memmem(const void *, size_t, const void *, size_t);
