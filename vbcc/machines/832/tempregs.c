@@ -307,7 +307,7 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 				if (reg != tmp)
 					emit(f, "\tmr\t%s\n", regnames[reg]);
 			} else if (isextern(p->v->storage_class)) {
-				emit(f, "\n//Extern");
+				emit(f, "\t\t\t\t\t\t//Extern\n");
 				emit_externtotemp(f, p->v->identifier, p->val.vmax);
 				emit(f, "\tldt\n");
 				if (reg != tmp)
