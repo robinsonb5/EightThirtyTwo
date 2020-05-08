@@ -34,6 +34,8 @@ proc setup_blaster {} {
 	global usbblaster_name
 	global test_device
 
+	# List all USB-Blasters connected to the system.  If there's only one
+	# use that, otherwise prompt the user to choose one.
 	set count 1
 	foreach hardware_name [get_hardware_names] {
 		if { [string match "USB-Blaster*" $hardware_name] } {
@@ -59,11 +61,11 @@ proc setup_blaster {} {
 		}
 	}
 
-	puts "Select JTAG chain connected to $usbblaster_name.";
 
-	# List all devices on the chain, and select the first device on the chain.
-	#Devices on the JTAG chain:
+	# List all devices on the chain.  If there's only one, select that,
+	# otherwise prompt the user to select one.
 
+	puts "Devices on JTAG chain:";
 	set count 0
 	foreach device_name [get_device_names -hardware_name $usbblaster_name] {
 		puts $device_name
@@ -72,6 +74,7 @@ proc setup_blaster {} {
 	}
 
 	if {$count>1} {
+		puts "More than one device found - please select the appropriate device.";
 		gets stdin id
 		foreach device_name [get_device_names -hardware_name $usbblaster_name] {
 			if { [string match "@$id*" $device_name] } {
@@ -79,7 +82,7 @@ proc setup_blaster {} {
 			}
 		}
 	}
-	puts "Selected device: $test_device.";
+	puts "Selected $test_device.";
 }
 
 # Open device 

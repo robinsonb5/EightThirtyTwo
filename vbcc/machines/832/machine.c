@@ -403,7 +403,8 @@ int matchobj(FILE *f,struct obj *o1,struct obj *o2,int varadr)
 		if(DBGMSG)
 			emit(f,"\t\t\t\t\t\t//auto: flags: %x, comparing %d, %d with %d, %d\n",
 				flg,o1->v->offset,o1->val.vlong, o2->v->offset,o2->val.vlong);
-		if((o1->v->offset<0 && o2->v->offset>0) || (o1->v->offset>0 && o2->v->offset<0))
+		// Can't fuzzy match between parameters and vars on stack
+		if((o1->v->offset<0 && o2->v->offset>=0) || (o1->v->offset>=0 && o2->v->offset<0))
 			return(0);
 		if(o1->v->offset==o2->v->offset && o1->val.vlong==o2->val.vlong)
 			return(1);
@@ -436,9 +437,7 @@ int matchoffset(struct obj *o,struct obj *o2)
 	if(isextern(o->v->storage_class))
 		return(o->val.vlong-o2->val.vlong);
 	if(isauto(o->v->storage_class))
-	{
 		return((o->val.vlong+o->v->offset)-(o2->val.vlong+o2->v->offset));
-	}
 	return(0);
 }
 
@@ -567,7 +566,7 @@ static void store_reg(FILE * f, int r, struct obj *o, int type)
 				emit(f, "\texg\t%s\n", regnames[r]);
 				emit(f, "\tst\t%s\n", regnames[r]);
 				if(o->am && o->am->disposable)
-					emit(f, "\t\t\t\t\t\t// Object is disposable, not bothering to undo exg\n");
+					emit(f, "\t\t\t\t\t\t// WARNING - Object is disposable, not bothering to undo exg - check correctness\n");
 				else
 					emit(f, "\texg\t%s\n", regnames[r]);
 				cleartempobj(f,tmp);
@@ -1545,8 +1544,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 //						if(!isstackparam(&p->z) || (p->z.flags&DREFOBJ))
 							emit_sizemod(f,ztyp(p));
 						emit(f, "\tst\t%s\n", regnames[q1reg]);
-						if(p->z.am && p->z.am->disposable)
-							emit(f, "\t\t\t\t\t\t// Object is disposable, not bothering to undo exg\n");
+						if(p->z.am && p->z.am->disposable && p->q1.am && p->q1.am->disposable)
+							emit(f, "\t\t\t\t\t\t// Both q1 and z are disposable, not bothering to undo exg\n");
 						else
 							emit(f, "\texg\t%s\n", regnames[q1reg]);
 					}
