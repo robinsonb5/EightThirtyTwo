@@ -281,7 +281,7 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 				emit(f, "\t\t\t\t\t\t// reg %s - no need to prep\n", regnames[p->reg]);
 		} else if (p->flags & VAR) {
 			if(DBGMSG)
-				emit(f, "\t\t\t\t\t\t// var FIXME - deref?");
+				emit(f, "\t\t\t\t\t\t// var FIXME - deref?\n");
 			if(offset)
 			{
 				printf("emit_prepobj: Offset supplied but object is being dereferenced!\n");
@@ -289,7 +289,7 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 			}
 			if (isauto(p->v->storage_class)) {
 				if(DBGMSG)
-					emit(f, "\t\t\t\t\t\t// reg \n");
+					emit(f, "\t\t\t\t\t\t// reg - auto\n");
 				emit_stackvartotemp(f, real_offset(p) + offset, 1);
 				if (reg != tmp)
 				{
@@ -307,7 +307,7 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 				if (reg != tmp)
 					emit(f, "\tmr\t%s\n", regnames[reg]);
 			} else if (isextern(p->v->storage_class)) {
-				emit(f, "\n");
+				emit(f, "\n//Extern");
 				emit_externtotemp(f, p->v->identifier, p->val.vmax);
 				emit(f, "\tldt\n");
 				if (reg != tmp)

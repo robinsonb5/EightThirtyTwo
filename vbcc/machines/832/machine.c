@@ -1808,8 +1808,11 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					}
 					else
 					{
+						emit(f,"\t\t//regular path prep z\n");
 						emit_prepobj(f, &p->z, t, t1, 0);
+						emit(f,"\t\t//regular path move q1\n");
 						emit_objtoreg(f, &p->q1, t, tmp);
+						emit(f,"\t\t//regular path save to z\n");
 						save_temp(f, p, t1);
 					}
 				}

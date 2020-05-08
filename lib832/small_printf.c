@@ -44,6 +44,7 @@ static int _pfputs(const char *s,pf_outfunc f, void *ofdata)
 	while(c=*s++)
 	{
 		++result;
+//		f(c,ofdata);
 		if(f(c,ofdata)!=c)
 			return(result);
 	}
@@ -84,7 +85,6 @@ __weak int _printfcore(const char *fmt,va_list ap,pf_outfunc f,void *ofdata)
 			        ret+=_pfputs(va_arg(ap, char *),f,ofdata);
 			        break;
 				case 'l':
-				case '0':
 					nextfmt=1;
 					break;
 			    case 'c':
@@ -170,7 +170,7 @@ static int _fpwritechar(int c,void *ud)
 	if(d->len)
 	{
 		--d->len;
-		*d->buf++=c;	// FIXME - check size modifier
+		*(d->buf++)=c;	// FIXME - check size modifier
 		return(c);
 	}
 	else

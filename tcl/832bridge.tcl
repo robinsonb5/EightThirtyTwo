@@ -34,9 +34,28 @@ proc setup_blaster {} {
 	global usbblaster_name
 	global test_device
 
+	set count 1
 	foreach hardware_name [get_hardware_names] {
 		if { [string match "USB-Blaster*" $hardware_name] } {
+			puts "Device $count: $hardware_name"
 			set usbblaster_name $hardware_name
+			set count [expr $count + 1]
+		}
+	}
+
+	if {$count>2} {
+		puts "More than one USB-Blaster found - please select a device."
+		gets stdin id
+		scan $id "%d" idno
+		set count 1
+		foreach hardware_name [get_hardware_names] {
+			if { [string match "USB-Blaster*" $hardware_name] } {
+				if { $count == $idno } {
+					puts "Selected $hardware_name"
+					set usbblaster_name $hardware_name
+				}
+				set count [expr $count + 1]
+			}
 		}
 	}
 
@@ -45,11 +64,19 @@ proc setup_blaster {} {
 	# List all devices on the chain, and select the first device on the chain.
 	#Devices on the JTAG chain:
 
-
+	set count 0
 	foreach device_name [get_device_names -hardware_name $usbblaster_name] {
 		puts $device_name
-		if { [string match "@1*" $device_name] } {
-			set test_device $device_name
+		set test_device $device_name
+		set count [expr $count + 1]		
+	}
+
+	if {$count>1} {
+		gets stdin id
+		foreach device_name [get_device_names -hardware_name $usbblaster_name] {
+			if { [string match "@$id*" $device_name] } {
+				set test_device $device_name
+			}
 		}
 	}
 	puts "Selected device: $test_device.";
@@ -268,7 +295,7 @@ while {1} {
 	set wait_connection 0
 
 	# Display welcome message
-	puts "832bridge listening on $listen_address:$service_port"
+	puts "832bridge listening for 832ocd connections on $listen_address:$service_port"
 
 	# Wait for the connection to exit
 	vwait wait_connection 
