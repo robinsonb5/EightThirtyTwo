@@ -24,7 +24,7 @@ helloworld : crt0.a lib832.a $(OBJDIR)/helloworld.o
 helloworld_tiny : crt0.a libtiny832.a $(OBJDIR)/helloworld.o
 	$(LD) -o $@ -m $@.map $+
 
-crt0.a : $(OBJDIR)/start.o $(OBJDIR)/premain.o
+crt0.a : $(OBJDIR)/start.o $(OBJDIR)/premain.o $(OBJDIR)/absolutestack.o
 	cat >$@ $+
 
 dualcrt0.a : $(OBJDIR)/start.o $(OBJDIR)/premain_dualthread.o
