@@ -6,7 +6,7 @@ GHDL = ghdl
 AS=../../832a/832a
 LD=../../832a/832l
 CC=../bin/vbcc832
-COPT = -O=32767 -speed
+COPT = -O=-1 -speed
 CFLAGS = -+ -unsigned-char $(COPT) -I$(832DIR)/include/ -I$(LIBDIR)
 
 # LITTLE ENDIAN
