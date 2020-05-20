@@ -54,7 +54,7 @@ a.out : dhry_1.c dhry_2.c ../../Lib/hexdump.c
 	$(AS) $(ASFLAGS) $*.asm
 
 dhrystone.bin : $(LIBDIR)/crt0.a $(LIBDIR)/lib832.a dhry_1.o dhry_2.o
-	$(LD) $(LDFLAGS) -m $@.map -o $@ $+
+	$(LD) $(LDFLAGS) -M $@.map -o $@ $+
 
 %.asm : %.c Makefile ldscript.ld $(LIBDIR)/start.S $(CC)
 	../bin/vbcc832 $(CFLAGS) $*.c

@@ -1,11 +1,10 @@
 #include "assembler.pp"
 
-
 	// char *strncat(__reg("r2") char *, __reg("r1") const char *, __reg("r3") size_t);
 
 	.section	.text.strncat
-	.global	_strncat
-_strncat:
+	.global	___strncat
+___strncat:
 	stdec	r6
 .finddst:
 	ldbinc	r2
@@ -35,8 +34,8 @@ _strncat:
 	// char *strcat(__reg("r2") char *, __reg("r1") const char *);
 
 	.section	.text.strcat
-	.global	_strcat
-_strcat:
+	.global	___strcat
+___strcat:
 	stdec	r6
 .finddst2:
 	ldbinc	r2
@@ -59,9 +58,9 @@ _strcat:
 	// int strcmp(__reg("r2") const char *, __reg("r1") const char *);
 
 	.section	.text.strcmp
-	.global	_strcmp
+	.global	___strcmp
 
-_strcmp:						// Parameters: char *s1, char *s2
+___strcmp:						// Parameters: char *s1, char *s2
 	stdec	r6
 	mt	r2
 	stdec	r6
@@ -87,8 +86,8 @@ _strcmp:						// Parameters: char *s1, char *s2
 // int strncmp(__reg("r2") const char *, __reg("r1") const char *, __reg("r3") size_t);
 
 	.section	.text.strncmp
-	.global	_strncmp
-_strncmp:						// Parameters: char *s1, char *s2, int n
+	.global	___strncmp
+___strncmp:						// Parameters: char *s1, char *s2, int n
 	stdec	r6
 	mt	r3
 	stdec	r6
@@ -123,8 +122,8 @@ _strncmp:						// Parameters: char *s1, char *s2, int n
 // int memcmp(__reg("r2") const char *, __reg("r1") const char *, __reg("r3") size_t);
 
 	.section	.text.memcmp
-	.global	_memcmp
-_memcmp:						// Parameters: char *s1, char *s2, int n
+	.global	___memcmp
+___memcmp:						// Parameters: char *s1, char *s2, int n
 	stdec	r6
 	mt	r3
 	stdec	r6
@@ -156,8 +155,8 @@ _memcmp:						// Parameters: char *s1, char *s2, int n
 	// char *strncpy(__reg("r3") char *dst, __reg("r2") const char *src, __reg("r1") size_t size);
 
 	.section	.text.strncpy
-	.globl	_strncpy
-_strncpy:
+	.globl	___strncpy
+___strncpy:
 	stdec	r6
 	mt	r3
 	mr	r0
@@ -179,30 +178,33 @@ _strncpy:
 
 
 
-	// char *strcpy(__reg("r2") char *dst, __reg("r1") const char *src);
+	// char *strcpy(char *dst (in r1),const char *src (on stack));
 
 	.section	.text.strcpy
 	.globl	_strcpy
 _strcpy:
 	stdec	r6
-	mt	r2
+	.liconst 4
+	ldidx	r6
+	mr	r2
+	mt	r1
 	mr	r0
 .strcpyloop:
-	ldbinc r1
-	stbinc	r2
+	ldbinc r2
+	stbinc	r1
 	cond	NEQ
 		.lipcrel .strcpyloop
 		add	r7
 	ldinc	r6
-	mr	r7	// 10 bytes
+	mr	r7	// 13 bytes
 
 
 
 	// size_t strlen(__reg("r1" const char *);
 
 	.section	.text.strlen
-	.global	_strlen
-_strlen:
+	.global	___strlen
+___strlen:
 	stdec	r6
 
 	mt	r1
@@ -223,8 +225,8 @@ _strlen:
 	// int tolower(__reg("r1") int c);
 
 	.section	.text.tolower
-	.global	_tolower
-_tolower:
+	.global	___tolower
+___tolower:
 	stdec	r6
 
 	mt	r1
@@ -249,8 +251,8 @@ _tolower:
 	// int toupper(__reg("r1") int c);
 
 	.section	.text.toupper
-	.global	_toupper
-_toupper:
+	.global	___toupper
+___toupper:
 	stdec	r6
 
 	mt	r1
@@ -275,8 +277,8 @@ _toupper:
 	// void *memset(__reg("r3") void *dst, __reg("r2") int c,__reg("r1") size_t size);
 
 	.section	.text.memset
-	.globl	_memset
-_memset:
+	.globl	___memset
+___memset:
 	stdec	r6
 	mt	r3
 	mr	r0
@@ -292,36 +294,49 @@ _memset:
 	ldinc	r6
 	mr	r7	// 13 bytes
 
-
-	// char *strncpy(__reg("r3") char *dst, __reg("r2") const char *src, __reg("r1") size_t size);
+	// char *memcpy(char *dst (in r1),const char *src (on stack),size_t size (on stack));
 
 	.section	.text.memcpy
-	.globl	_memcpy
-_memcpy:
+	.globl	___memcpy
+___memcpy:
 	stdec	r6
 	mt	r3
+	stdec	r6
+
+	.liconst 8	// Fetch source pointer
+	ldidx	r6
+	mr	r2
+
+	.liconst 12 // Fetch size
+	ldidx	r6
+	mr	r3
+
+	mt	r1		// Dest pointer already in r1, move to r0 for result
 	mr	r0
-	add	r1
+
+	add	r3
 .memcpyloop:
-	mt	r3
-	cmp	r1
+	mt	r1
+	cmp	r3
 	cond	EQ
 		.lipcrel .memcpydone
 		add	r7
 	ldbinc r2
-	stbinc	r3
+	stbinc	r1
 	.lipcrel .memcpyloop
 	add	r7
 .memcpydone:
 	ldinc	r6
-	mr	r7	// 15 bytes
+	mr	r3
+	ldinc	r6
+	mr	r7
 
 
 	// char *memmove(__reg("r3") char *dst, __reg("r2") const char *src, __reg("r1") size_t size);
 
 	.section	.text.memove
-	.globl	_memmove
-_memmove:
+	.globl	___memmove
+___memmove:
 	stdec	r6
 	mt	r3
 	mr	r0
