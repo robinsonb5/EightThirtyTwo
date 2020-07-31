@@ -10,7 +10,7 @@ OBJDIR=832dir
 
 all: $(OBJDIR) crt0.a dualcrt0.a lib832.a libtiny832.a helloworld helloworld_tiny
 
-COMMONOBJ=$(OBJDIR)/uart.o $(OBJDIR)/string.o $(OBJDIR)/stringstubs.o $(OBJDIR)/abort.o $(OBJDIR)/division.o
+COMMONOBJ=$(OBJDIR)/uart.o $(OBJDIR)/string.o $(OBJDIR)/string_c.o $(OBJDIR)/stringstubs.o $(OBJDIR)/abort.o $(OBJDIR)/division.o
 
 clean :
 	-rm *.asm

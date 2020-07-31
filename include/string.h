@@ -21,6 +21,17 @@
 char *strcpy(char *,const char *);
 void *memcpy(const void *,const void *,size_t);
 
+size_t strspn(const char *, const char *);
+size_t strcspn(const char *, const char *);
+
+char *strtok(char *, const char *);
+char *strtok_r(char *, const char *, char **);
+
+/* These really belong in stdlib.h rather than string.h */
+
+unsigned long int strtol(const char *nptr, char **endptr, int base);
+unsigned long int strtoul(const char *nptr, char **endptr, int base);
+
 /* Don't yet have implementations of these functions */
 
 #if 0
@@ -36,7 +47,6 @@ void *memcpy(const void *,const void *,size_t);
  char *index(const char *, int);
  char *strrchr(const char *, int);
  char *rindex(const char *, int);
- size_t strcspn(const char *, const char *);
  char *strdup(const char *);
  char *strndup(const char *, size_t);
  char *strerror(int);
@@ -46,10 +56,8 @@ void *memcpy(const void *,const void *,size_t);
  size_t strlcpy(char *, const char *, size_t);
  char *strpbrk(const char *, const char *);
  char *strsep(char **, const char *);
- size_t strspn(const char *, const char *);
  char *strstr(const char *, const char *);
- char *strtok(char *, const char *);
- char *strtok_r(char *, const char *, char **);
 #endif
+
 
 #endif				/* _STRING_H */
