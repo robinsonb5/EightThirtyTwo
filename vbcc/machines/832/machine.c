@@ -535,6 +535,11 @@ static void store_reg(FILE * f, int r, struct obj *o, int type)
 		emit(f, "\t\t\t\t\t\t// Store_reg to type 0x%x\n", type);
 
 	type &= NQ;		// Filter out unsigned, etc.
+	if((type==CHAR || type==SHORT) && isstackparam(o))
+	{
+		emit(f, "\t\t\t\t\t\t// Promoting storage size of stack parameter to int\n");
+		type=INT;
+	}
 
 	switch (type) {
 	case CHAR:
