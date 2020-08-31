@@ -380,6 +380,7 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 	int result=0;
 	int matchreg;
 	int elementary;
+	int postinc=0;
 	if(DBGMSG)
 		emit(f, "\t\t\t\t\t\t// (obj to %s) flags %x type %x\n",regnames[reg],p->flags,t);
 
@@ -462,7 +463,10 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 			switch (t & NQ) {
 			case CHAR:
 				if (p->am && p->am->type == AM_POSTINC)
+				{
 					emit(f, "\tldbinc\t%s\n", regnames[p->reg]);
+					postinc=1;
+				}
 				else if (p->am && p->am->disposable)
 					emit(f,
 					     "\tldbinc\t%s\n//Disposable, postinc doesn't matter.\n", regnames[p->reg]);
@@ -477,7 +481,10 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 			case LONG:
 			case POINTER:
 				if (p->am && p->am->type == AM_POSTINC)
+				{
 					emit(f, "\tldinc\t%s\n", regnames[p->reg]);
+					postinc=4;
+				}
 				else
 					emit(f, "\tld\t%s\n", regnames[p->reg]);
 				break;
@@ -573,8 +580,8 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 	}
 	if(reg!=tmp)
 		emit(f,"\tmr\t%s\n",regnames[reg]);
-	settempobj(f,reg,p,0,0);
-	settempobj(f,tmp,p,0,0);
+	settempobj(f,reg,p,-postinc,0);
+	settempobj(f,tmp,p,-postinc,0);
 	return(result);
 }
 
