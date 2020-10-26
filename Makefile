@@ -18,7 +18,10 @@ hello: 832emu/832e 832a/832a
 	-832emu/832e 832a/hello
 
 vbcc/supp.h:
-	$(error Extract the latest vbcc source archive into vbcc then try again.)
+	$(info Extract the latest vbcc source archive into vbcc then try again.)
+	$(info If using vbcc 0.9g, you should also apply the vbcc_09g_volatilefix patch)
+	$(info which fixes a compiler bug relating to the volatile keyword.)
+	$(error vbcc is missing.)
 
 vbcc/bin:
 	mkdir vbcc/bin
