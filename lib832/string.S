@@ -119,7 +119,7 @@ ___strncmp:						// Parameters: char *s1, char *s2, int n
 
 
 
-// int memcmp(__reg("r2") const char *, __reg("r1") const char *, __reg("r3") size_t);
+// int memcmp(__reg("r3") const char *, __reg("r2") const char *, __reg("r1") size_t);
 
 	.section	.text.memcmp
 	.global	___memcmp
@@ -131,13 +131,13 @@ ___memcmp:						// Parameters: char *s1, char *s2, int n
 	stdec	r6
 .loopmemcmp:
 	li	1
-	sub	r3
+	sub	r1
 	cond SLT
 		.lipcrel .endmemcmp
 		add	r7
-	ldbinc	r2	// s2++
+	ldbinc	r3	// s2++
 	mr	r0
-	ldbinc	r1
+	ldbinc	r2
 	sub	r0						// Perform comparison
 	cond	EQ
 		.lipcrel .loopmemcmp
