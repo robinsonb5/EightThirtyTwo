@@ -456,7 +456,7 @@ int matchtempobj(FILE *f,struct obj *o,int varadr,int preferredreg)
 		else if(hit==2)
 		{
 			int offset=matchoffset(o,&tempobjs[0].o);
-//			emit(f,"\t\t\t\t\t\t// Fuzzy match found against tmp.\n");
+			emit(f,"\t\t\t\t\t\t// Fuzzy match found against tmp.\n");
 			if(preferredreg==tmp)
 			{
 				emit(f,"\tmr\t%s\n",regnames[t1]);
@@ -490,8 +490,8 @@ int matchtempobj(FILE *f,struct obj *o,int varadr,int preferredreg)
 		else if(hit==2)
 		{
 			int offset=matchoffset(o,&tempobjs[1].o);
-//			if(DBGMSG)
-//				emit(f,"\t\t\t\t\t\t//Fuzzy match found, offset: %d (varadr: %d)\n",offset,varadr);
+			if(DBGMSG)
+				emit(f,"\t\t\t\t\t\t//Fuzzy match found, offset: %d (varadr: %d)\n",offset,varadr);
 			// Fuzzy match against t1 - if target is t1 use add, otherwise use addt.
 			emit(f,"\t.liconst\t%d\n",offset);
 			if(preferredreg!=tempobjs[1].reg)

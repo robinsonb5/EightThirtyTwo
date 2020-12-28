@@ -161,12 +161,21 @@ static int count_constantchunks(zmax v)
 static void emit_constanttoreg(FILE * f, zmax v,int reg)
 {
 	int matchreg=matchtempkonst(f,v,reg);
+//	emit(f,"// matchreg %s\n",regnames[matchreg]);
+
 //	if(matchreg==tmp)
 //		return;
 //	else if(matchreg)
 //		emit(f,"\tmt\t%s\n",regnames[matchreg]);
 	if(matchreg) {
-		settempkonst(f,reg,v);
+		// Need to deal with the case where a constant is in r0 but required in tmp or vice versa.
+		if(matchreg!=reg) {
+			if(reg==tmp)
+				emit(f,"\tmt\t%s\n",regnames[matchreg]);
+			else
+				emit(f,"\tmr\t%s\n",regnames[reg]);
+			settempkonst(f,reg,v);
+		}
 	} else {
 		emit(f, "\t.liconst\t%d\n", v);
 		settempkonst(f,tmp,v);
@@ -266,7 +275,7 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 		/* Dereferencing a pointer */
 		if (p->flags & KONST) {
 			if(DBGMSG)
-				emit(f, "\t\t\t\t\t\t// const\n");
+				emit(f, "\t\t\t\t\t\t// const to %s\n",regnames[reg]);
 			emit_constanttoreg(f, val2zmax(p, p->dtyp) + offset,reg);
 //			if (reg != tmp)
 //				emit(f, "\tmr\t%s\n", regnames[reg]);
@@ -443,9 +452,15 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 	if ((p->flags & (KONST | DREFOBJ)) == (KONST | DREFOBJ)) {
 		if(DBGMSG)
 			emit(f, "\t\t\t\t\t\t// const/deref\n");
-		emit_prepobj(f, p, t, tmp, 0);
-		emit_sizemod(f, t);
-		emit(f, "\tldt\n");
+		matchreg=matchtempkonst(f, val2zmax(p, p->dtyp),tmp);
+		if(matchreg && matchreg!=tmp) {
+			emit_sizemod(f, t);
+			emit(f,"\tld\t%s\n",regnames[matchreg]);
+		} else {
+			emit_prepobj(f, p, t, tmp, 0);
+			emit_sizemod(f, t);
+			emit(f, "\tldt\n");
+		}
 		settempobj(f,tmp,p,0,0);
 		settempobj(f,reg,p,0,0);
 		if(reg!=tmp)
