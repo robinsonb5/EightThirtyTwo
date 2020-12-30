@@ -45,6 +45,7 @@ struct ocd_rbuf
 	struct regfile regfile;
 	unsigned char buffer[OCD_BUFSIZE];
 	struct section *symbolmap;
+	char *symbolmapfn;
 	enum eightthirtytwo_endian endian;
 	char *uploadfile;
 };
@@ -398,13 +399,13 @@ void draw_help(WINDOW *w)
 }
 
 
-struct section *parse_mapfile(const char *filename)
+void parse_mapfile(struct ocd_rbuf *buf)
 {
 	struct section *result=0;
-	if(filename)
+	if(buf && buf->symbolmapfn)
 	{
 		FILE *f;
-		f=fopen(filename,"r");
+		f=fopen(buf->symbolmapfn,"r");
 		if(f)
 		{
 			if(result=section_new(0,"symboltable"))
@@ -438,8 +439,8 @@ struct section *parse_mapfile(const char *filename)
 			fclose(f);
 		}	
 	}
-
-	return(result);
+	if(buf)
+		buf->symbolmap=result;
 }
 
 
@@ -453,19 +454,20 @@ void parse_args(int argc, char *argv[],struct ocd_rbuf *buf)
 	{
 		if(strncmp(argv[i],"-m",2)==0)
 			nextmap=1;
-		if(strncmp(argv[i],"-u",2)==0)
+		else if(strncmp(argv[i],"-u",2)==0)
 			nextupload=1;
 		else if(strncmp(argv[i],"-e",2)==0)
 			nextendian=1;
 		else if(nextmap)
 		{
-			buf->symbolmap=parse_mapfile(argv[i]);
+			buf->symbolmapfn=argv[i];
+			parse_mapfile(buf);
 			nextmap=0;
 		}
 		else if(nextupload)
 		{
 			buf->uploadfile=argv[i];
-			nextmap=0;
+			nextupload=0;
 		}
 		else if(nextendian)
 		{
@@ -829,7 +831,13 @@ int main(int argc, char *argv[])
 			case 'u':
 				input=frontend_getinput(cmd_win,"Filename (or enter): ",0);
 				if(!strlen(input))
+				{
+					/* If no filename has been given we're probably reloading modified firmware, so reload the symbol map too... */
+					if(code->symbolmap)
+						section_delete(code->symbolmap);
+					parse_mapfile(code);
 					input=code->uploadfile;
+				}
 
 				scroll_window(mem_win,MEM_WIN_HEIGHT,MEM_WIN_WIDTH,MEM_WIN_TITLE);
 				mvwprintw(mem_win,MEM_WIN_HEIGHT-2,2,"Uploading...");
