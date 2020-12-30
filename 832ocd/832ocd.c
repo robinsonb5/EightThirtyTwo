@@ -46,6 +46,7 @@ struct ocd_rbuf
 	unsigned char buffer[OCD_BUFSIZE];
 	struct section *symbolmap;
 	enum eightthirtytwo_endian endian;
+	char *uploadfile;
 };
 
 
@@ -171,6 +172,7 @@ struct ocd_rbuf *ocd_rbuf_new(struct ocd_connection *con)
 		rb->cursor=-OCD_BUFSIZE;
 		rb->symbolmap=0;
 		rb->endian=EIGHTTHIRTYTWO_LITTLEENDIAN;
+		rb->uploadfile=0;
 	}
 	return(rb);
 }
@@ -382,6 +384,10 @@ void draw_help(WINDOW *w)
 	if(h--)
 		mvwprintw(w,1+i++,2,"w: Write to <addr> with <value>");
 	if(h--)
+		mvwprintw(w,1+i++,2,"u: Upload <file> to address 0");
+	if(h--)
+		mvwprintw(w,1+i++,2,"U: Upload <file> to <address>");
+	if(h--)
 		mvwprintw(w,1+i++,2,"m: Add a memo to the messages pane");
 	if(h--)
 		mvwprintw(w,1+i++,2,"q: Quit");
@@ -440,17 +446,25 @@ struct section *parse_mapfile(const char *filename)
 void parse_args(int argc, char *argv[],struct ocd_rbuf *buf)
 {
 	int nextmap=0;
+	int nextupload=0;
 	int nextendian=0;
 	int i;
 	for(i=1;i<argc;++i)
 	{
 		if(strncmp(argv[i],"-m",2)==0)
 			nextmap=1;
+		if(strncmp(argv[i],"-u",2)==0)
+			nextupload=1;
 		else if(strncmp(argv[i],"-e",2)==0)
 			nextendian=1;
 		else if(nextmap)
 		{
 			buf->symbolmap=parse_mapfile(argv[i]);
+			nextmap=0;
+		}
+		else if(nextupload)
+		{
+			buf->uploadfile=argv[i];
 			nextmap=0;
 		}
 		else if(nextendian)
@@ -539,6 +553,7 @@ int main(int argc, char *argv[])
 
 	while(running)
 	{
+		int uploadaddress=0;
 		int corerunning;
 		char *input;
 		werase(cmd_win);
@@ -731,6 +746,7 @@ int main(int argc, char *argv[])
 				break;
 			case 'R':
 				break;
+
 			case 'w':
 				input=frontend_getinput(cmd_win,"Write - Address: ",16);
 				if(strlen(input))
@@ -793,6 +809,37 @@ int main(int argc, char *argv[])
 					else
 						disaddr=v;
 				}
+				break;
+
+			case 'U':
+				input=frontend_getinput(cmd_win,"Upload Address: ",16);
+				if(strlen(input))
+				{
+					char *endptr;
+					uploadaddress=strtoul(input,&endptr,0);
+					if(endptr==input)
+					{
+						scroll_window(mem_win,MEM_WIN_HEIGHT,MEM_WIN_WIDTH,MEM_WIN_TITLE);
+						mvwprintw(mem_win,MEM_WIN_HEIGHT-2,2,"Bad address");
+						wrefresh(mem_win);
+						break;
+					}
+				}
+				// Fall through to upload
+			case 'u':
+				input=frontend_getinput(cmd_win,"Filename (or enter): ",0);
+				if(!strlen(input))
+					input=code->uploadfile;
+
+				scroll_window(mem_win,MEM_WIN_HEIGHT,MEM_WIN_WIDTH,MEM_WIN_TITLE);
+				mvwprintw(mem_win,MEM_WIN_HEIGHT-2,2,"Uploading...");
+				wrefresh(mem_win);
+				scroll_window(mem_win,MEM_WIN_HEIGHT,MEM_WIN_WIDTH,MEM_WIN_TITLE);
+				if(input && ocd_uploadfile(code->con,input,uploadaddress,code->endian))
+					mvwprintw(mem_win,MEM_WIN_HEIGHT-2,2,"Upload succeeded");
+				else					
+					mvwprintw(mem_win,MEM_WIN_HEIGHT-2,2,"Upload failed");
+				wrefresh(mem_win);
 				break;
 
 			case 10: /* enter */

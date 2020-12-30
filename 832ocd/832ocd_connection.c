@@ -68,6 +68,41 @@ const char *ocd_connect(struct ocd_connection *con,const char *ip,int port)
 }
 
 
+int ocd_uploadfile(struct ocd_connection *con,const char *filename, int addr, enum eightthirtytwo_endian endian)
+{
+	int len;
+	unsigned char buf[4];
+	int result=0;
+	FILE *file;
+	OCD_STOP(con);
+
+	file=fopen(filename,"rb");
+	if(file)
+	{
+		int len=4;
+		while(len==4)
+		{
+			len=fread(buf,1,4,file);		
+			if(len)
+			{
+				int v;
+				if(endian=EIGHTTHIRTYTWO_LITTLEENDIAN)
+					v=(buf[3]<<24) | (buf[2]<<16) | (buf[1]<<8) | buf[0];
+				else
+					v=(buf[0]<<24) | (buf[1]<<16) | (buf[2]<<8) | buf[3];
+				OCD_WRITE(con,addr,v);
+			}
+			addr+=len;
+		}
+		result=1;
+		fclose(file);
+		len=OCD_READ(con,0); /* Finish with a read to wait until upload is complete */
+		ocd_release(con);
+	}
+	return(result);
+}
+
+
 int ocd_command(struct ocd_connection *con,enum dbg832_op op,int paramcount,int responsecount,int p1,int p2,int p3)
 {
 	int result=0;

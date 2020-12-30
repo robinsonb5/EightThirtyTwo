@@ -4,6 +4,9 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include "832ocd.h"
+#include "832util.h"
+
 #define OCD_ADDR "127.0.0.1"
 #define OCD_PORT 33581
 
@@ -30,6 +33,7 @@ struct ocd_connection *ocd_connection_new();
 void ocd_connection_delete(struct ocd_connection *con);
 const char *ocd_connect(struct ocd_connection *con,const char *ip,int port);
 int ocd_command(struct ocd_connection *con,enum dbg832_op op,int paramcount,int responsecount,int p1,int p2,int p3);
+int ocd_uploadfile(struct ocd_connection *con,const char *filename, int addr, enum eightthirtytwo_endian endian);
 void ocd_release(struct ocd_connection *con);
 
 
