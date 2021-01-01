@@ -22,8 +22,8 @@ vbcc0_9g.tar.gz:
 
 vbcc: vbcc/bin vbcc0_9g.tar.gz
 	tar -xzf vbcc0_9g.tar.gz
-	cd vbcc \
-	patch -p1 -i ../vbcc_09g_volatilefix.patch
+	cd vbcc; \
+	patch -i ../vbcc_09g_volatilefix.patch
 	make -C vbcc TARGET=832
 
 vbcc/supp.h:
