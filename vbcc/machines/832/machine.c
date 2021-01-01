@@ -1268,7 +1268,10 @@ void gen_dc(FILE * f, int t, struct const_list *p)
 				emit(f, "\t.ref\t_%s\n", o->v->identifier);
 		} else if (isstatic(o->v->storage_class)) {
 			emit(f, "\t\t\t\t\t\t// static\n");
-			emit(f, "\t.ref\t%s%d\n", labprefix, zm2l(o->v->offset));
+			if(o->val.vlong)
+				emit(f, "\t.ref\t%s%d,%d\n", labprefix, zm2l(o->v->offset),o->val.vlong);
+			else
+				emit(f, "\t.ref\t%s%d\n", labprefix, zm2l(o->v->offset));
 		} else {
 			printf("error: GenDC (tree) - unknown storage class 0x%x!\n", o->v->storage_class);
 		}
