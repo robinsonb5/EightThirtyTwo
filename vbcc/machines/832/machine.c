@@ -42,6 +42,8 @@
 // Condition code for test may well be already set by previous load.
 // Done for TEST, do the same for comparisons?
 
+// Deal with dereferencing in temp caching - can we avoid repeated setups in tmp, maybe using r0?
+
 
 #include "supp.h"
 
@@ -732,6 +734,7 @@ void save_temp(FILE * f, struct IC *p, int treg)
 			break;
 		}
 	}
+	settempobj(f,tmp,&p->z,0,0);
 	if(DBGMSG)
 		emit(f, "\t\t\t\t\t\t//save_temp done\n");
 }
@@ -747,8 +750,8 @@ void save_result(FILE * f, struct IC *p)
 		if (p->z.reg != zreg)
 		{
 			emit(f, "\tmt\t%s\n\tmr\t%s\n", regnames[zreg], regnames[p->z.reg]);
-			cleartempobj(f,tmp);
-			cleartempobj(f,p->z.reg);	// Almost certainly not cached, but can't hurt.
+			settempobj(f,tmp,&p->z,0,0);
+			settempobj(f,p->z.reg,&p->z,0,0);
 		}
 	}
 	else
@@ -1537,6 +1540,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 						emit(f,"\txor\t%s\n",regnames[zreg]);
 						break;
 				}
+//				settempobj(f,zreg,&p->z,0,0);
 				cleartempobj(f,zreg);
 				save_result(f, p);
 			} else if(sizetab[q1typ(p) & NQ] >= sizetab[ztyp(p) & NQ]) {	// Reducing the size, must mask off excess bits...
@@ -1563,7 +1567,6 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 						if(!isstackparam(&p->z))
 							emit_sizemod(f,ztyp(p));
 						emit(f,"\tstmpdec\t%s\n",regnames[q1reg]);
-//						cleartempobj(f,tmp);
 					}
 				}
 				else { // Destination is a register - we must mask...
@@ -1601,7 +1604,6 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 								break;
 						}
 					}
-//					cleartempobj(f,zreg);
 				}
 			}
 			continue;
@@ -1613,7 +1615,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			emit_objtoreg(f, &p->q1, q1typ(p), zreg);
 			emit_constanttotemp(f,-1);
 			emit(f, "\txor\t%s\n", regnames[zreg]);
-			cleartempobj(f,zreg);
+//			cleartempobj(f,zreg);
 			save_result(f, p);
 			continue;
 		}
@@ -1787,14 +1789,15 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					{
 						emit_prepobj(f, &p->z, t, tmp, 0);
 						emit(f, "\texg\t%s\n", regnames[q1reg]);
-//						if(!isstackparam(&p->z))
-							emit_sizemod(f,t);
+						emit_sizemod(f,t);
 						emit(f, "\tst\t%s\n", regnames[q1reg]);
 						if(p->z.am && p->z.am->disposable)
+						{
+							cleartempobj(f,tmp);
 							emit(f, "\t\t\t\t\t\t// Object is disposable, not bothering to undo exg\n");
+						}
 						else
 							emit(f, "\texg\t%s\n", regnames[q1reg]);
-						cleartempobj(f,tmp);
 					}
 					else
 					{
@@ -1841,7 +1844,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			emit_objtoreg(f, &p->q1, q1typ(p), zreg);
 			emit_constanttotemp(f,0);
 			emit(f, "\texg %s\n\tsub %s\n", regnames[zreg], regnames[zreg]);
-			cleartempobj(f,tmp);
+			settempobj(f,tmp,&p->q1,0,0); // Temp contains un-negated value
+			// cleartempobj(f,tmp);
 			save_result(f, p);
 			continue;
 		}
@@ -1881,6 +1885,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 
 			// If q2 is a register but q1 isn't we could reverse the comparison, but would then have to reverse
 			// the subsequent conditional branch.
+			// FIXME - can also reverse if one value is cached
 
 			if (!isreg(q1)) {
 				if(isreg(q2)) {	// Reverse the test.
@@ -1917,11 +1922,13 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			if(zreg!=t2)
 			{
 				emit(f, "\tmt\t%s\n\tstdec\t%s\n", regnames[t2], regnames[sp]);
+				cleartempobj(f,tmp);
 				pushed+=4;
 			}
 			if(zreg!=(t2+1))
 			{
 				emit(f, "\tmt\t%s\n\tstdec\t%s\n", regnames[t2 + 1], regnames[sp]);
+				cleartempobj(f,tmp);
 				pushed += 4;
 			}
 			cleartempobj(f,t1);
