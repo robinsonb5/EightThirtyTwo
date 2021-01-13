@@ -755,7 +755,7 @@ void save_temp(FILE * f, struct IC *p, int treg)
 			break;
 		}
 	}
-	settempobj(f,tmp,&p->z,0,0);
+//	settempobj(f,tmp,&p->z,0,0);  // FIXME - why does this fail? (Minimig F12 key stops working)
 	if(DBGMSG)
 		emit(f, "\t\t\t\t\t\t//save_temp done\n");
 }
@@ -1697,6 +1697,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					emit(f, "\texg\t%s\n", regnames[pc]);
 				}
 
+				cleartempobj(f,tmp);
+
 				/* If we have an addressingmode, see if we're able to defer stack popping. */
 				if(p->z.am)
 				{
@@ -1740,7 +1742,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					pushed -= pushedargsize(p);
 					emit(f, "\tadd\t%s\n", regnames[sp]);
 				}
-				cleartempobj(f,tmp);
+//				cleartempobj(f,tmp);
 				cleartempobj(f,t1);
 			}
 			 /*FIXME*/
@@ -1883,6 +1885,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					else
 						emit(f, "\tand\t%s\n", regnames[p->q1.reg]);
 				}
+				cleartempobj(f,tmp);
 				cleartempobj(f,t1);
 			}
 			continue;
@@ -1936,6 +1939,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		// Division and modulo
 		if ((c == MOD) || (c == DIV)) {
 			int targetreg=zreg;
+			int doneq2=0;
 			// FIXME - do we need to use switch_IC here?
 			if(DBGMSG)
 				emit(f, "\t\t\t\t\t\t//Call division routine\n");
@@ -1953,25 +1957,30 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				cleartempobj(f,tmp);
 				pushed += 4;
 			}
-			cleartempobj(f,t1);
-			// Is the operand already in the appropriate register?
+			// q1 must be written to t2, q2 must be written to t2+2
+			// if q2 starts in t2 we have to avoid overwriting it.
+
+			// If q1 is already in t2, q2 can't be, so we don't need to worry about swapping
 			if(!isreg(q1) || q1reg!=t2)
 			{
 				emit_objtoreg(f, &p->q1, t,tmp);
-			}
-			// Need to make sure we're not about to overwrite the other operand!
-			if(isreg(q2) && q2reg==t2)
-			{
-				emit(f,"\texg\t%s\n",regnames[t2]);
-				emit(f,"\tmr\t%s\n",regnames[t2+1]);
-			}
-			else
-			{
-				emit(f, "\tmr\t%s\n", regnames[t2]);
 
+				// Need to make sure we're not about to overwrite the other operand!
+				if(isreg(q2) && q2reg==t2)
+				{
+					emit(f,"\texg\t%s\n",regnames[t2]);
+					emit(f,"\tmr\t%s\n",regnames[t2+1]);
+					doneq2=1;
+				}
+				else
+					emit(f, "\tmr\t%s\n", regnames[t2]);
+			}
+			if(!doneq2 && (!isreg(q2) || q2reg!=t2+1))
+			{
 				emit_objtoreg(f, &p->q2, t,tmp);
 				emit(f, "\tmr\t%s\n", regnames[t2 + 1]);
 			}
+			cleartempobj(f,t1);
 			cleartempobj(f,t2);
 
 			if ((!(q1typ(p) & UNSIGNED)) && (!(q2typ(p) & UNSIGNED)))	// If we have a mismatch of signedness we treat as unsigned.

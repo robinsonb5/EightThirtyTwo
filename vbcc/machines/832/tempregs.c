@@ -80,7 +80,7 @@ static void emit_sizemod(FILE * f, int type)
 }
 
 
-// tempobj logic should be correct.
+// WARNING: Must invalidate tmp if control flow doesn't change immediately after this instruction.
 
 static void emit_pcreltotemp(FILE * f, char *lab, int suffix)
 {
@@ -88,7 +88,7 @@ static void emit_pcreltotemp(FILE * f, char *lab, int suffix)
 	if(DBGMSG)
 		emit(f, "\t\t\t\t\t\t//pcreltotemp\n");
 	emit(f, "\t.lipcrel\t%s%d\n", lab, suffix);
-	cleartempobj(f,tmp);
+//	cleartempobj(f,tmp);
 }
 
 static void emit_pcreltotemp2(FILE *f,struct obj *p)
@@ -104,7 +104,7 @@ static void emit_pcreltotemp2(FILE *f,struct obj *p)
 		else
 			emit(f,"\t.lipcrel\t_%s\n",p->v->identifier);
 	}
-	cleartempobj(f,tmp);
+//	cleartempobj(f,tmp);
 }
 
 // tempobj logic should be correct.
