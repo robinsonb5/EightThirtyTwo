@@ -678,8 +678,26 @@ static struct IC *preload(FILE * f, struct IC *p)
 	return p;
 }
 
+/* Determine whether the register we're about to write to will merely be passed to SetReturn.
+   If so, return 1, and convert the SetReturn IC to NOP */
+int next_setreturn(struct IC *p,int reg)
+{
+	int result=0;
+	struct IC *p2=p->next;
+	while(p2 && p2->code==FREEREG)
+		p2=p2->next;
+	if(p2 && p2->code==SETRETURN && (p2->q1.flags&(REG|DREFOBJ))==REG && p2->q1.reg==reg)
+	{
+		p2->code=NOP;
+		result=1;
+	}
+	return(result);
+}
+
+
 /* save the result (in temp) into p->z */
-/* Guaranteed not to touch t1/t2 unless nominated. */
+/* Guaranteed not to touch t1/t2 unless nominated */
+/* or followed by a SetReturn IC. */
 void save_temp(FILE * f, struct IC *p, int treg)
 {
 	if(DBGMSG)
@@ -687,9 +705,12 @@ void save_temp(FILE * f, struct IC *p, int treg)
 	int type = ztyp(p) & NQ;
 
 	if (isreg(z)) {
+		int target=p->z.reg;
 		if(DBGMSG)
 			emit(f, "isreg\n");
-		emit(f, "\tmr\t%s\n", regnames[p->z.reg]);
+		if(next_setreturn(p,target))
+			target=t1;
+		emit(f, "\tmr\t%s\n", regnames[target]);
 	} else {
 		if ((p->z.flags & DREFOBJ) && (p->z.flags & REG))
 			treg = p->z.reg;
@@ -1914,25 +1935,30 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 
 		// Division and modulo
 		if ((c == MOD) || (c == DIV)) {
+			int targetreg=zreg;
 			// FIXME - do we need to use switch_IC here?
 			if(DBGMSG)
 				emit(f, "\t\t\t\t\t\t//Call division routine\n");
 
 			// determine here whether R1 and R2 really need saving - may not be in use, or may be the target register.
-			if(zreg!=t2)
+			if(regs[t2] && zreg!=t2)
 			{
 				emit(f, "\tmt\t%s\n\tstdec\t%s\n", regnames[t2], regnames[sp]);
 				cleartempobj(f,tmp);
 				pushed+=4;
 			}
-			if(zreg!=(t2+1))
+			if(regs[t2+1] && zreg!=(t2+1))
 			{
 				emit(f, "\tmt\t%s\n\tstdec\t%s\n", regnames[t2 + 1], regnames[sp]);
 				cleartempobj(f,tmp);
 				pushed += 4;
 			}
 			cleartempobj(f,t1);
-			emit_objtoreg(f, &p->q1, t,tmp);
+			// Is the operand already in the appropriate register?
+			if(!isreg(q1) || q1reg!=t2)
+			{
+				emit_objtoreg(f, &p->q1, t,tmp);
+			}
 			// Need to make sure we're not about to overwrite the other operand!
 			if(isreg(q2) && q2reg==t2)
 			{
@@ -1948,37 +1974,36 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			}
 			cleartempobj(f,t2);
 
-#if 0
-			emit(f, "\tldinc\t%s\n", regnames[pc]);
-			if ((!(q1typ(p) & UNSIGNED)) && (!(q2typ(p) & UNSIGNED)))	// If we have a mismatch of signedness we treat as unsigned.
-				emit(f, "\t.ref\t_div_s32bys32\n");
-			else
-				emit(f, "\t.ref\t_div_u32byu32\n");
-			emit(f, "\texg\t%s\n", regnames[pc]);
-#endif
 			if ((!(q1typ(p) & UNSIGNED)) && (!(q2typ(p) & UNSIGNED)))	// If we have a mismatch of signedness we treat as unsigned.
 				emit(f, "\t.lipcrel\t_div_s32bys32\n");
 			else
 				emit(f, "\t.lipcrel\t_div_u32byu32\n");
 			emit(f, "\tadd\t%s\n", regnames[pc]);
 
+			// If the next IC is SetReturn from the same register we can skip saving the result.
+			if(next_setreturn(p,zreg))
+			{
+				emit(f,"\t\t\t\t\t\t// Skipping save_result...\n");
+				targetreg=t1;
+			}
+
 			if (c == MOD)
 			{
-				if(zreg!=t2)
+				if(targetreg!=t2)
 					emit(f, "\tmt\t%s\n\tmr\t%s\n", regnames[t2], regnames[zreg]);
 			}
 			else
 			{
-				if(zreg!=t1)
+				if(targetreg!=t1)
 					emit(f, "\tmt\t%s\n\tmr\t%s\n", regnames[t1], regnames[zreg]);
 			}
 
-			if(zreg!=(t2+1))
+			if(regs[t2+1] && zreg!=(t2+1))
 			{
 				emit(f, "\tldinc\t%s\n\tmr\t%s\n", regnames[sp], regnames[t2+1]);
 				pushed -= 4;
 			}
-			if(zreg!=t2)
+			if(regs[t2] && zreg!=t2)
 			{
 				emit(f, "\tldinc\t%s\n\tmr\t%s\n", regnames[sp], regnames[t2]);
 				pushed -= 4;
@@ -1989,6 +2014,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 
 			// Target not guaranteed to be a register.
 			save_result(f, p);
+
 			continue;
 		}
 
