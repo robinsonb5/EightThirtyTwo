@@ -15,6 +15,7 @@
 #include "section.h"
 #include "equates.h"
 #include "expressions.h"
+#include "peephole.h"
 
 
 static char *delims=" \t:\n\r,";
@@ -292,6 +293,7 @@ void parsesourcefile(struct objectfile *obj,const char *fn,enum eightthirtytwo_e
 {
 	FILE *f;
 	printf("Opening file %s\n",fn);
+	struct peepholecontext pc;
 	
 	error_setfile(fn);
 	if(f=fopen(fn,"r"))
@@ -317,6 +319,7 @@ void parsesourcefile(struct objectfile *obj,const char *fn,enum eightthirtytwo_e
 				/* Labels starting at column zero */
 				if(linebuf[0]!=' ' && linebuf[0]!='\t' && linebuf[0]!='\n' && linebuf[0]!='\r')
 				{
+					peephole_clear(&pc);
 					directive_label(obj,tok,0,0);
 				}
 				else
@@ -330,6 +333,7 @@ void parsesourcefile(struct objectfile *obj,const char *fn,enum eightthirtytwo_e
 					{
 						if(strcasecmp(tok,directives[d].mnem)==0)
 						{
+							peephole_clear(&pc);
 							directives[d].handler(obj,tok2,tok3,directives[d].key);
 							break;
 						}
@@ -371,7 +375,8 @@ void parsesourcefile(struct objectfile *obj,const char *fn,enum eightthirtytwo_e
 									opc|=v;
 								}
 								debug(1,"%s\t%s -> 0x%x\n",tok, tok2 && opcodes[o].opbits ? tok2 : "", opc);
-								objectfile_emitbyte(obj,opc);
+								if(peephole_test(&pc,opc))
+									objectfile_emitbyte(obj,opc);
 								break;
 							}
 							++o;

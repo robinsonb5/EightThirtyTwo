@@ -755,7 +755,6 @@ void save_temp(FILE * f, struct IC *p, int treg)
 			break;
 		}
 	}
-//	settempobj(f,tmp,&p->z,0,0);  // FIXME - why does this fail? (Minimig F12 key stops working)
 	if(DBGMSG)
 		emit(f, "\t\t\t\t\t\t//save_temp done\n");
 }
@@ -1452,6 +1451,12 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 
 		if (DBGMSG && p->file)
 			emit(f, "\n\t\t\t\t\t\t//%s, line %d\n", p->file, p->line);
+		if(p->q1.am && p->q1.am->disposable)
+			emit(f, "\t\t\t\t\t\t// Q1 disposable\n");
+		if(p->q2.am && p->q2.am->disposable)
+			emit(f, "\t\t\t\t\t\t// Q2 disposable\n");
+		if(p->z.am && p->z.am->disposable)
+			emit(f, "\t\t\t\t\t\t// Z disposable\n");
 
 		// OK
 		if (c == BRA) {
