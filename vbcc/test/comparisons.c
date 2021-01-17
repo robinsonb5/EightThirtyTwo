@@ -44,7 +44,7 @@ int main(int argc,char **argv)
 
 	puts(st.end);
 
-	puts("(Should be: 0B234FG74.)\n");
+	puts("(Should be: 0B234FG74 if built without -unsigned-char flag,\n0B23EFG74 otherwise.)\n");
 	
 	return(0);
 }

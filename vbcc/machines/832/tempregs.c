@@ -440,6 +440,7 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 			emit(f,"\tmr\t%s\n",regnames[reg]);
 			settempobj(f,reg,p,0,0);
 		}
+		emit(f,"\t\t\t\t//return 0\n");
 		return(0);
 	}
 

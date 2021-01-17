@@ -374,8 +374,7 @@ int matchobj(FILE *f,struct obj *o1,struct obj *o2,int varadr)
 		if(o1->val.vlong == o2->val.vlong)
 			return(1);
 		else
-		{
-			// Attempt fuzzy matching...
+		{			// Attempt fuzzy matching...
 			int d=o1->val.vlong-o2->val.vlong;
 			// Don't bother if we need fewer than four LIs to represent the value, or if we'd need more than 1 LI for the offset.
 			if(count_constantchunks(o1->val.vlong)<4 || count_constantchunks(d)>1)
@@ -530,6 +529,7 @@ int matchtempkonst(FILE *f,int k,int preferredreg)
 
 
 /*  Generates code to store register r into memory object o. */
+
 static void store_reg(FILE * f, int r, struct obj *o, int type)
 {
 	// Need to take different types into account here.
@@ -565,8 +565,15 @@ static void store_reg(FILE * f, int r, struct obj *o, int type)
 		if ((o->flags & (REG | DREFOBJ)) == (REG | DREFOBJ)) {
 			emit(f, "\tmt\t%s\n", regnames[r]);
 			emit(f, "\tst\t%s\n", regnames[o->reg]);
-			settempobj(f,r,o,0,0);
-			settempobj(f,tmp,o,0,0);
+//			settempobj(f,r,o,0,0);
+			if((type&NQ)!=INT || (type & VOLATILE) || (type & PVOLATILE))
+			{
+				emit(f,"\t// Volatile, or not int - not caching\n");
+				cleartempobj(f,r);
+			}
+			else
+				settempobj(f,r,o,0,0); // FIXME - is this correct?
+			settempobj(f,tmp,o,0,0); // FIXME - is this correct?
 		} else {
 			if(o->flags & DREFOBJ) {  // Can't use the offset / stmpdec trick for dereferenced objects.
 				emit_prepobj(f, o, type & NQ, tmp, 0);
@@ -583,6 +590,13 @@ static void store_reg(FILE * f, int r, struct obj *o, int type)
 				emit_prepobj(f, o, type & NQ, tmp, 4);	// FIXME - stmpdec predecrements, so need to add 4!
 				emit(f, "\tstmpdec\t%s\n \t\t\t\t\t\t// WARNING - check that 4 has been added.\n", regnames[r]);
 				cleartempobj(f,tmp);
+				if((type&NQ)!=INT || (type & VOLATILE) || (type & PVOLATILE))
+				{
+					emit(f,"\t// Volatile, or not int - not caching\n");
+					cleartempobj(f,r);
+				}
+				else
+					settempobj(f,r,o,0,0); // FIXME - is this correct?
 			}
 		}
 		break;
@@ -1882,16 +1896,18 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		if (c == TEST) {
 			if(DBGMSG)
 				emit(f, "\t\t\t\t\t\t// (test)\n");
-			if(!emit_objtoreg(f, &p->q1, t, tmp))	// Only need Z flag - did emit_objtotemp set it?
+			if(!emit_objtoreg(f, &p->q1, t, tmp)) /* emit_objtoreg might already have set the Z flag */
 			{
-				if (p->q1.flags & REG) {
-					if (p->q1.flags & DREFOBJ)
-						emit(f, "\tmr\t%s\n\tand\t%s\n", regnames[t1], regnames[t1]);
-					else
+				emit(f,"\t\t\t\t// flags %x\n",p->q1.flags);
+				if ((p->q1.flags & (REG|DREFOBJ)) == REG)	// Can avoid mr if the value came from a register
 						emit(f, "\tand\t%s\n", regnames[p->q1.reg]);
+				else
+				{
+						emit(f, "\tmr\t%s\n\tand\t%s\n", regnames[t1], regnames[t1]);
+						settempobj(f,t1,&p->q1,0,0);
 				}
-				cleartempobj(f,tmp);
-				cleartempobj(f,t1);
+//				cleartempobj(f,tmp);
+//				cleartempobj(f,t1);
 			}
 			continue;
 		}

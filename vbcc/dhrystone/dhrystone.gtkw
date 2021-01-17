@@ -1,27 +1,27 @@
 [*]
 [*] GTKWave Analyzer v3.3.103 (w)1999-2019 BSI
-[*] Sun Dec  1 15:42:33 2019
+[*] Sun Jan 17 09:36:43 2021
 [*]
 [dumpfile] "/home/amr/FPGA/Projects/EightThirtyTwoDemos/EightThirtyTwo/vbcc/dhrystone/dhrystone.ghw"
-[dumpfile_mtime] "Sun Dec  1 15:41:07 2019"
-[dumpfile_size] 154417096
+[dumpfile_mtime] "Sun Jan 17 09:24:22 2021"
+[dumpfile_size] 37432443
 [savefile] "/home/amr/FPGA/Projects/EightThirtyTwoDemos/EightThirtyTwo/vbcc/dhrystone/dhrystone.gtkw"
-[timestart] 703136700000
+[timestart] 682355900000
 [size] 1268 957
 [pos] -1 -1
-*-24.725634 702725000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-24.725634 682415000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [treeopen] top.dhrystone_tb.
 [treeopen] top.dhrystone_tb.cpu.
 [treeopen] top.dhrystone_tb.cpu.regfile.
 [treeopen] top.dhrystone_tb.cpu.thread.
 [sst_width] 234
-[signals_width] 134
+[signals_width] 174
 [sst_expanded] 1
 [sst_vpaned_height] 276
 @28
 top.dhrystone_tb.cpu.thread.setpc
-@23
+@22
 #{top.dhrystone_tb.cpu.thread.pc[29:0]} top.dhrystone_tb.cpu.thread.pc[29] top.dhrystone_tb.cpu.thread.pc[28] top.dhrystone_tb.cpu.thread.pc[27] top.dhrystone_tb.cpu.thread.pc[26] top.dhrystone_tb.cpu.thread.pc[25] top.dhrystone_tb.cpu.thread.pc[24] top.dhrystone_tb.cpu.thread.pc[23] top.dhrystone_tb.cpu.thread.pc[22] top.dhrystone_tb.cpu.thread.pc[21] top.dhrystone_tb.cpu.thread.pc[20] top.dhrystone_tb.cpu.thread.pc[19] top.dhrystone_tb.cpu.thread.pc[18] top.dhrystone_tb.cpu.thread.pc[17] top.dhrystone_tb.cpu.thread.pc[16] top.dhrystone_tb.cpu.thread.pc[15] top.dhrystone_tb.cpu.thread.pc[14] top.dhrystone_tb.cpu.thread.pc[13] top.dhrystone_tb.cpu.thread.pc[12] top.dhrystone_tb.cpu.thread.pc[11] top.dhrystone_tb.cpu.thread.pc[10] top.dhrystone_tb.cpu.thread.pc[9] top.dhrystone_tb.cpu.thread.pc[8] top.dhrystone_tb.cpu.thread.pc[7] top.dhrystone_tb.cpu.thread.pc[6] top.dhrystone_tb.cpu.thread.pc[5] top.dhrystone_tb.cpu.thread.pc[4] top.dhrystone_tb.cpu.thread.pc[3] top.dhrystone_tb.cpu.thread.pc[2] top.dhrystone_tb.cpu.thread.pc[1] top.dhrystone_tb.cpu.thread.pc[0]
 @28
 top.dhrystone_tb.cpu.thread.f_op_valid
@@ -44,5 +44,13 @@ top.dhrystone_tb.cpu.ls_wr
 top.dhrystone_tb.cpu.ls_ack
 top.dhrystone_tb.cpu.ls_byte
 top.dhrystone_tb.cpu.ls_halfword
+@22
+#{top.dhrystone_tb.cpu.thread.cond_minterms[3:0]} top.dhrystone_tb.cpu.thread.cond_minterms[3] top.dhrystone_tb.cpu.thread.cond_minterms[2] top.dhrystone_tb.cpu.thread.cond_minterms[1] top.dhrystone_tb.cpu.thread.cond_minterms[0]
+@28
+top.dhrystone_tb.cpu.regfile.flag_cond
+top.dhrystone_tb.cpu.regfile.flag_sgn
+top.dhrystone_tb.cpu.regfile.flag_c
+@29
+top.dhrystone_tb.cpu.regfile.flag_z
 [pattern_trace] 1
 [pattern_trace] 0
