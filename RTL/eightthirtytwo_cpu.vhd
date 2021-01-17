@@ -811,7 +811,7 @@ begin
 
 				alu_forward_q2tod1_d<=alu_forward_q2tod1;
 				alu_forward_q2tod1<='0';
-				if forwarding=true and interrupt='0' and
+				if forwarding=true and regfile2.flag_cond='0' and interrupt='0' and
 							thread2.d_ex_op(e32_exb_q2totmp)='1' and thread2.f_alu_reg1(e32_regb_tmp)='1' then
 					alu_forward_q2tod1<='1';
 				end if;
