@@ -9,7 +9,7 @@ struct opcode
 };
 
 extern struct opcode operands[17];
-extern struct opcode opcodes[30];
+extern struct opcode opcodes[31];
 
 #endif
 

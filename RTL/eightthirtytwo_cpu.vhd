@@ -887,6 +887,10 @@ begin
 
 		if interrupt='1' then
 			thread.pause<='0';
+--			thread2.pause<='0';
+		end if;
+
+		if dualthread=true and e_ex_op(e32_exb_halfword)='1' and e_ex_op(e32_exb_flags)='0' then
 			thread2.pause<='0';
 		end if;
 

@@ -33,4 +33,5 @@
 #define	ovl_ldt	0xbf
 #define ovl_byt 0x97
 #define ovl_hlf 0x9f
+#define ovl_sig 0xaf
 

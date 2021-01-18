@@ -3,6 +3,15 @@ use ieee.std_logic_1164.all;
 
 package eightthirtytwo_pkg is
 
+-- Opcodes in use - most take register 0-7 as a parameter in the low 3 bits.
+-- Since not all ops make sense when applied to the program counter,
+-- some opcodes are overloaded when the register is 7.
+--
+-- Opcode 40 is currently unused
+-- ldbinc, stdec, shr, shl, ror, stbinc, ld and st are all available
+-- for overloading - but st and stdec both offer some interesting
+-- if mind-bending possibilities for self-modifying code.
+
 constant e32_op_cond : std_logic_vector(7 downto 0) := X"00";
 constant e32_op_exg : std_logic_vector(7 downto 0) := X"08";
 constant e32_op_ldbinc : std_logic_vector(7 downto 0) := X"10";
@@ -37,9 +46,14 @@ constant e32_op_xor : std_logic_vector(7 downto 0) := X"b8";
 constant e32_op_li : std_logic_vector(7 downto 0) := X"c0";
 
 -- Overloaded opcodes.  Mostly ops that make no sense when applied to R7
+-- Not actually referred to by name, overloading is handled during decoding
+-- constant e32_op_addl : std_logic_vector(7 downto 0) := X"87";  -- add with Link (tmp+r7 -> r7, r7->tmp), overloads add
+-- constant e32_op_byt : std_logic_vector(7 downto 0) := X"97";  -- byt, overloads mul
+-- constant e32_op_hlf : std_logic_vector(7 downto 0) := X"9f";  -- hlf, overloads and
+-- constant e32_op_sig : std_logic_vector(7 downto 0) := X"af";  -- sig, overloads cmp
+-- constant e32_op_sgn : std_logic_vector(7 downto 0) := X"b7";  -- sgn, overloads or
+-- constant e32_op_ldt : std_logic_vector(7 downto 0) := X"b8";  -- ldt, overloads xor
 
-constant e32_op_sgn : std_logic_vector(7 downto 0) := X"17";
-constant e32_op_ldt : std_logic_vector(7 downto 0) := X"a7";
 
 -- Condional codes
 

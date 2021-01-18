@@ -27,6 +27,7 @@ signal andop : std_logic_vector(e32_ex_maxbit downto 0);
 signal orop : std_logic_vector(e32_ex_maxbit downto 0);
 signal xorop : std_logic_vector(e32_ex_maxbit downto 0);
 signal xoraluop : std_logic_vector(e32_alu_maxbit downto 0);
+signal cmpop : std_logic_vector(e32_ex_maxbit downto 0);
 
 begin
 
@@ -63,6 +64,9 @@ xorop<=e32_ex_load when opcode(2 downto 0)="111"
 xoraluop<=e32_alu_nop when opcode(2 downto 0)="111"
 	else e32_alu_xor;
 
+-- Cmp is overloaded when r=7; becomes the sig instruction
+cmpop<=e32_ex_halfword when opcode(2 downto 0)="111" -- Use halfword flag without flags indicator to unpause the other thread
+	else e32_ex_flags;
 
 -- ALU functions
 
@@ -171,8 +175,6 @@ with op select alu_reg2 <=
 	e32_reg_dontcare when e32_op_cond,
 	e32_reg_dontcare when others;
 
-	
--- FIXME - if we implement ldtmpinc, its result has to go to the regfile. How to deal with this?
 
 -- Some ALU operations take more than one cycle; indicate this with exb_waitalu
 
@@ -181,7 +183,7 @@ with op select ex_op <=
 	e32_ex_q2totmp when e32_op_mt,
 	e32_ex_q1toreg when e32_op_mr,
 
-	e32_ex_flags when e32_op_cmp,
+	cmpop when e32_op_cmp,
 
 	(e32_ex_postinc or e32_ex_store or e32_ex_q1toreg) when e32_op_stinc,
 	e32_ex_store when e32_op_st,
@@ -207,7 +209,6 @@ with op select ex_op <=
 
 	(e32_ex_q1toreg or e32_ex_q2totmp) when e32_op_exg,
 	mulop when e32_op_mul,
---	(e32_ex_q1toreg or e32_ex_q2totmp or e32_ex_flags or e32_ex_waitalu) when e32_op_mul,
 	addop when e32_op_add, -- Overloaded so we can modify its behaviour with r7
 
 	(e32_ex_q1totmp or e32_ex_flags) when e32_op_addt,

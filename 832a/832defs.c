@@ -71,6 +71,7 @@ struct opcode opcodes[]=
 	{"ldt",ovl_ldt,0}, /* Overloads xor */
 	{"byt",ovl_byt,0}, /* Overloads mul */
 	{"hlf",ovl_hlf,0}, /* Overloads and */
+	{"sig",ovl_sig,0}, /* Overloads and */
 	{0,0xff,0}	/* Null terminate */
 };
 

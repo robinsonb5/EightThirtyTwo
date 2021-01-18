@@ -71,10 +71,11 @@ _premain:
 
 .ctordone:
 	// Release the 2nd thread
-	.liabs	releasethread2
-	mr	r0
-	li	1
-	st	r0
+	sig
+//	.liabs	releasethread2
+//	mr	r0
+//	li	1
+//	st	r0
 
 	// FIXME - should push argc and argv on the stack before calling main.
 	.lipcrel	_main
@@ -120,13 +121,15 @@ _premain2:
 	add r6	// 2nd thread's stack must be beyond the first one
 
 	// wait for the first thread to finish clearing BSS.
-	.liabs	releasethread2
-	mr	r0
-.waitrelease:
-	ld	r0
-	cond	EQ
-		.lipcrel	.waitrelease
-		add	r7
+	cond NEX
+	and r0	// Nop, first instruction after cond NEX is lost.
+//	.liabs	releasethread2
+//	mr	r0
+//.waitrelease:
+//	ld	r0
+//	cond	EQ
+//		.lipcrel	.waitrelease
+//		add	r7
 
 	// FIXME - should push argc and argv on the stack before calling main.
 	.lipcrel	_thread2main
@@ -134,6 +137,7 @@ _premain2:
 
 .endloop2:
 	cond NEX	// Pause until an interrupt is received
+	and r0	// Nop, first instruction after cond NEX is lost.
 	.lipcrel .endloop2
 	add	r7
 
