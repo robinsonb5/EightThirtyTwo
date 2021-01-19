@@ -28,6 +28,8 @@
 #include "timer.h"
 #endif
 
+#include "dualthread.h"
+
 extern volatile int threadlock;
 
 /* Global Variables: */
@@ -121,8 +123,6 @@ int thread2main ()
   REG   int             Run_Index;
 
   /* Initializations */
-
-	threadlock=1;
 
 //  Next_Ptr_Glob = (Rec_Pointer) malloc (sizeof (Rec_Type));
 //  Ptr_Glob = (Rec_Pointer) malloc (sizeof (Rec_Type));
@@ -240,8 +240,8 @@ int thread2main ()
 #define checkparam(n,v,d) if(v!=d) printf("Error %s is %d but should be %d\n",n,v,d);
 #define checksparam(n,v,d) if(strcmp(v,d)) printf("Error %s is %s but should be %s\n",n,v,d);
 
-while(threadlock)
-	;
+thread_sleep();	/* Wait for the first thread to finish reporting */
+
 printf("Checking results (thread 2)...\n");
 
 checkparam("Int_Glob",t2_Int_Glob,5);
@@ -358,6 +358,8 @@ checksparam("Str_2_Loc",Str_2_Loc,"DHRYSTONE PROGRAM, 2'ND STRING");
     printf ("\n");
   }
   
+  thread_wake(); /* Tell the first thread we've finished reporting */
+
   return 0;
 }
 

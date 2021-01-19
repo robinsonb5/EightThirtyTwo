@@ -14,6 +14,7 @@ generic(
 	multiplier : boolean := true;
 	prefetch : boolean := true;
 	dualthread : boolean := true;
+	interruptthread : integer := 1;
 	forwarding : boolean := true;
 	debug : boolean := false
 	);
@@ -741,7 +742,7 @@ begin
 				end if;
 
 				-- Interrupt logic:
-				if interrupts=true then
+				if interrupts=true and interruptthread=1 then
 					if thread.interruptable='1' and interrupt='1' and regfile.flag_cond='0'
 								and (thread.d_ex_op(e32_exb_q1toreg)='0' and thread.d_reg/="111") -- Can't be about to write to r7
 								and thread.d_ex_op(e32_exb_cond)='0' and thread.d_alu_op/=e32_alu_li and -- Can't be cond or an immediately previous li
@@ -855,20 +856,21 @@ begin
 
 				-- Interrupt logic: FIXME - what do we do about interrupts for the second thread?
 
---				if interrupts=true then
---					if thread2.interruptable='1' and interrupt='1'
---								and (thread2.d_ex_op(e32_exb_q1toreg)='0' or thread2.d_reg/="111") -- Can't be about to write to r7
---								and thread2.d_ex_op(e32_exb_cond)='0' and thread2.d_alu_op/=e32_alu_li and -- Can't be cond or a immediately previous li
---									regfile2.flag_interrupting='0' then
---						regfile2.flag_interrupting<='1';
---						regfile2.gpr7_readflags<='1';
---						thread2.d_reg<="111"; -- PC
---						thread2.d_alu_reg1<=e32_reg_gpr;
---						thread2.d_alu_reg2<=e32_reg_gpr;
---						thread2.d_alu_op<=e32_alu_xor;	-- Xor PC with itself; 0 -> PC, old PC -> tmp
---						thread2.d_ex_op<=e32_ex_q1toreg or e32_ex_q2totmp or e32_ex_flags; -- and zero flag set
---					end if;
---				end if;
+				if interrupts=true and interruptthread=2 then
+					if thread2.interruptable='1' and interrupt='1' and regfile2.flag_cond='0'
+								and (thread2.d_ex_op(e32_exb_q1toreg)='0' and thread2.d_reg/="111") -- Can't be about to write to r7
+								and thread2.d_ex_op(e32_exb_cond)='0' and thread2.d_alu_op/=e32_alu_li and -- Can't be cond or an immediately previous li
+									regfile2.flag_interrupting='0' then
+						regfile2.flag_interrupting<='1';
+						regfile2.gpr7_readflags<='1';
+						thread2.d_reg<="111"; -- PC
+						thread2.d_alu_reg1<=e32_reg_gpr;
+						thread2.d_alu_reg2<=e32_reg_gpr;
+						thread2.d_alu_op<=e32_alu_xor;	-- Xor PC with itself; 0 -> PC, old PC -> tmp
+						thread2.d_ex_op<=e32_ex_q1toreg or e32_ex_q2totmp or e32_ex_flags; -- and zero flag set
+					end if;
+				end if;
+
 				
 				-- Neither thread can continue - insert a bubble.
 			else
@@ -885,12 +887,17 @@ begin
 			end if;
 		end if;
 
-		if interrupt='1' then
+		if interrupt='1' and interruptthread=1 then
 			thread.pause<='0';
---			thread2.pause<='0';
 		end if;
 
+		if interrupt='1' and interruptthread=1 then
+			thread2.pause<='0';
+		end if;
+
+		-- If we encountered a sig instruction at most one thread will be paused, but we unpause both.
 		if dualthread=true and e_ex_op(e32_exb_halfword)='1' and e_ex_op(e32_exb_flags)='0' then
+			thread.pause<='0';
 			thread2.pause<='0';
 		end if;
 

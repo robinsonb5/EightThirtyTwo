@@ -27,7 +27,7 @@ helloworld_tiny : crt0.a libtiny832.a $(OBJDIR)/helloworld.o
 crt0.a : $(OBJDIR)/start.o $(OBJDIR)/premain.o $(OBJDIR)/absolutestack.o
 	cat >$@ $+
 
-dualcrt0.a : $(OBJDIR)/start.o $(OBJDIR)/premain_dualthread.o
+dualcrt0.a : $(OBJDIR)/start.o $(OBJDIR)/premain_dualthread.o $(OBJDIR)/dualthread.o
 	cat >$@ $+
 
 lib832.a : $(OBJDIR)/small_printf.o $(COMMONOBJ)

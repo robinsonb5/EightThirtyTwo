@@ -73,7 +73,8 @@ There are no conditional branch instructions; instead we have a "cond"
 instruction which predicates the following instructions upon a condition
 being met.  Valid conditions are:
 * EX - execute no matter what.
-* NEX - don't execute no matter what. (Pauses the CPU until the next interrupt.)
+* NEX - don't execute no matter what. (Pauses the CPU until the next interrupt,
+or in dual-thread mode, until the other thread executes a "sig" instruction.)
 * EQ - execute only if the last result was equal to zero.
 * NEQ - execute only if the last result was not zero.
 * SLT - execute only if the last result was strictly less than zero.
@@ -84,7 +85,8 @@ being met.  Valid conditions are:
 ## Interrupts
 A single interrupt signal is supported.  If the CPU is built with interrupt
 support then on receipt of an interrupt the CPU will jump to location 0
-with the Zero flag set.  Even if interrupts are disabled, a high pulse on
+with the Zero flag set.  The interrupt signal must remain high until
+acknowledged.  Even if interrupts are disabled, a momentary high pulse on
 the interrupt signal will unpause the CPU if it's been paused with "cond NEX".
 
 ## Dual threads
@@ -93,9 +95,11 @@ its own register file and its own fetch, decode and hazard logic.
 Both threads begin execution at location 0, the first with the carry flag
 clear and the second with the carry flag set. Startup code will use these
 flags to diverge the two execution threads, as well as interrupts.
+The "interruptthread" integer generic specifies which of the
+two threads will respond to the interrupt signal (1 or 2).
 
 ## Instruction set
-The ISA has 28 instructions, most of which take one nominated operand and
+The ISA has 29 instructions, most of which take one nominated operand and
 one implicit operand:
 
 ### Move instructions
@@ -122,6 +126,9 @@ increment or decrement amounts.
 * byt  -  modifies the next load/store instruction to operate on bytes
 rather than full words.  Only modifies the storage size, doesn't modify
 increment or decrement amounts.
+* sig  -  if the CPU is running in dual-thread mode and one thread has been
+paused with the "cond NEX" instruction, a sig instruction on the other thread
+will unpause it.
 
 ### Load instructions
 All load instructions will set or clear the zero flag based on the loaded

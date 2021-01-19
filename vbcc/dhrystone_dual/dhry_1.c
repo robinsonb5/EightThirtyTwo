@@ -28,8 +28,8 @@
 #include "timer.h"
 #endif
 
+#include "dualthread.h"
 
-int threadlock;
 
 /* Global Variables: */
 
@@ -354,7 +354,12 @@ checksparam("Str_2_Loc",Str_2_Loc,"DHRYSTONE PROGRAM, 2'ND STRING");
     printf ("VAX MIPS rating * 1000 = %d \n",(int)Vax_Mips);
     printf ("\n");
   }
-  threadlock=0;
+
+  printf("Waking thread 2 - sleep status %d\n",thread_asleep());
+  thread_wake();
+
+  thread_sleep();
+  printf("Thread 2 completed\n");
 
   return 0;
 }

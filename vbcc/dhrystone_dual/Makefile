@@ -8,7 +8,7 @@ LD=../../832a/832l
 CC=../bin/vbcc832
 COPT = -O=32767 -speed -unsigned-char
 CFLAGS = -+ $(COPT) -I$(832DIR)/include/ -I$(LIBDIR)
-TIME=4ms
+TIME=5ms
 all: compiler dhrystone_ROM.vhd
 
 compiler:
