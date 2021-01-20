@@ -7,7 +7,7 @@
 int voidstarvoidstarsizet(memcmp)
 int voidstarvoidstarsizet(memmove)
 int voidstarvoidstarsizet(strncmp)
-//void *voidstarncvoidstarsizet(memcpy)
+void *voidstarncvoidstarsizet(memcpy)
 void *voidstarncvoidstarsizet(strncpy)
 void *voidstarvoidstarsizet(strncat)
 
