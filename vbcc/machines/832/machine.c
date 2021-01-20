@@ -602,16 +602,19 @@ static void store_reg(FILE * f, int r, struct obj *o, int type)
 		break;
 	case LLONG:
 		if ((o->flags & (REG | DREFOBJ)) == (REG | DREFOBJ)) {
+			emit_prepobj(f, o, type & NQ, tmp, 0);
 			printf("store_reg: storing long long to dereferenced register\n");
+			emit(f,"//FIXME - need to store 64-bits\n");
 			ierror(0);
 		}
 		else {
+			// 
 			printf("store_reg: storing long long in %s to reg\n",regnames[r]);
 			emit_prepobj(f, o, type & NQ, tmp, 0);
 			emit(f, "\texg\t%s\n", regnames[r]);
 			emit(f, "\tst\t%s\n", regnames[r]);
 			emit(f,"//FIXME - need to store 64-bits\n");
-			ierror(0);
+//			ierror(0);
 		}
 		break;		
 	default:
@@ -799,7 +802,7 @@ void save_result(FILE * f, struct IC *p)
 #include "addressingmodes.c"
 #include "tempregs.c"
 #include "inlinememcpy.c"
-
+#include "libcalls.c"
 
 /* generates the function entry code */
 static void function_top(FILE * f, struct Var *v, long offset)
@@ -1271,8 +1274,8 @@ void gen_dc(FILE * f, int t, struct const_list *p)
 			break;
 		case LLONG:
 			emit(f, "//FIXME - unsupported type\n");
-			emit(f, "\t.int\t");
-			ierror(0);
+			emit(f, "\t.long\t");
+//			ierror(0);
 			break;
 		default:
 			printf("gen_dc: unsupported type 0x%x\n", t);
