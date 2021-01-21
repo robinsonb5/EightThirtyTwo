@@ -288,7 +288,7 @@ void executable_assignaddresses(struct executable *exe)
 		struct section *sect,*prev;
 		struct section *bssstart;
 		int j=0;
-		int resolve;
+		int resolve=1;
 
 		bssstart=sectionmap_getbuiltin(map,BUILTIN_BSS_START);
 

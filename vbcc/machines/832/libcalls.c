@@ -4,7 +4,7 @@
 char *use_libcall(int code,int typf1, int typf2)
 {
 	char *result=0;
-/s/	printf("Querying libcall for %d, %d, %d\n",code,typf1,typf2);
+//	printf("Querying libcall for %d, %d, %d\n",code,typf1,typf2);
 	switch(code)
 	{
 		case CONVERT:

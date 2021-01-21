@@ -576,10 +576,11 @@ static void store_reg(FILE * f, int r, struct obj *o, int type)
 			settempobj(f,tmp,o,0,0); // FIXME - is this correct?
 		} else {
 			if(o->flags & DREFOBJ) {  // Can't use the offset / stmpdec trick for dereferenced objects.
+				// FIXME, not strictly true - could use it for dereferenced constants
 				emit_prepobj(f, o, type & NQ, tmp, 0);
 				emit(f, "\texg\t%s\n", regnames[r]);
 				emit(f, "\tst\t%s\n", regnames[r]);
-				if(o->am && o->am->disposable)
+				if(r==t1 || (o->am && o->am->disposable))
 					emit(f, "\t\t\t\t\t\t// WARNING - Object is disposable, not bothering to undo exg - check correctness\n");
 				else
 					emit(f, "\texg\t%s\n", regnames[r]);
@@ -587,7 +588,7 @@ static void store_reg(FILE * f, int r, struct obj *o, int type)
 				cleartempobj(f,r);
 			}
 			else {
-				emit_prepobj(f, o, type & NQ, tmp, 4);	// FIXME - stmpdec predecrements, so need to add 4!
+				emit_prepobj(f, o, type & NQ, tmp, 4);	// stmpdec predecrements, so need to add 4!
 				emit(f, "\tstmpdec\t%s\n \t\t\t\t\t\t// WARNING - check that 4 has been added.\n", regnames[r]);
 				cleartempobj(f,tmp);
 				if((type&NQ)!=INT || (type & VOLATILE) || (type & PVOLATILE))
@@ -610,11 +611,7 @@ static void store_reg(FILE * f, int r, struct obj *o, int type)
 		else {
 			// 
 			printf("store_reg: storing long long in %s to reg\n",regnames[r]);
-			emit_prepobj(f, o, type & NQ, tmp, 0);
-			emit(f, "\texg\t%s\n", regnames[r]);
-			emit(f, "\tst\t%s\n", regnames[r]);
-			emit(f,"//FIXME - need to store 64-bits\n");
-//			ierror(0);
+			ierror(0);
 		}
 		break;		
 	default:

@@ -126,8 +126,9 @@ struct reg_handle{
 /* we do not need register-pairs */
 #undef HAVE_REGPAIRS
 
-/* We use libcalls for 64-bit and float support */
-#define HAVE_LIBCALLS 1
+/* We (will eventually) use libcalls for 64-bit and float support */
+/* Enabling this completely changes code generation - investigate. */
+#define HAVE_LIBCALLS 0
 
 /* do not create CONVERT ICs from integers smaller than int to floats */
 #define MIN_INT_TO_FLOAT_TYPE INT
