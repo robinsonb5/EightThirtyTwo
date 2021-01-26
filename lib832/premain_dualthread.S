@@ -4,7 +4,7 @@
 //
 //  Supports auto initialisation from .ctors section and clearing of BSS data.
 //
-//  STACKSIZE is defined to 1K, but is a weak symbol so can be overridden either in another section
+//  STACKSIZE is defined to 4K, but is a weak symbol so can be overridden either in another section
 //  or on the linker command line.
 
 	.section	.text.premain

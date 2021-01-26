@@ -35,8 +35,12 @@ _thread_sleep:
 	mt	r0
 	mr	r7
 
-// Unpausing the other thread is as simple as issuing a sig instruction
-// Provided you've previously waited 
+// Unpausing the other thread is as simple as issuing a sig instruction.
+// If the other thread is asleep we clear the sleep flag.  If it's not
+// asleep we leave it alone to avoid the (admittedly extremely unlikely)
+// race condition where this thread clears the flag and issues a sig
+// in between the other thread setting the flag and actually sleeping.
+
 	.global	_thread_wake
 _thread_wake:
 	stdec	r6
@@ -45,7 +49,7 @@ _thread_wake:
 	mr	r0
 	and	r0
 	cond	NEQ	// Is the other thread asleep?
-		li	0	// If so, clear the sleep thread before waking it
+		li	0	// If so, clear the sleep flag before waking it
 		mr	r0
 		.lipcrel _thread_sleepflag,4
 		addt	r7
