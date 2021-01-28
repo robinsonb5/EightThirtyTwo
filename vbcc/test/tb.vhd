@@ -62,6 +62,10 @@ begin
 	rom_wr<=(ram_wr and ram_req) when ram_addr(31)='0' else '0';
 
 	cpu : entity work.eightthirtytwo_cpu
+	generic map
+	(
+		littleendian => false
+	)
 	port map
 	(
 		clk => clk,

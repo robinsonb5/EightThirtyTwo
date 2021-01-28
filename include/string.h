@@ -19,7 +19,7 @@
 #define toupper __toupper
 
 char *strcpy(char *,const char *);
-void *memcpy(const void *,const void *,size_t);
+//void *memcpy(const void *,const void *,size_t);
 
 size_t strspn(const char *, const char *);
 size_t strcspn(const char *, const char *);

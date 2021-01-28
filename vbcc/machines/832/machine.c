@@ -230,13 +230,15 @@ static long real_offset(struct obj *o)
 static int isstackparam(struct obj *o)
 {
 	int result=0;
-	if(o->flags&VAR)
+//	if(o->flags&VAR && o->flags&REG && o->reg==sp)
+//	if(o->flags&(VAR|DREFOBJ)==VAR)
+	if(o->flags&VAR && !(o->flags&REG))
 	{
 		if(isauto(o->v->storage_class))
 		{
 			long off = zm2l(o->v->offset);
-				if (off < 0)
-					result=1;
+			if (off < 0)
+				result=1;
 		}
 	}
 	return(result);
@@ -534,7 +536,7 @@ static void store_reg(FILE * f, int r, struct obj *o, int type)
 {
 	// Need to take different types into account here.
 	if(DBGMSG)
-		emit(f, "\t\t\t\t\t\t// Store_reg to type 0x%x\n", type);
+		emit(f, "\t\t\t\t\t\t// Store_reg to type 0x%x, flags 0x%x\n", type,o->flags);
 
 	type &= NQ;		// Filter out unsigned, etc.
 	if((type==CHAR || type==SHORT) && isstackparam(o))

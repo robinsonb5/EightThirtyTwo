@@ -1,7 +1,7 @@
 #ifndef STRING_ASM_H
 #define STRING_ASM_H
 
-void *__memcpy(__reg("r3") void *, __reg("r2") void *, __reg("r1") size_t);
+void *memcpy(void *,void *,size_t);
 int __memcmp(__reg("r3") const void *, __reg("r2") const void *, __reg("r1") size_t);
 int __memmove(__reg("r3") const void *, __reg("r2") const void *, __reg("r1") size_t);
 void *__memset(__reg("r3") void *, __reg("r2") int,__reg("r1") size_t);

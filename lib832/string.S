@@ -297,8 +297,8 @@ ___memset:
 	// char *memcpy(char *dst (in r1),const char *src (on stack),size_t size (on stack));
 
 	.section	.text.memcpy
-	.globl	___memcpy
-___memcpy:
+	.globl	_memcpy
+_memcpy:
 	stdec	r6
 	mt	r3
 	stdec	r6

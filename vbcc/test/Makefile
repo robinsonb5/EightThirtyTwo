@@ -11,15 +11,18 @@ CFLAGS = -+ -c99 -I$(832DIR)/include/ -I$(LIBDIR)
 COPT = -O=1343 -size -unsigned-char
 TIME=200us
 
-# LITTLE ENDIAN
-ASFLAGS=-el
-LDFLAGS=-el 
-ROMGENFLAGS=-b
+# Endian setting must match the littleendian generic in the testbench
 
-#BIG ENDIAN
-#ASFLAGS=-eb
-#LDFLAGS=-eb 
-#ROMGENFLAGS=
+# LITTLE ENDIAN
+#ASFLAGS=-el
+#LDFLAGS=-el 
+#ROMGENFLAGS=-b
+
+# BIG ENDIAN
+ASFLAGS=-eb
+LDFLAGS=-eb 
+ROMGENFLAGS=
+
 
 all: compiler helloworld.bin
 
