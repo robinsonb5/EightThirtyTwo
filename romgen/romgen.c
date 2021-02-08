@@ -21,6 +21,7 @@ struct RomGenOptions
 	int offset;
 	int limit;
 	int byteswap;
+	int	word;
 };
 
 int ParseOptions(int argc,char **argv,struct RomGenOptions *opts)
@@ -30,6 +31,7 @@ int ParseOptions(int argc,char **argv,struct RomGenOptions *opts)
 		{"help",no_argument,NULL,'h'},
 		{"offset",required_argument,NULL,'o'},
 		{"limit",required_argument,NULL,'l'},
+		{"word",no_argument,NULL,'w'},
 		{"byteswap",no_argument,NULL,'b'},
 		{0, 0, 0, 0}
 	};
@@ -37,7 +39,7 @@ int ParseOptions(int argc,char **argv,struct RomGenOptions *opts)
 	while(1)
 	{
 		int c;
-		c = getopt_long(argc,argv,"ho:l:b",long_options,NULL);
+		c = getopt_long(argc,argv,"ho:l:wb",long_options,NULL);
 		if(c==-1)
 			break;
 		switch (c)
@@ -45,6 +47,7 @@ int ParseOptions(int argc,char **argv,struct RomGenOptions *opts)
 			case 'h':
 				printf("Usage: %s [options] <filename>\n",argv[0]);
 				printf("    -h --help\t  display this message\n");
+				printf("    -w --word\t  output as word-oriented rather than byte-oriented.\n");
 				printf("    -o --offset\t  skip a number of bytes before outputting ROM data.\n");
 				printf("    -l --limit\t  stop after a specified number of bytes of ROM data.\n");
 				printf("    -b --byteswap\t  reverse the byte order of the ROM data.\n");
@@ -57,6 +60,9 @@ int ParseOptions(int argc,char **argv,struct RomGenOptions *opts)
 				break;
 			case 'b':
 				opts->byteswap=1;
+				break;
+			case 'w':
+				opts->word=1;
 				break;
 		}
 	}
@@ -75,6 +81,7 @@ main(int argc, char **argv)
 	opts.limit=0x7fffffff;
 	opts.offset=0;
 	opts.byteswap=0;
+	opts.word=0;
 
 	i=ParseOptions(argc,argv,&opts);
 
@@ -113,17 +120,35 @@ main(int argc, char **argv)
 
 		// Output to STDOUT.
 
-		if(opts.byteswap)
+		if(opts.word)
 		{
-			printf("%6d => (x\"%02x\",x\"%02x\",x\"%02x\",x\"%02x\"),\n",
+			if(opts.byteswap)
+			{
+				printf("%6d => x\"%02x%02x%02x%02x\",\n",
 				addr++, opcode[3], opcode[2],
 				opcode[1], opcode[0]);
+			}
+			else
+			{
+				printf("%6d => x\"%02x%02x%02x%02x\",\n",
+				addr++, opcode[0], opcode[1],
+				opcode[2], opcode[3]);
+			}
 		}
 		else
 		{
-			printf("%6d => (x\"%02x\",x\"%02x\",x\"%02x\",x\"%02x\"),\n",
+			if(opts.byteswap)
+			{
+				printf("%6d => (x\"%02x\",x\"%02x\",x\"%02x\",x\"%02x\"),\n",
+				addr++, opcode[3], opcode[2],
+				opcode[1], opcode[0]);
+			}
+			else
+			{
+				printf("%6d => (x\"%02x\",x\"%02x\",x\"%02x\",x\"%02x\"),\n",
 				addr++, opcode[0], opcode[1],
 				opcode[2], opcode[3]);
+			}
 		}
 	}
 

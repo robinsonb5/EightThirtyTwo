@@ -16,12 +16,12 @@ TIME=200us
 # LITTLE ENDIAN
 #ASFLAGS=-el
 #LDFLAGS=-el 
-#ROMGENFLAGS=-b
+#ROMGENFLAGS=-b -w
 
 # BIG ENDIAN
 ASFLAGS=-eb
 LDFLAGS=-eb 
-ROMGENFLAGS=
+ROMGENFLAGS=-w 
 
 
 all: compiler helloworld.bin
@@ -58,7 +58,7 @@ clean :
 
 
 %_ROM.vhd: %.bin $(ROMGEN) force
-	sed 's/dualportram/$*_rom/' >$*_ROM.vhd <$(ROMGENDIR)/rom_prologue.vhd
+	sed 's/eightthirtytwo_rom/$*_rom/' >$*_ROM.vhd <$(ROMGENDIR)/rom_prologue.vhd
 	$(ROMGEN) $(ROMGENFLAGS) $*.bin >>$*_ROM.vhd
 	cat >>$*_ROM.vhd $(ROMGENDIR)/rom_epilogue.vhd
 

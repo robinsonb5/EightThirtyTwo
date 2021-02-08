@@ -8,4 +8,4 @@ set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) eightthirt
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) eightthirtytwo_hazard.vhd]
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) eightthirtytwo_debug.vhd]
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) eightthirtytwo_cpu.vhd]
-
+set_global_assignment -name SDC_FILE [file join $::quartus(qip_path) eightthirtytwo_multicycles.sdc]

@@ -12,7 +12,7 @@ CFLAGS = -+ -unsigned-char $(COPT) -I$(832DIR)/include/ -I$(LIBDIR)
 # LITTLE ENDIAN
 ASFLAGS=-el
 LDFLAGS=-el -s_STACKSIZE=4096
-ROMGENFLAGS=-b
+ROMGENFLAGS=-b -w
 
 #BIG ENDIAN
 #ASFLAGS=-eb
@@ -46,9 +46,9 @@ a.out : dhry_1.c dhry_2.c ../../Lib/hexdump.c
 
 
 %_ROM.vhd: %.bin $(ROMGEN)
-	sed 's/dualportram/$*_rom/' >$*_ROM.vhd <$(ROMGENDIR)/rom_prologue.vhd
+	sed 's/eightthirtytwo_rom/$*_rom/' >$*_ROM.vhd <$(ROMGENDIR)/rom_prologue_word.vhd
 	$(ROMGEN) $(ROMGENFLAGS) $*.bin >>$*_ROM.vhd
-	cat >>$*_ROM.vhd $(ROMGENDIR)/rom_epilogue.vhd
+	cat >>$*_ROM.vhd $(ROMGENDIR)/rom_epilogue_word.vhd
 
 %.o : %.asm Makefile
 	$(AS) $(ASFLAGS) $*.asm
@@ -77,7 +77,6 @@ init:
 	$(GHDL) -a $(GHDLFLAGS) ../../RTL/eightthirtytwo_hazard.vhd
 	$(GHDL) -a $(GHDLFLAGS) ../../RTL/eightthirtytwo_debug.vhd
 	$(GHDL) -a $(GHDLFLAGS) ../../RTL/eightthirtytwo_cpu.vhd
-	$(GHDL) -a $(GHDLFLAGS) ../../romgen/rom_pkg.vhd
 
 force:
 

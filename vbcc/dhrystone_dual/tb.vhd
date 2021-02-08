@@ -5,9 +5,6 @@ use ieee.numeric_std.all;
 library std;
 use std.textio.all;
 
-library work;
-use work.rom_pkg.all;
-
 entity cpu_tb is
 end cpu_tb;
 
@@ -23,6 +20,7 @@ is
 
 	signal ram_addr : std_logic_vector(31 downto 2);
 	signal from_ram : std_logic_vector(31 downto 0);
+	signal from_rom : std_logic_vector(31 downto 0);
 	signal to_ram : std_logic_vector(31 downto 0);
 	signal ram_wr : std_logic;
 	signal ram_bytesel : std_logic_vector(3 downto 0);
@@ -38,9 +36,6 @@ is
 	type tbstates is (RESET,INIT,MAIN);
 	signal tbstate : tbstates:=RESET;
 
-	signal romin : fromROM;
-	signal romout : toROM;
-
 	signal req_d : std_logic;
 	signal ls_thread : std_logic;
 	signal cyclecounter : unsigned(31 downto 0) := X"00000000";
@@ -48,20 +43,20 @@ is
 begin
 
 	rom : entity work._rom
+	generic map (
+		ADDR_WIDTH => 14
+	)
 	port map(
 		clk => clk,
-		from_soc => romout,
-		to_soc => romin
+		addr => ram_addr(15 downto 2),
+		d => to_ram,
+		q => from_rom,
+		we => rom_wr,
+		bytesel => ram_bytesel
 	);
 
-	romout.MemAAddr<=ram_addr(15 downto 2);
-	romout.MemAWrite<=to_ram;
-	romout.MemAWriteEnable<=rom_wr;
-	romout.MemAByteSel<=ram_bytesel;
-
-
 	uart_read<= X"00000000" when uart_count/="0000" else X"00000300";
-	from_ram<=romin.MemARead when ram_addr(31)='0' else uart_read when ram_addr(7 downto 2)=X"C"&"00" else std_logic_vector(cyclecounter);
+	from_ram<=from_rom when ram_addr(31)='0' else uart_read when ram_addr(7 downto 2)=X"C"&"00" else std_logic_vector(cyclecounter);
 
 	rom_wr<=(ram_wr and ram_req) when ram_addr(31)='0' else '0';
 

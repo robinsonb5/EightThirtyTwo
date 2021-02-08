@@ -29,7 +29,7 @@ clean :
 
 
 %_ROM.vhd: %.bin $(ROMGEN)
-	sed 's/dualportram/$*_rom/' >$*_ROM.vhd <$(ROMGENDIR)/rom_prologue.vhd
+	sed 's/eightthirtytwo_rom/$*_rom/' >$*_ROM.vhd <$(ROMGENDIR)/rom_prologue.vhd
 	$(ROMGEN) -b $*.bin >>$*_ROM.vhd
 	cat >>$*_ROM.vhd $(ROMGENDIR)/rom_epilogue.vhd
 
@@ -69,7 +69,6 @@ init:
 	$(GHDL) -a $(GHDLFLAGS) ../../RTL/eightthirtytwo_hazard.vhd
 	$(GHDL) -a $(GHDLFLAGS) ../../RTL/eightthirtytwo_debug.vhd
 	$(GHDL) -a $(GHDLFLAGS) ../../RTL/eightthirtytwo_cpu.vhd
-	$(GHDL) -a $(GHDLFLAGS) ../../romgen/rom_pkg.vhd
 
 force:
 
