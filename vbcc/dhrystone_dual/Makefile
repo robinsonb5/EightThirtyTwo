@@ -29,9 +29,9 @@ clean :
 
 
 %_ROM.vhd: %.bin $(ROMGEN)
-	sed 's/eightthirtytwo_rom/$*_rom/' >$*_ROM.vhd <$(ROMGENDIR)/rom_prologue.vhd
+	sed 's/eightthirtytwo_rom/$*_rom/' >$*_ROM.vhd <$(ROMGENDIR)/rom_prologue_byte.vhd
 	$(ROMGEN) -b $*.bin >>$*_ROM.vhd
-	cat >>$*_ROM.vhd $(ROMGENDIR)/rom_epilogue.vhd
+	cat >>$*_ROM.vhd $(ROMGENDIR)/rom_epilogue_byte.vhd
 
 %.bin : Makefile $(CC)
 	objcopy -Obinary $< $@
@@ -56,7 +56,7 @@ dhrystone.bin : $(LIBDIR)/dualcrt0.a $(LIBDIR)/lib832.a dhry_1.o dhry_2.o dhry_3
 	$(AS) $*.asm
 
 $(ROMGEN): $(ROMGENDIR)/romgen.c
-	gcc -o $(ROMGENDIR)/romgen $(ROMGENDIR)/romgen.c
+	make -C $(ROMGENDIR)
 
 init:
 	$(GHDL) -a $(GHDLFLAGS) ../../RTL/eightthirtytwo_pkg.vhd

@@ -5,9 +5,6 @@ use ieee.numeric_std.all;
 library std;
 use std.textio.all;
 
-library work;
-use work.rom_pkg.all;
-
 entity cpu_tb is
 end cpu_tb;
 
@@ -42,6 +39,10 @@ is
 begin
 
 	rom : entity work._rom
+	generic map
+	(
+		ADDR_WIDTH=> 14
+	)
 	port map(
 		clk => clk,
 		addr => ram_addr(15 downto 2),

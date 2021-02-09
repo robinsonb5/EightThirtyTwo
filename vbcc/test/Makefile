@@ -23,7 +23,7 @@ TIME=200us
 ASFLAGS=-eb
 LDFLAGS=-eb 
 EMFLAGS=-eb
-ROMGENFLAGS=-w 
+ROMGENFLAGS=-w
 
 
 all: compiler helloworld.bin
@@ -60,9 +60,9 @@ clean :
 
 
 %_ROM.vhd: %.bin $(ROMGEN) force
-	sed 's/eightthirtytwo_rom/$*_rom/' >$*_ROM.vhd <$(ROMGENDIR)/rom_prologue.vhd
+	sed 's/eightthirtytwo_rom/$*_rom/' >$*_ROM.vhd <$(ROMGENDIR)/rom_prologue_word.vhd
 	$(ROMGEN) $(ROMGENFLAGS) $*.bin >>$*_ROM.vhd
-	cat >>$*_ROM.vhd $(ROMGENDIR)/rom_epilogue.vhd
+	cat >>$*_ROM.vhd $(ROMGENDIR)/rom_epilogue_word.vhd
 
 %.o : %.s Makefile
 	$(AS) $*.s
@@ -90,7 +90,7 @@ clean :
 	../bin/vbcc832 $(CFLAGS) $(COPT) -I$(832DIR) $(LIBDIR)/$*.c -o=$@
 
 $(ROMGEN): $(ROMGENDIR)/romgen.c
-	gcc -o $(ROMGENDIR)/romgen $(ROMGENDIR)/romgen.c
+	make -C $(ROMGENDIR)
 
 init:
 	$(GHDL) -a $(GHDLFLAGS) ../../RTL/eightthirtytwo_pkg.vhd
