@@ -83,6 +83,7 @@ class EightThirtyTwoMemory
 				Debug[TRACE] << std::endl << "Reading from RAM " << addr << std::endl;
 				if(endian==BIGENDIAN)
 				{
+					Debug[TRACE] << "(Big endian)" <<std::endl;
 					int r;
 					switch(opsize)
 					{
@@ -104,6 +105,7 @@ class EightThirtyTwoMemory
 				}
 				else
 				{
+					Debug[TRACE] << "(Little endian)" <<std::endl;
 					int r;
 					switch(opsize)
 					{
@@ -175,8 +177,10 @@ class EightThirtyTwoMemory
 				break;
 
 			default:
-				if(endian=BIGENDIAN)
+				Debug[TRACE] << std::endl << "Writing " << v << " to RAM " << addr <<std::endl;
+				if(endian==BIGENDIAN)
 				{
+					Debug[TRACE] << "(Big endian)" <<std::endl;
 					switch(opsize)
 					{
 						case WORD:
@@ -196,6 +200,7 @@ class EightThirtyTwoMemory
 				}
 				else
 				{
+					Debug[TRACE] << "(Little endian)" <<std::endl;
 					switch(opsize)
 					{
 						case WORD:
@@ -253,6 +258,7 @@ class EightThirtyTwoProgram : public BinaryBlob, public EightThirtyTwoMemory
 			if(endian==BIGENDIAN)
 			{
 				int r;
+				Debug[TRACE] << "(Read internal memory Big endian)" << std::endl;
 				switch(opsize)
 				{
 					case WORD:
@@ -274,6 +280,7 @@ class EightThirtyTwoProgram : public BinaryBlob, public EightThirtyTwoMemory
 			else
 			{
 				int r;
+				Debug[TRACE] << "(Read internal memory little endian)" << std::endl;
 				switch(opsize)
 				{
 					case WORD:
@@ -301,17 +308,18 @@ class EightThirtyTwoProgram : public BinaryBlob, public EightThirtyTwoMemory
 		{
 			if(endian==BIGENDIAN)
 			{
+				Debug[TRACE] << "(Write internal memory Big endian)" << std::endl;
 				switch(opsize)
 				{
 					case WORD:
-						(*this)[addr+3]=(v>>24)&255;
-						(*this)[addr+2]=(v>>16)&255;
-						(*this)[addr+1]=(v>>8)&255;
-						(*this)[addr]=v&255;
+						(*this)[addr]=(v>>24)&255;
+						(*this)[addr+1]=(v>>16)&255;
+						(*this)[addr+2]=(v>>8)&255;
+						(*this)[addr+3]=v&255;
 						break;
 					case HALFWORD:
-						(*this)[addr+1]=(v>>8)&255;
-						(*this)[addr]=v&255;
+						(*this)[addr]=(v>>8)&255;
+						(*this)[addr+1]=v&255;
 						break;
 					case BYTE:
 						(*this)[addr]=v&255;
@@ -320,6 +328,7 @@ class EightThirtyTwoProgram : public BinaryBlob, public EightThirtyTwoMemory
 			}
 			else
 			{
+				Debug[TRACE] << "(Write internal memory little endian)" << std::endl;
 				switch(opsize)
 				{
 					case WORD:
@@ -476,6 +485,8 @@ class EightThirtyTwoEmu
 			nextpc=regfile[7]+1;
 			regfile[7]=nextpc;			
 
+			Debug[TRACE] << " op: " << opcode;
+
 			if(cond) // is execution enabled?
 			{
 				if((opcode&0xc0)==0xc0)
@@ -585,6 +596,7 @@ class EightThirtyTwoEmu
 							break;
 
 						case opc_ldbinc: // ldbinc
+							Debug[TRACE] << " operand " << operand << ": " << regfile[operand]; 
 							temp=prg[regfile[operand]];
 							regfile[operand]++;
 							zero=(temp==0);

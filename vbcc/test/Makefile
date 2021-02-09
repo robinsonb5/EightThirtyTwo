@@ -16,11 +16,13 @@ TIME=200us
 # LITTLE ENDIAN
 #ASFLAGS=-el
 #LDFLAGS=-el 
+#EMFLAGS=-el
 #ROMGENFLAGS=-b -w
 
 # BIG ENDIAN
 ASFLAGS=-eb
 LDFLAGS=-eb 
+EMFLAGS=-eb
 ROMGENFLAGS=-w 
 
 
@@ -45,7 +47,7 @@ clean :
 .PRECIOUS : %.ghw
 
 %.emu : %.bin
-	$(EM) $*.bin
+	$(EM) $(EMFLAGS) $*.bin
 
 %.gtkw : %.ghw
 	sed 's/cpu_tb/$*_tb/g' >$*.gtkw <tb.gtkw
