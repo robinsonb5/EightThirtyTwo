@@ -14,17 +14,23 @@ for the vbcc C compiler.
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+	The startup code and minimal C library, lib832, is licensed under the
+	terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+	EightThirtyTwo and lib832 are distributed in the hope that they will
+	be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+	of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with EightThirtyTwo, and the GNU Lesser General Public License
+	along with lib832.  If not, see <https://www.gnu.org/licenses/>.
 
 	Additionally, the author and maintainers of vbcc may, if they wish,
-    distribute the C compiler backend as part of the vbcc package under
-    vbcc's license.
+    convey and sublicense the C compiler backend as part of the vbcc package
+    under vbcc's license.
 
 ## Goals
 The main design goals are modest logic footprint and minimum possible use

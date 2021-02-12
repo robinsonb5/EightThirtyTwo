@@ -1,11 +1,32 @@
-//
+//	premain_dualthread.S
+//	Copyright 2020,2021 by Alastair M. Robinson
+
+//	This file is part of lib832.
+
+//	Lib832 is free software: you can redistribute it and/or modify
+//	it under the terms of the GNU Lesser General Public License as
+//	published by the Free Software Foundation, either version 3 of
+//	the License, or (at your option) any later version.
+
+//	Lib832 is distributed in the hope that it will be useful,
+//	but WITHOUT ANY WARRANTY; without even the implied warranty of
+//	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//	GNU Lesser General Public License for more details.
+
+//	You should have received a copy of the GNU Lesser General Public License
+//	along with lib832.  If not, see <https://www.gnu.org/licenses/>.
+
+
 //  More comprehensive premain implementation.
 //  The rudimentary premain in start.S has weak linkage, so this one will override it if linked.
 //
 //  Supports auto initialisation from .ctors section and clearing of BSS data.
+//  The second thread is paused until BSS initialisation is complete, and will then call
+//  _thread2main()
 //
 //  STACKSIZE is defined to 4K, but is a weak symbol so can be overridden either in another section
 //  or on the linker command line.
+
 
 	.section	.text.premain
 	.global	_premain
@@ -72,10 +93,6 @@ _premain:
 .ctordone:
 	// Release the 2nd thread
 	sig
-//	.liabs	releasethread2
-//	mr	r0
-//	li	1
-//	st	r0
 
 	// FIXME - should push argc and argv on the stack before calling main.
 	.lipcrel	_main
@@ -108,9 +125,6 @@ _premain:
 
 
 	.section	.text.premain2
-	.global releasethread2
-releasethread2:
-	.int	0
 	.global	_premain2
 _premain2:
 	// Setup the stack
@@ -123,13 +137,6 @@ _premain2:
 	// wait for the first thread to finish clearing BSS.
 	cond NEX
 	and r0	// Nop, first instruction after cond NEX is lost.
-//	.liabs	releasethread2
-//	mr	r0
-//.waitrelease:
-//	ld	r0
-//	cond	EQ
-//		.lipcrel	.waitrelease
-//		add	r7
 
 	// FIXME - should push argc and argv on the stack before calling main.
 	.lipcrel	_thread2main

@@ -35,7 +35,7 @@ clean :
 	-rm *.o
 	-rm *.bin
 
-a.out : dhry_1.c dhry_2.c ../../Lib/hexdump.c
+a.out : dhry_1.c dhry_2.c
 	gcc $+
 
 %.ghw : %_ROM.vhd  tb.vhd force

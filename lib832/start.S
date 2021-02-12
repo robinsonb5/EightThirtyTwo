@@ -1,12 +1,25 @@
+//	start.S
+//	Copyright 2020 by Alastair M. Robinson
+
+//	This file is part of Lib832.
+
+//	Lib832 is free software: you can redistribute it and/or modify
+//	it under the terms of the GNU Lesser General Public License as
+//	published by the Free Software Foundation, either version 3 of
+//	the License, or (at your option) any later version.
+
+//	Lib832 is distributed in the hope that it will be useful,
+//	but WITHOUT ANY WARRANTY; without even the implied warranty of
+//	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//	GNU Lesser General Public License for more details.
+
+//	You should have received a copy of the GNU Lesser General Public License
+//	along with lib832.  If not, see <https://www.gnu.org/licenses/>.
+
+
+// Startup code for lib832.  
+
 	.section .text.startup
-
-// Define STACKTOP.  This will be used from within the minimal premain code
-// so will be ignored if you link in the more complete premain code which sets
-// the stack to a fixed position beyond the BSS section.
-// Declared with weak linkage so you can override it if you wish.
-
-	.constant STACKTOP,0x2000
-	.weak	STACKTOP
 
 _start:
 	cond	SGT	// Z flag and C flag both clear -> Thread 1
@@ -59,24 +72,10 @@ _InterruptVector:
 	.ref	_premain2
 	mr	r7
 
-	.section	.text.premain
-	.weak	_premain
-	.globl _premain
-_premain:
-	// Setup the stack
-
-	ldinc	r7
-	.ref	STACKTOP
-	mr	r6
-
-	// Clear BSS here
-	ldinc	r7
-	.ref	_main
-	exg	r7
-.endloop:
-	cond NEX	// Pause until an interrupt is received
-	.lipcrel	.endloop
-	add	r7
+	.section	.text.interrupt
+	.weak	_interrupt
+_interrupt:
+	mr	r7	// return immediately
 
 	.section	.text.premain2
 	.weak	_premain2
@@ -85,9 +84,4 @@ _premain2:
 	cond NEX	// Pause until an interrupt is received
 	.lipcrel	.endloop2
 	add	r7
-
-	.section	.text.interrupt
-	.weak	_interrupt
-_interrupt:
-	mr	r7	// return immediately
 

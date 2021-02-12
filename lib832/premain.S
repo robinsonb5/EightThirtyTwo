@@ -1,4 +1,22 @@
-//
+//	premain.S
+//	Copyright 2020 by Alastair M. Robinson
+
+//	This file is part of Lib832.
+
+//	Lib832 is free software: you can redistribute it and/or modify
+//	it under the terms of the GNU Lesser General Public License as
+//	published by the Free Software Foundation, either version 3 of
+//	the License, or (at your option) any later version.
+
+//	Lib832 is distributed in the hope that it will be useful,
+//	but WITHOUT ANY WARRANTY; without even the implied warranty of
+//	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//	GNU Lesser General Public License for more details.
+
+//	You should have received a copy of the GNU Lesser General Public License
+//	along with lib832.  If not, see <https://www.gnu.org/licenses/>.
+
+
 //  More comprehensive premain implementation.
 //  The rudimentary premain in start.S has weak linkage, so this one will override it if linked.
 //
@@ -7,11 +25,12 @@
 //  STACKSIZE is defined to 1K, but is a weak symbol so can be overridden either in another section
 //  or on the linker command line.
 
-	.section	.text.premain
-	.global	_premain
 	.constant _STACKSIZE,4096
 	.global _STACKSIZE
 	.weak	_STACKSIZE
+
+	.section	.text.premain
+	.global	_premain
 _premain:
 	// Setup the stack
 	.liabs	__bss_end__
