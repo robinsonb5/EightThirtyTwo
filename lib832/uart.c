@@ -1,6 +1,7 @@
 #include "uart.h"
 
-int putchar(int c)
+/* Declare with weak linkage; the function can then be overridden if your hardware differs. */
+__weak int putchar(int c)
 {
 	volatile int *uart=&HW_UART(REG_UART);
 	do {} while(!((*uart)&(1<<REG_UART_TXREADY)));
