@@ -27,17 +27,13 @@ vbcc: vbcc/bin vbcc0_9g.tar.gz
 	make -C vbcc TARGET=832
 
 vbcc/supp.h:
-	$(info Extract the latest vbcc source archive into vbcc then try again.)
-	$(info If using vbcc 0.9g, you should also apply the vbcc_09g_volatilefix patch)
-	$(info which fixes a compiler bug relating to the volatile keyword.)
-	$(info )
-	$(info Type make vbcc to fetch, patch and build vbcc 0.9g automatically.)
+	$(info Type make vbcc to unpack, patch and build vbcc 0.9g automatically.)
 	$(info When configuring VBCC, if you're building on a typical Linux system)
 	$(info you can just accept the defaults.)
 	$(info )
 	$(info NB: Take note of the terms of the VBCC license if you intend to distribute)
 	$(info a product which incorporates code compiled for 832.)
-	$(error vbcc is missing.)
+	$(error vbcc needs to be built.)
 
 vbcc/bin:
 	mkdir vbcc/bin
