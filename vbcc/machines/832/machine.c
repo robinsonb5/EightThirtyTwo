@@ -1237,7 +1237,10 @@ void gen_var_head(FILE * f, struct Var *v)
 			}
 			if (v->clist || section == SPECIAL) {
 				gen_align(f, falign(v->vtyp));
-				emit(f, "\t.global\t%s%s\n", idprefix, v->identifier);
+				if (isweak(v))
+					emit(f, "\t.weak\t%s%s\n", idprefix, v->identifier);
+				else
+					emit(f, "\t.global\t%s%s\n", idprefix, v->identifier);
 				emit(f, "%s%s:\n", idprefix, v->identifier);
 			} else {
 				gen_align(f, falign(v->vtyp));
