@@ -1,6 +1,6 @@
 # Makefile for toolchain and tests
 
-all: 832a/832a 832emu/832e 832ocd/832ocd vbcc lib832/lib832.a hello test
+all: 832a/832a 832emu/832e 832ocd/832ocd vbcc/supp.h lib832/lib832.a hello test
 
 832a/832a: force
 	-make -C 832a
@@ -20,13 +20,14 @@ hello: 832emu/832e 832a/832a
 vbcc0_9g.tar.gz:
 	wget http://phoenix.owl.de/tags/vbcc0_9g.tar.gz
 
-vbcc/bin/vbcc832: vbcc/supp.h vbcc/bin vbcc0_9g.tar.gz
+vbcc/bin/vbcc832: vbcc/bin vbcc0_9g.tar.gz
 	tar -xzf vbcc0_9g.tar.gz
 	cd vbcc; \
 	patch -i ../vbcc_09g_volatilefix.patch
 	make -C vbcc TARGET=832
 
 vbcc/supp.h:
+	$(info )
 	$(info Type make vbcc to unpack, patch and build vbcc 0.9g automatically.)
 	$(info When configuring VBCC, if you're building on a typical Linux system)
 	$(info you can just accept the defaults.)
@@ -41,6 +42,7 @@ vbcc/bin:
 .PHONY vbcc:
 vbcc: vbcc/bin/vbcc832
 
+.PHONY test:
 test:
 	-make -C vbcc/test emu
 
