@@ -37,8 +37,25 @@ _premain:
 	// Setup the stack
 	.liabs	__bss_end__
 	mr	r6
+
+	// Fill the stack with a marker pattern
 	.liabs	_STACKSIZE
-	add	r6
+	mr	r0
+	li	2
+	shr	r0
+	.liconst 0x55aa55aa
+	mr	r1
+.stackloop:
+	mt	r1
+	stinc	r6
+	li	1
+	sub	r0
+	cond NEQ
+		.lipcrel .stackloop
+		add	r7
+
+//	.liabs	_STACKSIZE
+//	add	r6
 
 	// Clear BSS data
 	.liabs	__bss_end__
