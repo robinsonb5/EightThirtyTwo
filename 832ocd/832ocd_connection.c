@@ -107,7 +107,7 @@ int ocd_uploadfile(struct ocd_connection *con,const char *filename, int addr, en
 			if(len)
 			{
 				int v;
-				if(endian=EIGHTTHIRTYTWO_LITTLEENDIAN)
+				if(endian==EIGHTTHIRTYTWO_LITTLEENDIAN)
 					v=(buf[3]<<24) | (buf[2]<<16) | (buf[1]<<8) | buf[0];
 				else
 					v=(buf[0]<<24) | (buf[1]<<16) | (buf[2]<<8) | buf[3];

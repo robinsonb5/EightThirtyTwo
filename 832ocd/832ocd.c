@@ -535,6 +535,7 @@ int main(int argc, char *argv[])
 	int ch;
 	int running=1;
 	int disaddr=0;
+	int uploadaddress=0;
 	const char *err;
 	struct ocd_connection *ocdcon;
 	struct ocd_rbuf *code;
@@ -572,11 +573,19 @@ int main(int argc, char *argv[])
 	disaddr=code->regfile.regs[7];
 	draw_regfile(reg_win,&code->regfile);
 
+	/* If we have a symbolmap, set uploadaddress to the value of the "_start" symbol. */
+	uploadaddress=0;
+	if(code->symbolmap)
+	{
+		struct symbol *sym=section_findsymbol(code->symbolmap,"_start");
+		if(sym)
+			uploadaddress=sym->cursor;
+	}
+
 	move(LINES-1,2);
 
 	while(running)
 	{
-		int uploadaddress=0;
 		int corerunning;
 		char *input;
 		werase(cmd_win);
@@ -861,7 +870,7 @@ int main(int argc, char *argv[])
 				}
 
 				scroll_window(mem_win,MEM_WIN_HEIGHT,MEM_WIN_WIDTH,MEM_WIN_TITLE);
-				mvwprintw(mem_win,MEM_WIN_HEIGHT-2,2,"Uploading...");
+				mvwprintw(mem_win,MEM_WIN_HEIGHT-2,2,"Uploading to 0x%x...",uploadaddress);
 				wrefresh(mem_win);
 				scroll_window(mem_win,MEM_WIN_HEIGHT,MEM_WIN_WIDTH,MEM_WIN_TITLE);
 				if(input && ocd_uploadfile(code->con,input,uploadaddress,code->endian))
