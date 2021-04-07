@@ -50,7 +50,7 @@ _premain:
 	stinc	r6
 	li	1
 	sub	r0
-	cond NEQ
+	cond SGT
 		.lipcrel .stackloop
 		add	r7
 
