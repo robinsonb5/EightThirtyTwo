@@ -445,6 +445,22 @@ int matchoffset(struct obj *o,struct obj *o2)
 }
 
 
+int obsoletetempobj(FILE *f,int reg,struct obj *o,int varadr)
+{
+//	emit(f,"\t\t\t\t\t// Attempting to obsolete obj\n");
+	if(tempobjs[0].reg==reg && matchobj(f,o,&tempobjs[0].o,varadr))
+	{
+		emit(f,"\t\t\t\t\t\t// Obsoleting tmp\n");
+		cleartempobj(f,tmp);
+	}
+	if(tempobjs[1].reg==reg && matchobj(f,o,&tempobjs[0].o,varadr))
+	{
+		emit(f,"\t\t\t\t\t\t// Obsoleting t1\n");
+		cleartempobj(f,t1);
+	}
+}
+
+
 // Check the tempobj records to see if the value we're interested in can be found in either.
 int matchtempobj(FILE *f,struct obj *o,int varadr,int preferredreg)
 {
@@ -2079,6 +2095,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					emit(f,"\taddt\t%s\n",regnames[p->q1.reg]);
 					settempobj(f,tmp,&p->z,0,0);
 					save_temp(f, p, zreg);
+					obsoletetempobj(f,t1,&p->z,0);
 //					emit(f,"\tmr\t%s\n",regnames[p->z.reg]);
 				}
 				else
@@ -2095,6 +2112,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					emit(f,"\taddt\t%s\n",regnames[p->q2.reg]);
 					settempobj(f,tmp,&p->z,0,0);
 					save_temp(f, p, zreg);
+					obsoletetempobj(f,t1,&p->z,0);
 //					emit(f,"\tmr\t%s\n",regnames[p->z.reg]);
 				}
 				continue;

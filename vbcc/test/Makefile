@@ -68,25 +68,25 @@ clean :
 	$(AS) $*.s
 
 %.bin : $(LIBDIR)/crt0.a $(LIBDIR)/lib832.a %.o
-	$(LD) $(LDFLAGS) -o $@ $+ -m map
+	$(LD) -o $@ $+ $(LDFLAGS) -m map
 
-%.o : %.S Makefile $(LIBDIR)/start.S force
+%.o : %.S Makefile
 	$(AS) $(ASFLAGS) -o $*.o $*.S
 
-%.o : %.asm Makefile $(LIBDIR)/start.S force
+%.o : %.asm Makefile 
 	$(AS) $(ASFLAGS) -o $*.o $*.asm
 
-%.o : %.c Makefile ldscript.ld $(LIBDIR)/start.S $(CC) force
+%.o : %.c Makefile
 	../bin/vbcc832 $(CFLAGS) $(COPT) $*.c
 	$(AS) $(ASFLAGS) -o $*.o $*.asm
 
-%.o : $(LIBDIR)/%.S Makefile ldscript.ld $(832DIR)/Lib/assembler.pp $(LIBDIR)/start.S force
+%.o : $(LIBDIR)/%.S Makefile
 	$(AS) $(ASFLAGS) -o $*.o $(LIBDIR)/$*.S
 
-%.asm : %.c Makefile ../bin/vbcc832 $(CC) force
+%.asm : %.c Makefile ../bin/vbcc832 $(CC)
 	../bin/vbcc832 $(CFLAGS) $(COPT) -I$(832DIR) $*.c
 
-%.asm : $(LIBDIR)/%.c Makefile ../bin/vbcc832 $(CC) force
+%.asm : $(LIBDIR)/%.c Makefile ../bin/vbcc832 $(CC)
 	../bin/vbcc832 $(CFLAGS) $(COPT) -I$(832DIR) $(LIBDIR)/$*.c -o=$@
 
 $(ROMGEN): $(ROMGENDIR)/romgen.c
