@@ -99,6 +99,41 @@ ___strcmp:						// Parameters: char *s1, char *s2
 	mr	r7
 
 
+	// int strcasecmp(__reg("r2") const char *, __reg("r1") const char *);
+
+	.section	.text.strcasecmp
+	.global	___strcasecmp
+
+___strcasecmp:						// Parameters: char *s1, char *s2
+	stdec	r6
+	mt	r2
+	stdec	r6
+	mt	r3
+	stdec	r6
+.loopstrcasecmp:
+	ldbinc	r2	// s2++
+	mr	r0
+	ldbinc	r1
+	cond	EQ					// If null, we're done.  If S2 has also terminated, r0 will be 0; else a positive number.
+		.lipcrel .endstrcasecmp
+		add	r7
+	mr	r3
+	.liconst	0xdf; // Mask off bit 5 
+	and	r0
+	and	r3
+	mt	r3
+	sub	r0						// Otherwise subtract 
+	cond	EQ
+		.lipcrel .loopstrcasecmp
+		add	r7
+.endstrcasecmp:
+	ldinc	r6
+	mr	r3
+	ldinc	r6
+	mr	r2
+	ldinc	r6
+	mr	r7
+
 
 // int strncmp(__reg("r2") const char *, __reg("r1") const char *, __reg("r3") size_t);
 

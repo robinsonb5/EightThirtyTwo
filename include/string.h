@@ -12,6 +12,7 @@
 #define memset __memset
 #define strcat __strcat
 #define strcmp __strcmp
+#define strcasecmp __strcasecmp
 #define strncpy __strncpy
 #define strlen __strlen
 #define strncat __strncat
