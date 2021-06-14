@@ -30,7 +30,7 @@ char *strtok_r(char *, const char *, char **);
 
 /* These really belong in stdlib.h rather than string.h */
 
-unsigned long int strtol(const char *nptr, char **endptr, int base);
+long int strtol(const char *nptr, char **endptr, int base);
 unsigned long int strtoul(const char *nptr, char **endptr, int base);
 
 /* Don't yet have implementations of these functions */

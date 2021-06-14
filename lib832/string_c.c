@@ -122,7 +122,8 @@ long strtol(const char *in,char **endptr,int base)
 	}
 	while(1)
 	{
-		*endptr=p;
+		if(endptr)
+			*endptr=(char *)p;
 		if(!*p)
 			return(neg ? -result : result);
 		digit=todigit(*p++,base);
@@ -133,7 +134,7 @@ long strtol(const char *in,char **endptr,int base)
 	}
 }
 
-long strtoul(const char *in,char **endptr,int base)
+unsigned long strtoul(const char *in,char **endptr,int base)
 {
 	int neg=0;
 	int result=0;
@@ -142,7 +143,8 @@ long strtoul(const char *in,char **endptr,int base)
 	p+=strspn(p," ");
 	while(1)
 	{
-		*endptr=p;
+		if(endptr)
+			*endptr=(char *)p;
 		if(!*p)
 			return(result);
 		digit=todigit(*p++,base);

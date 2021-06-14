@@ -451,6 +451,7 @@ struct IC *am_find_adjustment(struct IC *p, int reg)
 	// FIXME - limit how many steps we check...
 	/* Look for a post-increment */
 	while (p2) {
+//		printf("\t\tChecking code %d\n",p2->code);
 		if (p2->code == ADDI2P) {
 			if (AM_DEBUG)
 				printf("\tFound Addi2p to register %s \n", regnames[p2->z.reg]);
@@ -474,8 +475,11 @@ struct IC *am_find_adjustment(struct IC *p, int reg)
 			if (AM_DEBUG)
 				printf("\t\tFound another instruction referencing reg - bailing out\n");
 			p2 = 0;
+		} else if (p2->code>=BEQ && p2->code<=BRA) {
+			if (AM_DEBUG)
+				printf("\t\tFound a branch instruction - bailing out\n");
+			p2 = 0;
 		}
-		// FIXME - check for control flow changes
 		if (p2)
 			p2 = p2->next;
 	}
