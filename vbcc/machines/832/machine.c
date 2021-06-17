@@ -1353,6 +1353,18 @@ int isztopstackslot(struct IC *p, int t)
 	return(0);
 }
 
+/* Return 1 if any of p's operands uses predec or postinc addressing mode */
+int check_am(struct IC *p)
+{
+	if(p->q1.am && (p->q1.am->type==AM_POSTINC || p->q1.am->type==AM_PREDEC))
+		return(1);
+	if(p->q2.am && (p->q2.am->type==AM_POSTINC || p->q2.am->type==AM_PREDEC))
+		return(1);
+	if(p->z.am && (p->z.am->type==AM_POSTINC || p->z.am->type==AM_PREDEC))
+		return(1);
+	return(0);
+}
+
 /*  The main code-generation routine.                   */
 /*  f is the stream the code should be written to.      */
 /*  p is a pointer to a doubly linked list of ICs       */
@@ -1580,30 +1592,40 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				if(DBGMSG)
 					emit(f,"\t\t\t\t\t\t//Converting to wider type...\n");
 				int shamt = 0;
-				emit_objtoreg(f, &p->q1, q1typ(p), zreg);
 				switch (q1typ(p) & NU) {
 					case CHAR | UNSIGNED:
-						if(DBGMSG)
-							emit(f,"\t\t\t\t\t\t//But unsigned, so no need to extend\n");
-						break;
 					case SHORT | UNSIGNED:
 						if(DBGMSG)
 							emit(f,"\t\t\t\t\t\t//But unsigned, so no need to extend\n");
+						if(involvesreg(z)) {
+							emit_prepobj(f, &p->z, ztyp(p), zreg, 0);
+							emit_objtoreg(f, &p->q1, q1typ(p), tmp);
+							save_temp(f, p,zreg);
+							// WARNING - might need to invalidate temp objects here...
+						} else {
+							emit_objtoreg(f, &p->q1, q1typ(p), zreg);
+							save_result(f, p);
+							// WARNING - might need to invalidate temp objects here...
+						}
 						break;
 					case CHAR:
+						emit_objtoreg(f, &p->q1, q1typ(p), zreg);
 						emit_constanttotemp(f,0xffffff80);
 						emit(f,"\tadd\t%s\n",regnames[zreg]);
 						emit(f,"\txor\t%s\n",regnames[zreg]);
+						cleartempobj(f,zreg);
+						save_result(f, p);
 						break;
 					case SHORT:
+						emit_objtoreg(f, &p->q1, q1typ(p), zreg);
 						emit_constanttotemp(f,0xffff8000);
 						emit(f,"\tadd\t%s\n",regnames[zreg]);
 						emit(f,"\txor\t%s\n",regnames[zreg]);
+						cleartempobj(f,zreg);
+						save_result(f, p);
 						break;
 				}
 //				settempobj(f,zreg,&p->z,0,0);
-				cleartempobj(f,zreg);
-				save_result(f, p);
 			} else if(sizetab[q1typ(p) & NQ] >= sizetab[ztyp(p) & NQ]) {	// Reducing the size, must mask off excess bits...
 				if(DBGMSG)
 					emit(f,"\t\t\t\t\t\t// (convert - reducing type %x to %x\n",q1typ(p),ztyp(p));
@@ -1612,6 +1634,10 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 
 				if(((p->q1.flags&(REG|DREFOBJ))==REG) && (p->z.flags&(REG|DREFOBJ))!=REG) {
 					if(p->z.flags&DREFOBJ) {	// Can't use stmpdec for dereferenced objects
+						emit_prepobj(f, &p->z, t, zreg, 0); // Need an offset
+						emit_objtoreg(f, &p->q1, q1typ(p), tmp);
+						save_temp(f,p,zreg);
+#if 0
 						emit_prepobj(f, &p->z, t, tmp, 0); // Need an offset
 						emit(f, "\texg\t%s\n", regnames[q1reg]);
 //						if(!isstackparam(&p->z) || (p->z.flags&DREFOBJ))
@@ -1621,6 +1647,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 							emit(f, "\t\t\t\t\t\t// Both q1 and z are disposable, not bothering to undo exg\n");
 						else
 							emit(f, "\texg\t%s\n", regnames[q1reg]);
+#endif
 					}
 					else {
 						// Use stmpdec if q1 is already in a register...
@@ -1846,7 +1873,9 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			    || ((t & NQ) == CHAR && opsize(p) != 1)) {
 				emit_inlinememcpy(f,p,t);
 			} else {
-				if(((p->q1.flags&(REG|DREFOBJ))==REG) && !(p->z.flags&REG))	// Use stmpdec if q1 is already in a register...
+				// Is the small speedup here worth the complexity?  (Yes, because it improves code density)
+				// Use stmpdec if q1 is already in a register and we're not using addressing modes...
+				if(!check_am(p) && ((p->q1.flags&(REG|DREFOBJ))==REG) && !(p->z.flags&REG))
 				{
 					if(p->z.flags&DREFOBJ)	// Can't use stmpdec for dereferenced objects
 					{
@@ -1881,11 +1910,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					}
 					else
 					{
-//						emit(f,"\t\t//regular path prep z\n");
 						emit_prepobj(f, &p->z, t, t1, 0);
-//						emit(f,"\t\t//regular path move q1\n");
 						emit_objtoreg(f, &p->q1, t, tmp);
-//						emit(f,"\t\t//regular path save to z\n");
 						save_temp(f, p, t1);
 					}
 				}
