@@ -102,10 +102,10 @@ struct reg_handle{
    peephole-optimizations of the generated assembly-output */
 #define EMIT_BUF_LEN 1024 /* should be enough */
 /* number of asm-output lines buffered */
-#define EMIT_BUF_DEPTH 4
+#define EMIT_BUF_DEPTH 16
 
 /*  We have no asm_peephole to optimize assembly-output */
-#define HAVE_TARGET_PEEPHOLE 0
+#define HAVE_TARGET_PEEPHOLE 1
 
 /* we do not have a mark_eff_ics function, this is used to prevent
    optimizations on code which can already be implemented by efficient

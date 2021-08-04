@@ -244,6 +244,21 @@ static int isstackparam(struct obj *o)
 	return(result);
 }
 
+/* Convenience function to determine whether we're assigning to 0(r6)
+   and can thus use a more efficient writing sequence. */
+
+int istopstackslot(struct obj *o)
+{
+	if(!o)
+		return(0);
+	if(o->v && (o->flags&(VAR|REG|DREFOBJ))==VAR)
+	{
+		if(isauto(o->v->storage_class)
+				&& real_offset(o)==0)
+			return(1);
+	}
+	return(0);
+}
 
 /* changes to a special section, used for __section() */
 static int special_section(FILE * f, struct Var *v)
@@ -329,6 +344,15 @@ void settempkonst(FILE *f,int reg,int v)
 	tempobjs[i].o.val.vlong=v;
 //	emit(f,"// set %s to konst %d\n",regnames[reg],v);
 }
+
+
+// Add an adjustment due to postinc / predec to a cached object
+void adjtempobj(FILE *f,int reg,int offset)
+{
+	if(reg<=1)
+		tempobjs[reg].o.val.vlong+=offset;
+}
+
 
 // Store any passing value in tempobj records for optimisation.
 // FIXME - need to figure out VARADR semantics for stored objects.
@@ -608,7 +632,8 @@ static void store_reg(FILE * f, int r, struct obj *o, int type)
 			else {
 				emit_prepobj(f, o, type & NQ, tmp, 4);	// stmpdec predecrements, so need to add 4!
 				emit(f, "\tstmpdec\t%s\n \t\t\t\t\t\t// WARNING - check that 4 has been added.\n", regnames[r]);
-				cleartempobj(f,tmp);
+				adjtempobj(f,tmp,-4);
+//				cleartempobj(f,tmp);
 				if((type&NQ)!=INT || (type & VOLATILE) || (type & PVOLATILE))
 				{
 					emit(f,"\t// Volatile, or not int - not caching\n");
@@ -688,6 +713,24 @@ static struct IC *preload(FILE * f, struct IC *p)
 {
 	int r;
 
+	if(istopstackslot(&p->q1))
+	{
+		p->q1.reg=sp;
+		p->q1.flags|=REG|DREFOBJ;
+	}
+
+	if(istopstackslot(&p->q2))
+	{
+		p->q2.reg=sp;
+		p->q2.flags|=REG|DREFOBJ;
+	}
+
+	if(istopstackslot(&p->z))
+	{
+		p->z.reg=sp;
+		p->z.flags|=REG|DREFOBJ;
+	}
+
 	if (involvesreg(q1))
 		q1reg = p->q1.reg;
 	else
@@ -727,6 +770,31 @@ int next_setreturn(struct IC *p,int reg)
 }
 
 
+int consecutiveaccess(struct IC *p,struct IC *p2)
+{
+	if(!p || !p2)
+		return(0);
+//	printf("Flags %x, %x\n",p->z.flags,p2->z.flags);
+	if(((p->z.flags&(VAR|DREFOBJ))==VAR) && ((p2->z.flags&(VAR|DREFOBJ))==VAR))
+	{
+		int result=real_offset(&p2->z)-real_offset(&p->z);
+//		printf("Got two vars\n");
+		if(strcmp(p->z.v->identifier,p2->z.v->identifier))
+			return(0);
+		if(isstatic(p->z.v->storage_class) && isstatic(p->z.v->storage_class))
+		{
+//			printf("Both static - dif %d\n",result);
+			return(result);
+		}
+		if(isextern(p->z.v->storage_class) && isextern(p->z.v->storage_class))
+		{
+//			printf("Both extern - dif %d\n",result);
+			return(result);
+		}
+	}
+	return(0);
+}
+
 /* save the result (in temp) into p->z */
 /* Guaranteed not to touch t1/t2 unless nominated */
 /* or followed by a SetReturn IC. */
@@ -757,13 +825,13 @@ void save_temp(FILE * f, struct IC *p, int treg)
 			if (p->z.am && p->z.am->type == AM_POSTINC)
 			{
 				emit(f, "\tstbinc\t%s\n", regnames[treg]);
-				cleartempobj(f,treg);
+				adjtempobj(f,treg,1);
 			}
 			else if ((p->z.am && p->z.am->disposable)
 				 || (treg == t1))
 			{
 				emit(f, "\tstbinc\t%s\n\t\t\t\t\t\t//Disposable, postinc doesn't matter.\n", regnames[treg]);
-				cleartempobj(f,treg);
+				adjtempobj(f,treg,1);
 			}
 			else
 				emit(f, "\tbyt\n\tst\t%s\n", regnames[treg]);
@@ -774,10 +842,16 @@ void save_temp(FILE * f, struct IC *p, int treg)
 		case INT:
 		case LONG:
 		case POINTER:
-			if (p->z.am && p->z.am->type == AM_PREDEC)
+			if (consecutiveaccess(p,p->next)==-4 || (p->z.am && p->z.am->type == AM_PREDEC))
+			{
 				emit(f, "\tstdec\t%s\n", regnames[treg]);
-			else if (p->z.am && p->z.am->type == AM_POSTINC)
+				adjtempobj(f,treg,-4);
+			}
+			else if (consecutiveaccess(p,p->next)==4 || (p->z.am && p->z.am->type == AM_POSTINC))
+			{
 				emit(f, "\tstinc\t%s\n", regnames[treg]);
+				adjtempobj(f,treg,4);
+			}
 			else
 				emit(f, "\tst\t%s\n", regnames[treg]);
 			break;
@@ -1338,21 +1412,6 @@ void gen_dc(FILE * f, int t, struct const_list *p)
 }
 
 
-/* Convenience function to determine whether we're assigning to 0(r6)
-   and can thus use a more efficient writing sequence. */
-int isztopstackslot(struct IC *p, int t)
-{
-	if(!p)
-		return(0);
-	if(p->z.v && (p->z.flags&(VAR|REG|DREFOBJ))==VAR)
-	{
-		if(isauto(p->z.v->storage_class)
-				&& real_offset(&p->z)==0)
-			return(1);
-	}
-	return(0);
-}
-
 /* Return 1 if any of p's operands uses predec or postinc addressing mode */
 int check_am(struct IC *p)
 {
@@ -1470,7 +1529,6 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 //		printic(stdout,p);
 		c = p->code;
 		t = q1typ(p);
-
 
 		if (c == NOP) {
 			p->z.flags = 0;
@@ -1597,10 +1655,11 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					case SHORT | UNSIGNED:
 						if(DBGMSG)
 							emit(f,"\t\t\t\t\t\t//But unsigned, so no need to extend\n");
+
 						if(involvesreg(z)) {
 							emit_prepobj(f, &p->z, ztyp(p), zreg, 0);
 							emit_objtoreg(f, &p->q1, q1typ(p), tmp);
-							save_temp(f, p,zreg);
+							save_temp(f, p, zreg);
 							// WARNING - might need to invalidate temp objects here...
 						} else {
 							emit_objtoreg(f, &p->q1, q1typ(p), zreg);
@@ -1663,14 +1722,10 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					// and then truncated by a write to memory we don't need to worry.
 					if(!isreg(q1) || !isreg(z) || q1reg!=zreg) // Do we just need to mask in place, or move the value first?
 					{
-						if(isztopstackslot(p,t))
-							zreg=sp;
-						else
-						{
-							if(!isreg(z))
-								zreg=t1;
-							emit_prepobj(f, &p->z, ztyp(p), t1, 0);
-						}
+						if(!isreg(z))
+							zreg=t1;
+						emit_prepobj(f, &p->z, ztyp(p), t1, 0);
+
 						emit_objtoreg(f, &p->q1, t,tmp);
 						emit(f,"\t\t\t\t\t\t//Saving to reg %s\n",regnames[zreg]);
 						save_temp(f, p, zreg);
@@ -1902,18 +1957,9 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				}
 				else
 				{
-					// Special case moving a value to 0(r6)
-					if(isztopstackslot(p,t))
-					{
-						emit_objtoreg(f, &p->q1, t, tmp);
-						save_temp(f, p, sp);
-					}
-					else
-					{
-						emit_prepobj(f, &p->z, t, t1, 0);
-						emit_objtoreg(f, &p->q1, t, tmp);
-						save_temp(f, p, t1);
-					}
+					emit_prepobj(f, &p->z, t, t1, 0);
+					emit_objtoreg(f, &p->q1, t, tmp);
+					save_temp(f, p, t1);
 				}
 			}
 			continue;
@@ -1922,8 +1968,16 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		if (c == ADDRESS) {
 			if(DBGMSG)
 				emit(f, "\t\t\t\t\t\t// (address)\n");
-			emit_prepobj(f, &p->q1, POINTER, zreg, 0);
-			save_result(f, p);
+			if(involvesreg(z))
+			{
+				emit_prepobj(f, &p->q1, POINTER, tmp, 0);
+				save_temp(f,p,zreg);
+			}
+			else
+			{
+				emit_prepobj(f, &p->q1, POINTER, zreg, 0);
+				save_result(f, p);
+			}
 			continue;
 		}
 		// OK
@@ -2109,13 +2163,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				// FIXME - if q2 is already in tmp could reverse this
 				if(p->q2.flags&KONST)
 				{
-					if(isztopstackslot(p,t))
-						zreg=sp;
-					else
-					{
-						zreg=t1;
-						emit_prepobj(f, &p->z, t, t1, 0);
-					}
+					zreg=t1;
+					emit_prepobj(f, &p->z, t, t1, 0);
 
 					emit_objtoreg(f, &p->q2, t,tmp);
 					emit(f,"\taddt\t%s\n",regnames[p->q1.reg]);
@@ -2126,13 +2175,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				}
 				else
 				{
-					if(isztopstackslot(p,t))
-						zreg=sp;
-					else
-					{
-						zreg=t1;
-						emit_prepobj(f, &p->z, t, t1, 0);
-					}
+					zreg=t1;
+					emit_prepobj(f, &p->z, t, t1, 0);
 
 					emit_objtoreg(f, &p->q1, t,tmp);
 					emit(f,"\taddt\t%s\n",regnames[p->q2.reg]);
@@ -2238,6 +2282,58 @@ int reg_parm(struct reg_handle *m, struct Typ *t, int vararg, struct Typ *d)
 	}
 	return 0;
 }
+
+int iscomment(char *str)
+{
+	char c;
+	while(c=*str++)
+	{
+		if(!c || c=='\n' || c=='/')
+			return(1);
+		if(c!=' '&&c!='\t')
+			return(0);
+	}
+	return(1);
+}
+
+
+int emit_peephole(void)
+{
+	int i;
+	int havestore=0;
+	int haveload=0;
+	int loadidx=0;
+	i=emit_f;
+	while(i!=emit_l)
+	{
+		int reg,reg2;
+	    if(sscanf(emit_buffer[i],"\tst\tr%d",&reg)==1)
+			havestore=1;
+		else if(sscanf(emit_buffer[i],"\tld\tr%d",&reg2)==1 && havestore)
+		{
+			if(reg==reg2 && reg==6) /* Only stack ops - others would be risky due to potential hardware registers. */
+			{
+				loadidx=i;
+//				printf("Found matching load directive, r%d\n",reg);
+//				strcpy(emit_buffer[i],"\t//nop\n");
+//				return(1);
+			}
+		}
+		else if(!iscomment(emit_buffer[i])) /* Check that the next instruction isn't "cond" */
+		{
+			if(haveload && strncmp(emit_buffer[i],"\tcond",5)) /* If not, we're OK to zero out the load */
+			{
+				strcpy(emit_buffer[loadidx],"\t//nop\n");
+				return(1);
+			}
+			else
+				havestore=haveload=0;
+		}
+		i=(i+1)%EMIT_BUF_DEPTH;
+	}
+	return 0;                                                                    
+}
+
 
 int handle_pragma(const char *s)
 {
