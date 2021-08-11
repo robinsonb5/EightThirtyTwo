@@ -464,6 +464,7 @@ int matchoffset(struct obj *o,struct obj *o2)
 	if(isextern(o->v->storage_class))
 		return(o->val.vlong-o2->val.vlong);
 	if(isauto(o->v->storage_class))
+//		return((o->val.vlong+real_offset(o))-(o2->val.vlong+real_offset(o2)));
 		return((o->val.vlong+o->v->offset)-(o2->val.vlong+o2->v->offset));
 	return(0);
 }
@@ -691,7 +692,7 @@ static int availreg()
 }
 
 
-static struct IC *preload(FILE *, struct IC *);
+static struct IC *preload(FILE *, struct IC *,int stacksubst);
 
 static void function_top(FILE *, struct Var *, long);
 static int function_bottom(FILE * f, struct Var *, long,int);
@@ -709,26 +710,29 @@ static char *arithmetics[] = { "shl", "shr", "add", "sub", "mul", "(div)", "(mod
 
 /* Does some pre-processing like fetching operands from memory to
    registers etc. */
-static struct IC *preload(FILE * f, struct IC *p)
+static struct IC *preload(FILE * f, struct IC *p,int stacksubst)
 {
 	int r;
 
-	if(istopstackslot(&p->q1))
+	if(stacksubst)
 	{
-		p->q1.reg=sp;
-		p->q1.flags|=REG|DREFOBJ;
-	}
+		if(istopstackslot(&p->q1))
+		{
+			p->q1.reg=sp;
+			p->q1.flags|=REG|DREFOBJ;
+		}
 
-	if(istopstackslot(&p->q2))
-	{
-		p->q2.reg=sp;
-		p->q2.flags|=REG|DREFOBJ;
-	}
+		if(istopstackslot(&p->q2))
+		{
+			p->q2.reg=sp;
+			p->q2.flags|=REG|DREFOBJ;
+		}
 
-	if(istopstackslot(&p->z))
-	{
-		p->z.reg=sp;
-		p->z.flags|=REG|DREFOBJ;
+		if(istopstackslot(&p->z))
+		{
+			p->z.reg=sp;
+			p->z.flags|=REG|DREFOBJ;
+		}
 	}
 
 	if (involvesreg(q1))
@@ -842,12 +846,13 @@ void save_temp(FILE * f, struct IC *p, int treg)
 		case INT:
 		case LONG:
 		case POINTER:
-			if (consecutiveaccess(p,p->next)==-4 || (p->z.am && p->z.am->type == AM_PREDEC))
-			{
-				emit(f, "\tstdec\t%s\n", regnames[treg]);
-				adjtempobj(f,treg,-4);
-			}
-			else if (consecutiveaccess(p,p->next)==4 || (p->z.am && p->z.am->type == AM_POSTINC))
+//			// Would need to adjust the pointer at the setup stage since we're predecrementing
+//			if (consecutiveaccess(p,p->next)==-4 || (p->z.am && p->z.am->type == AM_PREDEC))
+//			{
+//				emit(f, "\tstdec\t%s\n", regnames[treg]);
+//				adjtempobj(f,treg,-4);
+//			}
+			if (consecutiveaccess(p,p->next)==4 || (p->z.am && p->z.am->type == AM_POSTINC))
 			{
 				emit(f, "\tstinc\t%s\n", regnames[treg]);
 				adjtempobj(f,treg,4);
@@ -1624,7 +1629,12 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			ierror(0);
 		}
 
-		p = preload(f, p);	// Setup zreg, etc.
+		// Avoid stack top slot trickery if the operation involves pushing operands to the stack
+	    if(c==DIV || c==MOD ||
+			((c==ASSIGN || c==PUSH) && ((t & NQ) > POINTER || ((t & NQ) == CHAR && zm2l(p->q2.val.vmax) != 1))))
+			p = preload(f, p, 0);	// Setup zreg, etc.
+		else
+			p = preload(f, p, 1);	// Setup zreg, etc.
 
 		c = p->code;
 
@@ -2191,7 +2201,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			if (involvesreg(q2) && q2reg == zreg) {
 //                      printf("Target register and q2 are the same!  Attempting a switch...\n");
 				if (switch_IC(p)) {
-					preload(f,p);	// refresh q1reg, etc after switching the IC
+					preload(f,p,1);	// refresh q1reg, etc after switching the IC
 				} else {
 					emit(f,
 					     "\t\t\t\t\t\t// WARNING - evading q2 and target collision - check code for correctness.\n");
@@ -2300,20 +2310,50 @@ int iscomment(char *str)
 int emit_peephole(void)
 {
 	int i;
+	int havemr=0;
+	int havemt=0;
 	int havestore=0;
 	int haveload=0;
 	int loadidx=0;
 	i=emit_f;
+
 	while(i!=emit_l)
 	{
 		int reg,reg2;
-	    if(sscanf(emit_buffer[i],"\tst\tr%d",&reg)==1)
+	    if(sscanf(emit_buffer[i],"\tmr\tr%d",&reg)==1)
+		{
+			if(havemt && reg==reg2)
+			{
+				strcpy(emit_buffer[i],"\t//mr\n");
+				return(1);
+			}
+			reg2=reg;
+			havemr=1;
+			havemt=0;
+		}
+	    else if(sscanf(emit_buffer[i],"\tmt\tr%d",&reg)==1)
+		{
+			if(havemr && reg==reg2)
+			{
+				strcpy(emit_buffer[i],"\t//mt\n");
+				return(1);
+			}
+			reg2=reg;
+			havemr=0;
+			havemt=1;
+		}
+		else if(sscanf(emit_buffer[i],"\tst\tr%d",&reg)==1)
+		{
+			havemr=havemt=0;
 			havestore=1;
+		}
 		else if(sscanf(emit_buffer[i],"\tld\tr%d",&reg2)==1 && havestore)
 		{
+			havemr=havemt=0;
 			if(reg==reg2 && reg==6) /* Only stack ops - others would be risky due to potential hardware registers. */
 			{
 				loadidx=i;
+				haveload=1;
 //				printf("Found matching load directive, r%d\n",reg);
 //				strcpy(emit_buffer[i],"\t//nop\n");
 //				return(1);
@@ -2321,13 +2361,16 @@ int emit_peephole(void)
 		}
 		else if(!iscomment(emit_buffer[i])) /* Check that the next instruction isn't "cond" */
 		{
+			havemr=havemt=0;
 			if(haveload && strncmp(emit_buffer[i],"\tcond",5)) /* If not, we're OK to zero out the load */
 			{
 				strcpy(emit_buffer[loadidx],"\t//nop\n");
 				return(1);
 			}
 			else
+			{
 				havestore=haveload=0;
+			}
 		}
 		i=(i+1)%EMIT_BUF_DEPTH;
 	}
