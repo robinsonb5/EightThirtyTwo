@@ -1,6 +1,9 @@
 # Makefile for toolchain and tests
 
-all: 832a/832a 832emu/832e 832ocd/832ocd vbcc/supp.h lib832/lib832.a hello test
+all: 832a/832a 832emu/832e 832ocd/832ocd vbcc/bin/vbcc832 lib832/lib832.a test
+	$(info )
+	$(info NB: Take note of the terms of the VBCC license if you intend to distribute)
+	$(info a product which incorporates code compiled for 832.)
 
 832a/832a: force
 	-make -C 832a
@@ -11,30 +14,29 @@ all: 832a/832a 832emu/832e 832ocd/832ocd vbcc/supp.h lib832/lib832.a hello test
 832ocd/832ocd: force
 	-make -C 832ocd
 
-lib832/lib832.a: 832a/832a 832a/832l vbcc/bin/vbcc832 force
+lib832/lib832.a: 832a/832a 832a/832l vbcc/bin/vbcc832
+	-make -C lib832 clean
 	-make -C lib832
-
-hello: 832emu/832e 832a/832a
-	-832emu/832e 832a/hello
 
 vbcc0_9g.tar.gz:
 	wget http://phoenix.owl.de/tags/vbcc0_9g.tar.gz
 
-vbcc/bin/vbcc832: vbcc/bin vbcc0_9g.tar.gz
-	tar -xzf vbcc0_9g.tar.gz
-	cd vbcc; \
-	patch -i ../vbcc_09g_volatilefix.patch
-	make -C vbcc TARGET=832
-
 vbcc/supp.h:
 	$(info )
-	$(info Type make vbcc to unpack, patch and build vbcc 0.9g automatically.)
-	$(info When configuring VBCC, if you're building on a typical Linux system)
-	$(info you can just accept the defaults.)
+	$(info When configuring VBCC, if you're building on a)
+	$(info typical Linux system you can just accept the defaults.)
 	$(info )
 	$(info NB: Take note of the terms of the VBCC license if you intend to distribute)
 	$(info a product which incorporates code compiled for 832.)
-	$(error vbcc needs to be built.)
+	$(info )
+	@read -p"Press enter" var
+	tar -xzf vbcc0_9g.tar.gz
+	cd vbcc; \
+	mkdir bin; \
+	patch -i ../vbcc_09g_volatilefix.patch
+
+vbcc/bin/vbcc832: vbcc/machines/832/machine.c vbcc/supp.h
+	make -C vbcc TARGET=832
 
 vbcc/bin:
 	mkdir vbcc/bin

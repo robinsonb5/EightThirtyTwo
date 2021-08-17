@@ -10,29 +10,37 @@
 
 void sdiv(int n,int d,int e)
 {
-	if(e!=n/d)
-		printf("Error: ");
+	if(e==n/d)
+		printf("\033[32mPassed:\033[0m ");
+	else
+		printf("\033[31mFailed:\033[0m ");
 	printf("%d / %d: %d, expected: %d\n",n,d,n/d,e);
 }
 
 void smod(int n,int d, int e)
 {
-	if(e!=n%d)
-		printf("Error: ");
+	if(e==n%d)
+		printf("\033[32mPassed:\033[0m ");
+	else
+		printf("\033[31mFailed:\033[0m ");
 	printf("%d %% %d: %d, expected: %d\n",n,d,n%d,e);
 }
 
 void udiv(unsigned int n,unsigned int d,unsigned int e)
 {
-	if(e!=n/d)
-		printf("Error: ");
+	if(e==n/d)
+		printf("\033[32mPassed:\033[0m ");
+	else
+		printf("\033[31mFailed:\033[0m ");
 	printf("%u / %u: %u, expected: %u\n",n,d,n/d,e);
 }
 
 void umod(unsigned int n,unsigned int d,unsigned int e)
 {
-	if(e!=n%d)
-		printf("Error: ");
+	if(e==n%d)
+		printf("\033[32mPassed:\033[0m ");
+	else
+		printf("\033[31mFailed:\033[0m ");
 	printf("%u %% %u: %u, expected: %u\n",n,d,n%d,e);
 }
 
@@ -54,8 +62,6 @@ int main(int argc,char **argv)
 	umod(0x87654321,0x1,0);
 	sdiv(0x123,0x1234,0);
 	smod(0x123,0x1234,0x123);
-
-	puts("End\n");
 
 	return(0);
 }

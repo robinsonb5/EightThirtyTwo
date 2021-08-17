@@ -26,14 +26,14 @@ EMFLAGS=-eb
 ROMGENFLAGS=-w
 
 
-all: compiler helloworld.bin
+all: compiler
 
 compiler:
 	make -C .. TARGET=832
 
 sim: helloworld.ghw strcpytest.ghw fptrtest.ghw copytest.ghw comparisons.ghw vatest.ghw divtest.ghw
 
-emu: helloworld.emu strcpytest.emu fptrtest.emu copytest.emu comparisons.emu vatest.emu divtest.emu
+emu: helloworld.emu strcpytest.emu fptrtest.emu copytest.emu comparisons.emu divtest.emu
 
 clean :
 	-rm *_ROM.vhd
@@ -65,29 +65,29 @@ clean :
 	cat >>$*_ROM.vhd $(ROMGENDIR)/rom_epilogue_word.vhd
 
 %.o : %.s Makefile
-	$(AS) $*.s
+	@$(AS) $*.s
 
 %.bin : $(LIBDIR)/crt0.a $(LIBDIR)/lib832.a %.o
-	$(LD) -o $@ $+ $(LDFLAGS) -m map
+	@$(LD) -o $@ $+ $(LDFLAGS) -m map
 
 %.o : %.S Makefile
-	$(AS) $(ASFLAGS) -o $*.o $*.S
+	@$(AS) $(ASFLAGS) -o $*.o $*.S
 
 %.o : %.asm Makefile 
-	$(AS) $(ASFLAGS) -o $*.o $*.asm
+	@$(AS) $(ASFLAGS) -o $*.o $*.asm
 
 %.o : %.c Makefile
-	../bin/vbcc832 $(CFLAGS) $(COPT) $*.c
-	$(AS) $(ASFLAGS) -o $*.o $*.asm
+	@../bin/vbcc832 $(CFLAGS) $(COPT) $*.c
+	@$(AS) $(ASFLAGS) -o $*.o $*.asm
 
 %.o : $(LIBDIR)/%.S Makefile
-	$(AS) $(ASFLAGS) -o $*.o $(LIBDIR)/$*.S
+	@$(AS) $(ASFLAGS) -o $*.o $(LIBDIR)/$*.S
 
 %.asm : %.c Makefile ../bin/vbcc832 $(CC)
-	../bin/vbcc832 $(CFLAGS) $(COPT) -I$(832DIR) $*.c
+	@../bin/vbcc832 $(CFLAGS) $(COPT) -I$(832DIR) $*.c
 
 %.asm : $(LIBDIR)/%.c Makefile ../bin/vbcc832 $(CC)
-	../bin/vbcc832 $(CFLAGS) $(COPT) -I$(832DIR) $(LIBDIR)/$*.c -o=$@
+	@../bin/vbcc832 $(CFLAGS) $(COPT) -I$(832DIR) $(LIBDIR)/$*.c -o=$@
 
 $(ROMGEN): $(ROMGENDIR)/romgen.c
 	make -C $(ROMGENDIR)

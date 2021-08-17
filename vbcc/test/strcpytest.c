@@ -3,8 +3,7 @@
 */
 
 #include <stdio.h>
-// #include <string.h>
-// #include <ctype.h>
+#include <string.h>
 
 struct mystruct
 {
@@ -23,18 +22,22 @@ int main(int argc,char **argv)
 	for(i=0;i<strlen(st.str);++i)
 		st.str[i]=tolower(st.str[i]);
 
-	puts(st.str);
-
 	strcpy(strbuf,"Testing: ");
 	strncat(strbuf,st.str,5);
 	strcat(strbuf,st.str);
 	for(i=0;i<strlen(strbuf);++i)
 		strbuf[i]=toupper(strbuf[i]);
 
-	puts(strbuf);
-	printf("strlen is %d\n",strlen(strbuf));
+	i=strlen(strbuf);
+	if(i==28)
+		printf("strlen: \033[32mPassed\033[0m\n");
+	else
+		printf("strlen: \033[31mFailed\033[0m - got %d, should be 28\n",i);
 
 	strncpy(strbuf,"Hello, World\n",7);
-	puts(strbuf);
+	if(strcmp(strbuf,"Hello, : HELLOHELLO, WORLD!\n")==0)
+		printf("strcmp: \033[32mPassed\033[0m\n");
+	else
+		printf("strcmp: \033[31mFailed\033[0m - got %s\n",strbuf);
 	return(0);
 }
