@@ -12,11 +12,12 @@
 #define memset __memset
 #define strcat __strcat
 #define strcmp __strcmp
+#define strncmp __strncmp
 #define strcasecmp __strcasecmp
+#define strncasecmp __strncasecmp
 #define strncpy __strncpy
 #define strlen __strlen
 #define strncat __strncat
-#define strncmp __strncmp
 #define toupper __toupper
 
 char *strcpy(char *,const char *);

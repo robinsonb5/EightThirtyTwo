@@ -12,6 +12,7 @@ char *__strncpy(__reg("r3") char *, __reg("r2") const char *, __reg("r1") size_t
 size_t __strlen(__reg("r1") const char *);
 char *__strncat(__reg("r2") char *, __reg("r1") const char *, __reg("r3") size_t);
 int __strncmp(__reg("r2") const char *, __reg("r1") const char *, __reg("r3") size_t);
+int __strncasecmp(__reg("r2") const char *, __reg("r1") const char *, __reg("r3") size_t);
 
 #endif
 

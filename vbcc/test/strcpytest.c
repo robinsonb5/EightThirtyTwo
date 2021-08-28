@@ -39,5 +39,29 @@ int main(int argc,char **argv)
 		printf("strcmp: \033[32mPassed\033[0m\n");
 	else
 		printf("strcmp: \033[31mFailed\033[0m - got %s\n",strbuf);
+
+	for(i=1;i<15;++i)
+	{
+		if(strncmp("Hello, World","Hello, WORLD",i))
+		{
+			if(i==9)
+				printf("strncmp: \033[32mPassed\033[0m\n");
+			else
+				printf("strncmp: \033[31mFailed\033[0m - got %d\n",i);
+			i=15;
+		}
+	}
+
+	for(i=1;i<15;++i)
+	{
+		if(strncasecmp("HELLO, World!","Hello, WORLD",i))
+		{
+			if(i==13)
+				printf("strncasecmp: \033[32mPassed\033[0m\n");
+			else
+				printf("strncasecmp: \033[31mFailed\033[0m - got %d\n",i);
+			i=15;
+		}
+	}
 	return(0);
 }

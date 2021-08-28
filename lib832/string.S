@@ -59,7 +59,7 @@ ___strcat:
 	cond	NEQ
 		.lipcrel .finddst2
 		add	r7
-	li	1)
+	li	1
 	sub	r2
 .cpy2:
 	ldbinc	r1
@@ -166,6 +166,50 @@ ___strncmp:						// Parameters: char *s1, char *s2, int n
 	mr	r2
 	ldinc	r6
 	mr	r3
+	ldinc	r6
+	mr	r7
+
+
+// int strncasecmp(__reg("r2") const char *, __reg("r1") const char *, __reg("r3") size_t);
+
+	.section	.text.strncasecmp
+	.global	___strncasecmp
+___strncasecmp:					// Parameters: char *s1, char *s2, int n
+	stdec	r6
+	mt	r4
+	stdec	r6
+	mt	r3
+	stdec	r6
+	mt	r2
+	stdec	r6
+.loopstrncasecmp:
+	li	1
+	sub	r3
+	cond SLT
+		.lipcrel .endstrncasecmp
+		add	r7
+	ldbinc	r2					// s2++
+	mr	r0
+	ldbinc	r1
+	cond	EQ					// If null, we're done.  If S2 has also terminated, r0 will be 0; else a positive number.
+		.lipcrel .endstrncasecmp
+		add	r7
+	mr	r4
+	li	0xdf					// Mask off bit 5
+	and	r0
+	and	r4
+	mt	r4
+	sub	r0						// Otherwise subtract 
+	cond	EQ
+		.lipcrel .loopstrncasecmp
+		add	r7
+.endstrncasecmp:
+	ldinc	r6
+	mr	r2
+	ldinc	r6
+	mr	r3
+	ldinc	r6
+	mr	r4
 	ldinc	r6
 	mr	r7
 
