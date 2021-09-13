@@ -1,3 +1,7 @@
+/* Simulation time:
+--stop-time=500us
+*/
+
 #include "uart.h"
 #include "stdarg.h"
 #include "small_printf.h"

@@ -611,6 +611,61 @@ void section_outputexe(struct section *sect,FILE *f,enum eightthirtytwo_endian e
 }
 
 
+void section_outputrelocs(struct section *sect,FILE *f,enum eightthirtytwo_endian endian)
+{
+	int offset=0;
+	int cbcursor=0;
+	int newcbcursor=0;
+	int cursor=0;
+	int newcursor=0;
+	struct symbol *ref=sect->symbols;
+	struct codebuffer *buffer=sect->codebuffers;
+	if(!sect)
+		return;
+
+	if(ref && !SYMBOL_ISREF(ref))
+		ref=symbol_nextref(ref);
+
+	if(sect->flags&SECTIONFLAG_BSS) /* Don't output any data for BSS. */
+		return;
+
+	/* Step through symbols and refs, outputting any binary code between refs,
+	   and inserting refs. */
+
+	while(ref || (cursor<sect->cursor))
+	{
+		if(ref)
+		{
+			newcursor=ref->cursor;
+			if(ref->flags&SYMBOLFLAG_ALIGN)
+				newcursor+=1;
+		}
+		else
+			newcursor=sect->cursor;
+
+		if(ref)
+		{
+			if(ref->flags&SYMBOLFLAG_REFERENCE)
+			{
+				int refaddr=sect->address+ref->cursor+offset;
+				debug(0,"Emitting reloc for standard reference %s @ %x\n",ref->identifier,refaddr);
+				if(ref->resolve->flags&SYMBOLFLAG_CONSTANT)
+					write_int(refaddr,f,endian);
+				else
+					write_int(refaddr,f,endian);
+				offset+=4;
+			}
+			else
+				offset+=ref->size;
+			ref=symbol_nextref(ref);
+		}
+		cursor=newcursor;
+	}
+}
+
+
+
+
 void section_writemap(struct section *sect,FILE *f,int locals)
 {
 	if(sect)

@@ -16,6 +16,7 @@ struct sectionmap_entry
 #define BUILTIN_DTORS_END 3
 #define BUILTIN_BSS_START 4
 #define BUILTIN_BSS_END 5
+#define BUILTIN_RELOCTABLE 6
 
 
 struct sectionmap
@@ -27,7 +28,7 @@ struct sectionmap
 };
 
 struct executable;
-struct sectionmap *sectionmap_new();
+struct sectionmap *sectionmap_new(int reloc);
 struct section *sectionmap_getbuiltin(struct sectionmap *map,int builtin);
 int sectionmap_populate(struct executable *exe);
 

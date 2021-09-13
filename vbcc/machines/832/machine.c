@@ -63,17 +63,17 @@ char cg_copyright[] =
     STRINGFLAG: a string can be specified
     FUNCFLAG: a function will be called
     apart from FUNCFLAG, all other versions can only be specified once */
-int g_flags[MAXGF] = { };
+int g_flags[MAXGF] = { 0 };
 
 /* the flag-name, do not use names beginning with l, L, I, D or U, because
    they collide with the frontend */
-/* FIXME - 832-specific flags, such as perhaps the reach of PCREL immediates? */
-char *g_flags_name[MAXGF] = { };
+/* 832-specific flags, "fpic" enables position independent code - name chosen to match gcc */
+char *g_flags_name[MAXGF] = { "fpic" };
 
-#define FLAG_FUNCTIONSECTIONS 0
+#define FLAG_PIC 0
 
 /* the results of parsing the command-line-flags will be stored here */
-union ppi g_flags_val[MAXGF] = { };
+union ppi g_flags_val[MAXGF] = { 0 };
 
 /*  Alignment-requirements for all types in bytes.              */
 zmax align[MAX_TYPE + 1];

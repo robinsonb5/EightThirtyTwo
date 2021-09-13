@@ -57,7 +57,7 @@ struct executable *executable_new()
 	{
 		result->objects=0;
 		result->lastobject=0;
-		result->map=sectionmap_new();
+		result->map=0;/*sectionmap_new(reloc);*/
 		result->baseaddress=0;
 		result->bssaddress=-1;
 	}
@@ -362,7 +362,7 @@ void executable_assignaddresses(struct executable *exe)
 }
 
 
-void executable_save(struct executable *exe,const char *fn,enum eightthirtytwo_endian endian)
+void executable_save(struct executable *exe,const char *fn,enum eightthirtytwo_endian endian,int reloc)
 {
 	FILE *f;
 	f=fopen(fn,"wb");
@@ -379,16 +379,35 @@ void executable_save(struct executable *exe,const char *fn,enum eightthirtytwo_e
 				section_outputexe(sect,f,endian);
 		}
 
+		if(reloc)
+		{
+			for(i=0;i<map->entrycount;++i)
+			{
+				sect=map->entries[i].sect;
+				if(sect)
+					section_outputrelocs(sect,f,endian);
+			}
+		}
+
 		fclose(f);
 	}
 }
 
 
-void executable_link(struct executable *exe)
+void executable_link(struct executable *exe, int reloc)
 {
 	/*	FIXME - Catch redefined global symbols */
 	int result=1;
 	int sectioncount;
+
+	if(!exe)
+		debug(0,"Link called with null executable!\n");
+
+	if(!exe->map)
+		exe->map=sectionmap_new(reloc);
+	if(!exe->map)
+		debug(0,"Section map creation failed!\n");
+
 	/* Resolve references starting with the first section */
 	if(exe && exe->objects && exe->objects->sections)
 		result&=executable_resolvereferences(exe,exe->objects->sections);

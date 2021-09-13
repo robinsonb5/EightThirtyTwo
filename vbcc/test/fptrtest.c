@@ -1,3 +1,7 @@
+/* Simulation time:
+--stop-time=500us
+*/
+
 #include <stdio.h>
 #include <string.h>
 

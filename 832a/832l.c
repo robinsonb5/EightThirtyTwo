@@ -41,6 +41,7 @@ int main(int argc,char **argv)
 		fprintf(stderr,"\t-m <mapfile>\t- write a map file\n");
 		fprintf(stderr,"\t-M <mapfile>\t- write a map file including static / local symbols\n");
 		fprintf(stderr,"\t-s <symbol>=<number>\t- define symbol (such as stack size)\n");
+		fprintf(stderr,"\t-r\t\t- emit a relocation table within the executable\n");
 		fprintf(stderr,"\t-d\t\t- enable debug messages\n");
 	}
 	else
@@ -53,6 +54,7 @@ int main(int argc,char **argv)
 		int nextsym=0;
 		int nextmap=0;
 		int nextendian=0;
+		int reloc=0;
 		char *outfn="a.out";
 		char *mapfn=0;
 		struct executable *exe=executable_new();
@@ -70,6 +72,8 @@ int main(int argc,char **argv)
 					nextfn=1;
 				else if(strncmp(argv[i],"-d",2)==0)
 					setdebuglevel(1);
+				else if(strncmp(argv[i],"-r",2)==0)
+					reloc=1;
 				else if(strncmp(argv[i],"-b",2)==0)
 					nextbase=1;
 				else if(!nextsym && strncmp(argv[i],"-s",2)==0)
@@ -181,9 +185,9 @@ int main(int argc,char **argv)
 			}
 
 			printf("Linking...\n");
-			executable_link(exe);
+			executable_link(exe,reloc);
 			printf("Saving with %s endian configuration to %s\n",endian==EIGHTTHIRTYTWO_LITTLEENDIAN ? "little" : "big",outfn);
-			executable_save(exe,outfn,endian);
+			executable_save(exe,outfn,endian,reloc);
 
 			if(mapfn)
 			{

@@ -40,6 +40,16 @@ int main(int argc,char **argv)
 	else
 		printf("strcmp: \033[31mFailed\033[0m - got %s\n",strbuf);
 
+	if(strcmp("Hello, World     ","Hello, World   "))
+		printf("strcmp2: \033[32mPassed\033[0m\n");
+	else
+		printf("strcmp2: \033[31mFailed\033[0m\n");
+
+	if(strcmp("HELLO, World   ","Hello, WORLD"))
+		printf("strcasecmp: \033[32mPassed\033[0m\n");
+	else
+		printf("strcasecmp: \033[31mFailed\033[0m\n");
+
 	for(i=1;i<15;++i)
 	{
 		if(strncmp("Hello, World","Hello, WORLD",i))

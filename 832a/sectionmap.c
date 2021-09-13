@@ -44,7 +44,7 @@ static struct section *sectionmap_addbuiltin(struct sectionmap *map,const char *
 	return(sect);
 }
 
-struct sectionmap *sectionmap_new()
+struct sectionmap *sectionmap_new(int reloc)
 {
 	struct sectionmap *result;
 	result=(struct sectionmap *)malloc(sizeof(struct sectionmap));
@@ -58,6 +58,8 @@ struct sectionmap *sectionmap_new()
 		sectionmap_addbuiltin(result,"__ctors_end__",SECTIONFLAG_CTOR,0);
 		sectionmap_addbuiltin(result,"__dtors_start__",SECTIONFLAG_DTOR,0);
 		sectionmap_addbuiltin(result,"__dtors_end__",SECTIONFLAG_DTOR,0);
+		if(reloc)
+			sectionmap_addbuiltin(result,"__reloctable__",SECTIONFLAG_BSS,0); /* Overlaps BSS - only needed at startup */
 		sectionmap_addbuiltin(result,"__bss_start__",SECTIONFLAG_BSS,4);
 		sectionmap_addbuiltin(result,"__bss_end__",SECTIONFLAG_BSS,4);
 	}

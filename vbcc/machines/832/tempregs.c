@@ -118,10 +118,21 @@ static void emit_externtotemp(FILE * f, char *lab, int offset)	// FIXME - need t
 	else
 		emit(f, "\t.ref\t_%s\n",lab);
 #else
-	if (offset)
-		emit(f, "\t.liabs\t_%s, %d\n",lab, offset);
+	if(g_flags[FLAG_PIC]&USEDFLAG)
+	{
+		if (offset)
+			emit(f, "\t.lipcrel\t_%s, %d\n",lab, offset);
+		else
+			emit(f, "\t.lipcrel\t_%s\n",lab);
+		emit(f, "\taddt\t%s\n",regnames[pc]);
+	}
 	else
-		emit(f, "\t.liabs\t_%s\n",lab);
+	{
+		if (offset)
+			emit(f, "\t.liabs\t_%s, %d\n",lab, offset);
+		else
+			emit(f, "\t.liabs\t_%s\n",lab);
+	}
 #endif
 	cleartempobj(f,tmp);
 }
@@ -137,7 +148,15 @@ static void emit_statictotemp(FILE * f, char *lab, int suffix, int offset)	// FI
 	emit(f, "\tldinc\t%s\n", regnames[pc]);
 	emit(f, "\t.ref\t%s%d,%d\n", lab, suffix, offset);
 #else
-	emit(f, "\t.liabs\t%s%d,%d\n", lab, suffix, offset);
+	if(g_flags[FLAG_PIC]&USEDFLAG)
+	{
+		emit(f, "\t.lipcrel\t%s%d,%d\n", lab, suffix, offset);
+		emit(f, "\taddt\t%s\n",regnames[pc]);
+	}
+	else
+	{
+		emit(f, "\t.liabs\t%s%d,%d\n", lab, suffix, offset);
+	}
 #endif
 	cleartempobj(f,tmp);
 }

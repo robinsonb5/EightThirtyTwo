@@ -22,8 +22,8 @@ void executable_loadobject(struct executable *exe,const char *fn);
 struct symbol *executable_findsymbol(struct executable *sect,const char *symname,struct section *excludesection);
 
 void executable_setbaseaddress(struct executable *exe,int baseaddress);
-void executable_link(struct executable *exe);
-void executable_save(struct executable *exe,const char *fn,enum eightthirtytwo_endian);
+void executable_link(struct executable *exe, int reloc);
+void executable_save(struct executable *exe,const char *fn,enum eightthirtytwo_endian,int reloc);
 void executable_writemap(struct executable *exe,const char *fn,int locals);
 
 void executable_dump(struct executable *exe,int untouched);

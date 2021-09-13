@@ -26,6 +26,8 @@ initial:
 	.int 1
 	.int 2
 	.int 3
+	.ref	.endloop
+	.ref	label2
 
 	.section .text.1
 	.global	label2
@@ -47,6 +49,9 @@ label3:
 	.int	0x12345678
 	.byte	0x10
 	.align	4
+	.ref	label1
+	.ref	label2
+	.ref	label3
 	.byte	0x20
 	.section .text.2
 //	.int	0x12345678
@@ -86,6 +91,7 @@ init:
 	.global cleanup
 cleanup
 	mr	r7
+	.byte	1
 
 	.ctor .ctor.002
 	.ref _main
