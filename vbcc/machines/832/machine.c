@@ -186,9 +186,7 @@ static void emit_statictotemp(FILE * f, char *lab, int suffix, int offset);
 static void emit_externtotemp(FILE * f, char *lab, int offset);
 static void emit_pcreltotemp2(FILE *f,struct obj *p);
 
-static void emit_obj(FILE * f, struct obj *p, int t);
 static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset);
-static int emit_objtotemp(FILE * f, struct obj *p, int t);
 static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg);
 
 /* calculate the actual current offset of an object relativ to the
@@ -470,7 +468,7 @@ int matchoffset(struct obj *o,struct obj *o2)
 }
 
 
-int obsoletetempobj(FILE *f,int reg,struct obj *o,int varadr)
+void obsoletetempobj(FILE *f,int reg,struct obj *o,int varadr)
 {
 //	emit(f,"\t\t\t\t\t// Attempting to obsolete obj\n");
 	if(tempobjs[0].reg==reg && matchobj(f,o,&tempobjs[0].o,varadr))
@@ -804,9 +802,9 @@ int consecutiveaccess(struct IC *p,struct IC *p2)
 /* or followed by a SetReturn IC. */
 void save_temp(FILE * f, struct IC *p, int treg)
 {
+	int type = ztyp(p) & NQ;
 	if(DBGMSG)
 		emit(f, "\t\t\t\t\t\t// (save temp)");
-	int type = ztyp(p) & NQ;
 
 	if (isreg(z)) {
 		int target=p->z.reg;
@@ -1281,13 +1279,13 @@ void gen_var_head(FILE * f, struct Var *v)
 		if (ISFUNC(v->vtyp->flags))
 			return;
 		if (!special_section(f, v)) {
-			if (v->clist && (!constflag || (g_flags[2] & USEDFLAG))
+			if (v->clist && (!constflag) // || (g_flags[2] & USEDFLAG))
 			    && section != DATA) {
 				emit(f, dataname);
 				if (f)
 					section = DATA;
 			}
-			if (v->clist && constflag && !(g_flags[2] & USEDFLAG)
+			if (v->clist && constflag // && !(g_flags[2] & USEDFLAG)
 			    && section != RODATA) {
 				emit(f, rodataname);
 				if (f)
@@ -1312,13 +1310,13 @@ void gen_var_head(FILE * f, struct Var *v)
 //		emit(f, "\t.global\t%s%s\n", idprefix, v->identifier);
 		if (v->flags & (DEFINED | TENTATIVE)) {
 			if (!special_section(f, v)) {
-				if (v->clist && (!constflag || (g_flags[2] & USEDFLAG))
+				if (v->clist && (!constflag) // || (g_flags[2] & USEDFLAG))
 				    && section != DATA) {
 					emit(f, dataname);
 					if (f)
 						section = DATA;
 				}
-				if (v->clist && constflag && !(g_flags[2] & USEDFLAG)
+				if (v->clist && constflag // && !(g_flags[2] & USEDFLAG)
 				    && section != RODATA) {
 					emit(f, rodataname);
 					if (f)
@@ -1657,9 +1655,9 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				ierror(0);
 			}
 			if (sizetab[q1typ(p) & NQ] < sizetab[ztyp(p) & NQ]) {
+				int shamt = 0;
 				if(DBGMSG)
 					emit(f,"\t\t\t\t\t\t//Converting to wider type...\n");
-				int shamt = 0;
 				switch (q1typ(p) & NU) {
 					case CHAR | UNSIGNED:
 					case SHORT | UNSIGNED:
@@ -2285,10 +2283,12 @@ int reg_parm(struct reg_handle *m, struct Typ *t, int vararg, struct Typ *d)
 			return FIRST_GPR + 1 + m->gregs++;
 	}
 	if (ISFLOAT(f)) {
-		if (m->fregs >= 0)
+		return(0);
+/*		if (m->fregs >= 0)
 			return 0;
 		else
 			return FIRST_FPR + 2 + m->fregs++;
+*/
 	}
 	return 0;
 }
@@ -2380,6 +2380,7 @@ int emit_peephole(void)
 
 int handle_pragma(const char *s)
 {
+	return(0);
 }
 
 void cleanup_cg(FILE * f)

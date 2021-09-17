@@ -619,6 +619,7 @@ void am_prepost_incdec(struct IC *p, struct obj *o)
 
 		if (p2)		// Did we find a candidate for postinc / predec?
 		{
+			int adj;
 			switch (p->code) {
 			case CONVERT:
 				// Are we considering q1 or z?
@@ -635,7 +636,7 @@ void am_prepost_incdec(struct IC *p, struct obj *o)
 				type = p->typf;
 				break;
 			}
-			int adj = am_get_adjvalue(p2, type, o == &p->z);	// Validate the adjustment
+			adj = am_get_adjvalue(p2, type, o == &p->z);	// Validate the adjustment
 			if (adj) {
 				p2->code = NOP;	// Nullify the manual adjustment if we can do it as an opcode side-effect
 				am_alloc(o);
