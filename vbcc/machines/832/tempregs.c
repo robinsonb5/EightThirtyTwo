@@ -144,10 +144,6 @@ static void emit_statictotemp(FILE * f, char *lab, int suffix, int offset)	// FI
 {
 	if(DBGMSG)
 		emit(f, "\t\t\t\t\t\t//statictotemp (FIXME - make PC-relative?)\n");
-#if 0
-	emit(f, "\tldinc\t%s\n", regnames[pc]);
-	emit(f, "\t.ref\t%s%d,%d\n", lab, suffix, offset);
-#else
 	if(g_flags[FLAG_PIC]&USEDFLAG)
 	{
 		emit(f, "\t.lipcrel\t%s%d,%d\n", lab, suffix, offset);
@@ -157,7 +153,6 @@ static void emit_statictotemp(FILE * f, char *lab, int suffix, int offset)	// FI
 	{
 		emit(f, "\t.liabs\t%s%d,%d\n", lab, suffix, offset);
 	}
-#endif
 	cleartempobj(f,tmp);
 }
 
@@ -382,8 +377,15 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 					emit(f, "\t\t\t\t\t\t// static\n");
 //				emit(f, "\tldinc\tr7\n\t.ref\t%s%d,%d\n",
 //				     labprefix, zm2l(p->v->offset), offset + p->val.vmax);
-				emit(f, "\t.liabs\t%s%d,%d\n",
-				     labprefix, zm2l(p->v->offset), offset + p->val.vmax);
+				if(g_flags[FLAG_PIC]&USEDFLAG)
+				{
+					emit(f, "\t.lipcrel\t%s%d,%d\n",
+						 labprefix, zm2l(p->v->offset), offset + p->val.vmax);
+					emit(f, "\taddt\t%s\n",regnames[pc]);
+				}
+				else
+					emit(f, "\t.liabs\t%s%d,%d\n",
+						 labprefix, zm2l(p->v->offset), offset + p->val.vmax);
 				if(DBGMSG)
 					emit(f, "\t\t\t\t\t\t// static pe %s varadr\n", p->flags & VARADR ? "is" : "not");
 				if (reg != tmp)

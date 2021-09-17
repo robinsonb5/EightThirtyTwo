@@ -40,10 +40,10 @@ int peephole_test(struct peepholecontext *pc,int opcode)
 		if(pc->operand==operand)
 		{
 			debug(1,"Operands match\n");
-			// MT followed by MR to the same register
+			/* MT followed by MR to the same register */
 			if(pc->opcode==opc_mt && opcode==opc_mr)
 				result=0;
-			// MR followed by MT to the same register
+			/* MR followed by MT to the same register */
 			if(pc->opcode==opc_mr && opcode==opc_mt)
 				result=0;
 		}

@@ -63,10 +63,11 @@ struct objectfile *objectfile_new()
 
 void objectfile_load(struct objectfile *obj,const char *fn)
 {
-	obj->filename=strdup(fn);
-	FILE *f=fopen(fn,"rb");
+	FILE *f;
 	struct section *sect=0;
 	struct symbol *sym;
+	obj->filename=strdup(fn);
+	f=fopen(fn,"rb");
 	if(!f)
 		linkerror("Can't open file");
 	fread(tmp,4,1,f);
@@ -196,9 +197,10 @@ struct section *objectfile_getsection(struct objectfile *obj)
 struct symbol *objectfile_findsymbol(struct objectfile *obj, const char *symname)
 {
 	struct symbol *result;
+	struct section *sect;
 	if(!obj)
 		return(0);
-	struct section *sect=obj->sections;
+	sect=obj->sections;
 	while(sect)
 	{
 		if(result=section_findsymbol(sect,symname))

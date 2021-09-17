@@ -107,9 +107,10 @@ void section_addsymbol(struct section *sect, struct symbol *sym)
 
 struct symbol *section_findsymbol(struct section *sect,const char *symname)
 {
+	struct symbol *sym;
 	if(!sect)
 		return(0);
-	struct symbol *sym=sect->symbols;
+	sym=sect->symbols;
 	while(sym)
 	{
 		if(!SYMBOL_ISREF(sym))
@@ -125,10 +126,10 @@ struct symbol *section_findsymbol(struct section *sect,const char *symname)
 
 struct symbol *section_findsymbolbycursor(struct section *sect,int cursor)
 {
-	struct symbol *psym=0;
+	struct symbol *psym=0,*sym;
 	if(!sect)
 		return(0);
-	struct symbol *sym=sect->symbols;
+	sym=sect->symbols;
 	while(sym)
 	{
 		if(sym->cursor>cursor)
@@ -142,10 +143,10 @@ struct symbol *section_findsymbolbycursor(struct section *sect,int cursor)
 
 struct symbol *section_findglobalsymbolbycursor(struct section *sect,int cursor)
 {
-	struct symbol *psym=0;
+	struct symbol *psym=0,*sym;
 	if(!sect)
 		return(0);
-	struct symbol *sym=sect->symbols;
+	sym=sect->symbols;
 	while(sym)
 	{
 		if(sym->cursor>cursor)
@@ -296,7 +297,7 @@ void section_emitbyte(struct section *sect,unsigned char byte)
 		if(sect->flags&SECTIONFLAG_BSS)
 			asmerror("Can't mix BSS and code/initialised data in a section.");
 
-		// Do we need to start a new buffer?
+		/* Do we need to start a new buffer? */
 		if(!codebuffer_put(sect->lastcodebuffer,byte))
 		{
 			section_addbuffer(sect);
@@ -350,13 +351,12 @@ int section_sizereferences(struct section *sect)
 
 int section_assignaddresses(struct section *sect,int base)
 {
-//	struct symbol *ref=sect->symbols;
 	struct symbol *sym=sect->symbols;
 	int cursor=0;
 	int addr=0;
 	int offset=0;
 	if(!sect)
-		return;
+		return(0);
 	debug(1,"Assign address %x to %s\n",base,sect->identifier);
 	sect->address=base;
 
@@ -560,7 +560,7 @@ void section_outputexe(struct section *sect,FILE *f,enum eightthirtytwo_endian e
 				/* Constant symbols' addresses are fixed, not relative to the section address */
 				if(ref->resolve->flags&SYMBOLFLAG_CONSTANT)
 				{
-					fprintf(stderr,"*** WARNING: PC-relative reference to a constant symbol.\n");
+					fprintf(stderr,"*** WARNING: PC-relative reference to a constant symbol: %s.\n",ref->identifier);
 					targetaddr=ref->resolve->cursor;
 				}
 				d=targetaddr-refaddr;
@@ -648,7 +648,7 @@ void section_outputrelocs(struct section *sect,FILE *f,enum eightthirtytwo_endia
 			if(ref->flags&SYMBOLFLAG_REFERENCE)
 			{
 				int refaddr=sect->address+ref->cursor+offset;
-				debug(0,"Emitting reloc for standard reference %s @ %x\n",ref->identifier,refaddr);
+				debug(1,"Emitting reloc for standard reference %s @ %x\n",ref->identifier,refaddr);
 				if(ref->resolve->flags&SYMBOLFLAG_CONSTANT)
 					write_int(refaddr,f,endian);
 				else

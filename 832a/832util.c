@@ -42,7 +42,7 @@ void setdebuglevel(int level)
 
 void debug(int level,const char *fmt,...)
 {
-    va_list ap;
+	va_list ap;
 	va_start(ap,fmt);
 	if(level<=debuglevel)
 	{
@@ -201,7 +201,7 @@ int count_constantchunks(long v)
 	/* Are we looking at a sign-extended 6-bit value yet? */
 	{
 		v2 >>= 6;
-		// Sign-extend
+		/* Sign-extend */
 		if(v2&0x02000000)
 			v2|=0xfc000000;
 		++chunk;

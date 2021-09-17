@@ -1,13 +1,13 @@
-CC = gcc
+CC = vc -DSUPPLY_POSIX
 
 all: 832a 832l 832d hello
 
 clean:
-	-rm 832a
-	-rm 832l
-	-rm 832d
-	-rm hello
-	-rm *.o
+	-delete 832a
+	-delete 832l
+	-delete 832d
+	-delete hello
+	-delete #?.o
 
 832a: 832a.o 832defs.o objectfile.o section.o symbol.o codebuffer.o 832util.o equates.o expressions.o peephole.o posix.o
 	$(CC) -o $@ $+
@@ -22,6 +22,6 @@ clean:
 	$(CC) -c $+
 
 hello: start.S premain.S hello.S uart.S
-	./832a $+
-	./832l -o $@ $(patsubst %.S,%.o,$+)
+	832a $+
+	832l -o $@ $(patsubst %.S,%.o,$+)
 

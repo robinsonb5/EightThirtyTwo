@@ -102,9 +102,9 @@ void directive_literal(struct objectfile *obj,char *tok,char *tok2,int key)
 	else	/* .space directive */
 	{
 		int fill;
+		int i;
 		if(tok2)
 			fill=strtoul(tok2,0,0);	/* If this fails we just get a zero, which is fine. */
-		int i;
 		for(i=0;i<v;++i)
 			objectfile_emitbyte(obj,fill);
 	}
@@ -189,10 +189,11 @@ void directive_liconst(struct objectfile *obj,char *tok,char *tok2,int key)
 void directive_constant(struct objectfile *obj,char *tok,char *tok2,int key)
 {
 	unsigned int val;
+	struct section *sect;
 	if(!tok2)
 		asmerror("Missing value for .constant");
 	val=strtoul(tok2,0,0);
-	struct section *sect=objectfile_getsection(obj);
+	sect=objectfile_getsection(obj);
 	section_declareconstant(sect,tok,val,0);
 }
 
@@ -228,9 +229,10 @@ void directive_incbin(struct objectfile *obj,char *tok,char *tok2,int key)
 	if(tok)
 	{
 		int s;
+		FILE *f;
 		struct section *sect=objectfile_getsection(obj);
 		printf("Opening file %s\n",tok);
-		FILE *f=fopen(tok,"rb");
+		f=fopen(tok,"rb");
 		if(!f)
 			asmerror(".incbin - can't open file\n");
 		while(s=fread(buf,1,512,f))
@@ -307,8 +309,8 @@ struct directive directives[]=
 void parsesourcefile(struct objectfile *obj,const char *fn,enum eightthirtytwo_endian endian)
 {
 	FILE *f;
-	printf("Opening file %s\n",fn);
 	struct peepholecontext pc;
+	printf("Opening file %s\n",fn);
 	
 	error_setfile(fn);
 	if(f=fopen(fn,"r"))

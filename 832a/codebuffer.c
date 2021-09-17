@@ -76,7 +76,7 @@ int codebuffer_write(struct codebuffer *buf,const char *data,int size)
 	return(s);
 }
 
-int codebuffer_loadchunk(struct codebuffer *buf,int bytes,FILE *f)
+void codebuffer_loadchunk(struct codebuffer *buf,int bytes,FILE *f)
 {
 	fread(buf->buffer,bytes,1,f);
 	buf->cursor=bytes;

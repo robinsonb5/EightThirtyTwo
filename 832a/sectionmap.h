@@ -10,14 +10,13 @@ struct sectionmap_entry
 	int address;
 };
 
-#define BUILTIN_CTORS_START 0
-#define BUILTIN_CTORS_END 1
-#define BUILTIN_DTORS_START 2
-#define BUILTIN_DTORS_END 3
-#define BUILTIN_BSS_START 4
-#define BUILTIN_BSS_END 5
-#define BUILTIN_RELOCTABLE 6
-
+#define BUILTIN_CTORS_START "__ctors_start__"
+#define BUILTIN_CTORS_END "__ctors_end__"
+#define BUILTIN_DTORS_START "__dtors_start__"
+#define BUILTIN_DTORS_END "__dtors_end__"
+#define BUILTIN_BSS_START "__bss_start__"
+#define BUILTIN_BSS_END "__bss_end__"
+#define BUILTIN_RELOCTABLE "__reloctable__"
 
 struct sectionmap
 {
@@ -29,7 +28,7 @@ struct sectionmap
 
 struct executable;
 struct sectionmap *sectionmap_new(int reloc);
-struct section *sectionmap_getbuiltin(struct sectionmap *map,int builtin);
+struct section *sectionmap_getbuiltin(struct sectionmap *map,const char *builtin);
 int sectionmap_populate(struct executable *exe);
 
 void sectionmap_delete(struct sectionmap *map);

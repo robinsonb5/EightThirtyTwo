@@ -59,6 +59,8 @@ struct section *parse_mapfile(const char *filename)
 						}
 					}					
 				}
+				if(linebuf)
+					free(linebuf);
 			}
 			fclose(f);
 		}	
@@ -162,7 +164,7 @@ int main(int argc,char **argv)
 		fprintf(stderr,"Usage: %s [options] binaryfile1 [binaryfile2 ...]\n",argv[0]);
 		fprintf(stderr,"Options:\n");
 		fprintf(stderr,"\t-e big|little\t- specify bit or little endian configuration\n");
-		fprintf(stderr,"\t-m <mapfile>\t- write a map file\n");
+		fprintf(stderr,"\t-m <mapfile>\t- read a map file\n");
 	}
 	else
 	{

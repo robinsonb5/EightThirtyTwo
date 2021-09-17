@@ -137,6 +137,7 @@ struct symbol *executable_resolvereference(struct executable *exe,struct symbol 
 	struct section *sect;
 	if(exe)
 	{
+		struct objectfile *obj;
 		/* Check builtin sections first */
 		sect=exe->map->builtins;
 		while(sect)
@@ -150,7 +151,7 @@ struct symbol *executable_resolvereference(struct executable *exe,struct symbol 
 			sect=sect->next;
 		}
 
-		struct objectfile *obj=exe->objects;
+		obj=exe->objects;
 		while(obj)
 		{
 			sect=obj->sections;

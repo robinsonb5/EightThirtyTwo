@@ -54,14 +54,14 @@ struct sectionmap *sectionmap_new(int reloc)
 		result->entries=0;
 		result->builtins=0;
 		result->lastbuiltin=0;
-		sectionmap_addbuiltin(result,"__ctors_start__",SECTIONFLAG_CTOR,0);
-		sectionmap_addbuiltin(result,"__ctors_end__",SECTIONFLAG_CTOR,0);
-		sectionmap_addbuiltin(result,"__dtors_start__",SECTIONFLAG_DTOR,0);
-		sectionmap_addbuiltin(result,"__dtors_end__",SECTIONFLAG_DTOR,0);
+		sectionmap_addbuiltin(result,BUILTIN_CTORS_START,SECTIONFLAG_CTOR,0);
+		sectionmap_addbuiltin(result,BUILTIN_CTORS_END,SECTIONFLAG_CTOR,0);
+		sectionmap_addbuiltin(result,BUILTIN_DTORS_START,SECTIONFLAG_DTOR,0);
+		sectionmap_addbuiltin(result,BUILTIN_DTORS_END,SECTIONFLAG_DTOR,0);
 		if(reloc)
-			sectionmap_addbuiltin(result,"__reloctable__",SECTIONFLAG_BSS,0); /* Overlaps BSS - only needed at startup */
-		sectionmap_addbuiltin(result,"__bss_start__",SECTIONFLAG_BSS,4);
-		sectionmap_addbuiltin(result,"__bss_end__",SECTIONFLAG_BSS,4);
+			sectionmap_addbuiltin(result,BUILTIN_RELOCTABLE,SECTIONFLAG_BSS,0); /* Overlaps BSS - only needed at startup */
+		sectionmap_addbuiltin(result,BUILTIN_BSS_START,SECTIONFLAG_BSS,4);
+		sectionmap_addbuiltin(result,BUILTIN_BSS_END,SECTIONFLAG_BSS,4);
 	}
 	return(result);
 }
@@ -116,11 +116,11 @@ static int countsections(struct executable *exe)
 }
 
 
-struct section *sectionmap_getbuiltin(struct sectionmap *map,int builtin)
+struct section *sectionmap_getbuiltin(struct sectionmap *map,const char *builtin)
 {
 	struct section *sect=map->builtins;
-	while(builtin--)
-		sect=sect ? sect->next : 0;
+	while(sect && !section_matchname(sect,builtin))
+		sect=sect->next;
 	return(sect);
 }
 
@@ -215,6 +215,11 @@ int sectionmap_populate(struct executable *exe)
 			map->entries[idx++].sect=sect;					
 
 		}
+		/* Add reloc table if present */
+		sect=sectionmap_getbuiltin(map,BUILTIN_RELOCTABLE);
+		if(sect)
+			map->entries[idx++].sect=sect;
+
 		/* Collect BSS */
 		sect=sectionmap_getbuiltin(map,BUILTIN_BSS_START);
 		map->entries[idx++].sect=sect;

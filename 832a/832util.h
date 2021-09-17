@@ -32,6 +32,16 @@ int count_constantchunks(long v);
 char *strtok_escaped(char *str);
 void parseescapes(char *str);
 
+#ifdef  SUPPLY_POSIX
+/* For the benefit of vbcc on Amiga */
+#ifndef ssize_t
+typedef int ssize_t;
+#endif
+char *strdup(const char *src);
+int strcasecmp(const char *s1, const char *s2);
+ssize_t getdelim (char **lineptr, size_t *n, char delim, FILE *fp);
+#define getline(x,y,z) getdelim((x),(y),'\n',(z))
+#endif
 
 #endif
 

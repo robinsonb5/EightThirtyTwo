@@ -85,6 +85,7 @@ static struct expr_linebuffer *linebuffer_new(char *buf)
 		result->buf=buf;
 		result->currentop=OP_NONE;
 	}
+	return(result);
 }
 
 static void linebuffer_delete(struct expr_linebuffer *lb)

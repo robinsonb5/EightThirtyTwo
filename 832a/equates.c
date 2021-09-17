@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "832util.h"
 #include "equates.h"
 
 struct equate *equate_new(const char *identifier, int value)
