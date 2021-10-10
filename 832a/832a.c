@@ -385,9 +385,11 @@ void parsesourcefile(struct objectfile *obj,const char *fn,enum eightthirtytwo_e
 								else if(tok2 && opcodes[o].opbits==6) /* 6 bit literal - immediate value */
 								{
 									char *endptr;
-									int v=strtoul(tok2,&endptr,0);
+									unsigned int v=strtoul(tok2,&endptr,0);
 									if(!v && endptr==tok2)
 										asmerror("Invalid constant value");
+									if(v>0x3f && v<(0xffffffc0ul))
+										asmerror("Constant value out of range - suggest .liconst");										
 									v&=0x3f;
 									opc|=v;
 								}

@@ -195,7 +195,7 @@ ___strncasecmp:					// Parameters: char *s1, char *s2, int n
 		.lipcrel .endstrncasecmp
 		add	r7
 	mr	r4
-	li	0xdf					// Mask off bit 5
+	.liconst	0xdf					// Mask off bit 5
 	and	r0
 	and	r4
 	mt	r4
@@ -333,7 +333,7 @@ ___tolower:
 	cond	SLT
 		ldinc	r6
 		mr	r7
-	li	26
+	.liconst	26
 	cmp	r1
 	cond	SLT
 		.liconst 32
@@ -359,7 +359,7 @@ ___toupper:
 	cond	SLT
 		ldinc	r6
 		mr	r7
-	li	26
+	.liconst	26
 	cmp	r1
 	cond	SLT
 		.liconst 0xffffffdf ; ~32
