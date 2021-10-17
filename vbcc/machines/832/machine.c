@@ -166,8 +166,10 @@ static int loopid = 0;	/* must be unique for every function in a compilation uni
 
 //static long stack;
 static int section = -1, newobj;
-static char *codename = "\t.section\t.text\n", *dataname = "\t.section\t.data\n", *bssname =
-    "\t.section\t.bss\n", *rodataname = "\t.section\t.rodata\n";
+static char *codename = "\t.section\t.text";
+static char *dataname = "\t.section\t.data";
+static char *bssname = "\t.section\t.bss";
+static char *rodataname = "\t.section\t.rodata";
 static int sectionid=0;
 
 /* assembly-prefixes for labels and external identifiers */
@@ -1279,20 +1281,23 @@ void gen_var_head(FILE * f, struct Var *v)
 		if (ISFUNC(v->vtyp->flags))
 			return;
 		if (!special_section(f, v)) {
-			if (v->clist && (!constflag) // || (g_flags[2] & USEDFLAG))
-			    && section != DATA) {
-				emit(f, dataname);
+			if (v->clist && (!constflag)) { // || (g_flags[2] & USEDFLAG))
+//			    && section != DATA) {
+				emit(f, "%s.%x\n",dataname,sectionid);
+				++sectionid;
 				if (f)
 					section = DATA;
 			}
-			if (v->clist && constflag // && !(g_flags[2] & USEDFLAG)
-			    && section != RODATA) {
-				emit(f, rodataname);
+			if (v->clist && constflag) { // && !(g_flags[2] & USEDFLAG)
+//			    && section != RODATA) {
+				emit(f, "%s.%x\n",rodataname,sectionid);
+				++sectionid;
 				if (f)
 					section = RODATA;
 			}
-			if (!v->clist && section != BSS) {
-				emit(f, bssname);
+			if (!v->clist) { // && section != BSS) {
+				emit(f, "%s.%x\n",bssname,sectionid);
+				++sectionid;
 				if (f)
 					section = BSS;
 			}
@@ -1310,20 +1315,23 @@ void gen_var_head(FILE * f, struct Var *v)
 //		emit(f, "\t.global\t%s%s\n", idprefix, v->identifier);
 		if (v->flags & (DEFINED | TENTATIVE)) {
 			if (!special_section(f, v)) {
-				if (v->clist && (!constflag) // || (g_flags[2] & USEDFLAG))
-				    && section != DATA) {
-					emit(f, dataname);
+				if (v->clist && (!constflag)) { // || (g_flags[2] & USEDFLAG))
+//				    && section != DATA) {
+					emit(f, "%s.%x\n",dataname,sectionid);
+					++sectionid;
 					if (f)
 						section = DATA;
 				}
-				if (v->clist && constflag // && !(g_flags[2] & USEDFLAG)
-				    && section != RODATA) {
-					emit(f, rodataname);
+				if (v->clist && constflag) { // && !(g_flags[2] & USEDFLAG)
+//				    && section != RODATA) {
+					emit(f, "%s.%x\n",rodataname,sectionid);
+					++sectionid;
 					if (f)
 						section = RODATA;
 				}
-				if (!v->clist && section != BSS) {
-					emit(f, bssname);
+				if (!v->clist) { // && section != BSS) {
+					emit(f, "%s.%x\n",bssname,sectionid);
+					++sectionid;
 					if (f)
 						section = BSS;
 				}
