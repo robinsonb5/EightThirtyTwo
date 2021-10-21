@@ -1,0 +1,247 @@
+#   Utility functions for communicating with an Altera/Intel
+#   Virtual JTAG instance over USB-Blaster
+#  
+#   Based on Binary Logic's vjtag example code.
+#   
+#   This file is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or
+#   (at your option) any later version.
+#   
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#   
+#   You should have received a copy of the GNU General Public License
+#   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# Setup connection
+proc usbblaster_setup {} {
+	global usbblaster_name
+	global usbblaster_device
+
+	# List all USB-Blasters connected to the system.  If there's only one
+	# use that, otherwise prompt the user to choose one.
+	set count 0
+	foreach hardware_name [get_hardware_names] {
+		if {
+			[string match "USB-Blaster*" $hardware_name] ||
+			[string match "*SoC*" $hardware_name] ||
+			[string match "*MAX*" $hardware_name] } {
+			puts "Device $count: $hardware_name"
+			set usbblaster_name $hardware_name
+			set count [expr $count + 1]
+		}
+	}
+
+	if {$count==0} {
+		puts "No JTAG interfaces found"
+		exit
+	}
+	if {$count!=1} {
+		puts "More than one USB-Blaster found - please select a device."
+		gets stdin id
+		scan $id "%d" idno
+		set count 1
+		foreach hardware_name [get_hardware_names] {
+			if {
+				[string match "USB-Blaster*" $hardware_name] ||
+				[string match "*SoC*" $hardware_name] ||
+				[string match "*MAX*" $hardware_name] } {
+				if { $count == $idno } {
+					puts "Selected $hardware_name"
+					set usbblaster_name $hardware_name
+				}
+				set count [expr $count + 1]
+			}
+		}
+	}
+
+
+	# List all devices on the chain.  If there's only one, select that,
+	# otherwise prompt the user to select one.
+
+	puts "Devices on JTAG chain:";
+	set count 0
+	foreach device_name [get_device_names -hardware_name $usbblaster_name] {
+		puts "Candidate: $device_name"
+		if { [string match "*: EP*C*" $device_name] } {
+			puts "Found Cyclone II or III"
+			set usbblaster_device $device_name
+			set count [expr $count + 1]
+		}
+		if { [string match "*: 10CL*" $device_name] } {
+			puts "Found Cyclone 10LP"
+			set usbblaster_device $device_name
+			set count [expr $count + 1]
+		}
+		if { [string match "*: 10M*" $device_name] } {
+			puts "Found MAX10"
+			set usbblaster_device $device_name
+			set count [expr $count + 1]
+		}
+		if { [string match "*: 5CSE*" $device_name] } {
+			puts "Found Cyclone V"
+			set usbblaster_device $device_name
+			set count [expr $count + 1]
+		}
+	}
+
+	if {$count!=1} {
+		puts "Please select a device.";
+		gets stdin id
+		foreach device_name [get_device_names -hardware_name $usbblaster_name] {
+			if { [string match "@$id*" $device_name] } {
+				set usbblaster_device $device_name
+			}
+		}
+	}
+	puts "Selected $usbblaster_device.";
+}
+
+
+# Open device 
+proc usbblaster_open {instance} {
+	global usbblaster_name
+	global usbblaster_device
+
+	set res 1
+	if [ catch { open_device -hardware_name $usbblaster_name -device_name $usbblaster_device } ] { set res 0 }
+
+	# Set IR to 3, which is bypass mode - which has the side-effect of verifying that there's a suitable JTAG instance.
+	catch { device_lock -timeout 10000 }
+	if [ catch { device_virtual_ir_shift -instance_index $instance -ir_value 3 -no_captured_ir_value } ] {
+		set res 0
+		catch {device_unlock}
+		catch {close_device}
+	}
+	return $res
+}
+
+
+# Close device.  Just used if communication error occurs
+proc usbblaster_close {instance} {
+	global usbblaster_name
+	global usbblaster_device
+
+	# Set IR back to 0, which is bypass mode
+	catch { device_virtual_ir_shift -instance_index $instance -ir_value 3 -no_captured_ir_value }
+
+	catch {device_unlock}
+	catch {close_device}
+}
+
+# Convert decimal number to the required binary code
+proc vjtag_dec2bin {i {width {}}} {
+
+    set res {}
+    if {$i<0} {
+        set sign -
+        set i [expr {abs($i)}]
+    } else {
+        set sign {}
+    }
+    while {$i>0} {
+        set res [expr {$i%2}]$res
+        set i [expr {$i/2}]
+    }
+    if {$res == {}} {set res 0}
+
+    if {$width != {}} {
+        append d [string repeat 0 $width] $res
+        set res [string range $d [string length $res] end]
+    }
+    return $sign$res
+}
+
+# Convert a binary string to a decimal/ascii number
+proc vjtag_bin2dec {bin} {
+    if {$bin == 0} {
+        return 0
+    } elseif {[string match -* $bin]} {
+        set sign -
+        set bin [string range $bin[set bin {}] 1 end]
+    } else {
+        set sign {}
+    }
+    return $sign[expr 0b$bin]
+}
+
+# Send data to the Altera input FIFO buffer
+proc vjtag_send {instance chr} {
+	if [ catch { device_virtual_ir_shift -instance_index $instance -ir_value 1 -no_captured_ir_value } ] { return -1 }
+	device_virtual_dr_shift -dr_value [vjtag_dec2bin $chr 32] -instance_index $instance  -length 32 -no_captured_dr_value
+	return 1
+}
+
+# Read data in from the Altera output FIFO buffer
+proc vjtag_recv {instance} {
+	# Check if there is anything to read
+	if [ catch { device_virtual_ir_shift -instance_index $instance -ir_value 2 -no_captured_ir_value } ] { return -1 }
+	set tdi [device_virtual_dr_shift -dr_value 0000 -instance_index $instance -length 4]
+	if {![expr $tdi & 1]} {
+		device_virtual_ir_shift -instance_index $instance -ir_value 0 -no_captured_ir_value
+		set tdi [device_virtual_dr_shift -dr_value 00000000000000000000000000000000 -instance_index $instance -length 32]
+		return [vjtag_bin2dec $tdi]
+	} else {
+		return -1
+	}
+}
+
+# Read data in from the Altera output FIFO buffer
+proc vjtag_recv_blocking {instance} {
+	while {1} {
+		if [ catch { device_virtual_ir_shift -instance_index $instance -ir_value 2 -no_captured_ir_value } ] { return [ vjtag_bin2dec 0 ] }
+		set tdi [device_virtual_dr_shift -dr_value 0000 -instance_index $instance -length 4]
+		if {![expr $tdi & 1]} {
+			device_virtual_ir_shift -instance_index $instance -ir_value 0 -no_captured_ir_value
+			set tdi [device_virtual_dr_shift -dr_value 00000000000000000000000000000000 -instance_index $instance -length 32]
+			return [vjtag_bin2dec $tdi]
+		}
+	}
+}
+
+# Find instance
+proc vjtag_findinstance {targetid} {
+	global usbblaster_name
+	global usbblaster_device
+	set res 2
+	if [ catch { open_device -hardware_name $usbblaster_name -device_name $usbblaster_device } ] { set res 0 }
+	catch { device_lock -timeout 10000 }
+
+	set instance 0
+	while {$res == 2} {
+		# Set instance to status mode, read status, return instance to bypass mode
+		if [ catch { device_virtual_ir_shift -instance_index $instance -ir_value 2 -no_captured_ir_value } ] { set res 0 }
+		if { $res } {
+			set id [device_virtual_dr_shift -dr_value 00000000000000000000000000000000 -instance_index $instance -length 32]
+			device_virtual_ir_shift -instance_index $instance -ir_value 3 -no_captured_ir_value
+
+			set id [vjtag_bin2dec $id]
+			set id [expr $id >> 16]
+			set idhex [format %x $id]
+			puts "Instance $instance - ID : 0x$idhex" 
+			if {$id==$targetid} {set res 1} else { set instance [expr $instance + 1] }
+		}
+	}
+	catch {device_unlock}
+	catch {close_device}
+	if {$res == 0} {
+		if {$instance>1} {
+			puts "Please select an instance."
+			gets stdin instance_dec
+			scan $instance_dec "%d" instance
+			set $res 1
+		} else {
+			set instance -1
+		}
+	}
+	return $instance
+}
+
+global usbblaster_name
+global usbblaster_device
+
+

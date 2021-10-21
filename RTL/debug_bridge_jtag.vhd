@@ -22,6 +22,9 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity debug_bridge_jtag is
+generic (
+	id : natural := 16#832D#
+);
 port (
 	clk : in std_logic;
 	reset_n : in std_logic;
@@ -193,7 +196,8 @@ begin
 
 			when STATUS =>
 				if cdr_d='1' then
-					shift <= X"0000000"& rxfl & rxmt & txfl & txmt;
+					shift <= std_logic_vector(to_unsigned(id,16))
+									&X"000"& rxfl & rxmt & txfl & txmt;
 				elsif sdr_d='1' then 
 					shift <= tdi&shift(31 downto 1);
 				end if;
