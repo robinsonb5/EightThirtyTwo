@@ -1,4 +1,4 @@
-#!/usr/local/altera/quartus/bin/quartus_stp -t
+#!/opt/intelFPGA_lite/18.1/quartus/bin/quartus_stp -t
 
 #   832bridge.tcl - Virtual JTAG proxy for Altera devices
 #
@@ -134,8 +134,7 @@ global wait_connection
 global vjtag_instance
 
 # Find the USB Blaster
-usbblaster_setup
-set vjtag_instance [vjtag_findinstance 0x832d]
+set vjtag_instance [usbblaster_findinstance 0x832d]
 puts "Found instance $vjtag_instance"
 if {$vjtag_instance > -1} {
 	# Start the server socket

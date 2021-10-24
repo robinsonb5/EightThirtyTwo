@@ -17,6 +17,67 @@
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+# Find a virtual JTAG instance
+
+proc match_blaster { blaster } {
+	if { [string match "USB-Blaster*" $blaster] ||
+	 [string match "*SoC*" $blaster] ||
+	 [string match "*MAX*" $blaster] } {
+		return 1
+	}
+	return 0
+}
+
+proc match_devicename { devname } {
+	if { [string match "*: EP*C*" $devname] } {
+		return 1
+	}
+	if { [string match "*: 10CL*" $devname] } {
+		return 1
+	}
+	if { [string match "*: 10M*" $devname] } {
+		return 1
+	}
+	if { [string match "*: 5CSE*" $devname] } {
+		return 1
+	}
+	return 0
+}
+
+
+proc usbblaster_findinstance { instanceid {skip 0} } {
+	global usbblaster_name
+	global usbblaster_device
+
+	# Loop through the connected USB Blasters connected to the system
+	set blastercount 0
+	foreach hardware_name [get_hardware_names] {
+		if { [match_blaster $hardware_name] } {
+			set usbblaster_name $hardware_name
+			set devicecount 0
+			foreach device_name [get_device_names -hardware_name $usbblaster_name] {
+				if { [match_devicename $device_name] } {
+					set usbblaster_device $device_name
+					set instance [vjtag_findinstance $instanceid]
+					if {$instance > -1} {
+						if {$skip} {
+							set skip [expr $skip - 1]
+						} else {
+							return $instance
+						}
+					}
+				}
+
+				set devicecount [expr $devicecount + 1]
+			}
+
+			set blastercount [expr $blastercount + 1]
+		}
+	}
+	return -1
+}
+
+
 # Setup connection
 proc usbblaster_setup {} {
 	global usbblaster_name
@@ -24,32 +85,26 @@ proc usbblaster_setup {} {
 
 	# List all USB-Blasters connected to the system.  If there's only one
 	# use that, otherwise prompt the user to choose one.
-	set count 0
+	set count 1
 	foreach hardware_name [get_hardware_names] {
-		if {
-			[string match "USB-Blaster*" $hardware_name] ||
-			[string match "*SoC*" $hardware_name] ||
-			[string match "*MAX*" $hardware_name] } {
+		if { [match_blaster $hardware_name] } {
 			puts "Device $count: $hardware_name"
 			set usbblaster_name $hardware_name
 			set count [expr $count + 1]
 		}
 	}
 
-	if {$count==0} {
+	if {$count==1} {
 		puts "No JTAG interfaces found"
 		exit
 	}
-	if {$count!=1} {
+	if {$count!=2} {
 		puts "More than one USB-Blaster found - please select a device."
 		gets stdin id
 		scan $id "%d" idno
 		set count 1
 		foreach hardware_name [get_hardware_names] {
-			if {
-				[string match "USB-Blaster*" $hardware_name] ||
-				[string match "*SoC*" $hardware_name] ||
-				[string match "*MAX*" $hardware_name] } {
+			if { [match_blaster $hardware_name] } {
 				if { $count == $idno } {
 					puts "Selected $hardware_name"
 					set usbblaster_name $hardware_name
@@ -59,7 +114,6 @@ proc usbblaster_setup {} {
 		}
 	}
 
-
 	# List all devices on the chain.  If there's only one, select that,
 	# otherwise prompt the user to select one.
 
@@ -67,23 +121,7 @@ proc usbblaster_setup {} {
 	set count 0
 	foreach device_name [get_device_names -hardware_name $usbblaster_name] {
 		puts "Candidate: $device_name"
-		if { [string match "*: EP*C*" $device_name] } {
-			puts "Found Cyclone II or III"
-			set usbblaster_device $device_name
-			set count [expr $count + 1]
-		}
-		if { [string match "*: 10CL*" $device_name] } {
-			puts "Found Cyclone 10LP"
-			set usbblaster_device $device_name
-			set count [expr $count + 1]
-		}
-		if { [string match "*: 10M*" $device_name] } {
-			puts "Found MAX10"
-			set usbblaster_device $device_name
-			set count [expr $count + 1]
-		}
-		if { [string match "*: 5CSE*" $device_name] } {
-			puts "Found Cyclone V"
+		if { [match_devicename $device_name] } {
 			set usbblaster_device $device_name
 			set count [expr $count + 1]
 		}
@@ -203,19 +241,22 @@ proc vjtag_recv_blocking {instance} {
 	}
 }
 
-# Find instance
-proc vjtag_findinstance {targetid} {
+# List instances
+
+proc vjtag_listinstances { } {
 	global usbblaster_name
 	global usbblaster_device
-	set res 2
+
 	if [ catch { open_device -hardware_name $usbblaster_name -device_name $usbblaster_device } ] { set res 0 }
 	catch { device_lock -timeout 10000 }
 
 	set instance 0
-	while {$res == 2} {
+	set res 1
+	while {$res == 1} {
 		# Set instance to status mode, read status, return instance to bypass mode
-		if [ catch { device_virtual_ir_shift -instance_index $instance -ir_value 2 -no_captured_ir_value } ] { set res 0 }
-		if { $res } {
+		if [ catch { device_virtual_ir_shift -instance_index $instance -ir_value 2 -no_captured_ir_value } ] {
+			set res 0
+		} else {
 			set id [device_virtual_dr_shift -dr_value 00000000000000000000000000000000 -instance_index $instance -length 32]
 			device_virtual_ir_shift -instance_index $instance -ir_value 3 -no_captured_ir_value
 
@@ -223,21 +264,48 @@ proc vjtag_findinstance {targetid} {
 			set id [expr $id >> 16]
 			set idhex [format %x $id]
 			puts "Instance $instance - ID : 0x$idhex" 
-			if {$id==$targetid} {set res 1} else { set instance [expr $instance + 1] }
+			set instance [expr $instance + 1]
 		}
 	}
 	catch {device_unlock}
 	catch {close_device}
-	if {$res == 0} {
-		if {$instance>1} {
-			puts "Please select an instance."
-			gets stdin instance_dec
-			scan $instance_dec "%d" instance
-			set $res 1
-		} else {
+}
+
+
+# Find instance
+proc vjtag_findinstance {targetid {skip 0}} {
+	global usbblaster_name
+	global usbblaster_device
+	set res 1
+	if [ catch { open_device -hardware_name $usbblaster_name -device_name $usbblaster_device } ] { set res 0 }
+	catch { device_lock -timeout 10000 }
+
+	set instance -1
+	while {$res == 1} {
+		# Set instance to status mode, read status, return instance to bypass mode
+		set instance [expr $instance + 1]
+		if [ catch { device_virtual_ir_shift -instance_index $instance -ir_value 2 -no_captured_ir_value } ] {
+			set res 0
 			set instance -1
 		}
+		if { $res } {
+			set id [device_virtual_dr_shift -dr_value 00000000000000000000000000000000 -instance_index $instance -length 32]
+			device_virtual_ir_shift -instance_index $instance -ir_value 3 -no_captured_ir_value
+
+			set id [vjtag_bin2dec $id]
+			set id [expr $id >> 16]
+			set idhex [format %x $id]
+			if {$id==$targetid} {
+				if {$skip} {
+					set skip [expr skip -1]
+				} else {
+					set res 0
+				}
+			}
+		}
 	}
+	catch {device_unlock}
+	catch {close_device}
 	return $instance
 }
 
