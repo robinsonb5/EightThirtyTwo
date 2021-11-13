@@ -29,6 +29,8 @@ set listen_address 127.0.0.1
 
 ###################### Code #################################
 
+package require Tk
+
 source [file dirname [info script]]/vjtagutil.tcl
 
 
@@ -38,7 +40,6 @@ proc conn {channel_name client_address client_port} {
 	global service_port
 	global listen_address
 	global wait_connection
-	global vjtag_instance
 
 	# Configure the channel for binary
 	fconfigure $channel_name -translation binary -buffering none -blocking true
@@ -68,14 +69,14 @@ proc conn {channel_name client_address client_port} {
 			if { $ascii == 255} {
 				puts -nonewline $channel_name [format %c $portopen]
 				# Release the USB blaster again
-				if { $portopen == 1 } { usbblaster_close $vjtag_instance }
+				if { $portopen == 1 } { vjtag::usbblaster_close  }
 				set portopen 0
 			}
 			
 			if { $ascii != 255} {
 #				puts [vjtag_dec2bin $ascii]
 				if { $portopen == 0 } {
-					if [ usbblaster_open $vjtag_instance ] { set portopen 1 }
+					if [ vjtag::usbblaster_open ] { set portopen 1 }
 				}
 
 				set cmd [expr $ascii << 24]
@@ -85,7 +86,7 @@ proc conn {channel_name client_address client_port} {
 				set cmd [expr $cmd | [expr $responsebytes << 8]]
 				scan $byteparam %c byteparam
 				set cmd [expr $cmd | $byteparam]
-				vjtag_send $vjtag_instance $cmd
+				vjtag::send $cmd
 
 				# Sending parameters, if any
 
@@ -97,14 +98,14 @@ proc conn {channel_name client_address client_port} {
 					set parambytes [expr $parambytes - 1]
 					if {$parambytes==0 || $parambytes==4} {
 #						puts "Sending param..."
-						vjtag_send $vjtag_instance $cmd
+						vjtag::send $cmd
 					}
 				}
 
 				while { $responsebytes > 0 } {
 #					puts "Waiting for response"
 					if {[eof $channel_name]} break
-					set rx [vjtag_recv_blocking $vjtag_instance]
+					set rx [vjtag::recv_blocking]
 					puts -nonewline $channel_name [format %c [expr [expr $rx >> 24] & 255]]
 					puts -nonewline $channel_name [format %c [expr [expr $rx >> 16] & 255]]
 					puts -nonewline $channel_name [format %c [expr [expr $rx >> 8] & 255]]
@@ -116,7 +117,7 @@ proc conn {channel_name client_address client_port} {
 		}
 	}
 	if { $portopen == 1 } {
-		usbblaster_close $vjtag_instance
+		vjtag::usbblaster_close
 		set portopen 0
 		puts "port closed"
 	}
@@ -130,13 +131,12 @@ proc conn {channel_name client_address client_port} {
 
 ####################### Main code ###################################
 
+init_tk
+
 global wait_connection
-global vjtag_instance
 
 # Find the USB Blaster
-set vjtag_instance [usbblaster_findinstance 0x832d]
-puts "Found instance $vjtag_instance"
-if {$vjtag_instance > -1} {
+if {[vjtag::select_instance 0x832d] > -1} {
 	# Start the server socket
 	socket -server conn -myaddr $listen_address $service_port
 
