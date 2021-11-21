@@ -289,15 +289,7 @@ begin
 	end if;
 end process;
 
-end generate;
-
-gennothread2:
-if dualthread=false generate
-	fetch2_ram_req<='0';
-	opcodebuffer2_valid<="00";
-end generate;
-
--- Memory interface
+-- Memory interface - dual thread
 
 -- With prefetch enabled we want to assert ram_req immediately if we can:
 -- Careful - priorities here must match priorities in state machine!
@@ -306,10 +298,29 @@ ram_req<='0' when reset_n='0'
 	else ram_req_r and not ram_ack;
 
 ram_addr<=fetch_addr(31 downto 2) when ls_state=LS_WAIT and fetch_ram_req='1' and prefetch=true
---	else pc(31 downto 2) when ls_state=LS_WAIT and fetch_ram_req='1' and prefetch=false
-	else fetch2_addr(31 downto 2) when ls_state=LS_WAIT and fetch2_ram_req='1' and prefetch=true
---	else pc2(31 downto 2) when ls_state=LS_WAIT and fetch2_ram_req='1' and prefetch=false
+	else fetch2_addr(31 downto 2) when ls_state=LS_WAIT and fetch2_ram_req='1' and prefetch=true and dualthread=true
 	else ram_addr_r;
+
+end generate;
+
+gennothread2:
+if dualthread=false generate
+	fetch2_ram_req<='0';
+	opcodebuffer2_valid<="00";
+	fetch2_addr<=(others=>'0');
+
+-- Memory interface - single threaded
+
+-- With prefetch enabled we want to assert ram_req immediately if we can:
+-- Careful - priorities here must match priorities in state machine!
+ram_req<='0' when reset_n='0'
+	else fetch_ram_req and not ram_ack when ls_state=LS_WAIT and prefetch=true
+	else ram_req_r and not ram_ack;
+
+ram_addr<=fetch_addr(31 downto 2) when ls_state=LS_WAIT and fetch_ram_req='1' and prefetch=true
+	else ram_addr_r;
+	
+end generate;
 
 	
 process(clk, reset_n, ls_req, ls_wr,ram_ack,fetch_ram_req)
