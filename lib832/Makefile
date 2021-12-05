@@ -15,7 +15,6 @@ COMMONOBJ=$(OBJDIR)/uart.o $(OBJDIR)/string.o $(OBJDIR)/string_c.o $(OBJDIR)/str
 clean :
 	-rm *.asm
 	-rm $(OBJDIR)/*.o
-	-rm *.bin
 	-rm *.a
 
 helloworld : crt0.a lib832.a $(OBJDIR)/helloworld.o

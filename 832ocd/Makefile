@@ -9,3 +9,6 @@ all: 832ocd
 	../832a/832defs.c ../832a/832util.c ../832a/section.c ../832a/symbol.c ../832a/codebuffer.c
 	$(CC) $(CFLAGS) -o $@ $+ $(LIBS) 
 
+clean:
+	rm	832ocd
+
