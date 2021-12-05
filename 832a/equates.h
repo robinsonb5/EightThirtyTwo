@@ -9,6 +9,6 @@ struct equate
 };
 
 struct equate *equate_new(const char *identifier, int value);
-
+void equate_delete(struct equate *equ);
 #endif
 

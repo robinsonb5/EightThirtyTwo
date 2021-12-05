@@ -25,7 +25,9 @@
 #include <netinet/in.h>
 #include <string.h>
 #include <errno.h>
-
+#include <fcntl.h> // for open
+#include <unistd.h> // for close
+#include <arpa/inet.h>
 #include "832ocd.h"
 #include "832ocd_connection.h"
 
