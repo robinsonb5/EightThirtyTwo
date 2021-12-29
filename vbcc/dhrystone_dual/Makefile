@@ -25,7 +25,8 @@ clean :
 	sed 's/_rom/$*_rom/;s/cpu_tb/$*_tb/' >$*_tb.vhd <tb.vhd
 	$(GHDL) -a $*_ROM.vhd
 	$(GHDL) -a $*_tb.vhd
-	$(GHDL) -c -r $*_tb --ieee-asserts=disable-at-0 --stop-time=$(TIME) --read-wave-opt=waveopt --wave=$*.ghw
+	$(GHDL) -e $*_tb
+	$(GHDL) -r $*_tb --ieee-asserts=disable-at-0 --stop-time=$(TIME) --read-wave-opt=waveopt --wave=$*.ghw
 
 
 %_ROM.vhd: %.bin $(ROMGEN)
