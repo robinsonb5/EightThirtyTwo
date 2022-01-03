@@ -17,9 +17,9 @@
 //	along with lib832.  If not, see <https://www.gnu.org/licenses/>.
 
 
-//  More comprehensive premain implementation.
+//  Minimal premain implementation - no stack guard or ctors/dtors.
 //
-//  Supports auto initialisation from .ctors section and clearing of BSS data.
+//  Does clear BSS data, however.
 //
 //  STACKSIZE is defined to 4K, but is a weak symbol so can be overridden either in another section
 //  or on the linker command line.
@@ -36,92 +36,28 @@ _premain:
 	mr	r6
 	// Fill the stack with a marker pattern
 	.liabs	_STACKSIZE
-	mr	r0
-	li	2
-	shr	r0
-	.liconst 0x55aa55aa
-	mr	r1
-.stackloop:
-	mt	r1
-	stinc	r6
-	li	1
-	sub	r0
-	cond SGT
-		.lipcrel .stackloop
-		add	r7
+	add	r6
 
 	// Clear BSS data
+	// Will overshoot, but since the stack follows BSS, it won't matter.
 	.liabs	__bss_end__
 	mr	r1
 	.liabs	__bss_start__
 	mr	r0
 	sub	r1
 .clrwordloop
+	li	0
+	stinc	r0
+	stinc	r0
+	stinc	r0
+	stinc	r0
 	li	16
 	sub	r1
 	cond	GE
-		li	0
-		stinc	r0
-		stinc	r0
-		stinc	r0
-		stinc	r0
 		.lipcrel	.clrwordloop
 		add	r7
 
-	li	16
-	add	r1
-	cond	NEQ
-.clrbyteloop
-		li	0
-		stbinc	r0
-		li	1
-		sub	r1
-		cond	NEQ	// Can nest conditions as long as they don't differ.
-			.lipcrel .clrbyteloop
-			add r7
-
-
-	// Call constructors
-	.liabs	__ctors_end__
-	mr	r5
-	.liabs	__ctors_start__
-	mr	r4
-.ctorloop:
-	mt	r4
-	cmp	r5
-	cond	EQ
-		.lipcrel .ctordone
-		add	r7
-
-	ldinc	r4
-	exg	r7
-
-	.lipcrel .ctorloop
-	add	r7
-
-.ctordone:
-	// FIXME - should push argc and argv on the stack before calling main.
 	.lipcrel	_main
-	add	r7
-
-	// Call destructors
-	.liabs	__dtors_start__
-	mr	r5
-	.liabs	__dtors_end__
-	mr	r4
-.dtorloop:
-	mt	r4
-	cmp	r5
-	cond	EQ
-		.lipcrel .endloop
-		add	r7
-
-	li	4
-	sub	r4
-	ld	r4
-	exg	r7
-
-	.lipcrel .dtorloop
 	add	r7
 
 .endloop:
