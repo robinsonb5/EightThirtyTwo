@@ -52,7 +52,7 @@ begin
 	busy<=busy_r;
 	q<=result;
 
-	process(clk,req,reset_n)
+	process(clk,reset_n)
 	begin
 
 		if reset_n='0' then

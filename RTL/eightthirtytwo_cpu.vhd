@@ -533,7 +533,7 @@ thread2.cond_minterms(2)<= (not regfile2.flag_z) and regfile2.flag_c;
 thread2.cond_minterms(1)<= regfile2.flag_z and (not regfile2.flag_c);
 thread2.cond_minterms(0)<= (not regfile2.flag_z) and (not regfile2.flag_c);
 
-process(clk,reset_n,thread.f_op_valid)
+process(clk,reset_n)
 begin
 	if reset_n='0' then
 		alu_forward_q2tod1<='0';
@@ -1182,7 +1182,7 @@ port map (
 	debug_ack => debug_ack
 );
 
-process(clk,reset_n,idbg_break,idbg_singlestep)
+process(clk,reset_n)
 begin
 	if reset_n='0' then
 		idbg_counter<=(others=>'0');
@@ -1238,8 +1238,10 @@ begin
 
 	end if;
 --	idbg_req<=idbg_counter(4);
-	idbg_pause<=idbg_break and not (idbg_singlestep);
 end process;
+
+idbg_pause<=idbg_break and not (idbg_singlestep);
+
 
 -- Combinational reads from register file
 

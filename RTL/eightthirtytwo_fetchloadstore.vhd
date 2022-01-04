@@ -126,7 +126,7 @@ begin
 opcode_valid_i<=opcodebuffer_valid(1) when pc(2)='0' else opcodebuffer_valid(0);
 opcode_valid<=opcode_valid_i and not (pc_req or freeze);
 
-process(pc,clk,ram_ack,reset_n)
+process(clk,reset_n)
 begin
 
 	if reset_n='0' then
@@ -212,7 +212,7 @@ if dualthread=true generate
 opcode2_valid_i<=opcodebuffer2_valid(1) when pc2(2)='0' else opcodebuffer2_valid(0);
 opcode2_valid<=opcode2_valid_i and not (pc2_req or freeze);
 
-process(pc2,clk,ram_ack,reset_n)
+process(clk,reset_n)
 begin
 
 	if reset_n='0' then
@@ -323,7 +323,7 @@ ram_addr<=fetch_addr(31 downto 2) when ls_state=LS_WAIT and fetch_ram_req='1' an
 end generate;
 
 	
-process(clk, reset_n, ls_req, ls_wr,ram_ack,fetch_ram_req)
+process(clk, reset_n)
 begin
 	if reset_n='0' then
 		ls_state<=LS_WAIT;
