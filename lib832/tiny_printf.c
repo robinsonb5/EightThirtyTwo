@@ -1,7 +1,7 @@
 #include "uart.h"
 #include "stdarg.h"
 
-__weak printf(const char *fmt, ...)
+__weak int printf(const char *fmt, ...)
 {
     va_list ap;
     int ret=0;

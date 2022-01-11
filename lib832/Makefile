@@ -2,7 +2,7 @@
 AS=$(832DIR)/832a/832a
 LD=$(832DIR)/832a/832l
 CC=$(832DIR)/vbcc/bin/vbcc832
-COPT = -O=1343
+COPT = -O=1311
 CFLAGS = -+ -fpic -unsigned-char $(COPT) -I$(832DIR)/include/ -I$(LIBDIR)
 TIME=2ms
 

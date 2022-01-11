@@ -251,7 +251,7 @@ int istopstackslot(struct obj *o)
 {
 	if(!o)
 		return(0);
-	if(o->v && (o->flags&(VAR|REG|DREFOBJ))==VAR)
+	if((o->flags&(VAR|REG|DREFOBJ))==VAR && o->v)
 	{
 		if(isauto(o->v->storage_class)
 				&& real_offset(o)==0)
