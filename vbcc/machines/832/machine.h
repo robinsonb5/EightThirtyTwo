@@ -11,6 +11,9 @@
 
 #include "dt.h"
 
+/* Remove this for VBCC 0.9h */
+#define V09G
+
 /* internally used by the backend */
 #define FIRST_GPR 1
 #define LAST_GPR (FIRST_GPR+NUM_GPRS-1)

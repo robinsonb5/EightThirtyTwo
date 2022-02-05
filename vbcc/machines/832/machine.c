@@ -214,7 +214,9 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg);
 
 static long real_offset(struct obj *o)
 {
-	long off = zm2l(o->v->offset);
+	long off = 0;
+	if((o->flags&VAR) && isauto(o->v->storage_class))
+		off=zm2l(o->v->offset);
 //      printf("Parameter offset: %d, localsize: %d, rsavesize: %d\n",off,localsize,rsavesize);
 	if (off < 0) {
 		/* function parameter */
@@ -232,7 +234,7 @@ static int isstackparam(struct obj *o)
 	int result=0;
 //	if(o->flags&VAR && o->flags&REG && o->reg==sp)
 //	if(o->flags&(VAR|DREFOBJ)==VAR)
-	if(o->flags&VAR && !(o->flags&REG))
+	if((o->flags&VAR) && !(o->flags&REG))
 	{
 		if(isauto(o->v->storage_class))
 		{
@@ -1041,6 +1043,12 @@ int init_cg(void)
 	char_bit = l2zm(8L);
 	stackalign = l2zm(4);
 
+#ifndef V09G
+	clist_copy_stack=0;
+	clist_copy_static=0;
+	clist_copy_pointer=0;
+#endif
+
 	// We have full load-store align, so in size mode we can pack data more tightly...
 
 	for (i = 0; i <= MAX_TYPE; i++) {
@@ -1122,7 +1130,7 @@ int init_cg(void)
 	regsa[pc] = 1;
 	regsa[tmp] = 1;
 	regscratch[FIRST_GPR] = 0;
-	for(i=FIRST_GPR+RESERVED_GPRS;i<=(FIRST_GPR+SCRATCH_GPRS);++i)
+	for(i=FIRST_GPR+RESERVED_GPRS;i<(FIRST_GPR+RESERVED_GPRS+SCRATCH_GPRS);++i)
 		regscratch[i] = 1;
 	regscratch[sp] = 0;
 	regscratch[pc] = 0;

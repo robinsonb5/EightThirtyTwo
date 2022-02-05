@@ -407,6 +407,26 @@ void am_simplify(struct IC *p)
 	}
 }
 
+struct obj *throwaway_reg(struct IC *p,int reg)
+{
+	struct obj *result=0;
+	if (AM_DEBUG)
+		printf("\tChecking IC for reg %s\n", regnames[reg]);
+	if(p) {
+		if((p->q1.flags&REG) && p->q1.reg==reg) {
+			am_disposable(p,&p->q1);
+			if(p->q1.am && p->q1.am->disposable)
+				result=&p->q1;
+		} else if((p->z.flags&REG) && p->z.reg==reg) {
+			am_disposable(p,&p->z);
+			if(p->z.am && p->z.am->disposable)
+				result=&p->z;
+		}
+	}
+	if (AM_DEBUG)
+		printf("\tReturning %x\n", result);
+	return(result);
+}
 
 void am_disposable(struct IC *p, struct obj *o)
 {
@@ -417,7 +437,7 @@ void am_disposable(struct IC *p, struct obj *o)
 		if(o!=&p->z)
 		{
 			// We're writing to the same register as we're reading from - not disposable!
-			if((p->z.flags&&REG) && p->z.reg==o->reg)
+			if((p->z.flags&REG) && p->z.reg==o->reg)
 				return;
 		}
 		p2 = p->next;
@@ -466,8 +486,8 @@ struct IC *am_find_adjustment(struct IC *p, int reg)
 	while (p2) {
 //		printf("\t\tChecking code %d\n",p2->code);
 		if (p2->code == ADDI2P) {
-			if (AM_DEBUG)
-				printf("\tFound Addi2p to register %s \n", regnames[p2->z.reg]);
+//			if (AM_DEBUG)
+//				printf("\tFound Addi2p to register %s \n", regnames[p2->z.reg]);
 			if ((p2->q2.flags & KONST) && (p2->z.flags & REG)) {
 				if (p2->z.reg == reg) {
 					if (AM_DEBUG)
@@ -638,7 +658,31 @@ void am_prepost_incdec(struct IC *p, struct obj *o)
 			}
 			adj = am_get_adjvalue(p2, type, o == &p->z);	// Validate the adjustment
 			if (adj) {
-				p2->code = NOP;	// Nullify the manual adjustment if we can do it as an opcode side-effect
+				obj *tempob;
+				switch(p2->code)
+				{
+					case ADDI2P:
+					case SUBIFP:
+						// Are the source and destination regs the same?
+						if(p2->q1.reg==p2->z.reg) {
+							p2->code=NOP; // Nullify the manual adjustment if we can do it as an opcode side-effect
+							break;
+						}
+
+						// Check next IC to see if it's disposable, and referencing the same register:
+						if(tempob=throwaway_reg(p2->next,p2->z.reg)) {
+							if (AM_DEBUG)
+								printf("\tChangingnext IC from reg %s to reg %s\n", regnames[tempob->reg], regnames[p2->q1.reg]);
+							tempob->reg=p2->q1.reg; // Adjust the register referenced in the next IC.
+							p2->code=NOP; // Nullify the adjustment since we've aliased the register
+						}
+						else
+							p2->code=ASSIGN; // Otherwise replace it with an assign if the registers aren't equal.
+						break;
+					default:
+						p2->code = NOP;	// Nullify the manual adjustment if we can do it as an opcode side-effect
+						break;
+				}
 				am_alloc(o);
 				o->am->type = (adj > 0) ? AM_POSTINC : AM_PREDEC;
 			}

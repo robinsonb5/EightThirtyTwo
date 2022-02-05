@@ -97,10 +97,6 @@ interrupt<='1' when intcounter(5 downto 3)="111" else '0';
 
 			intcounter<=intcounter+1;
 
-			reset_n<='1';
-			ram_ack<='0';
-
-
 			if ram_req='1' and ramwait="0000" then
 				if ram_addr(31)='1' then
 					if ram_wr='1' then
@@ -115,16 +111,11 @@ interrupt<='1' when intcounter(5 downto 3)="111" else '0';
 						uart_count<=uart_count-1;
 					end if;
 				end if;
---				ram_ack<='1';
-				ramwait<="0000";
 			end if;
 
-			if ramwait="0000" then
-				ram_ack<=ram_req;
-			else
-				ramwait<=ramwait-1;
-			end if;
+			ram_ack<=ram_req;
 
+			reset_n<='1';
 			case tbstate is
 				when RESET =>
 					reset_n<='0';
@@ -133,7 +124,6 @@ interrupt<='1' when intcounter(5 downto 3)="111" else '0';
 					tbstate<=MAIN;
 				when MAIN =>
 					tbstate<=MAIN;
-
 			end case;
 
 		end if;
