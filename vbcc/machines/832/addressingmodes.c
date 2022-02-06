@@ -407,27 +407,6 @@ void am_simplify(struct IC *p)
 	}
 }
 
-struct obj *throwaway_reg(struct IC *p,int reg)
-{
-	struct obj *result=0;
-	if (AM_DEBUG)
-		printf("\tChecking IC for reg %s\n", regnames[reg]);
-	if(p) {
-		if((p->q1.flags&REG) && p->q1.reg==reg) {
-			am_disposable(p,&p->q1);
-			if(p->q1.am && p->q1.am->disposable)
-				result=&p->q1;
-		} else if((p->z.flags&REG) && p->z.reg==reg) {
-			am_disposable(p,&p->z);
-			if(p->z.am && p->z.am->disposable)
-				result=&p->z;
-		}
-	}
-	if (AM_DEBUG)
-		printf("\tReturning %x\n", result);
-	return(result);
-}
-
 void am_disposable(struct IC *p, struct obj *o)
 {
 	struct IC *p2;
@@ -477,6 +456,28 @@ void am_disposable(struct IC *p, struct obj *o)
 		}
 	}
 }
+
+struct obj *throwaway_reg(struct IC *p,int reg)
+{
+	struct obj *result=0;
+	if (AM_DEBUG)
+		printf("\tChecking IC for reg %s\n", regnames[reg]);
+	if(p) {
+		if((p->q1.flags&REG) && p->q1.reg==reg) {
+			am_disposable(p,&p->q1);
+			if(p->q1.am && p->q1.am->disposable)
+				result=&p->q1;
+		} else if((p->z.flags&REG) && p->z.reg==reg) {
+			am_disposable(p,&p->z);
+			if(p->z.am && p->z.am->disposable)
+				result=&p->z;
+		}
+	}
+	if (AM_DEBUG)
+		printf("\tReturning %x\n", result);
+	return(result);
+}
+
 
 struct IC *am_find_adjustment(struct IC *p, int reg)
 {

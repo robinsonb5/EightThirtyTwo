@@ -65,15 +65,19 @@ char cg_copyright[] =
     apart from FUNCFLAG, all other versions can only be specified once */
 int g_flags[MAXGF] = { 0 };
 
+#define FLAG_PIC 0
+#define FLAG_LE 1
+#define FLAG_BE 2
+
 /* the flag-name, do not use names beginning with l, L, I, D or U, because
    they collide with the frontend */
 /* 832-specific flags, "fpic" enables position independent code - name chosen to match gcc */
-char *g_flags_name[MAXGF] = { "fpic" };
+char *g_flags_name[MAXGF] = { "fpic","el","eb" };
 
-#define FLAG_PIC 0
+char flag_832_bigendian;
 
 /* the results of parsing the command-line-flags will be stored here */
-union ppi g_flags_val[MAXGF] = { 0 };
+union ppi g_flags_val[MAXGF] = { 0,0,0 };
 
 /*  Alignment-requirements for all types in bytes.              */
 zmax align[MAX_TYPE + 1];
@@ -1042,6 +1046,12 @@ int init_cg(void)
 	maxalign = l2zm(4L);
 	char_bit = l2zm(8L);
 	stackalign = l2zm(4);
+
+	flag_832_bigendian=0;
+	if(g_flags[FLAG_BE]&USEDFLAG)
+		flag_832_bigendian=1;
+	else if(!g_flags[FLAG_BE]&USEDFLAG)
+		printf("Neither -eb nor -el specified - defaulting to little-endian\n");
 
 #ifndef V09G
 	clist_copy_stack=0;

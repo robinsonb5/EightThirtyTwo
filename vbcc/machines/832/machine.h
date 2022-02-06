@@ -36,7 +36,7 @@ struct AddressingMode{
 #define MAXR NUM_GPRS+NUM_FPRS+NUM_CCRS
 
 /*  Number of commandline-options the code-generator accepts.       */
-#define MAXGF 1
+#define MAXGF 3
 
 /*  If this is set to zero vbcc will not generate ICs where the     */
 /*  target operand is the same as the 2nd source operand.           */
@@ -50,11 +50,13 @@ struct AddressingMode{
 
 /*  If the bytes of an integer are ordered most significant byte    */
 /*  byte first and then decreasing set BIGENDIAN to 1.              */
-#define BIGENDIAN 0
+
+extern char flag_832_bigendian;
+#define BIGENDIAN (flag_832_bigendian)
 
 /*  If the bytes of an integer are ordered lest significant byte    */
 /*  byte first and then increasing set LITTLEENDIAN to 1.           */
-#define LITTLEENDIAN 1
+#define LITTLEENDIAN (!flag_832_bigendian)
 
 /*  Note that BIGENDIAN and LITTLEENDIAN are mutually exclusive.    */
 
