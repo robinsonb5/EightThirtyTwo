@@ -820,7 +820,7 @@ void save_temp(FILE * f, struct IC *p, int treg)
 	} else {
 		if ((p->z.flags & DREFOBJ) && (p->z.flags & REG))
 			treg = p->z.reg;
-		else if(isstackparam(&p->z))
+		else if(isstackparam(&p->z) && !(p->z.flags & DREFOBJ))
 			type=INT;
 
 		if(DBGMSG)
