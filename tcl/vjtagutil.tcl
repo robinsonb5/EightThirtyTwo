@@ -45,6 +45,9 @@ proc vjtag::match_devicename { devname } {
 	if { [string match "*: 5CSE*" $devname] } {
 		return 1
 	}
+	if { [string match "*: 5CE*" $devname] } {
+		return 1
+	}
 	return 0
 }
 
