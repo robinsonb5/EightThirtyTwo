@@ -29,10 +29,11 @@ set listen_address 127.0.0.1
 
 ###################### Code #################################
 
-package require Tk
-
-source [file dirname [info script]]/vjtagutil.tcl
-
+if {[info exists ::quartus]} {
+	source [file dirname [info script]]/vjtagutil.tcl
+} else {
+	source [file dirname [info script]]/vjtagutil_xilinx.tcl
+}
 
 ########## Process a connection on the port ###########################
 
@@ -90,7 +91,7 @@ proc conn {channel_name client_address client_port} {
 
 				# Sending parameters, if any
 
-				set $cmd 0
+				set cmd 0
 				while { $parambytes > 0 } {
 					set byteparam [read $channel_name 1]
 					scan $byteparam %c ascii
@@ -130,8 +131,6 @@ proc conn {channel_name client_address client_port} {
 
 
 ####################### Main code ###################################
-
-init_tk
 
 global wait_connection
 

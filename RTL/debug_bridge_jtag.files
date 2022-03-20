@@ -1,0 +1,4 @@
+ise/debug_bridge_jtag.vhd
+ise/debug_fifo_xilinx.xco
+ise/debug_virtualjtag_xilinx.vhd
+

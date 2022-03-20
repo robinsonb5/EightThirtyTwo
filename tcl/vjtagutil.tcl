@@ -17,6 +17,10 @@
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+package require Tk
+
+init_tk
+
 namespace eval vjtag {
 	variable instance
 	variable usbblaster_name
