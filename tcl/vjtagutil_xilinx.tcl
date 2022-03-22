@@ -8,22 +8,55 @@ load [file dirname [info script]]/../tcljtag/libtcljtag.so
 
 namespace eval vjtag {
 	variable instance
+	variable devicecount
 	variable usbblaster_name
 	variable usbblaster_device
+	variable device_description
+	variable ir_reg
+	variable dr_reg
 }
 
-proc vjtag::opencable { cable } {
+proc vjtag::select_cable { cable } {
 	set ::vjtag::usbblaster_name $cable
-	jtag::opencable $cable
-	set ::vjtag::usbblaster_device [jtag::deviceid 0]
-	jtag::detect_chain
+	set ::vjtag::usbblaster_device 0
+	set ::vjtag::devicecount 0
+}
+
+proc vjtag::select_device { dev } {
+	set ::vjtag::usbblaster_device $dev
+	set ::vjtag::device_description [jtag::get_device_description $dev]
+#	puts "Device type is $::vjtag::device_description"
+	if { [string match "XC3*" $::vjtag::device_description] } {
+		# Spartan 3 series - use USER1 (2) and USER2 (3) registers for the virtual IR and DR, respectively
+		set ::vjtag::ir_reg 2
+		set ::vjtag::dr_reg 3
+	} elseif { [string match "XC6*" $::vjtag::device_description] } { 
+		# 6 series - use USER3 (0x1A) and USER4 (0x1B) registers
+		set ::vjtag::ir_reg 0x1a
+		set ::vjtag::dr_reg 0x1b
+	} elseif { [string match "XC7*" $::vjtag::device_description] } { 
+		# 7 series - use USER3 (0x22) and USER4 (0x23) registers
+		set ::vjtag::ir_reg 0x22
+		set ::vjtag::dr_reg 0x23
+	} elseif { [string match "XA7*" $::vjtag::device_description] } { 
+		# 7 series - use USER3 (0x22) and USER4 (0x23) registers
+		set ::vjtag::ir_reg 0x22
+		set ::vjtag::dr_reg 0x23
+	} else {
+		puts "Device $::vjtag::device_description not yet supported"
+		throw { NONE } { Device $::vjtag::device_description not yet supported }
+	}
+	jtag::select_device $dev
 }
 
 proc vjtag::usbblaster_open {} {
+	set ::vjtag::devicecount [jtag::open_cable $::vjtag::usbblaster_name]
+	vjtag::select_device $::vjtag::usbblaster_device
 	return 1
 }
 
 proc vjtag::usbblaster_close {} {
+	jtag::close_cable
 }
 
 # Convert decimal number to the required binary code
@@ -77,13 +110,14 @@ proc vjtag::select_instance { id } {
 
 proc vjtag::ir {a} {
 	# BSCANE2 on USER3 register
-	jtag::shift_ir 0x22
+#	jtag::shift_ir 0x22
+	jtag::shift_ir $::vjtag::ir_reg
 	jtag::shift_dr $a 2
 }
 
 proc vjtag::dr {a} {
 	# BSCANE2 on USER4 register
-	jtag::shift_ir 0x23
+	jtag::shift_ir $::vjtag::dr_reg
 #	puts [ format 0x%x $a]
 	return [jtag::shift_dr $a 32]
 }
@@ -136,14 +170,5 @@ proc vjtag::stat {} {
 	if {[expr $r & 2]} { puts "Receive buffer full" }
 	if {[expr $r & 4]} { puts "Transmit buffer empty" }
 	if {[expr $r & 8]} { puts "Transmit buffer full" }
-}
-
-set cable "xpc"
-if {$argc > 0 } {
-	set cable [lindex $argv 0]
-}
-if {[catch {vjtag::opencable $cable}]} {
-	puts "Unable to open cable $cable"
-	exit 1
 }
 

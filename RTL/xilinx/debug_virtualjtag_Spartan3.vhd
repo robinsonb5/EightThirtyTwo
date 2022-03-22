@@ -41,8 +41,8 @@ signal dr_update : std_logic;
 
 begin
 
--- Use chain 3 for virtual IR
-irscan : BSCANE2
+-- Use chain 1 for virtual IR
+irscan : BSCAN_SPARTAN3
 generic map
 (
 	JTAG_CHAIN => 3
@@ -50,7 +50,7 @@ generic map
 port map (
 	CAPTURE => ir_cap,   -- 1-bit output: CAPTURE output from TAP controller.
 	DRCK => open,        -- 1-bit output: Gated TCK output. When SEL is asserted, DRCK toggles when CAPTURE or
-                        -- SHIFT are asserted.
+                         -- SHIFT are asserted.
 	RESET=> open,        -- 1-bit output: Reset output for TAP controller.
 	RUNTEST => open,     -- 1-bit output: Output asserted when TAP controller is in Run Test/Idle state.
 	SEL => ir_sel,       -- 1-bit output: USER instruction active output.
@@ -68,25 +68,17 @@ ir_out <= ir_sreg;
 process(ir_tck)
 begin
 	if rising_edge(ir_tck) then
---		if ir_sel='1' and ir_cap='1' then
---			ir_sreg <= 0x00;
---		end if;
-
 		if ir_sel='1' and ir_shift='1' then
 			ir_sreg <= ir_tdi & ir_sreg(irsize-1 downto 1);
 		end if;
-
---		if ir_sel='1' and ir_update='1' then
---			ir_out <= ir_sreg;
---		end if;
 	end if;
 end process;
 
 virtual_state_uir <= ir_sel and ir_update;
 
 
--- Use chain 3 for virtual IR
-drscan : BSCANE2
+-- Use chain 2 for virtual IR
+drscan : BSCAN_SPARTAN3
 generic map
 (
 	JTAG_CHAIN => 4
@@ -94,9 +86,9 @@ generic map
 port map (
 	CAPTURE => dr_cap,   -- 1-bit output: CAPTURE output from TAP controller.
 	DRCK => open,        -- 1-bit output: Gated TCK output. When SEL is asserted, DRCK toggles when CAPTURE or
-                        -- SHIFT are asserted.
+                         -- SHIFT are asserted.
 	RESET=> open,        -- 1-bit output: Reset output for TAP controller.
-   RUNTEST => open,     -- 1-bit output: Output asserted when TAP controller is in Run Test/Idle state.
+	RUNTEST => open,     -- 1-bit output: Output asserted when TAP controller is in Run Test/Idle state.
 	SEL => dr_sel,       -- 1-bit output: USER instruction active output.
 	SHIFT => dr_shift,   -- 1-bit output: SHIFT output from TAP controller.
 	TCK => tck,          -- 1-bit output: Test Clock output. Fabric connection to TAP Clock pin.
@@ -111,3 +103,4 @@ virtual_state_sdr <= dr_sel and dr_shift;
 virtual_state_udr <= dr_sel and dr_update;
 
 end architecture;
+

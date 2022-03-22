@@ -33,6 +33,15 @@ if {[info exists ::quartus]} {
 	source [file dirname [info script]]/vjtagutil.tcl
 } else {
 	source [file dirname [info script]]/vjtagutil_xilinx.tcl
+	set cable "xpc"
+	if {$argc > 0 } {
+		set cable [lindex $argv 0]
+	}
+	vjtag::select_cable $cable
+	if { [catch {vjtag::usbblaster_open}] } {
+		puts "Unable to open cable $cable"
+		exit 1
+	}
 }
 
 ########## Process a connection on the port ###########################
@@ -100,6 +109,7 @@ proc conn {channel_name client_address client_port} {
 					if {$parambytes==0 || $parambytes==4} {
 #						puts "Sending param..."
 						vjtag::send $cmd
+						set cmd 0
 					}
 				}
 

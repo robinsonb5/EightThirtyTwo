@@ -1,4 +1,4 @@
--- debug_bridge_bscan.vhd
+-- debug_bridge_jtag.vhd
 -- Copyright 2020 by Alastair M. Robinson
 
 -- This file is part of the EightThirtyTwo CPU project.
@@ -50,7 +50,12 @@ constant RX	: std_logic_vector(1 downto 0) := "01";
 constant STATUS : std_logic_vector(1 downto 0) := "10";
 constant BYPASS : std_logic_vector(1 downto 0) := "11";
 
-signal ir : std_logic_vector(1 downto 0);
+signal ir_in : std_logic_vector(1 downto 0);
+signal ir_out : std_logic_vector(1 downto 0);
+signal ir : std_logic_vector(1 downto 0) := BYPASS;
+signal ir_d : std_logic_vector(1 downto 0);
+signal ir_d2 : std_logic_vector(1 downto 0);
+signal ir_d3 : std_logic_vector(1 downto 0);
 signal vstate_cdr : std_logic;
 signal vstate_sdr : std_logic;
 signal vstate_udr : std_logic;
@@ -80,12 +85,14 @@ signal rxrd_req : std_logic;
 
 begin
 
+ir_out <= ir_in;
 tdo <= bp(0) when ir=BYPASS else shift(0);
 
 
-virtualjtag : entity work.debug_virtualjtag_xilinx
+virtualjtag : entity work.debug_virtualjtag
 port map(
-	ir_out => ir,
+	ir_in => ir_in,
+	ir_out => ir_out,
 	tdo => tdo,
 	tck => tck,
 	tdi => tdi,
@@ -96,14 +103,14 @@ port map(
 );
 
 
-fifotojtag : entity work.debug_fifo_xilinx
+fifotojtag : entity work.debug_fifo
 port map (
 	din => d,
 	wr_clk => not clk,
 	wr_en => txwr_req,
 	full => txfl,
 
-	rd_clk => tck,
+	rd_clk => not tck,
 	rd_en => txrd_req,
 	dout => txdata,
 	empty => txmt
@@ -112,16 +119,16 @@ port map (
 txrd_req <= vstate_cdr when ir=TX else '0';
 
 
-fifofromjtag : entity work.debug_fifo_xilinx
+fifofromjtag : entity work.debug_fifo
 port map (
 	din => shift,
-	wr_clk => tck,
+	wr_clk => not tck,
 	wr_en => rxwr_req,
 	full => rxfl,
 
 	rd_clk => not clk,
 	rd_en => rxrd_req,
-	dout => q,
+	dout => data,
 	empty => rxmt
 );
 
@@ -145,24 +152,34 @@ begin
 				ack<='1';
 			elsif wr='0' and rxmt='0' then
 				rxrd_req<='1';
-				ack<='1';
 			end if;
 		end if;
 		
---		if rxrd_req='1' then
---			ack<='1';
---		end if;
+		if rxrd_req='1' then
+			ack<='1';
+			q<=data;
+		end if;
 	
 	end if;
 
 end process;
 
 
-cdr_d <= vstate_cdr;
-sdr_d <= vstate_sdr;
-
 process (tck)
 begin
+	if falling_edge(tck) then
+		cdr_d <= vstate_cdr;
+		sdr_d <= vstate_sdr;
+
+		if vstate_uir='1' then
+			ir <= ir_in;
+			ir_d<=ir;
+			ir_d2<=ir_d;
+			ir_d3<=ir_d2;
+		end if;
+
+	end if;
+
 	if rising_edge(tck) then
 		case ir is
 			when TX =>
