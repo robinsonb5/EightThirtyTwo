@@ -552,6 +552,13 @@ begin
 		thread.setpc<='1';
 		thread.pause<='0';
 		thread.d_ex_op<=e32_ex_bubble;
+		thread.d_imm<=(others => '0');
+		thread.d_reg<=(others=>'0');
+		thread.d_alu_op <= e32_alu_nop;
+		thread.d_alu_reg1<=(others=>'0');
+		thread.d_alu_reg2<=(others=>'0');
+		thread.d_read_tmp <= '0';
+		thread.d_read_reg <= '0';
 		thread.e_write_tmp<='0';
 		thread.m_write_tmp<='0';
 		thread.w_write_tmp<='0';
@@ -577,6 +584,13 @@ begin
 			thread2.setpc<='1';
 			thread2.pause<='0';
 			thread2.d_ex_op<=e32_ex_bubble;
+			thread2.d_imm<=(others => '0');
+			thread2.d_reg<=(others=>'0');
+			thread2.d_alu_op <= e32_alu_nop;
+			thread2.d_alu_reg1<=(others=>'0');
+			thread2.d_alu_reg2<=(others=>'0');
+			thread2.d_read_tmp <= '0';
+			thread2.d_read_reg <= '0';
 			thread2.e_write_tmp<='0';
 			thread2.m_write_tmp<='0';
 			thread2.w_write_tmp<='0';
