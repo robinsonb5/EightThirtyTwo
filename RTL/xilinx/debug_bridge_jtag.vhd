@@ -38,6 +38,8 @@ end entity;
 
 architecture rtl of debug_bridge_jtag is
 
+signal clk_inv : std_logic;
+
 type states is (IDLE, READADDR,GETRESPONSE,STEP);
 signal state : states ;
 signal counter : unsigned(15 downto 0);
@@ -80,6 +82,8 @@ signal rxrd_req : std_logic;
 
 begin
 
+clk_inv <= not clk;
+
 tdo <= bp(0) when ir=BYPASS else shift(0);
 
 
@@ -99,7 +103,7 @@ port map(
 fifotojtag : entity work.debug_fifo
 port map (
 	din => d,
-	wr_clk => not clk,
+	wr_clk => clk_inv,
 	wr_en => txwr_req,
 	full => txfl,
 
@@ -119,7 +123,7 @@ port map (
 	wr_en => rxwr_req,
 	full => rxfl,
 
-	rd_clk => not clk,
+	rd_clk => clk_inv,
 	rd_en => rxrd_req,
 	dout => q,
 	empty => rxmt

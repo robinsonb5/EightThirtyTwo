@@ -74,11 +74,10 @@ begin
 	empty_c <= '1' when inptr_gray = outptr_gray else'0';
 	empty <= empty_d when rd_delay="00" else '1';
 
+	outptr_next<=outptr+1;
+	outptr_next_gray<=togray(outptr_next);
+
 	process(rd_clk,reset_rd(1)) begin
-
-		outptr_next<=outptr+1;
-		outptr_next_gray<=togray(outptr_next);
-
 		if reset_rd(1)='0' then
 			outptr<=(others=>'0');
 			outptr_gray<=(others=>'0');
