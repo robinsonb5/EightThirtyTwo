@@ -1,4 +1,4 @@
-xilinx/debug_bridge_jtag.vhd
-xilinx/debug_virtualjtag_$fpga.vhd
 debug_fifo.vhd
+$vendor/debug_virtualjtag_$fpga.vhd
+$vendor/debug_bridge_jtag.vhd
 
