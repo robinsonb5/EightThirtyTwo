@@ -34,6 +34,8 @@ char *strtok_r(char *, const char *, char **);
 long int strtol(const char *nptr, char **endptr, int base);
 unsigned long int strtoul(const char *nptr, char **endptr, int base);
 
+char *strchr(const char *, int);
+
 /* Don't yet have implementations of these functions */
 
 #if 0

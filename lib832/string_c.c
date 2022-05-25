@@ -108,6 +108,32 @@ int todigit(int c,int base)
 	return(c);
 }
 
+int isdigit(int c)
+{
+	return(c>='0' && c<='9');
+}
+
+long atoi(const char *nptr)
+{
+	int neg=0;
+	int result=0;
+	const char *p=nptr;
+	if(*p=='-')
+	{
+		neg=1;
+		++p;
+	}
+	while(1)
+	{
+		int digit;
+		digit=todigit(*p++,10);
+		if(digit<0)
+			return(neg ? -result : result);
+		result*=10;
+		result+=digit;
+	}
+}
+
 long strtol(const char *in,char **endptr,int base)
 {
 	int neg=0;
@@ -155,4 +181,15 @@ unsigned long strtoul(const char *in,char **endptr,int base)
 	}
 }
 
+const char *strchr(const char *str,char c)
+{
+	char t;
+	do{
+		t=*str;
+		if(t==c)
+			return str;
+		++str;
+	} while(t);
+	return(0);
+}
 
