@@ -438,23 +438,26 @@ void parse_mapfile(struct ocd_rbuf *buf)
 				while(c=getline(&linebuf,&len,f)>0)
 				{
 					char *endptr;
-					int v=strtoul(linebuf,&endptr,0);
-					if(!v && endptr==linebuf)
-						linkerror("Invalid constant value");
-					else
+					if(linebuf[0]!=' ') /* Skip over section size entries */
 					{
-						if(endptr[1]==' ')
+						int v=strtoul(linebuf,&endptr,0);
+						if(!v && endptr==linebuf)
+							linkerror("Invalid constant value");
+						else
 						{
-							struct symbol *sym;
-							char *tok=strtok_escaped(endptr);
-							if(sym=symbol_new(tok,v,0))
+							if(endptr[1]==' ')
 							{
-								if(sym->identifier[0]=='_')
-									sym->flags=SYMBOLFLAG_GLOBAL;
-								section_addsymbol(result,sym);
+								struct symbol *sym;
+								char *tok=strtok_escaped(endptr);
+								if(sym=symbol_new(tok,v,0))
+								{
+									if(sym->identifier[0]=='_')
+										sym->flags=SYMBOLFLAG_GLOBAL;
+									section_addsymbol(result,sym);
+								}
 							}
 						}
-					}					
+					}
 				}
 			}
 			fclose(f);
