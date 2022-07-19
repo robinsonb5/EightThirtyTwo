@@ -852,16 +852,16 @@ void save_temp(FILE * f, struct IC *p, int treg)
 		case INT:
 		case LONG:
 		case POINTER:
-//			// Would need to adjust the pointer at the setup stage since we're predecrementing
-//			if (consecutiveaccess(p,p->next)==-4 || (p->z.am && p->z.am->type == AM_PREDEC))
-//			{
-//				emit(f, "\tstdec\t%s\n", regnames[treg]);
-//				adjtempobj(f,treg,-4);
-//			}
 			if (consecutiveaccess(p,p->next)==4 || (p->z.am && p->z.am->type == AM_POSTINC))
 			{
 				emit(f, "\tstinc\t%s\n", regnames[treg]);
 				adjtempobj(f,treg,4);
+			}
+			// Can't do consecutive address in predec mode since we would need to adjust the pointer at the setup stage.
+			if (p->z.am && p->z.am->type == AM_PREDEC)
+			{
+				emit(f, "\tstdec\t%s\n", regnames[treg]);
+				adjtempobj(f,treg,-4);
 			}
 			else
 				emit(f, "\tst\t%s\n", regnames[treg]);
@@ -1956,6 +1956,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		}
 
 		if (c == ASSIGN) {
+			emit(f,"\t\t// Offsets %d, %d\n",p->q1.val.vlong,p->z.val.vlong);
+			emit(f,"\t\t// Have am? %s, %s\n",p->q1.am ? "yes" : "no", p->z.am ? "yes" : "no");
 			if(DBGMSG)
 				emit(f, "\t\t\t\t\t\t// (a/p assign)\n");
 			if (((t & NQ) == STRUCT) || ((t & NQ) == UNION) || ((t & NQ) == ARRAY)
@@ -1966,6 +1968,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				// Use stmpdec if q1 is already in a register and we're not using addressing modes...
 				if(!check_am(p) && ((p->q1.flags&(REG|DREFOBJ))==REG) && !(p->z.flags&REG))
 				{
+					emit(f,"\t\t\t\t\t\t\t// Not using addressing mode\n");
 					if(p->z.flags&DREFOBJ)	// Can't use stmpdec for dereferenced objects
 					{
 						emit_prepobj(f, &p->z, t, tmp, 0);
@@ -1991,6 +1994,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				}
 				else
 				{
+					emit(f,"\t\t\t\t\t\t// Have an addressing mode...\n");
 					emit_prepobj(f, &p->z, t, t1, 0);
 					emit_objtoreg(f, &p->q1, t, tmp);
 					save_temp(f, p, t1);

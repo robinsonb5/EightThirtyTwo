@@ -673,7 +673,7 @@ void am_prepost_incdec(struct IC *p, struct obj *o)
 						// Check next IC to see if it's disposable, and referencing the same register:
 						if(tempob=throwaway_reg(p2->next,p2->z.reg)) {
 							if (AM_DEBUG)
-								printf("\tChangingnext IC from reg %s to reg %s\n", regnames[tempob->reg], regnames[p2->q1.reg]);
+								printf("\tChanging next IC from reg %s to reg %s\n", regnames[tempob->reg], regnames[p2->q1.reg]);
 							tempob->reg=p2->q1.reg; // Adjust the register referenced in the next IC.
 							p2->code=NOP; // Nullify the adjustment since we've aliased the register
 						}
