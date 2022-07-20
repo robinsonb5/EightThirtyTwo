@@ -857,8 +857,8 @@ void save_temp(FILE * f, struct IC *p, int treg)
 				emit(f, "\tstinc\t%s\n", regnames[treg]);
 				adjtempobj(f,treg,4);
 			}
-			// Can't do consecutive address in predec mode since we would need to adjust the pointer at the setup stage.
-			if (p->z.am && p->z.am->type == AM_PREDEC)
+			else if (p->z.am && p->z.am->type == AM_PREDEC) // Can't do consecutive address in predec mode
+			                                                // since we would need to adjust the pointer at the setup stage.
 			{
 				emit(f, "\tstdec\t%s\n", regnames[treg]);
 				adjtempobj(f,treg,-4);

@@ -8,7 +8,7 @@ LD=../../832a/832l
 CC=../bin/vbcc832
 EM=../../832emu/832e
 CFLAGS = -+ -c99 -I$(832DIR)/include/ -I$(LIBDIR)
-COPT = -O=1343 -size -unsigned-char
+COPT = -O=32767 -speed -unsigned-char
 TIME=200us
 
 # Endian setting must match the littleendian generic in the testbench
@@ -85,10 +85,10 @@ clean :
 	@$(AS) $(ASFLAGS) -o $*.o $(LIBDIR)/$*.S
 
 %.asm : %.c Makefile ../bin/vbcc832 $(CC)
-	@../bin/vbcc832 $(CFLAGS) $(COPT) -I$(832DIR) $*.c
+	../bin/vbcc832 $(CFLAGS) $(COPT) -I$(832DIR) $*.c
 
 %.asm : $(LIBDIR)/%.c Makefile ../bin/vbcc832 $(CC)
-	@../bin/vbcc832 $(CFLAGS) $(COPT) -I$(832DIR) $(LIBDIR)/$*.c -o=$@
+	../bin/vbcc832 $(CFLAGS) $(COPT) -I$(832DIR) $(LIBDIR)/$*.c -o=$@
 
 $(ROMGEN): $(ROMGENDIR)/romgen.c
 	make -C $(ROMGENDIR)
