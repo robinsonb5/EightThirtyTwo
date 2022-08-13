@@ -711,8 +711,10 @@ static int q1reg, q2reg, zreg;
 
 static char *ccs[] = { "EQ", "NEQ", "SLT", "GE", "LE", "SGT", "EX", "" };
 static char *logicals[] = { "or", "xor", "and" };
+static int logicals_clamp[] = { 0, 0, 0 };
 
 static char *arithmetics[] = { "shl", "shr", "add", "sub", "mul", "(div)", "(mod)" };
+static int arithmetics_clamp[] = { 1, 0, 1, 0, 1, 0, 0 };
 
 /* Does some pre-processing like fetching operands from memory to
    registers etc. */
@@ -877,7 +879,7 @@ void save_temp(FILE * f, struct IC *p, int treg)
 }
 
 /* save the result (in zreg) into p->z */
-void save_result(FILE * f, struct IC *p)
+void save_result(FILE * f, struct IC *p, int clamp)
 {
 	if(DBGMSG)
 		emit(f, "\t\t\t\t\t\t// (save result) ");
@@ -889,6 +891,21 @@ void save_result(FILE * f, struct IC *p)
 			emit(f, "\tmt\t%s\n\tmr\t%s\n", regnames[zreg], regnames[p->z.reg]);
 			settempobj(f,tmp,&p->z,0,0);
 			settempobj(f,p->z.reg,&p->z,0,0);
+		}
+		if(clamp)
+		{
+			if((ztyp(p)&NU)==(CHAR|UNSIGNED))
+			{
+				emit(f,"\t\t\t\t\t\t// storing UNSIGNED CHAR to register - must mask\n");
+				emit(f, "\t.liconst\t0xff\n\tand\t%s\n", regnames[p->z.reg]);	
+				cleartempobj(f,tmp);
+			}
+			else if ((ztyp(p)&NU)==(SHORT|UNSIGNED))
+			{
+				emit(f,"\t\t\t\t\t\t// storing UNSIGNED SHORT to register - must mask\n");
+				emit(f, "\t.liconst\t0xffff\n\tand\t%s\n", regnames[p->z.reg]);	
+				cleartempobj(f,tmp);
+			}
 		}
 	}
 	else
@@ -1697,7 +1714,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 							// WARNING - might need to invalidate temp objects here...
 						} else {
 							emit_objtoreg(f, &p->q1, q1typ(p), zreg);
-							save_result(f, p);
+							save_result(f, p,0);
 							// WARNING - might need to invalidate temp objects here...
 						}
 						break;
@@ -1707,7 +1724,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 						emit(f,"\tadd\t%s\n",regnames[zreg]);
 						emit(f,"\txor\t%s\n",regnames[zreg]);
 						cleartempobj(f,zreg);
-						save_result(f, p);
+						save_result(f, p,0);
 						break;
 					case SHORT:
 						emit_objtoreg(f, &p->q1, q1typ(p), zreg);
@@ -1715,7 +1732,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 						emit(f,"\tadd\t%s\n",regnames[zreg]);
 						emit(f,"\txor\t%s\n",regnames[zreg]);
 						cleartempobj(f,zreg);
-						save_result(f, p);
+						save_result(f, p,0);
 						break;
 				}
 //				settempobj(f,zreg,&p->z,0,0);
@@ -1793,7 +1810,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			emit_constanttotemp(f,-1);
 			emit(f, "\txor\t%s\n", regnames[zreg]);
 //			cleartempobj(f,zreg);
-			save_result(f, p);
+			save_result(f, p,0);
 			continue;
 		}
 		// May not need to actually load the register here - certainly check before emitting code.
@@ -1810,7 +1827,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				emit(f, "\t\t\t\t\t\t// (getreturn)");
 			if (p->q1.reg) {
 				zreg = p->q1.reg;
-				save_result(f, p);
+				save_result(f, p,0);
 			} else {
 				if(DBGMSG)
 					emit(f, " not reg\n");
@@ -2014,7 +2031,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			else
 			{
 				emit_prepobj(f, &p->q1, POINTER, zreg, 0);
-				save_result(f, p);
+				save_result(f, p,0);
 			}
 			continue;
 		}
@@ -2027,7 +2044,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			emit(f, "\texg %s\n\tsub %s\n", regnames[zreg], regnames[zreg]);
 			settempobj(f,tmp,&p->q1,0,0); // Temp contains un-negated value
 			// cleartempobj(f,tmp);
-			save_result(f, p);
+			save_result(f, p,0); // FIXME - should we clamp this?
 			continue;
 		}
 		// Compare - #
@@ -2182,7 +2199,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			cleartempobj(f,t1);
 
 			// Target not guaranteed to be a register.
-			save_result(f, p);
+			save_result(f, p, 0);
 
 			continue;
 		}
@@ -2190,6 +2207,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		// Remaining arithmetic and bitwise operations
 
 		if ((c >= OR && c <= AND) || (c >= LSHIFT && c <= MULT)) {
+			int clamp=0;
 			if(DBGMSG)
 				emit(f, "\t\t\t\t\t\t// (bitwise/arithmetic) ");
 			if(DBGMSG)
@@ -2245,7 +2263,10 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			}
 			emit_objtoreg(f, &p->q2, t,tmp);
 			if (c >= OR && c <= AND)
+			{
 				emit(f, "\t%s\t%s\n", logicals[c - OR], regnames[zreg]);
+				clamp=logicals_clamp[c - OR];
+			}
 			else {
 				if (c == RSHIFT || c==MULT)	// Modify right shift operations with appropriate signedness...
 				{
@@ -2260,12 +2281,13 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 					}
 				}
 				emit(f, "\t%s\t%s\n", arithmetics[c - LSHIFT], regnames[zreg]);
+				clamp=arithmetics_clamp[c - LSHIFT];
 				if(c==MULT)
 					cleartempobj(f,tmp);
 			}
 			settempobj(f,zreg,&p->z,0,0);
 			cleartempobj(f,zreg);
-			save_result(f, p);
+			save_result(f, p, clamp);
 			continue;
 		}
 		printf("Unhandled IC\n");
