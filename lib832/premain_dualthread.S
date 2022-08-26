@@ -137,6 +137,7 @@ _premain:
 
 .endloop:
 	cond NEX	// Pause until an interrupt is received
+	and r0	// Nop, first instruction after cond NEX is lost.
 	.lipcrel .endloop
 	add	r7
 
