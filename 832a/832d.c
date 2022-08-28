@@ -26,48 +26,8 @@
 #include "832opcodes.h"
 #include "832util.h"
 #include "section.h"
+#include "mapfile.h"
 
-struct section *parse_mapfile(const char *filename)
-{
-	struct section *result=0;
-	if(filename)
-	{
-		FILE *f;
-		f=fopen(filename,"r");
-		if(f)
-		{
-			if(result=section_new(0,"symboltable"))
-			{
-				int line=0;
-				char *linebuf=0;
-				size_t len;
-				int c;
-				while(c=getline(&linebuf,&len,f)>0)
-				{
-					char *endptr;
-					int v=strtoul(linebuf,&endptr,0);
-					if(!v && endptr==linebuf)
-						linkerror("Invalid constant value");
-					else
-					{
-						if(endptr[1]==' ')
-						{
-							struct symbol *sym;
-							char *tok=strtok_escaped(endptr);
-							if(sym=symbol_new(tok,v,0))
-								section_addsymbol(result,sym);
-						}
-					}					
-				}
-				if(linebuf)
-					free(linebuf);
-			}
-			fclose(f);
-		}	
-	}
-
-	return(result);
-}
 
 void file_disassemble(const char *filename,struct section *symbolmap,enum eightthirtytwo_endian endian)
 {
@@ -181,7 +141,7 @@ int main(int argc,char **argv)
 				nextendian=1;
 			else if(nextmap)
 			{
-				symbolmap=parse_mapfile(argv[i]);
+				symbolmap=mapfile_read(argv[i]);
 				nextmap=0;
 			}
 			else if(nextendian)

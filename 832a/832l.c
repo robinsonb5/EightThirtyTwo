@@ -27,6 +27,7 @@
 #include "832util.h"
 #include "executable.h"
 #include "objectfile.h"
+#include "mapfile.h"
 
 
 int main(int argc,char **argv)
@@ -192,7 +193,7 @@ int main(int argc,char **argv)
 			if(mapfn)
 			{
 				printf("Writing map file %s\n",mapfn);
-				executable_writemap(exe,mapfn,locals);
+				mapfile_write(exe,mapfn,locals);
 			}
 
 			executable_delete(exe);

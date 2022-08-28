@@ -33,6 +33,7 @@
 #include "832a.h"
 #include "section.h"
 #include "symbol.h"
+#include "mapfile.h"
 
 
 WINDOW *create_newwin(const char *title,int height, int width, int starty, int startx);
@@ -425,43 +426,7 @@ void parse_mapfile(struct ocd_rbuf *buf)
 	struct section *result=0;
 	if(buf && buf->symbolmapfn)
 	{
-		FILE *f;
-		f=fopen(buf->symbolmapfn,"r");
-		if(f)
-		{
-			if(result=section_new(0,"symboltable"))
-			{
-				int line=0;
-				char *linebuf=0;
-				size_t len;
-				int c;
-				while(c=getline(&linebuf,&len,f)>0)
-				{
-					char *endptr;
-					if(linebuf[0]!=' ') /* Skip over section size entries */
-					{
-						int v=strtoul(linebuf,&endptr,0);
-						if(!v && endptr==linebuf)
-							linkerror("Invalid constant value");
-						else
-						{
-							if(endptr[1]==' ')
-							{
-								struct symbol *sym;
-								char *tok=strtok_escaped(endptr);
-								if(sym=symbol_new(tok,v,0))
-								{
-									if(sym->identifier[0]=='_')
-										sym->flags=SYMBOLFLAG_GLOBAL;
-									section_addsymbol(result,sym);
-								}
-							}
-						}
-					}
-				}
-			}
-			fclose(f);
-		}	
+		result=mapfile_read(buf->symbolmapfn);
 	}
 	if(buf)
 		buf->symbolmap=result;

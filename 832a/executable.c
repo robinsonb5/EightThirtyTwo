@@ -430,26 +430,3 @@ void executable_link(struct executable *exe, int reloc)
 }
 
 
-void executable_writemap(struct executable *exe,const char *fn,int locals)
-{
-	FILE *f=fopen(fn,"w");
-	if(f)
-	{
-		struct sectionmap *map=exe->map;
-		struct section *sect;
-		int i;
-		int prevaddr=0;
-		for(i=0;i<map->entrycount;++i)
-		{
-			sect=map->entries[i].sect;
-			if(sect)
-			{
-				fprintf(f,"           (0x%x bytes)\n",sect->address-prevaddr);
-				section_writemap(sect,f,locals);
-				prevaddr=sect->address;
-			}
-		}
-		fclose(f);
-	}
-}
-

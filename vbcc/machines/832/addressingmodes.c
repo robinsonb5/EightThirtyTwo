@@ -474,7 +474,7 @@ struct obj *throwaway_reg(struct IC *p,int reg)
 		}
 	}
 	if (AM_DEBUG)
-		printf("\tReturning %x\n", result);
+		printf("\tReturning %lx\n", (unsigned long)result);
 	return(result);
 }
 
