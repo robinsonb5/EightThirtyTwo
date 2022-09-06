@@ -109,6 +109,18 @@ d2_sgn<=d2_2(31) when op=e32_alu_sub else '0';
 
 addresult <= unsigned(d1_sgn&d1_2&sublsb) + unsigned(d2_sgn&d2_2&sublsb);
 
+genmult : if multiplier=true generate
+	signal mulclk : std_logic;
+begin
+	mulclk <= clk;
+	
+	process(mulclk) begin
+		if rising_edge(mulclk) then
+			mulresult <= signed((d1(31) and sgn)&d1) * signed((d2(31) and sgn)&d2);
+		end if;
+	end process;
+end generate;
+
 process(clk,reset_n)
 begin
 	if reset_n='0' then
@@ -119,10 +131,6 @@ begin
 
 		immediatestreak<='0';
 		busyflag<='0';
-
-		if multiplier=true then
-			mulresult <= signed((d1(31) and sgn)&d1) * signed((d2(31) and sgn)&d2);
-		end if;
 
 		case op is
 			when e32_alu_and =>
