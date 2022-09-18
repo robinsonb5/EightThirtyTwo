@@ -36,9 +36,6 @@ class EightThirtyTwoMemory
 	{
 		uartin=c;
 	}
-	virtual int ReadB(unsigned int addr)
-	{
-	}
 	virtual int Read(unsigned int addr,e32endian endian,e32size opsize)
 	{
 		switch(addr)

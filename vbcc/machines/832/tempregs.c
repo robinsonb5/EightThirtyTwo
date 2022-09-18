@@ -561,7 +561,10 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 				/* Do we need to deference? */
 				if (elementary) {
 					if (real_offset(p)) {
-						emit_constanttotemp(f, real_offset(p));
+						int offset=real_offset(p);
+						if(isstackparam(p))
+							offset&=~3; /* HACK: Align stack parameters to 32-bit boundary */
+						emit_constanttotemp(f, offset);
 						if(!isstackparam(p))
 							emit_sizemod(f, t);
 						emit(f, "\tldidx\t%s\n", regnames[sp]);
@@ -572,7 +575,10 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 					result=1;
 				} else {
 					if (real_offset(p)) {
-						emit_constanttotemp(f, real_offset(p));
+						int offset=real_offset(p);
+						if(isstackparam(p))
+							offset&=~3; /* HACK: Align stack parameters to 32-bit boundary */
+						emit_constanttotemp(f, offset);
 						emit(f, "\taddt\t%s\n", regnames[sp]);
 					} else {
 						emit(f, "\tmt\t%s\n", regnames[sp]);

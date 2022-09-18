@@ -14,12 +14,14 @@ TIME=200us
 # Endian setting must match the littleendian generic in the testbench
 
 # LITTLE ENDIAN
+#CFLAGS += -el
 #ASFLAGS=-el
-#LDFLAGS=-el 
+#LDFLAGS=-el
 #EMFLAGS=-el
 #ROMGENFLAGS=-b -w
 
 # BIG ENDIAN
+CFLAGS += -eb
 ASFLAGS=-eb
 LDFLAGS=-eb 
 EMFLAGS=-eb

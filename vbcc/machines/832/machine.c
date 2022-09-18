@@ -216,22 +216,6 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg);
    This is just an example layout. Other layouts are also possible.
 */
 
-static long real_offset(struct obj *o)
-{
-	long off = 0;
-	if((o->flags&VAR) && isauto(o->v->storage_class))
-		off=zm2l(o->v->offset);
-//      printf("Parameter offset: %d, localsize: %d, rsavesize: %d\n",off,localsize,rsavesize);
-	if (off < 0) {
-		/* function parameter */
-		off = localsize + rsavesize + 4 - off - zm2l(maxalign);
-	}
-	off += pushed;
-	off += notyetpopped;
-	off += zm2l(o->val.vmax);
-	return off;
-}
-
 
 static int isstackparam(struct obj *o)
 {
@@ -249,6 +233,26 @@ static int isstackparam(struct obj *o)
 	}
 	return(result);
 }
+
+
+static long real_offset(struct obj *o)
+{
+	long off = 0;
+	if((o->flags&VAR) && isauto(o->v->storage_class))
+		off=zm2l(o->v->offset);
+//      printf("Parameter offset: %d, localsize: %d, rsavesize: %d\n",off,localsize,rsavesize);
+	if (off < 0) {
+		/* function parameter */
+		off = localsize + rsavesize + 4 - off - zm2l(maxalign);
+	}
+	off += pushed;
+	off += notyetpopped;
+	off += zm2l(o->val.vmax);
+	if(isstackparam(o))
+		off &= ~3;
+	return off;
+}
+
 
 /* Convenience function to determine whether we're assigning to 0(r6)
    and can thus use a more efficient writing sequence. */
@@ -1067,7 +1071,7 @@ int init_cg(void)
 	flag_832_bigendian=0;
 	if(g_flags[FLAG_BE]&USEDFLAG)
 		flag_832_bigendian=1;
-	else if(!g_flags[FLAG_BE]&USEDFLAG)
+	else if(!g_flags[FLAG_LE]&USEDFLAG)
 		printf("Neither -eb nor -el specified - defaulting to little-endian\n");
 
 #ifndef V09G
