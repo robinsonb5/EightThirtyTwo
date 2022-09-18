@@ -188,7 +188,8 @@ int main(int argc,char **argv)
 			printf("Linking...\n");
 			executable_link(exe,reloc);
 			printf("Saving with %s endian configuration to %s\n",endian==EIGHTTHIRTYTWO_LITTLEENDIAN ? "little" : "big",outfn);
-			executable_save(exe,outfn,endian,reloc);
+			if(!executable_save(exe,outfn,endian,reloc))
+				exit(1);
 
 			if(mapfn)
 			{

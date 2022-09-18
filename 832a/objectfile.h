@@ -38,6 +38,6 @@ void objectfile_dump(struct objectfile *obj,int untouched);
 
 void objectfile_writemap(struct objectfile *obj,FILE *f,int locals);
 void objectfile_emitbyte(struct objectfile *obj,unsigned char byte);
-void objectfile_output(struct objectfile *obj,const char *filename);
+int objectfile_output(struct objectfile *obj,const char *filename);
 #endif
 

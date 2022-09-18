@@ -292,23 +292,35 @@ void objectfile_dump(struct objectfile *obj,int untouched)
 }
 
 
-void objectfile_output(struct objectfile *obj,const char *filename)
+int objectfile_output(struct objectfile *obj,const char *filename)
 {
+	char *err="Object filename missing";
 	if(obj)
 	{
 		struct section *sect=obj->sections;
 
+		err="Can't open object file for writing";
 		FILE *f=fopen(filename,"wb");
-		fwrite("832",3,1,f);
-		fputc(0x02,f); /* Revision 2 file */
-
-		while(sect)
+		if(f)
 		{
-			section_outputobj(sect,f);
-			sect=sect->next;
+			fwrite("832",3,1,f);
+			fputc(0x02,f); /* Revision 2 file */
+
+			while(sect)
+			{
+				section_outputobj(sect,f);
+				sect=sect->next;
+			}
+			fclose(f);
+			err=0;
 		}
-		fclose(f);
 	}
+	if(err)
+	{
+		fprintf(stderr,"Error: %s\n",err);
+		return(0);
+	}
+	return(1);
 }
 
 

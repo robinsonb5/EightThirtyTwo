@@ -363,35 +363,46 @@ void executable_assignaddresses(struct executable *exe)
 }
 
 
-void executable_save(struct executable *exe,const char *fn,enum eightthirtytwo_endian endian,int reloc)
+int executable_save(struct executable *exe,const char *fn,enum eightthirtytwo_endian endian,int reloc)
 {
+	char *err=fn ? "Executable filename missing" : "No executable data to save";
 	FILE *f;
-	f=fopen(fn,"wb");
-	if(f && exe && exe->map)
+	if(fn && exe && exe->map)
 	{
-		int i;
-		struct sectionmap *map=exe->map;
-		struct section *sect;
-
-		for(i=0;i<map->entrycount;++i)
+		err="Can't open executable for writing";
+		f=fopen(fn,"wb");
+		if(f)
 		{
-			sect=map->entries[i].sect;
-			if(sect)
-				section_outputexe(sect,f,endian);
-		}
+			int i;
+			struct sectionmap *map=exe->map;
+			struct section *sect;
 
-		if(reloc)
-		{
 			for(i=0;i<map->entrycount;++i)
 			{
 				sect=map->entries[i].sect;
 				if(sect)
-					section_outputrelocs(sect,f,endian);
+					section_outputexe(sect,f,endian);
 			}
-		}
 
-		fclose(f);
+			if(reloc)
+			{
+				for(i=0;i<map->entrycount;++i)
+				{
+					sect=map->entries[i].sect;
+					if(sect)
+						section_outputrelocs(sect,f,endian);
+				}
+			}
+			fclose(f);
+			err=0;
+		}
 	}
+	if(err)
+	{
+		fprintf(stderr,"Error: %s\n",err);
+		return(0);
+	}
+	return(1);
 }
 
 

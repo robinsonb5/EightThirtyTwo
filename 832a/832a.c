@@ -416,8 +416,9 @@ void parsesourcefile(struct objectfile *obj,const char *fn,enum eightthirtytwo_e
 
 
 /* Attempt to assemble the named file.  Calls exit() on failure. */
-int assemble(const char *fn,const char *on,enum eightthirtytwo_endian endian)
+void assemble(const char *fn,const char *on,enum eightthirtytwo_endian endian)
 {
+	int result=0;
 	struct objectfile *obj;
 
 	obj=objectfile_new();
@@ -426,12 +427,13 @@ int assemble(const char *fn,const char *on,enum eightthirtytwo_endian endian)
 
 	parsesourcefile(obj,fn,endian);
 
-	objectfile_output(obj,on);
+	result=objectfile_output(obj,on);
 	objectfile_dump(obj,1);
 	objectfile_delete(obj);
 	printf("Output file: %s\n",on);
 
-	return(0);
+	if(!result)
+		exit(1);
 }
 
 char *objname(const char *srcname)
