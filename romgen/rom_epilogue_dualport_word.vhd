@@ -5,6 +5,10 @@
 attribute ram_style: string;
 attribute ram_style of ram: signal is "block";
 
+-- Yosys attribute
+attribute no_rw_check: boolean;
+attribute no_rw_check of ram: signal is true;
+
 signal q_local : std_logic_vector(31 downto 0);
 signal q2_local : std_logic_vector(31 downto 0);
 

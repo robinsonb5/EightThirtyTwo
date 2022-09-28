@@ -6,6 +6,10 @@
 	-- Altera Quartus attributes
 	attribute ramstyle: string;
 	attribute ramstyle of ram: signal is "no_rw_check";
+	
+	-- Yosys attribute
+	attribute no_rw_check: boolean;
+	attribute no_rw_check of ram: signal is true;
 
 begin  -- rtl
 

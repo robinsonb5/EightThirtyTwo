@@ -129,11 +129,12 @@ opcode_valid<=opcode_valid_i and not (pc_req or freeze);
 process(clk,reset_n)
 begin
 
-	if reset_n='0' then
-		opcodebuffer_valid<="00";
-		fetch_ram_req<='0';
-		fetch_abort<='0';
-	elsif rising_edge(clk) then
+--	if reset_n='0' then
+--		opcodebuffer_valid<="00";
+--		fetch_ram_req<='0';
+--		fetch_abort<='0';
+--	elsif rising_edge(clk) then
+	if rising_edge(clk) then
 
 		fetch_prevpc<=pc(1 downto 0);
 	 	-- We double-buffer the opcodes; as program flow enters one word we invalidate the other.
