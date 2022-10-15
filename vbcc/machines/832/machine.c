@@ -1852,7 +1852,9 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			} else {
 				/* FIXME - deal with different object types here */
 				if (p->q1.v->storage_class == STATIC) {
-					// FIXME - double-check that we shouldn't include an offset here.
+					// Double-check that we shouldn't include an offset here.
+					// Turns out that yes, we do have to include an offset here.
+					
 					emit_pcreltotemp2(f, &p->q1);
 					if (p->q1.flags & DREFOBJ) {
 						emit(f, "\taddt\t%s\t//Deref function pointer\n", regnames[pc]);

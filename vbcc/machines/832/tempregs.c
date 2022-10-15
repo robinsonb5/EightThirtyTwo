@@ -96,13 +96,18 @@ static void emit_pcreltotemp2(FILE *f,struct obj *p)
 	if(DBGMSG)
 		emit(f, "\t\t\t\t\t\t//pcreltotemp\n");
 	if (p->v->storage_class == STATIC)
-		emit(f,"\t.lipcrel\t%s%d\n",labprefix, zm2l(p->v->offset));
+	{
+		if(p->val.vmax)
+			emit(f,"\t.lipcrel\t%s%d,%d // Static with vmax \n",labprefix, zm2l(p->v->offset),p->val.vmax);
+		else
+			emit(f,"\t.lipcrel\t%s%d // Static \n",labprefix, zm2l(p->v->offset));
+	}
 	else if(p->v->storage_class == EXTERN)
 	{
 		if(p->val.vmax)
-			emit(f,"\t.lipcrel\t_%s%d\n",p->v->identifier, p->val.vmax);
+			emit(f,"\t.lipcrel\t_%s%d // extern with vmax \n",p->v->identifier, p->val.vmax);
 		else
-			emit(f,"\t.lipcrel\t_%s\n",p->v->identifier);
+			emit(f,"\t.lipcrel\t_%s // extern\n",p->v->identifier);
 	}
 //	cleartempobj(f,tmp);
 }
@@ -417,7 +422,7 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 	/* If we're dealing with an elementary type on the stack we'll copy the actual object into
 	   a register.  If we're dealing with a composite type, or taking the address of an elementary
 	   type then instead we'll take its address into the register.  There's a subtlety to take care
-	   of with ASSIGN ICs and inline memcpy/strcpy where they type can be CHAR with a size!=1.
+	   of with ASSIGN ICs and inline memcpy/strcpy where the type can be CHAR with a size!=1.
 	   I hack around this by overriding type in the parent fucction. */
 	if ((!(p->flags & VARADR)) && ((t & NQ) != STRUCT) && ((t & NQ) != UNION) && ((t & NQ) != ARRAY))
 		elementary=1;
