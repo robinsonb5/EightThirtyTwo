@@ -664,28 +664,36 @@ void am_prepost_incdec(struct IC *p, struct obj *o)
 				{
 					case ADDI2P:
 					case SUBIFP:
-						// Are the source and destination regs the same?
-						if(p2->q1.reg==p2->z.reg) {
-							p2->code=NOP; // Nullify the manual adjustment if we can do it as an opcode side-effect
-							break;
-						}
+						if(p2->q1.reg)
+						{
+							// Are the source and destination regs the same?
+							if(p2->q1.reg==p2->z.reg) {
+								p2->code=NOP; // Nullify the manual adjustment if we can do it as an opcode side-effect
+								break;
+							}
 
-						// Check next IC to see if it's disposable, and referencing the same register:
-						if(tempob=throwaway_reg(p2->next,p2->z.reg)) {
-							if (AM_DEBUG)
-								printf("\tChanging next IC from reg %s to reg %s\n", regnames[tempob->reg], regnames[p2->q1.reg]);
-							tempob->reg=p2->q1.reg; // Adjust the register referenced in the next IC.
-							p2->code=NOP; // Nullify the adjustment since we've aliased the register
+							// Check next IC to see if it's disposable, and referencing the same register:
+							if(tempob=throwaway_reg(p2->next,p2->z.reg)) {
+								if (AM_DEBUG)
+									printf("\tChanging next IC from reg %s to reg %s\n", regnames[tempob->reg], regnames[p2->q1.reg]);
+								tempob->reg=p2->q1.reg; // Adjust the register referenced in the next IC.
+								p2->code=NOP; // Nullify the adjustment since we've aliased the register
+							}
+							else
+								p2->code=ASSIGN; // Otherwise replace it with an assign if the registers aren't equal.
 						}
 						else
-							p2->code=ASSIGN; // Otherwise replace it with an assign if the registers aren't equal.
+							adj=0;
 						break;
 					default:
 						p2->code = NOP;	// Nullify the manual adjustment if we can do it as an opcode side-effect
 						break;
 				}
-				am_alloc(o);
-				o->am->type = (adj > 0) ? AM_POSTINC : AM_PREDEC;
+				if(adj)
+				{
+					am_alloc(o);
+					o->am->type = (adj > 0) ? AM_POSTINC : AM_PREDEC;
+				}
 			}
 		}
 	}
