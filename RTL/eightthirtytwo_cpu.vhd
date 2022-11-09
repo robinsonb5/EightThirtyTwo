@@ -510,6 +510,7 @@ end generate;
 genhazardno2:
 if dualthread=false generate
 	thread2.hazard<='0';
+	thread2.setpc<='0';		
 end generate;
 
 -- Stall - pauses the pipeline from F through to M, without inserting bubbles.
@@ -532,6 +533,7 @@ thread2.cond_minterms(3)<= regfile2.flag_z and regfile2.flag_c;
 thread2.cond_minterms(2)<= (not regfile2.flag_z) and regfile2.flag_c;
 thread2.cond_minterms(1)<= regfile2.flag_z and (not regfile2.flag_c);
 thread2.cond_minterms(0)<= (not regfile2.flag_z) and (not regfile2.flag_c);
+
 
 process(clk,reset_n)
 begin
@@ -601,8 +603,6 @@ begin
 			thread2.e_write_flags<='0';
 			thread2.m_write_flags<='0';
 			thread2.w_write_flags<='0';
-		else
-			thread2.setpc<='0';		
 		end if;
 
 		-- Shared

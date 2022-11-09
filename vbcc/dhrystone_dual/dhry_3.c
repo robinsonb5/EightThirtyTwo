@@ -346,7 +346,7 @@ checksparam("Str_2_Loc",Str_2_Loc,"DHRYSTONE PROGRAM, 2'ND STRING");
     Vax_Mips = Dhrystones_Per_Second / 1757.0;
 #endif
 #else
-    Microseconds = User_Time / Number_Of_Runs;
+    Microseconds = User_Time / (Number_Of_Runs*100);
     Dhrystones_Per_Second =  (Number_Of_Runs*100000000) / User_Time;
     Vax_Mips = (Number_Of_Runs*56900000) / User_Time;
 #endif 
