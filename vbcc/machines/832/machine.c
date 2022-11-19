@@ -393,7 +393,7 @@ int matchobj(FILE *f,struct obj *o1,struct obj *o2,int varadr)
 //	emit(f,"// comparing flags %x with %x\n",o1->flags, o2->flags);
 //	if((o1->flags&~VARADR)!=(o2->flags&~VARADR))
 	// FIXME - need to figure out VARADR semantics for stored objects.
-	emit(f,"\t\t\t\t\t\t// matchobj comparing flags %d with %d\n",flg,o2->flags);
+	emit(f,"\t\t\t\t\t\t// matchobj comparing flags %x with %x\n",flg,o2->flags);
 	if(flg!=(o2->flags))
 		return(0);
 
@@ -1981,6 +1981,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		if (c == ASSIGN) {
 			emit(f,"\t\t// Offsets %d, %d\n",p->q1.val.vlong,p->z.val.vlong);
 			emit(f,"\t\t// Have am? %s, %s\n",p->q1.am ? "yes" : "no", p->z.am ? "yes" : "no");
+			emit(f,"\t\t// flags %x, %x\n",p->q1.flags, p->z.flags);
 			if(DBGMSG)
 				emit(f, "\t\t\t\t\t\t// (a/p assign)\n");
 			if (((t & NQ) == STRUCT) || ((t & NQ) == UNION) || ((t & NQ) == ARRAY)
@@ -2017,7 +2018,12 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 				}
 				else
 				{
-					emit(f,"\t\t\t\t\t\t// Have an addressing mode...\n");
+					if(check_am(p))
+						emit(f,"\t\t\t\t\t\t// Have an addressing mode...\n");
+					else if(p->q1.flags&DREFOBJ)
+						emit(f,"\t\t\t\t\t\t// Dereferencing object...\n");
+					else if(p->z.flags&REG)
+						emit(f,"\t\t\t\t\t\t// Destination is a register...\n");
 					emit_prepobj(f, &p->z, t, t1, 0);
 					emit_objtoreg(f, &p->q1, t, tmp);
 					save_temp(f, p, t1);

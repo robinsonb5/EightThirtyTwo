@@ -450,10 +450,12 @@ static int emit_objtoreg(FILE * f, struct obj *p, int t,int reg)
 		return(0);
 	}
 
-	if(matchreg)
+	if(matchreg && !(p->flags&DREFOBJ)) /* Disallow DREFOBJ to fix problem with double-derefs in libjeg */
 	{
 		if(DBGMSG)
-			emit(f,"\n\t\t\t// required value found in %s\n",regnames[matchreg]);
+			emit(f,"\n\t\t\t\t\t\t// required value found in %s\n",regnames[matchreg]);
+		if(p->flags & DREFOBJ)
+			emit(f,"\t\t\t\t\t\t// WARNING matched value has DREFOBJ flag set\n");
 		if(matchreg==reg)
 			return(0);
 		if(matchreg!=tmp)
