@@ -239,26 +239,12 @@ static void emit_stackvartotemp(FILE * f, zmax offset, int deref)
 // Guaranteed not to modify t1 or t2 except when nominated.
 // tempobj logic should be correct.
 
-static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
+static void emit_objaddrtoreg(FILE * f, struct obj *p, int t, int reg, int offset)
 {
 	int matchreg=0;
 
 	if(DBGMSG)
 		emit(f, "\t\t\t\t\t\t// (prepobj %s)\n ", regnames[reg]);
-
-	if (p->flags & REG) {
-		if(DBGMSG)
-			emit(f, "\t\t\t\t\t\t// reg %s - no need to prep\n", regnames[p->reg]);
-		if(p->flags & DREFOBJ)
-		{
-			if (reg == tmp)
-			{
-				emit(f, "\tmt\t%s\n", regnames[p->reg]);
-				cleartempobj(f,tmp);
-			}
-		}
-		return;
-	}
 
 	if(!offset)
 		matchreg=matchtempobj(f,p,1,t1);  // FIXME - we're hunting for varadr here.
@@ -300,13 +286,13 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 //				emit(f, "\tmr\t%s\n", regnames[reg]);
 			settempkonst(f,reg,val2zmax(p, p->dtyp) + offset);
 		} else if (p->flags & REG) {
-			if (reg == tmp)
+			emit(f, "\tmt\t%s\n", regnames[p->reg]);
+			cleartempobj(f,tmp);
+			if (reg != tmp)
 			{
-				emit(f, "\tmt\t%s\n", regnames[p->reg]);
-				cleartempobj(f,tmp);
+				emit(f, "\tmr\t%s\n", regnames[reg]);
+				cleartempobj(f,reg);
 			}
-			else if(DBGMSG)
-				emit(f, "\t\t\t\t\t\t// reg %s - no need to prep\n", regnames[p->reg]);
 		} else if (p->flags & VAR) {
 			if(DBGMSG)
 				emit(f, "\t\t\t\t\t\t// var FIXME - deref?\n");
@@ -404,6 +390,36 @@ static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
 			settempobj(f,reg,p,0,1);
 		}
 	}
+}
+
+// Load the address of a target obj into reg in preparation for a store.
+// If the target is simply a register then does nothing.
+// The nominated register can be tmp or any gpr.
+// Guaranteed not to modify t1 or t2 except when nominated.
+// tempobj logic should be correct.
+
+static void emit_prepobj(FILE * f, struct obj *p, int t, int reg, int offset)
+{
+	int matchreg=0;
+
+	if(DBGMSG)
+		emit(f, "\t\t\t\t\t\t// (prepobj %s)\n ", regnames[reg]);
+
+	if (p->flags & REG) {
+		if(DBGMSG)
+			emit(f, "\t\t\t\t\t\t// reg %s - no need to prep\n", regnames[p->reg]);
+		if(p->flags & DREFOBJ)
+		{
+			if (reg == tmp)
+			{
+				emit(f, "\tmt\t%s\n", regnames[p->reg]);
+				cleartempobj(f,tmp);
+			}
+		}
+		return;
+	}
+
+	emit_objaddrtoreg(f,p,t,reg,offset);
 }
 
 

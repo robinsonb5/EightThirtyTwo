@@ -2024,6 +2024,9 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 						emit(f,"\t\t\t\t\t\t// Dereferencing object...\n");
 					else if(p->z.flags&REG)
 						emit(f,"\t\t\t\t\t\t// Destination is a register...\n");
+					if(p->z.flags&VAR)
+						emit(f,"\t\t\t\t\t\t// Destination is a variable with offset %d, %d\n",p->z.val.vlong,p->z.v->offset);
+					emit(f,"\t\t// Real offset of type is %d, isauto %d\n",real_offset(&p->z),isauto(&p->z));
 					emit_prepobj(f, &p->z, t, t1, 0);
 					emit_objtoreg(f, &p->q1, t, tmp);
 					save_temp(f, p, t1);
@@ -2042,7 +2045,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 			}
 			else
 			{
-				emit_prepobj(f, &p->q1, POINTER, zreg, 0);
+				emit_objaddrtoreg(f, &p->q1, POINTER, t1, 0);
 				save_result(f, p,0);
 			}
 			continue;
