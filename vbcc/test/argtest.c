@@ -2,6 +2,10 @@
 #include "stdarg.h"
 #include "small_printf.h"
 
+void regularfunc(int *p,int v)
+{
+	*p=v;
+}
 
 void vafunc(char *fmt,...)
 {
@@ -14,6 +18,8 @@ void vafunc(char *fmt,...)
 
 int main(int argc,char **argv)
 {
+	int t;
+	regularfunc(&t,0x1234);
 	small_printf("%s\n","test");
 	return(0);
 }

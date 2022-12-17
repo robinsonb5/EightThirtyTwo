@@ -167,8 +167,13 @@ struct symbol *executable_resolvereference(struct executable *exe,struct symbol 
 						if(sym->flags&SYMBOLFLAG_WEAK)
 						{
 							debug(1,"Weak symbol found - keep looking\n");
-							ref->resolve=sym;
-							result=sym; /* Use this result if nothing better is found */
+							if(result && !(result->flags&SYMBOLFLAG_WEAK))
+								debug(1,"Ignoring weak symbol since we already have a strong symbol.\n");
+							else
+							{
+								ref->resolve=sym;
+								result=sym; /* Use this result if nothing better is found */
+							}
 						}
 						else if((sym->flags&SYMBOLFLAG_GLOBAL)==0)
 						{
@@ -190,7 +195,7 @@ struct symbol *executable_resolvereference(struct executable *exe,struct symbol 
 									sect->obj ? sect->obj->filename : "(unknown)",
 									resultobj ? resultobj->filename : "(unknown)");
 								linkerror("Multiple definition of symbol\n");
-							}								
+							}
 							ref->resolve=sym;
 							result=sym;
 							resultobj=sect->obj;

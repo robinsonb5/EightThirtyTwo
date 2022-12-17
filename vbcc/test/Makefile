@@ -8,7 +8,7 @@ LD=../../832a/832l
 CC=../bin/vbcc832
 EM=../../832emu/832e
 CFLAGS = -+ -c99 -I$(832DIR)/include/ -I$(LIBDIR)
-COPT = -O=32767 -speed -unsigned-char
+COPT = -O=-1 -speed -unsigned-char
 TIME=200us
 
 # Endian setting must match the littleendian generic in the testbench
