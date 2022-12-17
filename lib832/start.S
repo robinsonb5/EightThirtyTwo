@@ -78,6 +78,7 @@ _interrupt:
 	mr	r7	// return immediately
 
 	.section	.text.premain2
+	.global	_premain2
 	.weak	_premain2
 _premain2:
 .endloop2:

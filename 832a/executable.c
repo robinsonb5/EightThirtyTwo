@@ -134,6 +134,7 @@ void executable_dump(struct executable *exe,int untouched)
 struct symbol *executable_resolvereference(struct executable *exe,struct symbol *ref,struct section *excludesection)
 {
 	struct symbol *result=0;
+	struct objectfile *resultobj=0;
 	struct section *sect;
 	if(exe)
 	{
@@ -182,8 +183,17 @@ struct symbol *executable_resolvereference(struct executable *exe,struct symbol 
 						}
 						else
 						{
+							if(result && !(result->flags&SYMBOLFLAG_WEAK)) /* Have we already found a strong symbol? */
+							{
+								fprintf(stderr,"Link error: %s is defined in both %s and %s\n",
+									ref->identifier ? ref->identifier : "(unknown)",
+									sect->obj ? sect->obj->filename : "(unknown)",
+									resultobj ? resultobj->filename : "(unknown)");
+								linkerror("Multiple definition of symbol\n");
+							}								
 							ref->resolve=sym;
-							return(sym);
+							result=sym;
+							resultobj=sect->obj;
 						}
 					}
 				}
