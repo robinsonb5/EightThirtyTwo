@@ -193,10 +193,10 @@ void read_lstr(FILE *f,char *ptr)
 	ptr[l]=0;
 }
 
-int count_constantchunks(long v)
+int count_constantchunks(unsigned long v)
 {
 	int chunk = 1;
-	long v2 = v;
+	unsigned long v2 = v;
 	while (chunk<6 && ((v2 & 0xffffffe0) != 0) && ((v2 & 0xffffffe0) != 0xffffffe0))
 	/* Are we looking at a sign-extended 6-bit value yet? */
 	{

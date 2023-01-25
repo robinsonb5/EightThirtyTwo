@@ -1,5 +1,10 @@
 CC = gcc
 
+ifeq ($(DETECTED_OS),MSYS)
+ CC = gcc -DDEMIST_MSYS
+endif
+
+
 all: 832a 832l 832d hello
 
 clean:

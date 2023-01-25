@@ -1,5 +1,7 @@
 # Makefile for toolchain and tests
 
+include check_os.mk
+
 all: 832a/832a 832emu/832e 832ocd/832ocd vbcc/bin/vbcc832 lib832/lib832.a test.log
 	$(info )
 	$(info A default dtgen setup is supplied in vbcc_quickstart to make building )
@@ -12,26 +14,26 @@ all: 832a/832a 832emu/832e 832ocd/832ocd vbcc/bin/vbcc832 lib832/lib832.a test.l
 	$(info )
 
 clean:
-	-make -C 832a clean
-	-make -C 832emu clean
-	-make -C 832ocd clean
-	-make -C lib832 clean
+	-make -C 832a DETECTED_OS=$(DETECTED_OS) clean
+	-make -C 832emu DETECTED_OS=$(DETECTED_OS) clean
+	-make -C 832ocd DETECTED_OS=$(DETECTED_OS) clean
+	-make -C lib832 DETECTED_OS=$(DETECTED_OS) clean
 	-rm vbcc/machines/832/*.o
 	-rm vbcc/bin/vbcc832
 	-rm test.log
 
 832a/832a:
-	-make -C 832a
+	-make -C 832a DETECTED_OS=$(DETECTED_OS)
 
 832emu/832e:
-	-make -C 832emu
+	-make -C 832emu DETECTED_OS=$(DETECTED_OS)
 
 832ocd/832ocd:
-	-make -C 832ocd
+	-make -C 832ocd DETECTED_OS=$(DETECTED_OS)
 
 lib832/lib832.a: 832a/832a 832a/832l vbcc/bin/vbcc832
-	-make -C lib832 clean
-	-make -C lib832
+	-make -C lib832 DETECTED_OS=$(DETECTED_OS) clean 
+	-make -C lib832 DETECTED_OS=$(DETECTED_OS)
 
 vbcc0_9g.tar.gz:
 	wget http://phoenix.owl.de/tags/vbcc0_9g.tar.gz
@@ -43,9 +45,9 @@ vbcc/supp.h:
 	patch -i ../vbcc_09g_volatilefix.patch
 
 vbcc/bin/vbcc832: vbcc/machines/832/machine.c vbcc/supp.h
-	make -C vbcc bin/dtgen
+	make -C vbcc DETECTED_OS=$(DETECTED_OS) bin/dtgen
 	cp vbcc_quickstart/dt.* vbcc/machines/832/
-	make -C vbcc TARGET=832
+	make -C vbcc TARGET=832 DETECTED_OS=$(DETECTED_OS)
 
 vbcc/bin:
 	mkdir vbcc/bin
@@ -54,7 +56,7 @@ vbcc/bin:
 vbcc: vbcc/bin/vbcc832
 
 test.log: lib832/lib832.a 832a/832a
-	-@make -C vbcc/test emu 2>/dev/null >test.log
+	-@make -C vbcc/test DETECTED_OS=$(DETECTED_OS) emu 2>/dev/null >test.log
 	-@grep --color=never Passed test.log
 	-@grep Failed test.log || echo "All tests passed"
 

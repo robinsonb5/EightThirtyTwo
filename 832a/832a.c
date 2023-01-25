@@ -168,7 +168,7 @@ void directive_reference(struct objectfile *obj,char *tok,char *tok2,int key)
 void directive_liconst(struct objectfile *obj,char *tok,char *tok2,int key)
 {
 	char *endptr;
-	long v=strtol(tok,&endptr,0);
+	unsigned long v=strtoul(tok,&endptr,0);
 	int chunk;
 
 	if(!v && endptr==tok)

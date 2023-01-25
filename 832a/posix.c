@@ -4,6 +4,44 @@
 
 #include "832util.h"
 
+#ifdef DEMIST_MSYS
+int getdelim (char **lineptr, size_t *n, char delim, FILE *fp)
+{
+	char *buf=*lineptr;
+	size_t bufsize=*n;
+	size_t chars_read=0;
+	int chr=0;
+	
+	/* Allocate buffer if necessary */
+	if(!buf)
+		buf=malloc(bufsize=256);
+
+	do
+	{
+		chr=fgetc(fp);
+		if(chars_read==bufsize-1)
+		{
+			bufsize*=2;
+			buf=realloc(buf,bufsize);
+		}
+		if(buf && (chr!=EOF))
+			buf[chars_read++]=chr;
+	} while(buf && (chr!=delim) && (chr!=EOF));
+	
+	if(buf)
+		buf[chars_read]=0;
+	else
+		chars_read=-1;
+
+	*lineptr=buf;
+	*n=bufsize;
+	return(chars_read);
+}
+
+#endif
+
+
+
 #ifdef SUPPLY_POSIX
  
 char *strdup(const char *src)

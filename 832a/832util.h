@@ -27,10 +27,19 @@ int read_int_be(FILE *f);
 int read_short_le(FILE *f);
 void read_lstr(FILE *f,char *ptr);
 
-int count_constantchunks(long v);
+int count_constantchunks(unsigned long v);
 
 char *strtok_escaped(char *str);
 void parseescapes(char *str);
+
+
+#ifdef DEMIST_MSYS
+
+int getdelim (char **lineptr, size_t *n, char delim, FILE *fp);
+#define getline(x,y,z) getdelim((x),(y),'\n',(z))
+
+#endif
+
 
 #ifdef  SUPPLY_POSIX
 /* For the benefit of vbcc on Amiga */
