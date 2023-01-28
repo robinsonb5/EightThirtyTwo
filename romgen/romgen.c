@@ -8,9 +8,9 @@
 //
 // This software is free to use by anyone for any purpose.
 //
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <stdio.h>
 #include <fcntl.h> 
 #include <getopt.h>
 
@@ -69,10 +69,10 @@ int ParseOptions(int argc,char **argv,struct RomGenOptions *opts)
 	return(optind);
 }
 
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
 	BYTE    opcode[4];
-	int     fd;
+	FILE     *fd;
 	int     addr = 0;
 	int i;
 	struct RomGenOptions opts;
@@ -90,8 +90,8 @@ main(int argc, char **argv)
 	return 1;
 
 	// Open the input file.
-	fd = open(argv[i], 0);
-	if(fd == -1)
+	fd = fopen(argv[i],"rb");
+	if(!fd)
 	{
 		perror("File Open");
 		return 2;
@@ -104,19 +104,21 @@ main(int argc, char **argv)
 		{
 			while(opts.offset>0)
 			{
-				s = read(fd, opcode, 4);
+				s = fread(opcode, 1, 4, fd);
 				opts.offset-=4;
 			}
 		}
-		s = read(fd, opcode, 4);
-		if(s == -1)
+		s = fread(opcode, 1, 4, fd);
+		if(s==0)
 		{
-			perror("File read");
-			return 3;
+			if(feof(fd))
+				break; // End of file
+			else
+			{
+				perror("File read");
+				return 3;
+			}
 		}
-
-		if(s == 0)
-			break; // End of file.
 
 		// Output to STDOUT.
 
@@ -152,7 +154,7 @@ main(int argc, char **argv)
 		}
 	}
 
-	close(fd);
+	fclose(fd);
 	return 0;
 }
 
