@@ -35,6 +35,9 @@
 #include "symbol.h"
 #include "mapfile.h"
 
+#ifdef DEMIST_MSYS
+WSADATA wsaDataVar; 
+#endif
 
 WINDOW *create_newwin(const char *title,int height, int width, int starty, int startx);
 void decorate_window(WINDOW *win,int width,const char *title);
@@ -512,6 +515,14 @@ int main(int argc, char *argv[])
 	WINDOW *mem_win;
 	WINDOW *cmd_win;
 
+#ifdef DEMIST_MSYS    
+    if (WSAStartup(MAKEWORD(2, 0), &wsaDataVar) != 0)
+     {
+         fprintf(stderr,"WSAStartup() failed");
+         exit(1);
+     }
+#endif
+
 	ocdcon=ocd_connection_new();
 	if(err=ocd_connect(ocdcon,OCD_ADDR,OCD_PORT))
 	{
@@ -532,7 +543,6 @@ int main(int argc, char *argv[])
 	mem_win=create_newwin(MEM_WIN_TITLE,MEM_WIN_HEIGHT,MEM_WIN_WIDTH,0,REGS_WIDTH);
 	scrollok(mem_win,1);
 	cmd_win=newwin(1,COLS,LINES-1,0);
-
 	parse_args(argc,argv,code);
 
 	OCD_STOP(ocdcon);
@@ -887,7 +897,11 @@ int main(int argc, char *argv[])
 
 	if(code)
 		ocd_rbuf_delete(code);
-	
+
+#ifdef DEMIST_MSYS        
+    WSACleanup(); 
+#endif
+    
 	return 0;
 }
 

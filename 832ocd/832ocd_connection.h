@@ -1,8 +1,17 @@
 #ifndef OCD832_CONNECTION_H
 #define OCD832_CONNECTION_H
 
+#ifdef DEMIST_MSYS
+
+#include <WS2tcpip.h>
+#define MSG_NOSIGNAL      0 //0x2000  /* don't raise SIGPIPE */
+
+#else
+
 #include <sys/socket.h>
 #include <netinet/in.h>
+
+#endif
 
 #include "832ocd.h"
 #include "832util.h"

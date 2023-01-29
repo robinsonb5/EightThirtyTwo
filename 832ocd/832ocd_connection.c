@@ -20,14 +20,20 @@
 */
 
 #include <stdio.h>
-#include <sys/socket.h>
 #include <stdlib.h>
-#include <netinet/in.h>
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h> // for open
 #include <unistd.h> // for close
+
+#ifndef DEMIST_MSYS
+
+#include <netinet/in.h>
+#include <sys/socket.h>
 #include <arpa/inet.h>
+
+#endif
+
 #include "832ocd.h"
 #include "832ocd_connection.h"
 
@@ -56,7 +62,11 @@ void ocd_connection_delete(struct ocd_connection *con)
 	if(con)
 	{
 		if(con->bridgeconnected)
-			close(con->sock);
+            #ifdef DEMIST_MSYS
+			closesocket(con->sock)
+            #else
+            close(con->sock);
+            #endif
 		free(con);
 	}
 }
@@ -68,7 +78,12 @@ const char *ocd_connect(struct ocd_connection *con,const char *ip,int port)
 	{
 		if(con->sock>=0)
 		{
-			close(con->sock);
+            #ifdef DEMIST_MSYS
+			closesocket(con->sock)
+            #else
+            close(con->sock);
+            #endif
+
 			con->sock=socket(AF_INET, SOCK_STREAM, 0);
 			if(con->sock<0)
 				return("Can't create new socket");
