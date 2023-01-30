@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "832util.h"
 #include "mapfile.h"
 
 struct section *mapfile_read(const char *filename)
