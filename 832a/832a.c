@@ -423,7 +423,7 @@ void assemble(const char *fn,const char *on,enum eightthirtytwo_endian endian)
 
 	obj=objectfile_new();
 	if(!obj)
-		return(0);
+		return;
 
 	parsesourcefile(obj,fn,endian);
 

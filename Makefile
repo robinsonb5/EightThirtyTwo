@@ -2,7 +2,7 @@
 
 include check_os.mk
 
-all: 832a/832a 832emu/832e 832ocd/832ocd vbcc/bin/vbcc832 lib832/lib832.a test.log
+all: test.log
 	$(info )
 	$(info A default dtgen setup is supplied in vbcc_quickstart to make building )
 	$(info the compiler less tedious.  If you want to build on a less typical system )
@@ -22,16 +22,14 @@ clean:
 	-rm vbcc/bin/vbcc832
 	-rm test.log
 
-832a/832a:
+.PHONY: toolchain
+toolchain:
 	-make -C 832a DETECTED_OS=$(DETECTED_OS)
-
-832emu/832e:
 	-make -C 832emu DETECTED_OS=$(DETECTED_OS)
-
-832ocd/832ocd:
 	-make -C 832ocd DETECTED_OS=$(DETECTED_OS)
 
-lib832/lib832.a: 832a/832a 832a/832l vbcc/bin/vbcc832
+.PHONY: library
+library:
 	-make -C lib832 DETECTED_OS=$(DETECTED_OS) clean 
 	-make -C lib832 DETECTED_OS=$(DETECTED_OS)
 
@@ -55,7 +53,7 @@ vbcc/bin:
 .PHONY vbcc:
 vbcc: vbcc/bin/vbcc832
 
-test.log: lib832/lib832.a 832a/832a
+test.log: toolchain vbcc/bin/vbcc832 library
 	-@make -C vbcc/test DETECTED_OS=$(DETECTED_OS) emu 2>/dev/null >test.log
 	-@grep --color=never Passed test.log
 	-@grep Failed test.log || echo "All tests passed"

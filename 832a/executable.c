@@ -47,6 +47,7 @@
 	* Assign addresses to all sections, symbols and references.
 	* Recalculate the size of each reference
 	* Repeat the previous two steps until the references stop growing.
+	* If a ceiling address has been specified, ensure the linked executable hasn't grown beyond the ceiling.
 	* Save the linked executable
 */
 
@@ -60,6 +61,8 @@ struct executable *executable_new()
 		result->map=0;/*sectionmap_new(reloc);*/
 		result->baseaddress=0;
 		result->bssaddress=-1;
+		result->ceilingaddress=0;
+		result->bssceilingaddress=0;
 	}
 	return(result);
 }
@@ -76,6 +79,19 @@ void executable_setbssaddress(struct executable *exe,int bssaddress)
 {
 	if(exe)
 		exe->bssaddress=bssaddress;
+}
+
+void executable_setceilingaddress(struct executable *exe,int ceilingaddress)
+{
+	if(exe)
+		exe->ceilingaddress=ceilingaddress;
+}
+
+
+void executable_setbssceilingaddress(struct executable *exe,int bssceilingaddress)
+{
+	if(exe)
+		exe->bssceilingaddress=bssceilingaddress;
 }
 
 
@@ -307,7 +323,6 @@ int executable_resolvecdtors(struct executable *exe)
 			obj=obj->next;
 		}
 	}
-
 	return(result);
 }
 
@@ -324,8 +339,10 @@ void executable_assignaddresses(struct executable *exe)
 		struct sectionmap *map=exe->map;
 		struct section *sect,*prev;
 		struct section *bssstart;
+		int codeend=0;
 		int j=0;
 		int resolve=1;
+		int bssend=0;
 
 		bssstart=sectionmap_getbuiltin(map,BUILTIN_BSS_START);
 
@@ -354,15 +371,21 @@ void executable_assignaddresses(struct executable *exe)
 				if(sect)
 				{
 					/* If the user has specified a BSS start address, apply it here. */
-					if(sect==bssstart && exe->bssaddress>0)
+					if(sect==bssstart)
 					{
-						if(exe->bssaddress<sectionbase && exe->bssaddress>=exe->baseaddress)
-							linkerror("Specified BSS address would collide with code!");
-						sectionbase=exe->bssaddress;
+						codeend=sectionbase;
+						if(exe->bssaddress>0)
+						{
+							if(exe->bssaddress<sectionbase && exe->bssaddress>=exe->baseaddress)
+								linkerror("Specified BSS address would collide with code!");
+							sectionbase=exe->bssaddress;
+						}
 					}
+
 					sectionbase=section_assignaddresses(sect,sectionbase);
 				}
 			}
+			bssend=sectionbase;
 
 			/* Refine reference sizes based on new addresses */
 			for(i=0;i<map->entrycount;++i)
@@ -374,6 +397,17 @@ void executable_assignaddresses(struct executable *exe)
 			++j;
 		}
 		debug(0,"Address resolution stabilised after %d passes\n",j);
+
+		if(exe->ceilingaddress && exe->ceilingaddress<codeend)
+		{
+			fprintf(stderr,"Overflowed by %d bytes\n",codeend-exe->ceilingaddress);
+			linkerror("Code doesn't fit within specified limits");
+		}
+		if(exe->bssceilingaddress && exe->bssceilingaddress<bssend)
+		{
+			fprintf(stderr,"Overflowed by %d bytes\n",bssend-exe->bssceilingaddress);
+			linkerror("BSS doesn't fit within specified limits");
+		}
 	}
 }
 

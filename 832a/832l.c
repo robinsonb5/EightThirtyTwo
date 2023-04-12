@@ -38,7 +38,8 @@ int main(int argc,char **argv)
 		fprintf(stderr,"Options:\n");
 		fprintf(stderr,"\t-e big|little\t- specify bit or little endian configuration\n");
 		fprintf(stderr,"\t-o <file>\t- specify output file\n");
-		fprintf(stderr,"\t-b <number>\t- specify base address\n");
+		fprintf(stderr,"\t-b <number>[,<number>]\t- specify a base [and bss base] address\n");
+		fprintf(stderr,"\t-c <number>[,<number>]\t- specify a ceiling [and bss ceiling] address\n");
 		fprintf(stderr,"\t-m <mapfile>\t- write a map file\n");
 		fprintf(stderr,"\t-M <mapfile>\t- write a map file including static / local symbols\n");
 		fprintf(stderr,"\t-s <symbol>=<number>\t- define symbol (such as stack size)\n");
@@ -56,6 +57,8 @@ int main(int argc,char **argv)
 		int nextmap=0;
 		int nextendian=0;
 		int reloc=0;
+		int nextceiling=0;
+		int ceiling=0;
 		char *outfn="a.out";
 		char *mapfn=0;
 		struct executable *exe=executable_new();
@@ -75,6 +78,8 @@ int main(int argc,char **argv)
 					setdebuglevel(1);
 				else if(strncmp(argv[i],"-r",2)==0)
 					reloc=1;
+				else if(strncmp(argv[i],"-c",2)==0)
+					nextceiling=1;
 				else if(strncmp(argv[i],"-b",2)==0)
 					nextbase=1;
 				else if(!nextsym && strncmp(argv[i],"-s",2)==0)
@@ -89,9 +94,12 @@ int main(int argc,char **argv)
 					char *tmp;
 					unsigned long addr=strtoul(argv[i],&tmp,0);
 					if(tmp==argv[i] && addr==0)
-						fprintf(stderr,"Bad base address - using 0\n");
-					printf("Setting base address to 0x%lx\n",addr);
-					executable_setbaseaddress(exe,addr);
+						fprintf(stderr,"Bad base address - ignoring\n");
+					if(addr)
+					{
+						printf("Setting base address to 0x%lx\n",addr);
+						executable_setbaseaddress(exe,addr);
+					}
 					if(*tmp==',')
 					{
 						++tmp;
@@ -101,13 +109,41 @@ int main(int argc,char **argv)
 						addr=strtoul(tmp,&tmp,0);
 						if(tmp==argv[i] && addr==0)
 							fprintf(stderr,"Bad BSS base address - ignoring\n");
-						else
+						if(addr)
 						{
 							printf("Setting bss base address to 0x%lx\n",addr);
 							executable_setbssaddress(exe,addr);
 						}
 					}
 					nextbase=0;
+				}
+				else if(nextceiling)
+				{
+					char *tmp;
+					unsigned long addr=strtoul(argv[i],&tmp,0);
+					if(tmp==argv[i] && addr==0)
+						fprintf(stderr,"Bad ceiling address - ignoring\n");
+					if(addr)
+					{
+						printf("Setting ceiling address to 0x%lx\n",addr);
+						executable_setceilingaddress(exe,addr);
+					}
+					if(*tmp==',')
+					{
+						++tmp;
+						addr=0;
+						if(!*tmp)
+							tmp=argv[++i];
+						addr=strtoul(tmp,&tmp,0);
+						if(tmp==argv[i] && addr==0)
+							fprintf(stderr,"Bad BSS ceiling address - ignoring\n");
+						if(addr)
+						{
+							printf("Setting bss ceiling address to 0x%lx\n",addr);
+							executable_setbssceilingaddress(exe,addr);
+						}
+					}
+					nextceiling=0;
 				}
 				else if(nextfn)
 				{
@@ -186,6 +222,7 @@ int main(int argc,char **argv)
 			}
 
 			printf("Linking...\n");
+			error_setfile(outfn);
 			executable_link(exe,reloc);
 			printf("Saving with %s endian configuration to %s\n",endian==EIGHTTHIRTYTWO_LITTLEENDIAN ? "little" : "big",outfn);
 			if(!executable_save(exe,outfn,endian,reloc))

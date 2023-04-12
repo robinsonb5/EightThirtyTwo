@@ -220,7 +220,8 @@ The linker is called "832l", and should be invoked like so:
 
 Valid options are
 * -o outputfile - specify the output file name.  If none is specified, the linked program will be written to "a.out".
-* -b number - specify base address.
+* -b number[,number] - specify base [and optionally BSS base] address.
+* -c number[,number] - specify ceiling [and optionally BSS ceiling] address.  An error will be reported if the code or BSS expands past the ceiling.
 * -s symbol=number - define symbol (such as stack size).  Symbols defined this way are equivalent to (and will override) symbols defined with the .constant directive.
 * -d - enable debug messages.
 * -e(l|b) - set endian mode.
