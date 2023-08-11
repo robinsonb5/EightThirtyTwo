@@ -18,6 +18,7 @@ clean:
 	-make -C 832emu DETECTED_OS=$(DETECTED_OS) clean
 	-make -C 832ocd DETECTED_OS=$(DETECTED_OS) clean
 	-make -C lib832 DETECTED_OS=$(DETECTED_OS) clean
+	-make -C romgen DETECTED_OS=$(DETECTED_OS) clean
 	-rm vbcc/machines/832/*.o
 	-rm vbcc/bin/vbcc832
 	-rm test.log
@@ -27,6 +28,7 @@ toolchain:
 	-make -C 832a DETECTED_OS=$(DETECTED_OS)
 	-make -C 832emu DETECTED_OS=$(DETECTED_OS)
 	-make -C 832ocd DETECTED_OS=$(DETECTED_OS)
+	-make -C romgen DETECTED_OS=$(DETECTED_OS)
 
 .PHONY: library
 library:
