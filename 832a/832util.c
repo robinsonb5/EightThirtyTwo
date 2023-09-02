@@ -294,7 +294,7 @@ char *strtok_escaped(char *str)
 	static char *ptr;
 	char *result;
 	int dl=strlen(delims);
-	int i,j;
+	int i;
 	char c,pc;
 	int escaped=0;
 	int quoted=0;
@@ -317,7 +317,7 @@ char *strtok_escaped(char *str)
 		++ptr;
 	}
 	result=ptr;
-	while(c=*ptr)
+	while((c=*ptr))
 	{
 		if(c=='"' && !escaped)
 		{

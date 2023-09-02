@@ -21,6 +21,8 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+#include <stdarg.h>
 #include <ncurses.h>
 #include "frontend.h"
 
@@ -146,21 +148,20 @@ char *frontend_getinput(WINDOW *win,const char *prompt,int base)
 }
 
 
-int frontend_choice(WINDOW *w,const char *prompt,const char *options,char def)
+int frontend_choice(struct ocd_frontend *ui,const char *prompt,const char *options,char def)
 {
 	int promptlen=strlen(prompt);
-	int optbytes=strlen(options);
-	werase(w);
-	mvwprintw(w,0,0,prompt);
+	werase(ui->cmd_win);
+	mvwprintw(ui->cmd_win,0,0,prompt);
 	stringbuf[0]=def;
 	stringbuf[1]=0;
 	curs_set(2);
 	while(1)
 	{
 		int ch;
-		mvwprintw(w,0,promptlen,"%s ",stringbuf);
-		wmove(w,0,promptlen);
-		wrefresh(w);
+		mvwprintw(ui->cmd_win,0,promptlen,"%s ",stringbuf);
+		wmove(ui->cmd_win,0,promptlen);
+		wrefresh(ui->cmd_win);
 
 		ch=getch();
 		if(ch==10 || ch==27)
@@ -171,6 +172,110 @@ int frontend_choice(WINDOW *w,const char *prompt,const char *options,char def)
 			return(stringbuf[0]);
 		}
 	}
+}
+
+
+void decorate_window(WINDOW *win,int width,const char *title)
+{
+	box(win, 0 , 0);
+	mvwprintw(win,0,(width-(2+strlen(title)))/2," %s ",title);
+}
+
+
+WINDOW *create_newwin(const char *title,int height, int width, int starty, int startx)
+{
+	WINDOW *local_win;
+
+	local_win = newwin(height, width, starty, startx);
+	decorate_window(local_win,width,title);
+	wrefresh(local_win);
+
+	return local_win;
+}
+
+
+struct ocd_frontend *ocd_frontend_new()
+{
+	struct ocd_frontend *ui=0;
+	ui=(struct ocd_frontend *)malloc(sizeof(struct ocd_frontend));
+	if(ui)
+	{
+		initscr();			/* Start curses mode 		*/
+		cbreak();			/* Capture input directly	*/
+		keypad(stdscr, TRUE);
+		noecho();
+
+		refresh();
+		ui->reg_win=create_newwin("Register File",REGS_HEIGHT,REGS_WIDTH,0,0);
+		ui->dis_win=create_newwin(DIS_WIN_TITLE,DIS_WIN_HEIGHT,DIS_WIN_WIDTH,REGS_HEIGHT,0);
+		ui->mem_win=create_newwin(MEM_WIN_TITLE,MEM_WIN_HEIGHT,MEM_WIN_WIDTH,0,REGS_WIDTH);
+		scrollok(ui->mem_win,1);
+		ui->cmd_win=newwin(1,COLS,LINES-1,0);	
+	}
+	return(ui);
+}
+
+
+void ocd_frontend_delete(struct ocd_frontend *ui)
+{
+	if(ui)
+	{
+
+		delwin(ui->reg_win);
+		delwin(ui->dis_win);
+		delwin(ui->mem_win);
+		endwin();			/* End curses mode		  */	
+		free(ui);
+	}
+}
+
+
+void scroll_window(WINDOW *w,int height,int width,const char *title)
+{
+	wmove(w,height-1,0);
+	wclrtoeol(w);
+	wscrl(w,1);
+	decorate_window(w,width,title);
+}
+
+
+void clear_window(WINDOW *w,int height,int width,const char *title)
+{
+	werase(w);
+	decorate_window(w,width,title);
+}
+
+
+void ocd_frontend_memo(struct ocd_frontend *ui,const char *msg)
+{
+	if(ui && msg)
+	{
+		scroll_window(ui->mem_win,MEM_WIN_HEIGHT,MEM_WIN_WIDTH,MEM_WIN_TITLE);
+		mvwprintw(ui->mem_win,MEM_WIN_HEIGHT-2,2,msg);
+		wrefresh(ui->mem_win);
+	}
+}
+
+void ocd_frontend_memof(struct ocd_frontend *ui,const char *fmt,...)
+{
+	char buf[MEM_WIN_WIDTH+1];
+	va_list args;
+	va_start(args, fmt);
+	vsnprintf(buf, MEM_WIN_WIDTH,fmt, args);
+	va_end(args);
+	ocd_frontend_memo(ui,buf);
+}
+
+void ocd_frontend_status(struct ocd_frontend *ui,const char *msg)
+{
+	if(msg)
+		mvwprintw(ui->cmd_win,0,0,msg);
+	else
+	{
+		werase(ui->cmd_win);
+		curs_set(0);
+	}
+	wrefresh(ui->cmd_win);
 }
 
 

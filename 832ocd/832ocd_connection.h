@@ -43,6 +43,7 @@ void ocd_connection_delete(struct ocd_connection *con);
 const char *ocd_connect(struct ocd_connection *con,const char *ip,int port);
 int ocd_command(struct ocd_connection *con,enum dbg832_op op,int paramcount,int responsecount,int p1,int p2,int p3);
 int ocd_uploadfile(struct ocd_connection *con,const char *filename, int addr, enum eightthirtytwo_endian endian);
+int ocd_piofile(struct ocd_connection *con,const char *filename, int addr);
 void ocd_release(struct ocd_connection *con);
 
 

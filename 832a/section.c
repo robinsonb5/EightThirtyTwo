@@ -166,7 +166,7 @@ struct symbol *section_findglobalsymbolbycursor(struct section *sect,int cursor)
 
 struct symbol *section_getsymbol(struct section *sect, const char *name)
 {
-	struct symbol *sym;
+	struct symbol *sym=0;
 	if(sect && name)
 	{
 		if(!(sym=section_findsymbol(sect,name)))
@@ -174,8 +174,8 @@ struct symbol *section_getsymbol(struct section *sect, const char *name)
 			sym=symbol_new(name,-1,0);
 			section_addsymbol(sect,sym);
 		}
-		return(sym);
 	}
+	return(sym);
 }
 
 
@@ -219,7 +219,7 @@ void section_declareconstant(struct section *sect,const char *lab,int value,int 
 {
 	struct symbol *sym;
 	int flags=global ? SYMBOLFLAG_CONSTANT|SYMBOLFLAG_GLOBAL : SYMBOLFLAG_CONSTANT|SYMBOLFLAG_LOCAL;
-	if(sym=section_getsymbol(sect,lab))
+	if((sym=section_getsymbol(sect,lab)))
 	{
 		sym->cursor=value;
 		sym->flags|=flags;
@@ -353,7 +353,6 @@ int section_assignaddresses(struct section *sect,int base)
 {
 	struct symbol *sym=sect->symbols;
 	int cursor=0;
-	int addr=0;
 	int offset=0;
 	if(!sect)
 		return(0);
@@ -457,7 +456,6 @@ void section_outputobj(struct section *sect,FILE *f)
 	{
 		struct codebuffer *buf;
 		struct symbol *sym;
-		int l;
 		fputs("SECT",f);	
 		write_lstr(sect->identifier,f);
 		write_int_le(sect->flags,f);
@@ -614,14 +612,14 @@ void section_outputexe(struct section *sect,FILE *f,enum eightthirtytwo_endian e
 void section_outputrelocs(struct section *sect,FILE *f,enum eightthirtytwo_endian endian)
 {
 	int offset=0;
-	int cbcursor=0;
-	int newcbcursor=0;
 	int cursor=0;
 	int newcursor=0;
-	struct symbol *ref=sect->symbols;
-	struct codebuffer *buffer=sect->codebuffers;
+	struct symbol *ref;
+
 	if(!sect)
 		return;
+
+	ref=sect->symbols;
 
 	if(ref && !SYMBOL_ISREF(ref))
 		ref=symbol_nextref(ref);

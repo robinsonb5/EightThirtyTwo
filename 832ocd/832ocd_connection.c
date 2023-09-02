@@ -108,7 +108,6 @@ const char *ocd_connect(struct ocd_connection *con,const char *ip,int port)
 
 int ocd_uploadfile(struct ocd_connection *con,const char *filename, int addr, enum eightthirtytwo_endian endian)
 {
-	int len;
 	unsigned char buf[4];
 	int result=0;
 	FILE *file;
@@ -135,6 +134,31 @@ int ocd_uploadfile(struct ocd_connection *con,const char *filename, int addr, en
 		result=1;
 		fclose(file);
 		len=OCD_READ(con,0); /* Finish with a read to wait until upload is complete */
+		ocd_release(con);
+	}
+	return(result);
+}
+
+
+/* Write a file byte-by-byte to a single address. */
+int ocd_piofile(struct ocd_connection *con,const char *filename, int addr)
+{
+	int result=0;
+	FILE *file;
+	OCD_STOP(con);
+
+	file=fopen(filename,"rb");
+	if(file)
+	{
+		int c=fgetc(file);
+		while(c!=EOF)
+		{
+			OCD_WRITE(con,addr,c);
+			c=fgetc(file);
+		}
+		result=-1;
+		fclose(file);
+		OCD_READ(con,0); /* Finish with a read to wait until upload is complete */
 		ocd_release(con);
 	}
 	return(result);

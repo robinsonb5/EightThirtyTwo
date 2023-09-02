@@ -34,6 +34,7 @@
 #include "section.h"
 #include "symbol.h"
 #include "mapfile.h"
+#include "script.h"
 
 #ifdef DEMIST_MSYS
 WSADATA wsaDataVar; 
@@ -43,17 +44,6 @@ WINDOW *create_newwin(const char *title,int height, int width, int starty, int s
 void decorate_window(WINDOW *win,int width,const char *title);
 
 void destroy_win(WINDOW *local_win);
-
-#define REGS_WIDTH 48
-#define REGS_HEIGHT 6
-
-#define DIS_WIN_TITLE "Dissasembly"
-#define DIS_WIN_WIDTH REGS_WIDTH
-#define DIS_WIN_HEIGHT (LINES-REGS_HEIGHT-1)
-#define MEM_WIN_TITLE "Messages"
-#define MEM_WIN_WIDTH (COLS-REGS_WIDTH)
-#define MEM_WIN_HEIGHT (LINES-1)
-// #define MEM_WIN_HEIGHT (LINES-LINES/2)
 
 
 #define OCD_BUFSIZE 64
@@ -80,10 +70,8 @@ struct ocd_rbuf
 char disbuf[REGS_WIDTH];
 void disassemble_byte(struct ocd_rbuf *code,unsigned char op,int addr,int row)
 {
-	FILE *f;
 	int opc=op&0xf8;
-	int opr=op&7;
-	int j;
+	unsigned int j;
 	static int immstreak=0;
 	static int imm;
 	static int signedimm=0;
@@ -237,10 +225,10 @@ void ocd_rbuf_fillword(struct ocd_rbuf *buf,int a)
 
 void ocd_rbuf_prev(struct ocd_rbuf *buf)
 {
-	int a,v;
+	int a;
 	buf->cursor-=4;
 	a=buf->cursor-OCD_BUFSIZE/2;
-	v=OCD_READ(buf->con,a);
+	OCD_READ(buf->con,a);
 	ocd_rbuf_fillword(buf,a);
 }
 
@@ -248,7 +236,7 @@ void ocd_rbuf_prev(struct ocd_rbuf *buf)
 void ocd_rbuf_next(struct ocd_rbuf *buf)
 {
 	int a=buf->cursor+OCD_BUFSIZE/2;
-	int v=OCD_READ(buf->con,a);
+	OCD_READ(buf->con,a);
 	ocd_rbuf_fillword(buf,a);
 	buf->cursor+=4;
 }
@@ -257,7 +245,6 @@ void ocd_rbuf_next(struct ocd_rbuf *buf)
 void ocd_rbuf_fill(struct ocd_rbuf *buf,int addr)
 {
 	int i;
-	int v;
 	addr&=~3;
 	if(addr<OCD_BUFSIZE/2)
 		addr=OCD_BUFSIZE/2;
@@ -384,7 +371,6 @@ void draw_disassembly(WINDOW *w,struct ocd_rbuf *code,int pc)
 void draw_help(WINDOW *w)
 {
 	int i=0;
-	int a;
 	int h=LINES-REGS_HEIGHT-3;
 	werase(w);
 	decorate_window(w,DIS_WIN_WIDTH,"Help");
@@ -484,36 +470,17 @@ void parse_args(int argc, char *argv[],struct ocd_rbuf *buf)
 }
 
 
-int scroll_window(WINDOW *w,int height,int width,const char *title)
-{
-	wmove(w,height-1,0);
-	wclrtoeol(w);
-	wscrl(w,1);
-	decorate_window(w,width,title);
-}
-
-
-int clear_window(WINDOW *w,int height,int width,const char *title)
-{
-	werase(w);
-	decorate_window(w,width,title);
-}
-
-
 int main(int argc, char *argv[])
 {
-	int x, y;
 	int ch;
 	int running=1;
 	int disaddr=0;
 	int uploadaddress=0;
+	int pioaddress=0;
 	const char *err;
 	struct ocd_connection *ocdcon;
 	struct ocd_rbuf *code;
-	WINDOW *reg_win;
-	WINDOW *dis_win;
-	WINDOW *mem_win;
-	WINDOW *cmd_win;
+	struct ocd_frontend *frontend;
 
 #ifdef DEMIST_MSYS    
     if (WSAStartup(MAKEWORD(2, 0), &wsaDataVar) != 0)
@@ -524,125 +491,75 @@ int main(int argc, char *argv[])
 #endif
 
 	ocdcon=ocd_connection_new();
-	if(err=ocd_connect(ocdcon,OCD_ADDR,OCD_PORT))
+	if(!ocdcon || (err=ocd_connect(ocdcon,OCD_ADDR,OCD_PORT)))
 	{
 		fprintf(stderr,"%s\nEnsure 832bridge.tcl is running under quartus_stp.\n",err);	
 		return(0);
 	}
 
-	code=ocd_rbuf_new(ocdcon);
-
-	initscr();			/* Start curses mode 		*/
-	cbreak();			/* Capture input directly	*/
-	keypad(stdscr, TRUE);
-	noecho();
-
-	refresh();
-	reg_win=create_newwin("Register File",REGS_HEIGHT,REGS_WIDTH,0,0);
-	dis_win=create_newwin(DIS_WIN_TITLE,DIS_WIN_HEIGHT,DIS_WIN_WIDTH,REGS_HEIGHT,0);
-	mem_win=create_newwin(MEM_WIN_TITLE,MEM_WIN_HEIGHT,MEM_WIN_WIDTH,0,REGS_WIDTH);
-	scrollok(mem_win,1);
-	cmd_win=newwin(1,COLS,LINES-1,0);
-	parse_args(argc,argv,code);
-
-	OCD_STOP(ocdcon);
-	get_regfile(ocdcon,&code->regfile);
-	code->regfile.prevpc=code->regfile.regs[7]-1;
-	disaddr=code->regfile.regs[7];
-	draw_regfile(reg_win,&code->regfile);
-
-	/* If we have a symbolmap, set uploadaddress to the value of the "_start" symbol. */
-	uploadaddress=0;
-	if(code->symbolmap)
+	if((code=ocd_rbuf_new(ocdcon)))
 	{
-		struct symbol *sym=section_findsymbol(code->symbolmap,"_start");
-		if(sym)
-			uploadaddress=sym->cursor;
-	}
-
-	move(LINES-1,2);
-
-	while(running)
-	{
-		int corerunning;
-		char *input;
-		werase(cmd_win);
-		curs_set(0);
-		wrefresh(cmd_win);
-
-		draw_disassembly(dis_win,code,disaddr);
-
-		timeout(-1);
-		ch=0;
-		if(code->con->cpuconnected && code->con->bridgeconnected)
-			ch = getch();
-
-		switch(ch)
+		if((frontend=ocd_frontend_new()))
 		{
-			case KEY_LEFT:
-				break;
-			case KEY_RIGHT:
-				break;
-			case KEY_UP:
-				--disaddr;
-				break;
-			case KEY_DOWN:
-				++disaddr;
-				break;
-			case KEY_BACKSPACE: /* backspace */
-				break;
+			parse_args(argc,argv,code);
 
-			case KEY_PPAGE:
-				disaddr-=DIS_WIN_HEIGHT-2;
-				break;
+			OCD_STOP(ocdcon);
+			get_regfile(ocdcon,&code->regfile);
+			code->regfile.prevpc=code->regfile.regs[7]-1;
+			disaddr=code->regfile.regs[7];
+			draw_regfile(frontend->reg_win,&code->regfile);
 
-			case KEY_NPAGE:
-				disaddr+=DIS_WIN_HEIGHT-2;
-				break;
+			/* If we have a symbolmap, set uploadaddress to the value of the "_start" symbol. */
+			uploadaddress=0;
+			if(code && code->symbolmap)
+			{
+				struct symbol *sym=section_findsymbol(code->symbolmap,"_start");
+				if(sym)
+					uploadaddress=sym->cursor;
+			}
 
-			case 'c':
-				OCD_RUN(code->con);
-				ocd_release(code->con);
-				mvwprintw(cmd_win,0,0,"Running... (press any key to stop)");
-				wrefresh(cmd_win);
-				timeout(100);
-				corerunning=1;
-				while(corerunning)
+			move(LINES-1,2);
+
+			while(running)
+			{
+				int corerunning;
+				char *input;
+				ocd_frontend_status(frontend,0);
+
+				draw_disassembly(frontend->dis_win,code,disaddr);
+
+				timeout(-1);
+				ch=0;
+				if(code->con->cpuconnected && code->con->bridgeconnected)
+					ch = getch();
+
+				switch(ch)
 				{
-					if(getch()!=ERR)
-					{
-						OCD_STOP(code->con);
-						ocd_release(code->con);
-						corerunning=0;
-					}
-					else
-					{
-						/* Read the break flag */
-						int f=OCD_READREG(code->con,9);
-						if(f & 0x80)
-							corerunning=0;
-						ocd_release(code->con);
-					}
-				}
-				get_regfile(ocdcon,&code->regfile);
-				disaddr=code->regfile.prevpc=code->regfile.regs[7];
-				draw_regfile(reg_win,&code->regfile);
-				break;
+					case KEY_LEFT:
+						break;
+					case KEY_RIGHT:
+						break;
+					case KEY_UP:
+						--disaddr;
+						break;
+					case KEY_DOWN:
+						++disaddr;
+						break;
+					case KEY_BACKSPACE: /* backspace */
+						break;
 
+					case KEY_PPAGE:
+						disaddr-=DIS_WIN_HEIGHT-2;
+						break;
 
-			case 'C':
-				input=frontend_getinput(cmd_win,"Run until r7 + ",10);
-				if(strlen(input))
-				{
-					char *endptr;
-					int val=strtoul(input,&endptr,0);
-					if(endptr!=input)
-					{
-						OCD_BREAKPOINT(code->con,code->regfile.regs[7]+val);
+					case KEY_NPAGE:
+						disaddr+=DIS_WIN_HEIGHT-2;
+						break;
+
+					case 'c':
 						OCD_RUN(code->con);
 						ocd_release(code->con);
-						mvwprintw(cmd_win,0,0,"Running... (press any key to stop)");
-						wrefresh(cmd_win);
+						ocd_frontend_status(frontend,"Running... (press any key to stop)");
 						timeout(100);
 						corerunning=1;
 						while(corerunning)
@@ -664,239 +581,282 @@ int main(int argc, char *argv[])
 						}
 						get_regfile(ocdcon,&code->regfile);
 						disaddr=code->regfile.prevpc=code->regfile.regs[7];
-						draw_regfile(reg_win,&code->regfile);
-					}
-				}
-				break;
+						draw_regfile(frontend->reg_win,&code->regfile);
+						break;
 
 
-			case 'h':
-				draw_help(dis_win);
-				frontend_choice(cmd_win,"Press enter to continue...","\n ",' ');
-				break;
+					case 'C':
+						input=frontend_getinput(frontend->cmd_win,"Run until r7 + ",10);
+						if(strlen(input))
+						{
+							char *endptr;
+							int val=strtoul(input,&endptr,0);
+							if(endptr!=input)
+							{
+								OCD_BREAKPOINT(code->con,code->regfile.regs[7]+val);
+								OCD_RUN(code->con);
+								ocd_release(code->con);
+								ocd_frontend_status(frontend,"Running... (press any key to stop)");
+								timeout(100);
+								corerunning=1;
+								while(corerunning)
+								{
+									if(getch()!=ERR)
+									{
+										OCD_STOP(code->con);
+										ocd_release(code->con);
+										corerunning=0;
+									}
+									else
+									{
+										/* Read the break flag */
+										int f=OCD_READREG(code->con,9);
+										if(f & 0x80)
+											corerunning=0;
+										ocd_release(code->con);
+									}
+								}
+								get_regfile(ocdcon,&code->regfile);
+								disaddr=code->regfile.prevpc=code->regfile.regs[7];
+								draw_regfile(frontend->reg_win,&code->regfile);
+							}
+						}
+						break;
 
-			case 'e':
-				ch=frontend_choice(cmd_win,"Set endian mode (b/l): ","bl",code->endian==EIGHTTHIRTYTWO_BIGENDIAN ? 'b' : 'l');
-				if(ch=='b')
-					code->endian=EIGHTTHIRTYTWO_BIGENDIAN;
-				else if(ch=='l')
-					code->endian=EIGHTTHIRTYTWO_LITTLEENDIAN;
-				ocd_rbuf_clear(code);
-				break;
 
-			case 'q':
-			case 'Q':
-				mvwprintw(cmd_win,0,0,"Really quit? ");
-				wrefresh(cmd_win);
-				if(frontend_confirm())
-					running=0;
-				break;
+					case 'h':
+						draw_help(frontend->dis_win);
+						frontend_choice(frontend,"Press enter to continue...","\n ",' ');
+						break;
 
-			case 'b':
-				input=frontend_getinput(cmd_win,"Breakpoint address: ",16);
-				if(strlen(input))
-				{
-					char *endptr;
-					int addr=strtoul(input,&endptr,0);
-					if(endptr!=input)
-					{
-						int v=OCD_BREAKPOINT(code->con,addr);
-						ocd_release(code->con);
-						scroll_window(mem_win,MEM_WIN_HEIGHT,MEM_WIN_WIDTH,MEM_WIN_TITLE);
-						mvwprintw(mem_win,MEM_WIN_HEIGHT-2,2,"Breakpoint: %08x",addr);
-						wrefresh(mem_win);
-					}
-				}
-				break;
+					case 'e':
+						ch=frontend_choice(frontend,"Set endian mode (b/l): ","bl",code->endian==EIGHTTHIRTYTWO_BIGENDIAN ? 'b' : 'l');
+						if(ch=='b')
+							code->endian=EIGHTTHIRTYTWO_BIGENDIAN;
+						else if(ch=='l')
+							code->endian=EIGHTTHIRTYTWO_LITTLEENDIAN;
+						ocd_rbuf_clear(code);
+						break;
 
-			case 'S':
-				/* Multiple steps. */
-				input=frontend_getinput(cmd_win,"Multiple steps: ",10);
-				if(strlen(input))
-				{
-					char *endptr;
-					int i=strtoul(input,&endptr,0);
-					if(endptr!=input)
-					{
-						while(--i>0)
-							OCD_SINGLESTEP(ocdcon);						
-					}
-				}
-				else
-					break;
-				code->regfile.regs[7]=OCD_READREG(ocdcon,7);
-				/* Fall through to single step */
-			case 's':
-				OCD_SINGLESTEP(ocdcon);
-				code->regfile.prevpc=code->regfile.regs[7];
-				get_regfile(ocdcon,&code->regfile);
-				draw_regfile(reg_win,&code->regfile);
+					case 'q':
+					case 'Q':
+						ocd_frontend_status(frontend,"Really quit? ");
+						if(frontend_confirm())
+							running=0;
+						break;
 
-				if(code->regfile.regs[7]<disaddr)
-					disaddr=code->regfile.regs[7];
-				if((code->regfile.regs[7]-disaddr)>(DIS_WIN_HEIGHT-5))
-					disaddr=code->regfile.regs[7]-(DIS_WIN_HEIGHT-5);
-				break;
+					case 'b':
+						input=frontend_getinput(frontend->cmd_win,"Breakpoint address: ",16);
+						if(strlen(input))
+						{
+							char *endptr;
+							int addr=strtoul(input,&endptr,0);
+							if(endptr!=input)
+							{
+								OCD_BREAKPOINT(code->con,addr);
+								ocd_release(code->con);
+								ocd_frontend_memof(frontend,"Breakpoint: %08x",addr);
+							}
+						}
+						break;
 
-			case 'r':
-				input=frontend_getinput(cmd_win,"Read: ",16);
-				if(strlen(input))
-				{
-					char *endptr;
-					int addr=strtoul(input,&endptr,0);
-					if(endptr!=input)
-					{
-						int v=OCD_READ(code->con,addr);
-						ocd_release(code->con);
-						scroll_window(mem_win,MEM_WIN_HEIGHT,MEM_WIN_WIDTH,MEM_WIN_TITLE);
-						mvwprintw(mem_win,MEM_WIN_HEIGHT-2,2,"R - %08x: %08x",addr,v);
-						wrefresh(mem_win);
-					}
-				}
-				break;
-			case 'R':
-				break;
+					case 'S':
+						/* Multiple steps. */
+						input=frontend_getinput(frontend->cmd_win,"Multiple steps: ",10);
+						if(strlen(input))
+						{
+							char *endptr;
+							int i=strtoul(input,&endptr,0);
+							if(endptr!=input)
+							{
+								while(--i>0)
+									OCD_SINGLESTEP(ocdcon);						
+							}
+						}
+						else
+							break;
+						code->regfile.regs[7]=OCD_READREG(ocdcon,7);
+						/* Fall through to single step */
+					case 's':
+						OCD_SINGLESTEP(ocdcon);
+						code->regfile.prevpc=code->regfile.regs[7];
+						get_regfile(ocdcon,&code->regfile);
+						draw_regfile(frontend->reg_win,&code->regfile);
 
-			case 'w':
-				input=frontend_getinput(cmd_win,"Write - Address: ",16);
-				if(strlen(input))
-				{
-					char *endptr;
-					int addr=strtoul(input,&endptr,0);
-					if(endptr!=input)
-					{
-						input=frontend_getinput(cmd_win,"Write - Value: ",16);
+						if(code->regfile.regs[7]<disaddr)
+							disaddr=code->regfile.regs[7];
+						if((code->regfile.regs[7]-disaddr)>(DIS_WIN_HEIGHT-5))
+							disaddr=code->regfile.regs[7]-(DIS_WIN_HEIGHT-5);
+						break;
+
+					case 'r':
+						input=frontend_getinput(frontend->cmd_win,"Read: ",16);
+						if(strlen(input))
+						{
+							char *endptr;
+							int addr=strtoul(input,&endptr,0);
+							if(endptr!=input)
+							{
+								int v=OCD_READ(code->con,addr);
+								ocd_release(code->con);
+								ocd_frontend_memof(frontend,"R - %08x: %08x",addr,v);
+							}
+						}
+						break;
+					case 'R':
+						break;
+
+					case 'w':
+						input=frontend_getinput(frontend->cmd_win,"Write - Address: ",16);
+						if(strlen(input))
+						{
+							char *endptr;
+							int addr=strtoul(input,&endptr,0);
+							if(endptr!=input)
+							{
+								input=frontend_getinput(frontend->cmd_win,"Write - Value: ",16);
+								if(strlen(input))
+								{
+									char *endptr;
+									int v=strtoul(input,&endptr,0);
+									if(endptr!=input)
+									{
+										OCD_WRITE(code->con,addr,v);
+										ocd_release(code->con);
+										ocd_frontend_memof(frontend,"W - %08x: %08x",addr,v);
+									}
+								}
+							}
+						}
+						break;
+					case 'W':
+						break;
+
+					case 'm':
+						input=frontend_getinput(frontend->cmd_win,"Memo: ",0);
+						if(strlen(input))
+							ocd_frontend_memof(frontend,"%s",input);
+						break;
+
+					case 'd':
+						input=frontend_getinput(frontend->cmd_win,"Disassembly start (address or symbol): ",0);
 						if(strlen(input))
 						{
 							char *endptr;
 							int v=strtoul(input,&endptr,0);
-							if(endptr!=input)
+							if(endptr==input)
 							{
-								OCD_WRITE(code->con,addr,v);
-								ocd_release(code->con);
-								scroll_window(mem_win,MEM_WIN_HEIGHT,MEM_WIN_WIDTH,MEM_WIN_TITLE);
-								mvwprintw(mem_win,MEM_WIN_HEIGHT-2,2,"W - %08x: %08x",addr,v);
-								wrefresh(mem_win);
+								struct symbol *sym=section_findsymbol(code->symbolmap,input);
+								if(sym)
+								{
+									v=sym->cursor;
+									disaddr=v;
+								}
+								else
+									ocd_frontend_memo(frontend,"Symbol not found");
+							}
+							else
+								disaddr=v;
+						}
+						break;
+
+					case 'U':
+						input=frontend_getinput(frontend->cmd_win,"Upload Address: ",16);
+						if(strlen(input))
+						{
+							char *endptr;
+							uploadaddress=strtoul(input,&endptr,0);
+							if(endptr==input)
+							{
+								ocd_frontend_memo(frontend,"Bad address");
+								break;
 							}
 						}
-					}
-				}
-				break;
-			case 'W':
-				break;
-
-			case 'm':
-				input=frontend_getinput(cmd_win,"Memo: ",0);
-				if(strlen(input))
-				{
-					scroll_window(mem_win,MEM_WIN_HEIGHT,MEM_WIN_WIDTH,MEM_WIN_TITLE);
-					mvwprintw(mem_win,MEM_WIN_HEIGHT-2,2,"%s",input);
-					wrefresh(mem_win);
-				}
-				break;
-
-			case 'd':
-				input=frontend_getinput(cmd_win,"Disassembly start (address or symbol): ",0);
-				if(strlen(input))
-				{
-					char *endptr;
-					int v=strtoul(input,&endptr,0);
-					if(endptr==input)
-					{
-						struct symbol *sym=section_findsymbol(code->symbolmap,input);
-						if(sym)
+						// Fall through to upload
+					case 'u':
+						input=frontend_getinput(frontend->cmd_win,"Filename (or enter): ",0);
+						if(!strlen(input))
 						{
-							v=sym->cursor;
-							disaddr=v;
+							/* If no filename has been given we're probably reloading modified firmware, so reload the symbol map too... */
+							if(code->symbolmap)
+								section_delete(code->symbolmap);
+							parse_mapfile(code);
+							input=code->uploadfile;
 						}
-						else
-						{
-							scroll_window(mem_win,MEM_WIN_HEIGHT,MEM_WIN_WIDTH,MEM_WIN_TITLE);
-							mvwprintw(mem_win,MEM_WIN_HEIGHT-2,2,"Symbol not found");
-							wrefresh(mem_win);
-						}
-					}
-					else
-						disaddr=v;
-				}
-				break;
-
-			case 'U':
-				input=frontend_getinput(cmd_win,"Upload Address: ",16);
-				if(strlen(input))
-				{
-					char *endptr;
-					uploadaddress=strtoul(input,&endptr,0);
-					if(endptr==input)
-					{
-						scroll_window(mem_win,MEM_WIN_HEIGHT,MEM_WIN_WIDTH,MEM_WIN_TITLE);
-						mvwprintw(mem_win,MEM_WIN_HEIGHT-2,2,"Bad address");
-						wrefresh(mem_win);
+						ocd_frontend_memof(frontend,"Uploading to 0x%x...",uploadaddress);
+						if(input && ocd_uploadfile(code->con,input,uploadaddress,code->endian))
+							ocd_frontend_memo(frontend,"Upload succeeded");
+						else					
+							ocd_frontend_memo(frontend,"Upload failed");
 						break;
+
+					case 'P':
+						input=frontend_getinput(frontend->cmd_win,"PIO Address: ",16);
+						if(strlen(input))
+						{
+							char *endptr;
+							pioaddress=strtoul(input,&endptr,0);
+							if(endptr==input)
+							{
+								ocd_frontend_memo(frontend,"Bad address");
+								break;
+							}
+						}
+						// Fall through to pio
+					case 'p':
+						input=frontend_getinput(frontend->cmd_win,"Filename: ",0); /* FIXME - remember previous filename? */
+						ocd_frontend_memof(frontend,"Sending to 0x%x...",uploadaddress);
+						if(input && ocd_piofile(code->con,input,pioaddress))
+							ocd_frontend_memo(frontend,"PIO succeeded");
+						else					
+							ocd_frontend_memo(frontend,"PIO failed");
+						break;
+
+						/* Run a script */
+					case 'i':
+						input=frontend_getinput(frontend->cmd_win,"Script: ",0); /* FIXME - remember previous filename) */
+						ocd_frontend_memo(frontend,"Running script...");
+						if(input && execute_script(frontend,code->con,input))
+							ocd_frontend_memo(frontend,"Script succeeded");
+						else
+							ocd_frontend_memo(frontend,"Script failed");
+						break;
+
+					case 10: /* enter */
+						break;
+
+					default:
+						break;
+				}
+
+				/* Deal with either socket-level or JTAG level disconnection */
+				while(running && ((!code->con->cpuconnected) || (!code->con->bridgeconnected)))
+				{
+					clear_window(frontend->dis_win,DIS_WIN_HEIGHT,DIS_WIN_WIDTH,DIS_WIN_TITLE);
+					wrefresh(frontend->dis_win);
+					if(code->con->bridgeconnected)
+						ch=frontend_choice(frontend,"No connection to CPU - press enter to retry or q to quit.","qQ ",' ');
+					else
+						ch=frontend_choice(frontend,"Connection lost - press enter to reconnect or q to quit.","qQ ",' ');
+					if(ch=='q' || ch=='Q')
+						running=0;
+					else
+					{
+						err=ocd_connect(ocdcon,OCD_ADDR,OCD_PORT);
+						OCD_READREG(code->con,7);
+						ocd_release(code->con);
+						if(code->con->cpuconnected)
+						{
+							disaddr=code->regfile.regs[7];
+							ocd_rbuf_clear(code);
+						}
 					}
-				}
-				// Fall through to upload
-			case 'u':
-				input=frontend_getinput(cmd_win,"Filename (or enter): ",0);
-				if(!strlen(input))
-				{
-					/* If no filename has been given we're probably reloading modified firmware, so reload the symbol map too... */
-					if(code->symbolmap)
-						section_delete(code->symbolmap);
-					parse_mapfile(code);
-					input=code->uploadfile;
-				}
-
-				scroll_window(mem_win,MEM_WIN_HEIGHT,MEM_WIN_WIDTH,MEM_WIN_TITLE);
-				mvwprintw(mem_win,MEM_WIN_HEIGHT-2,2,"Uploading to 0x%x...",uploadaddress);
-				wrefresh(mem_win);
-				scroll_window(mem_win,MEM_WIN_HEIGHT,MEM_WIN_WIDTH,MEM_WIN_TITLE);
-				if(input && ocd_uploadfile(code->con,input,uploadaddress,code->endian))
-					mvwprintw(mem_win,MEM_WIN_HEIGHT-2,2,"Upload succeeded");
-				else					
-					mvwprintw(mem_win,MEM_WIN_HEIGHT-2,2,"Upload failed");
-				wrefresh(mem_win);
-				break;
-
-			case 10: /* enter */
-				break;
-
-			default:
-				break;
-		}
-
-		/* Deal with either socket-level or JTAG level disconnection */
-		while(running && ((!code->con->cpuconnected) || (!code->con->bridgeconnected)))
-		{
-			clear_window(dis_win,DIS_WIN_HEIGHT,DIS_WIN_WIDTH,DIS_WIN_TITLE);
-			wrefresh(dis_win);
-			if(code->con->bridgeconnected)
-				ch=frontend_choice(cmd_win,"No connection to CPU - press enter to retry or q to quit.","qQ ",' ');
-			else
-				ch=frontend_choice(cmd_win,"Connection lost - press enter to reconnect or q to quit.","qQ ",' ');
-			if(ch=='q' || ch=='Q')
-				running=0;
-			else
-			{
-				err=ocd_connect(ocdcon,OCD_ADDR,OCD_PORT);
-				OCD_READREG(code->con,7);
-				ocd_release(code->con);
-				if(code->con->cpuconnected);
-				{
-					disaddr=code->regfile.regs[7];
-					ocd_rbuf_clear(code);
 				}
 			}
+			ocd_frontend_delete(frontend);
 		}
-
-	}
-	delwin(reg_win);
-	delwin(dis_win);
-	delwin(mem_win);
-	endwin();			/* End curses mode		  */
-
-	if(code)
 		ocd_rbuf_delete(code);
+	}
 
 #ifdef DEMIST_MSYS        
     WSACleanup(); 
@@ -905,22 +865,4 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
-
-void decorate_window(WINDOW *win,int width,const char *title)
-{
-	box(win, 0 , 0);
-	mvwprintw(win,0,(width-(2+strlen(title)))/2," %s ",title);
-}
-
-
-WINDOW *create_newwin(const char *title,int height, int width, int starty, int startx)
-{
-	WINDOW *local_win;
-
-	local_win = newwin(height, width, starty, startx);
-	decorate_window(local_win,width,title);
-	wrefresh(local_win);
-
-	return local_win;
-}
 

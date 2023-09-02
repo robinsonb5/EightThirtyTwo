@@ -29,7 +29,7 @@
 struct symbol *symbol_new(const char *id,int cursor,int flags)
 {
 	struct symbol *result;
-	if(result=(struct symbol *)malloc(sizeof(struct symbol)))
+	if((result=(struct symbol *)malloc(sizeof(struct symbol))))
 	{
 		result->next=0;
 		result->identifier=strdup(id);
@@ -148,7 +148,6 @@ int reference_size(struct symbol *sym)
 		{
 			if(sym->resolve)
 			{
-				int i;
 				int size;
 				int addr=sym->sect->address+sym->cursor+sym->sect->offset+1;
 				/* Compute worst-case sizes based on the distance to the target. */

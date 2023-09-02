@@ -13,13 +13,12 @@ struct section *mapfile_read(const char *filename)
 		f=fopen(filename,"r");
 		if(f)
 		{
-			if(result=section_new(0,"symboltable"))
+			if((result=section_new(0,"symboltable")))
 			{
-				int line=0;
 				char *linebuf=0;
 				size_t len;
 				int c;
-				while(c=getline(&linebuf,&len,f)>0)
+				while((c=getline(&linebuf,&len,f)>0))
 				{
 					char *endptr;
 					if(linebuf[0]!=' ') /* Skip over section size entries */
@@ -33,7 +32,7 @@ struct section *mapfile_read(const char *filename)
 							{
 								struct symbol *sym;
 								char *tok=strtok_escaped(endptr);
-								if(sym=symbol_new(tok,v,0))
+								if((sym=symbol_new(tok,v,0)))
 									section_addsymbol(result,sym);
 							}
 						}
