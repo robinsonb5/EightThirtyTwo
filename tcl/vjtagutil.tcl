@@ -280,7 +280,7 @@ proc vjtag::recv {{instance ""}} {
 proc vjtag::recv_blocking {{instance ""}} {
 	if {$instance==""} { set instance $::vjtag::instance }
 	while {1} {
-		if [ catch { device_virtual_ir_shift -instance_index $instance -ir_value 2 -no_captured_ir_value } ] { return [ vjtag_bin2dec 0 ] }
+		if [ catch { device_virtual_ir_shift -instance_index $instance -ir_value 2 -no_captured_ir_value } ] { return [ vjtag::bin2dec 0 ] }
 		set tdi [device_virtual_dr_shift -dr_value 0000 -instance_index $instance -length 4]
 		if {![expr $tdi & 1]} {
 			device_virtual_ir_shift -instance_index $instance -ir_value 0 -no_captured_ir_value
