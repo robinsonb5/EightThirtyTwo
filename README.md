@@ -243,19 +243,27 @@ Then the on-chip debugger can be invoked with
 Valid options are
 * -e(l|b) - set endian mode.
 * -m mapfile - read symbols from the mapfile.
+* -u binaryfile - set a default filename for upload operations.
+* -i scriptfile - execute the specified script and exit.
+* -h - show usage information
 
 The debugger will show a live disassembly as well as register contents.
 The following key commands are available:
-* b - Set breakpoint
-* c - Continue program - run until breakpoint
-* C - Set breakpoint at r7 + n, then run
+* b - Set breakpoint.
+* c - Continue program - run until breakpoint.
+* C - Set breakpoint at r7 + n, then run.
 * d - Set disassembly start address to addr.  Addr can be a numeric address, or a symbol from the mapfile.
-* e - Set big or little endian mode");
-* s - Single step
-* S - Single step n times
-* r - Read word at addr
-* w - Write to addr with value
-* m - Add a memo to the messages pane
-* q - Quit
+* e - Set big or little endian mode.
+* s - Single step.
+* S - Single step n times.
+* r - Read word at addr.
+* U - Upload a file to memory starting at a specific address.
+* u - Upload a file to memory starting at a previously specified base address (defaulting to 0).
+* P - Send a file, byte by byte, to a specified constant address (Programmed IO).
+* p - Send a file, byte by byte, to a previously specified constant address (defaulting to 0).
+* i - Run a script.
+* w - Write to addr with value.
+* m - Add a memo to the messages pane.
+* q - Quit.
 * Cursor up / down, Page up / down - scroll the disassembly view.
 

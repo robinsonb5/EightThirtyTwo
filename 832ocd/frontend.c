@@ -156,7 +156,7 @@ int frontend_choice(struct ocd_frontend *ui,const char *prompt,const char *optio
 	stringbuf[0]=def;
 	stringbuf[1]=0;
 	curs_set(2);
-	while(1)
+	while(ui)
 	{
 		int ch;
 		mvwprintw(ui->cmd_win,0,promptlen,"%s ",stringbuf);
@@ -172,6 +172,7 @@ int frontend_choice(struct ocd_frontend *ui,const char *prompt,const char *optio
 			return(stringbuf[0]);
 		}
 	}
+	return(stringbuf[0]);
 }
 
 
@@ -246,6 +247,7 @@ void clear_window(WINDOW *w,int height,int width,const char *title)
 }
 
 
+/* Draw a message line in the UI, or to stdout if there is no UI. */
 void ocd_frontend_memo(struct ocd_frontend *ui,const char *msg)
 {
 	if(ui && msg)
@@ -254,28 +256,47 @@ void ocd_frontend_memo(struct ocd_frontend *ui,const char *msg)
 		mvwprintw(ui->mem_win,MEM_WIN_HEIGHT-2,2,msg);
 		wrefresh(ui->mem_win);
 	}
+	else if(msg)
+		printf("%s\n",msg);
 }
 
 void ocd_frontend_memof(struct ocd_frontend *ui,const char *fmt,...)
 {
-	char buf[MEM_WIN_WIDTH+1];
-	va_list args;
-	va_start(args, fmt);
-	vsnprintf(buf, MEM_WIN_WIDTH,fmt, args);
-	va_end(args);
-	ocd_frontend_memo(ui,buf);
+	if(ui)
+	{
+		char buf[MEM_WIN_WIDTH+1];
+		va_list args;
+		va_start(args, fmt);
+		vsnprintf(buf, MEM_WIN_WIDTH,fmt, args);
+		va_end(args);
+		ocd_frontend_memo(ui,buf);
+	}
+	else
+	{
+		char buf[128+1];
+		va_list args;
+		va_start(args, fmt);
+		vsnprintf(buf, 128,fmt, args);
+		va_end(args);
+		ocd_frontend_memo(ui,buf);	
+	}
 }
 
 void ocd_frontend_status(struct ocd_frontend *ui,const char *msg)
 {
-	if(msg)
-		mvwprintw(ui->cmd_win,0,0,msg);
-	else
+	if(ui)
 	{
-		werase(ui->cmd_win);
-		curs_set(0);
+		if(msg)
+			mvwprintw(ui->cmd_win,0,0,msg);
+		else
+		{
+			werase(ui->cmd_win);
+			curs_set(0);
+		}
+		wrefresh(ui->cmd_win);
 	}
-	wrefresh(ui->cmd_win);
+	else
+		printf("%s\n",msg);
 }
 
 

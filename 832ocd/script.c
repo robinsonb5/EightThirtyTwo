@@ -69,6 +69,7 @@ int execute_script(struct ocd_frontend *ui,struct ocd_connection *con,const char
 		FILE *script=fopen(filename,"r");
 		if(!script)
 			return(result);
+		OCD_STOP(con);
 		while(!feof(script))
 		{
 			int c=fgetc(script);
@@ -101,6 +102,16 @@ int execute_script(struct ocd_frontend *ui,struct ocd_connection *con,const char
 						ocd_frontend_memo(ui,"Success");
 					else
 						ocd_frontend_memo(ui,"Failed");
+					OCD_READ(con,0);
+					break;
+
+				case 'b':
+					addr=script_get_int(script);
+					OCD_BREAKPOINT(con,addr);
+					break;
+
+				case 'c':
+					OCD_RUN(con);
 					break;
 
 				case '\n':
@@ -112,7 +123,6 @@ int execute_script(struct ocd_frontend *ui,struct ocd_connection *con,const char
 					break;
 			}
 		}
-		OCD_READ(con,0); /* Finish with a read to wait until upload is complete */
 		ocd_release(con);
 		result=1;
 		fclose(script);

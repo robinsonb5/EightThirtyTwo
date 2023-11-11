@@ -63,6 +63,7 @@ struct ocd_rbuf
 	char *symbolmapfn;
 	enum eightthirtytwo_endian endian;
 	char *uploadfile;
+	char *scriptfile;
 };
 
 
@@ -187,6 +188,7 @@ struct ocd_rbuf *ocd_rbuf_new(struct ocd_connection *con)
 		rb->symbolmap=0;
 		rb->endian=EIGHTTHIRTYTWO_LITTLEENDIAN;
 		rb->uploadfile=0;
+		rb->scriptfile=0;
 	}
 	return(rb);
 }
@@ -427,15 +429,23 @@ void parse_args(int argc, char *argv[],struct ocd_rbuf *buf)
 	int nextmap=0;
 	int nextupload=0;
 	int nextendian=0;
+	int nextscript=0;
 	int i;
 	for(i=1;i<argc;++i)
 	{
+		if(strncmp(argv[i],"-h",2)==0)
+		{
+			printf("Usage: %s [-eb|l] [-m mapfile] [-u default_upload] [-i scriptfile]\n",argv[0]);
+			exit(0);
+		}
 		if(strncmp(argv[i],"-m",2)==0)
 			nextmap=1;
 		else if(strncmp(argv[i],"-u",2)==0)
 			nextupload=1;
 		else if(strncmp(argv[i],"-e",2)==0)
 			nextendian=1;
+		else if(strncmp(argv[i],"-i",2)==0)
+			nextscript=1;
 		else if(nextmap)
 		{
 			buf->symbolmapfn=argv[i];
@@ -446,6 +456,11 @@ void parse_args(int argc, char *argv[],struct ocd_rbuf *buf)
 		{
 			buf->uploadfile=argv[i];
 			nextupload=0;
+		}
+		else if(nextscript)
+		{
+			buf->scriptfile=argv[i];
+			nextscript=0;
 		}
 		else if(nextendian)
 		{
@@ -478,9 +493,9 @@ int main(int argc, char *argv[])
 	int uploadaddress=0;
 	int pioaddress=0;
 	const char *err;
-	struct ocd_connection *ocdcon;
-	struct ocd_rbuf *code;
-	struct ocd_frontend *frontend;
+	struct ocd_connection *ocdcon=0;
+	struct ocd_rbuf *code=0;
+	struct ocd_frontend *frontend=0;
 
 #ifdef DEMIST_MSYS    
     if (WSAStartup(MAKEWORD(2, 0), &wsaDataVar) != 0)
@@ -499,24 +514,38 @@ int main(int argc, char *argv[])
 
 	if((code=ocd_rbuf_new(ocdcon)))
 	{
-		if((frontend=ocd_frontend_new()))
-		{
-			parse_args(argc,argv,code);
+		parse_args(argc,argv,code);
 
-			OCD_STOP(ocdcon);
+		/* If we have a symbolmap, set uploadaddress to the value of the "_start" symbol. */
+		uploadaddress=0;
+		if(code && code->symbolmap)
+		{
+			struct symbol *sym=section_findsymbol(code->symbolmap,"_start");
+			if(sym)
+				uploadaddress=sym->cursor;
+		}
+
+		/* Establish communication with the CPU */
+		OCD_STOP(ocdcon);
+		ocd_release(ocdcon);
+
+		/* If we have a script file, attempt to run that non-interactively */
+		if(code->scriptfile)
+		{
+			if(code->con->cpuconnected && code->con->bridgeconnected)
+			{
+				execute_script(frontend,code->con,code->scriptfile);
+			}
+			else
+				fprintf(stderr,"CPU not connected\n");
+			running=0;
+		}
+		else if((frontend=ocd_frontend_new())) /* Otherwise create the UI and run normally. */
+		{
 			get_regfile(ocdcon,&code->regfile);
 			code->regfile.prevpc=code->regfile.regs[7]-1;
 			disaddr=code->regfile.regs[7];
 			draw_regfile(frontend->reg_win,&code->regfile);
-
-			/* If we have a symbolmap, set uploadaddress to the value of the "_start" symbol. */
-			uploadaddress=0;
-			if(code && code->symbolmap)
-			{
-				struct symbol *sym=section_findsymbol(code->symbolmap,"_start");
-				if(sym)
-					uploadaddress=sym->cursor;
-			}
 
 			move(LINES-1,2);
 
