@@ -181,13 +181,13 @@ unsigned long strtoul(const char *in,char **endptr,int base)
 	}
 }
 
-const char *strchr(const char *str,char c)
+char *strchr(const char *str,int c)
 {
 	char t;
 	do{
 		t=*str;
 		if(t==c)
-			return str;
+			return ((char *)str);
 		++str;
 	} while(t);
 	return(0);

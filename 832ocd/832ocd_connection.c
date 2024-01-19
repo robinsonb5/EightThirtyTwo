@@ -63,7 +63,7 @@ void ocd_connection_delete(struct ocd_connection *con)
 	{
 		if(con->bridgeconnected)
             #ifdef DEMIST_MSYS
-			closesocket(con->sock)
+			closesocket(con->sock);
             #else
             close(con->sock);
             #endif
@@ -79,7 +79,7 @@ const char *ocd_connect(struct ocd_connection *con,const char *ip,int port)
 		if(con->sock>=0)
 		{
             #ifdef DEMIST_MSYS
-			closesocket(con->sock)
+			closesocket(con->sock);
             #else
             close(con->sock);
             #endif
