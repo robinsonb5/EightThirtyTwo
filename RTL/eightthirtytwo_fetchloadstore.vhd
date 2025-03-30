@@ -330,6 +330,11 @@ begin
 		ls_state<=LS_WAIT;
 		ram_req_r<='0';
 		ram_wr<='0';
+		ram_addr_r<=(others => '0');
+		ram_bytesel<=(others => '0');
+		ls_addrplus4<=(others => '0');
+		ls_ack<='0';
+		ls_q<=(others => '0');
 	elsif rising_edge(clk) then
 
 		ls_addrplus4<=unsigned(ls_addr)+4;

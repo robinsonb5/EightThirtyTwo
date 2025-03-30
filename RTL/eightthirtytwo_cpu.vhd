@@ -538,8 +538,19 @@ thread2.cond_minterms(0)<= (not regfile2.flag_z) and (not regfile2.flag_c);
 process(clk,reset_n)
 begin
 	if reset_n='0' then
+		m_reg <= (others => '0');
+		alu_op <= (others => '0');
+		e_reg <= (others => '0');
+		w_ex_op <= (others => '0');
+		ls_d <= (others => '0');
+		ls_halfword <= '0';
+		ls_byte <= '0';
+		alu_sgn <= '0';
+		alu_req <= '0';
 		alu_forward_q2tod1<='0';
 		alu_forward_q2tod1_d<='0';
+		alu_d1<=(others => '0');
+		alu_d2<=(others => '0');
 		e_thread<='0';
 		-- Thread 1:
 		regfile.flag_cond<='0';
@@ -549,7 +560,16 @@ begin
 		regfile.flag_interrupting<='0';
 		regfile.flag_halfword<='0';
 		regfile.flag_byte<='0';
+		regfile.tmp<=(others => '0');
+		regfile.gpr0<=(others => '0');
+		regfile.gpr1<=(others => '0');
+		regfile.gpr2<=(others => '0');
+		regfile.gpr3<=(others => '0');
+		regfile.gpr4<=(others => '0');
+		regfile.gpr5<=(others => '0');
+		regfile.gpr6<=(others => '0');
 		regfile.gpr7_readflags<='0';
+		ls_addr<=(others => '0');
 		thread.pc<=(others=>'0');
 		thread.setpc<='1';
 		thread.pause<='0';

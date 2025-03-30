@@ -58,6 +58,10 @@ begin
 		if reset_n='0' then
 			count<=(others=>'0');
 			busy_r<='0';
+			result <= (others=>'0');
+			ack<='0';
+			carry<='0';
+			signbit<='0';
 		elsif rising_edge(clk) then
 
 			ack<='0';

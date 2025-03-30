@@ -127,6 +127,8 @@ begin
 		busyflag<='0';
 		carry<='0';
 		immediatestreak<='0';
+		q1<=(others => '0');
+		q2<=(others => '0');
 	elsif rising_edge(clk) then
 
 		immediatestreak<='0';
