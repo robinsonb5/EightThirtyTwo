@@ -1,4 +1,4 @@
-  others => ( x"00000000")
+  others => ( others => '0')
 );
 
 -- Xilinx Vivado attributes

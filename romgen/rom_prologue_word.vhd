@@ -12,11 +12,11 @@ port (
 	clk : in std_logic;
 	reset_n : in std_logic := '1';
 	addr : in std_logic_vector(ADDR_WIDTH-1 downto 0);
-	q : out std_logic_vector(31 downto 0);
+	q : out std_logic_vector(COL_WIDTH*NB_COL-1 downto 0);
 	-- Allow writes - defaults supplied to simplify projects that don't need to write.
-	d : in std_logic_vector(31 downto 0) := X"00000000";
+	d : in std_logic_vector(COL_WIDTH*NB_COL-1 downto 0) := (others => '0');
 	we : in std_logic := '0';
-	bytesel : in std_logic_vector(3 downto 0) := "1111"
+	bytesel : in std_logic_vector(NB_COL-1 downto 0) := (others => '1')
 );
 end entity;
 
