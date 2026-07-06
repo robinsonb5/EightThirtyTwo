@@ -59,24 +59,19 @@ end entity;
 architecture behavoural of eightthirtytwo_cpu is
 
 -- Register file signals:
+type gpr_array_t is array (0 to 6) of std_logic_vector(31 downto 0);
 
 type e32_regfile is record
 	tmp : std_logic_vector(31 downto 0);
 
 	gpr_a : std_logic_vector(2 downto 0);
 	gpr_q : std_logic_vector(31 downto 0);
-	gpr0 : std_logic_vector(31 downto 0);
-	gpr1 : std_logic_vector(31 downto 0);
-	gpr2 : std_logic_vector(31 downto 0);
-	gpr3 : std_logic_vector(31 downto 0);
-	gpr4 : std_logic_vector(31 downto 0);
-	gpr5 : std_logic_vector(31 downto 0);
-	gpr6 : std_logic_vector(31 downto 0);
-	gpr7 : std_logic_vector(31 downto 0);
+	gpr   : gpr_array_t;
 
 -- The upper two bits of r7 will read as flags when and only when servicing an
 -- interrupt, avoiding the need to save the flags separately; they're baked into
 -- the return address.
+	gpr7 : std_logic_vector(31 downto 0);
 	gpr7_flags : std_logic_vector(31 downto e32_pc_maxbit+1);
 	gpr7_readflags : std_logic;
 
@@ -241,17 +236,8 @@ regfile.gpr7_flags(e32_fb_carry)<=regfile.flag_c;
 regfile.gpr7(e32_pc_maxbit downto 0)<=thread.pc;
 regfile.gpr7(31 downto e32_pc_maxbit+1)<=regfile.gpr7_flags when regfile.gpr7_readflags='1' else (others => '0');
 
-with regfile.gpr_a select regfile.gpr_q <=
-	regfile.gpr0 when "000",
-	regfile.gpr1 when "001",
-	regfile.gpr2 when "010",
-	regfile.gpr3 when "011",
-	regfile.gpr4 when "100",
-	regfile.gpr5 when "101",
-	regfile.gpr6 when "110",
-	regfile.gpr7 when "111",
-	(others=>'-') when others;	-- r7 is the program counter.
-
+regfile.gpr_q <= regfile.gpr7 when regfile.gpr_a="111" else
+                 regfile.gpr(to_integer(unsigned(regfile.gpr_a)));
 
 thread2.nextpc<=std_logic_vector(unsigned(thread2.pc)+1) when dualthread=true else (others=>'0');
 regfile2.gpr_a<=thread2.d_reg;
@@ -260,17 +246,8 @@ regfile2.gpr7_flags(e32_fb_carry)<=regfile2.flag_c;
 regfile2.gpr7(e32_pc_maxbit downto 0)<=thread2.pc;
 regfile2.gpr7(31 downto e32_pc_maxbit+1)<=regfile2.gpr7_flags when regfile2.gpr7_readflags='1' else (others => '0');
 
-with regfile2.gpr_a select regfile2.gpr_q <=
-	regfile2.gpr0 when "000",
-	regfile2.gpr1 when "001",
-	regfile2.gpr2 when "010",
-	regfile2.gpr3 when "011",
-	regfile2.gpr4 when "100",
-	regfile2.gpr5 when "101",
-	regfile2.gpr6 when "110",
-	regfile2.gpr7 when "111",
-	(others=>'-') when others;	-- r7 is the program counter.
-
+regfile2.gpr_q <= regfile2.gpr7 when regfile2.gpr_a="111" else
+                  regfile2.gpr(to_integer(unsigned(regfile2.gpr_a)));
 
 -- Fetch/Load/Store unit is responsible for interfacing with main memory.
 genflsdual:
@@ -561,13 +538,6 @@ begin
 		regfile.flag_halfword<='0';
 		regfile.flag_byte<='0';
 		regfile.tmp<=(others => '0');
-		regfile.gpr0<=(others => '0');
-		regfile.gpr1<=(others => '0');
-		regfile.gpr2<=(others => '0');
-		regfile.gpr3<=(others => '0');
-		regfile.gpr4<=(others => '0');
-		regfile.gpr5<=(others => '0');
-		regfile.gpr6<=(others => '0');
 		regfile.gpr7_readflags<='0';
 		ls_addr<=(others => '0');
 		thread.pc<=(others=>'0');
@@ -1051,53 +1021,23 @@ begin
 
 		if m_ex_op(e32_exb_q1toreg)='1' and (m_ex_op(e32_exb_postinc)='0' or alu_ack='0') then
 			if m_thread='1' and dualthread=true then
-				case m_reg(2 downto 0) is
-					when "000" =>
-						regfile2.gpr0<=alu_q1;
-					when "001" =>
-						regfile2.gpr1<=alu_q1;
-					when "010" =>
-						regfile2.gpr2<=alu_q1;
-					when "011" =>
-						regfile2.gpr3<=alu_q1;
-					when "100" =>
-						regfile2.gpr4<=alu_q1;
-					when "101" =>
-						regfile2.gpr5<=alu_q1;
-					when "110" =>
-						regfile2.gpr6<=alu_q1;
-					when "111" =>
-						thread2.setpc<='1';
-						thread2.pc<=alu_q1(e32_pc_maxbit downto 0);
-						regfile2.flag_z<=alu_q1(e32_fb_zero);
-						regfile2.flag_c<=alu_q1(e32_fb_carry);
-					when others =>
-						null;
-				end case;
+				if (m_reg(2 downto 0) = "111") then
+					thread2.setpc<='1';
+					thread2.pc<=alu_q1(e32_pc_maxbit downto 0);
+					regfile2.flag_z<=alu_q1(e32_fb_zero);
+					regfile2.flag_c<=alu_q1(e32_fb_carry);
+				else
+					regfile2.gpr(to_integer(unsigned(m_reg(2 downto 0)))) <= alu_q1;
+				end if;
 			else
-				case m_reg(2 downto 0) is
-					when "000" =>
-						regfile.gpr0<=alu_q1;
-					when "001" =>
-						regfile.gpr1<=alu_q1;
-					when "010" =>
-						regfile.gpr2<=alu_q1;
-					when "011" =>
-						regfile.gpr3<=alu_q1;
-					when "100" =>
-						regfile.gpr4<=alu_q1;
-					when "101" =>
-						regfile.gpr5<=alu_q1;
-					when "110" =>
-						regfile.gpr6<=alu_q1;
-					when "111" =>
-						thread.setpc<='1';
-						thread.pc<=alu_q1(e32_pc_maxbit downto 0);
-						regfile.flag_z<=alu_q1(e32_fb_zero);
-						regfile.flag_c<=alu_q1(e32_fb_carry);
-					when others =>
-						null;
-				end case;
+				if (m_reg(2 downto 0) = "111") then
+					thread.setpc<='1';
+					thread.pc<=alu_q1(e32_pc_maxbit downto 0);
+					regfile.flag_z<=alu_q1(e32_fb_zero);
+					regfile.flag_c<=alu_q1(e32_fb_carry);
+				else
+					regfile.gpr(to_integer(unsigned(m_reg(2 downto 0)))) <= alu_q1;
+				end if;
 			end if;
 		end if;
 
@@ -1276,26 +1216,13 @@ end process;
 
 idbg_pause<=idbg_break and not (idbg_singlestep);
 
-
 -- Combinational reads from register file
-
-with idbg_q(3 downto 0) select idbg_reg_q <=
-	regfile.gpr0 when "0000",
-	regfile.gpr1 when "0001",
-	regfile.gpr2 when "0010",
-	regfile.gpr3 when "0011",
-	regfile.gpr4 when "0100",
-	regfile.gpr5 when "0101",
-	regfile.gpr6 when "0110",
-	regfile.gpr7 when "0111",
-	regfile.tmp when "1000",
-	X"000000"&
-			idbg_break&"000"&
-			regfile.flag_sgn&regfile.flag_cond&regfile.flag_c&regfile.flag_z when "1001",
-	(others=>'-') when others;	-- r7 is the program counter.
+idbg_reg_q <= regfile.gpr7 when idbg_reg_q = "0111" else
+		regfile.tmp when idbg_reg_q = "1000" else
+		X"000000"&idbg_break&"000"&regfile.flag_sgn&regfile.flag_cond&regfile.flag_c&regfile.flag_z when idbg_reg_q = "1001" else
+		regfile.gpr(to_integer(unsigned(idbg_reg_q(2 downto 0))));
 
 -- Diverting load/store signals
-
 ls_addr_i<=idbg_addr when idbg_divert='1' else ls_addr;
 ls_d_i<=idbg_q  when idbg_divert='1' else ls_d;
 ls_byte_i<='0' when idbg_divert='1' else ls_byte;
