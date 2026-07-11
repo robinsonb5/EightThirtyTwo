@@ -26,7 +26,8 @@ use work.eightthirtytwo_pkg.all;
 
 entity eightthirtytwo_alu is
 generic(
-	multiplier : boolean := true
+	multiplier : boolean := true;
+	multiplier_waitstate : boolean := false
 );
 port(
 	clk : in std_logic;
@@ -54,7 +55,7 @@ signal d1_sgn : std_logic;
 signal d2_sgn : std_logic;
 signal d1_2 : std_logic_vector(31 downto 0);
 signal d2_2 : std_logic_vector(31 downto 0);
-signal busyflag : std_logic;
+signal busyflag : std_logic_vector(1 downto 0);  -- busyflag extended to support multiplier wait-state
 signal addresult : unsigned(33 downto 0);
 signal mulresult : signed(65 downto 0);
 signal immresult : std_logic_vector(31 downto 0);
@@ -101,7 +102,7 @@ d1_2 <= q2 when forward_q2tod1='1' else d1;
 
 sublsb<='1' when op=e32_alu_sub else '0';
 
-ack <= shiftack or busyflag;
+ack <= shiftack or busyflag(1);
 
 -- FIXME - signed/unsigned comparisons aren't working correctly
 d1_sgn<=d1_2(31) when op=e32_alu_sub else '0';
@@ -113,7 +114,7 @@ genmult : if multiplier=true generate
 	signal mulclk : std_logic;
 begin
 	mulclk <= clk;
-	
+
 	process(mulclk) begin
 		if rising_edge(mulclk) then
 			mulresult <= signed((d1(31) and sgn)&d1) * signed((d2(31) and sgn)&d2);
@@ -124,7 +125,7 @@ end generate;
 process(clk,reset_n)
 begin
 	if reset_n='0' then
-		busyflag<='0';
+		busyflag<="00";
 		carry<='0';
 		immediatestreak<='0';
 		q1<=(others => '0');
@@ -132,24 +133,24 @@ begin
 	elsif rising_edge(clk) then
 
 		immediatestreak<='0';
-		busyflag<='0';
+		busyflag<=busyflag(0)&"0";
 
 		case op is
 			when e32_alu_and =>
 				q1<=d1_2 and d2;
 --				carry<='-';
 				q2 <= d2;
-			
+
 			when e32_alu_or =>
 				q1<=d1_2 or d2;
 --				carry<='-';
 				q2 <= d2;
-					
+
 			when e32_alu_xor =>
 				q1<=d1_2 xor d2;
 --				carry<='-';
 				q2 <= d2;
-					
+
 			when e32_alu_shl =>
 				q1<=shiftresult; -- fixme - unnecessary delay here
 				carry<=shiftcarry;
@@ -166,7 +167,7 @@ begin
 				q2 <= d2;
 
 			when e32_alu_incb =>
-				busyflag<=req;
+				busyflag(1)<=req;
 				if req='1' then
 					q1<=d1_2;
 				else
@@ -176,7 +177,7 @@ begin
 				q2 <= d2;
 
 			when e32_alu_incw =>
-				busyflag<=req;
+				busyflag(1)<=req;
 				if req='1' then
 					q1<=d1_2;
 				else
@@ -184,7 +185,7 @@ begin
 				end if;
 --				carry<='-';
 				q2 <= d2;
-				
+
 			when e32_alu_decw =>
 				q1<=std_logic_vector(addresult(32 downto 1));
 --				carry<='-';
@@ -194,19 +195,23 @@ begin
 				q1 <=std_logic_vector(addresult(32 downto 1));
 				q2 <= d2;
 				carry<=addresult(33) xor sgn_mod;
-			
+
 			when e32_alu_add =>
 				q1 <=std_logic_vector(addresult(32 downto 1));
 				q2 <= d2;
 				carry<=addresult(33) xor sgn_mod;
-			
+
 			when e32_alu_sub =>
 				q1 <=std_logic_vector(addresult(32 downto 1));
 				q2 <= d2;
 				carry<=addresult(33) xor sgn_mod;
 
 			when e32_alu_mul =>
-				busyflag<=req;
+				if (multiplier_waitstate) then
+					busyflag(0)<=req;
+				else
+					busyflag(1)<=req;
+				end if;
 				carry<=mulresult(64); -- FIXME - check carry semantics for MUL
 				q1 <= std_logic_vector(mulresult(31 downto 0));
 				q2 <= std_logic_vector(mulresult(63 downto 32));
@@ -231,9 +236,9 @@ begin
 				q2<=d2;
 
 		end case;
-		
+
 	end if;
-	
+
 end process;
 
 shifter : entity work.eightthirtytwo_shifter

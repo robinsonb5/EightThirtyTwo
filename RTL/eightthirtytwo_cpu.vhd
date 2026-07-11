@@ -30,6 +30,7 @@ generic(
 	storealign : boolean := true;
 	interrupts : boolean := true;
 	multiplier : boolean := true;
+	multiplier_waitstate : boolean := false;
 	prefetch : boolean := true;
 	dualthread : boolean := true;
 	interruptthread : integer := 1;
@@ -377,7 +378,8 @@ end generate;
 
 alu : entity work.eightthirtytwo_alu
 generic map(
-	multiplier => multiplier
+	multiplier => multiplier,
+    multiplier_waitstate => multiplier_waitstate
 )
 port map(
 	clk => clk,
