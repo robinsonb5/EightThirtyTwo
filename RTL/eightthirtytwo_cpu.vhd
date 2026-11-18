@@ -1219,10 +1219,10 @@ end process;
 idbg_pause<=idbg_break and not (idbg_singlestep);
 
 -- Combinational reads from register file
-idbg_reg_q <= regfile.gpr7 when idbg_reg_q = "0111" else
-		regfile.tmp when idbg_reg_q = "1000" else
-		X"000000"&idbg_break&"000"&regfile.flag_sgn&regfile.flag_cond&regfile.flag_c&regfile.flag_z when idbg_reg_q = "1001" else
-		regfile.gpr(to_integer(unsigned(idbg_reg_q(2 downto 0))));
+idbg_reg_q <= regfile.gpr7 when idbg_q(3 downto 0) = "0111" else
+		regfile.tmp when idbg_q(3 downto 0) = "1000" else
+		X"000000"&idbg_break&"000"&regfile.flag_sgn&regfile.flag_cond&regfile.flag_c&regfile.flag_z when idbg_q(3 downto 0) = "1001" else
+		regfile.gpr(to_integer(unsigned(idbg_q(2 downto 0))));
 
 -- Diverting load/store signals
 ls_addr_i<=idbg_addr when idbg_divert='1' else ls_addr;

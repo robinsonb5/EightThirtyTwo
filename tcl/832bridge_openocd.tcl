@@ -29,14 +29,14 @@ set ::vjtag::devices {
 
 # Virtual IR scan
 proc ::vjtag::ir {ir} {
-	irscan $::vjtag::tap 0x42
+	irscan $::vjtag::tap $::vjtag::vir
 	return [drscan $::vjtag::tap 32 $ir]
 }
 
 
 # Virtual DR scan - shifts a value into a register attached to ER2
 proc ::vjtag::dr {v} {
-	irscan $::vjtag::tap 0x43
+	irscan $::vjtag::tap $::vjtag::vdr
 	return [drscan $::vjtag::tap 32 $v]
 }
 
